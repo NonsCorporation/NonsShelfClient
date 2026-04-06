@@ -1,6 +1,7 @@
 {
   "name": "nons-library",
   "private": true,
+  "homepage": "https://library.nonsapp.com",
   "version": "0.0.0",
   "type": "module",
   "scripts": {
