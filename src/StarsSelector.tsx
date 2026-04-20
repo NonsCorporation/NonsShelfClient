@@ -2,13 +2,13 @@ import { useState } from "react"
 import { IoMdStar, IoMdStarHalf, IoMdStarOutline } from "react-icons/io"
 
 type StarsSelectorProps = {
-  initialValue?: number
+  initialValue?: number | null
   onChange?: (value: number) => void
   isEditable?: boolean
 }
 
 export default function StarsSelector({
-  initialValue = 0,
+  initialValue = null,
   onChange = () => {},
   isEditable = false
 }: StarsSelectorProps) {
@@ -34,13 +34,13 @@ export default function StarsSelector({
 
   return (
     <div 
-      className="flex gap-0.2 text-nonsprimary"
+      className={`relative flex gap-0.2 ${displayValue === 0 || displayValue === null ? "text-gray-500" : "text-nonsprimary"} ${isEditable ? "hover:text-nonsprimaryfocus transition-colors" : ""}`}
       onMouseLeave={handleMouseLeave}
     >
       {/* create an invisible space on the left to select 0 */}
       {isEditable && (
         <div 
-          className="w-3 h-9 cursor-pointer" 
+          className="absolute -left-3 top-0 bottom-0 w-3 cursor-pointer z-10" 
           onMouseEnter={() => setHover(0)}
           onClick={() => handleClick(0)}
         />
@@ -52,7 +52,7 @@ export default function StarsSelector({
         const leftValue = starValue - 1
         const rightValue = starValue
 
-        const isFull = displayValue >= starValue
+        const isFull = displayValue ? displayValue >= starValue : false
         const isHalf = displayValue === leftValue
 
         return (
