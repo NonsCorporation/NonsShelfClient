@@ -1,11 +1,11 @@
-import { useState } from 'react'
+import StarsSelector from './StarsSelector.tsx'
 
 function App() {
-  const [count, setCount] = useState(0)
 
   return (
     <>
       <p className="text-red">Test taukwubd</p>
+      <StarsSelector initialValue={10} isEditable = {true} />
     </>
   )
 }
