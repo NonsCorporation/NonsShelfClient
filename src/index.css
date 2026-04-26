@@ -7,7 +7,9 @@
   --color-nonswhitetext: #f9f9f9;
   --color-nonwhitishgray: #e5e5e5;
   --color-nonscontainerbg: #202020;
+  --color-nonscontainer2bg: #282828;
   --color-nonsprimary: #6768ab;
+  --color-nonsprimaryfocus: #5153bd;
   --color-nonslightred: #ff6b6b;
   
   /* Status badge colors */
