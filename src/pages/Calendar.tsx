@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import Navbar from '../components/layout/Navbar.tsx';
 import { IoArrowBack, IoOptionsOutline, IoDownloadOutline, IoChevronBack, IoChevronForward } from 'react-icons/io5';
+import { useLanguage } from '../contexts/LanguageContext.tsx';
 
 const mockDataMay2026: Record<number, { covers: string[]; rating: number }> = {
     1: { covers: ['https://covers.openlibrary.org/b/id/14421255-M.jpg', 'https://image.tmdb.org/t/p/w200/q6y0Go1tsGEsmtFryDOJo3dENHA.jpg'], rating: 4 },
@@ -29,6 +30,7 @@ const mockDataMay2026: Record<number, { covers: string[]; rating: number }> = {
 };
 
 export default function CalendarPage() {
+    const { t } = useLanguage();
     const [currentDate, setCurrentDate] = useState(new Date());
 
     const currentYear = currentDate.getFullYear();
@@ -55,7 +57,7 @@ export default function CalendarPage() {
                         <Link to="/" className="p-2 -ml-2 rounded-full hover:bg-[var(--surface-hover)] transition-colors">
                             <IoArrowBack className="w-6 h-6 text-[var(--text)] hover:text-nonsprimary transition-colors" />
                         </Link>
-                        <h1 className="text-2xl md:text-3xl font-bold text-[var(--text)] tracking-tight">Media Calendar</h1>
+                        <h1 className="text-2xl md:text-3xl font-bold text-[var(--text)] tracking-tight">{t('mediaCalendar')}</h1>
                     </div>
                     <div className="flex gap-2">
                         <button className="w-10 h-10 bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)] rounded-full flex items-center justify-center shadow-sm transition-colors">
@@ -69,7 +71,7 @@ export default function CalendarPage() {
 
                 {/* Subtitle & Month Navigation */}
                 <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-6 px-1">
-                    <p className="text-[15px] sm:text-base text-[var(--text-muted)]">What have you watched and read this month?</p>
+                    <p className="text-[15px] sm:text-base text-[var(--text-muted)]">{t('calendarSubtitle')}</p>
                     
                     <div className="flex items-center gap-2.5 bg-[var(--container)] px-3 py-1.5 rounded-lg border border-[var(--border-subtle)] shadow-sm w-fit self-start sm:self-auto">
                         <button onClick={prevMonth} className="hover:bg-[var(--surface-hover)] p-1 rounded-full transition-colors">
@@ -85,13 +87,13 @@ export default function CalendarPage() {
                 {/* Calendar View */}
                 <div className="bg-[var(--container)] border border-[var(--border-subtle)] rounded-2xl shadow-sm p-4 md:p-6 overflow-hidden">
                     <div className="grid grid-cols-7 mb-4 text-center text-sm md:text-base font-medium text-[var(--text-muted)]">
-                        <div>Mon</div>
-                        <div>Tue</div>
-                        <div>Wed</div>
-                        <div>Thu</div>
-                        <div>Fri</div>
-                        <div>Sat</div>
-                        <div className="text-nonslightred">Sun</div>
+                        <div>{t('mon')}</div>
+                        <div>{t('tue')}</div>
+                        <div>{t('wed')}</div>
+                        <div>{t('thu')}</div>
+                        <div>{t('fri')}</div>
+                        <div>{t('sat')}</div>
+                        <div className="text-nonslightred">{t('sun')}</div>
                     </div>
                     
                     <div className="grid grid-cols-7 gap-y-4 md:gap-y-6 gap-x-1 md:gap-x-2">

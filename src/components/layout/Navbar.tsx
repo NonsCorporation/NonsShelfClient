@@ -1,17 +1,19 @@
 import { Link, useLocation } from 'react-router-dom';
-import { IoCalendarOutline, IoHomeOutline, IoFilm } from 'react-icons/io5';
-
-const navItems = [
-  { label: 'Home', to: '/', icon: IoHomeOutline },
-  { label: 'Calendar', to: '/calendar', icon: IoCalendarOutline },
-];
-
-const utilityItems = [
-  { label: 'Oppenheimer', to: '/oppenheimer', icon: IoFilm },
-];
+import { IoCalendarOutline, IoHomeOutline, IoFilm, IoLanguage } from 'react-icons/io5';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 export default function Navbar() {
   const location = useLocation();
+  const { language, setLanguage, t } = useLanguage();
+
+  const navItems = [
+    { label: t('home'), to: '/', icon: IoHomeOutline },
+    { label: t('calendar'), to: '/calendar', icon: IoCalendarOutline },
+  ];
+
+  const utilityItems = [
+    { label: 'Oppenheimer', to: '/oppenheimer', icon: IoFilm },
+  ];
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-transparent px-4 py-3">
@@ -44,6 +46,21 @@ export default function Navbar() {
         </div>
 
         <div className="flex items-center gap-2 self-start sm:self-auto">
+          <div className="flex rounded-xl bg-[var(--surface)] p-1 border border-[var(--border-subtle)]">
+            <button
+              onClick={() => setLanguage('en')}
+              className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${language === 'en' ? 'bg-[var(--surface-active)] text-[var(--text)]' : 'text-[var(--text-muted)] hover:text-[var(--text)]'}`}
+            >
+              EN
+            </button>
+            <button
+              onClick={() => setLanguage('ru')}
+              className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${language === 'ru' ? 'bg-[var(--surface-active)] text-[var(--text)]' : 'text-[var(--text-muted)] hover:text-[var(--text)]'}`}
+            >
+              RU
+            </button>
+          </div>
+
           {utilityItems.map((item) => {
             const active = location.pathname === item.to;
             const Icon = item.icon;

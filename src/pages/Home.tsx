@@ -7,8 +7,10 @@ import MovieCard from '../MovieCard.tsx'
 import MediaRatingWrapper from '../MediaRatingWrapper.tsx'
 import { libraryService } from '../services/libraryService.ts'
 import type { MediaItem } from '../types.ts'
+import { useLanguage } from '../contexts/LanguageContext.tsx'
 
 export default function Home() {
+  const { t } = useLanguage()
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState<'all' | 'book' | 'movie'>('all')
   const [showFilterMenu, setShowFilterMenu] = useState(false)
@@ -104,7 +106,7 @@ export default function Home() {
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search by title or author"
+          placeholder={t('searchPlaceholder')}
           className="px-3 py-2 rounded bg-white/5 border border-white/5 text-gray-100 w-64"
         />
 
@@ -135,12 +137,12 @@ export default function Home() {
                     }}
                     className="text-xs text-nonsprimary hover:text-white text-right self-end -mb-2"
                   >
-                    Clear Filters
+                    {t('clearFilters')}
                   </button>
                 )}
 
                 <div className="flex flex-col gap-1">
-                  <span className="text-[10px] uppercase tracking-widest text-[var(--text-muted)] text-gray-400 px-1">Type</span>
+                  <span className="text-[10px] uppercase tracking-widest text-[var(--text-muted)] text-gray-400 px-1">{t('type')}</span>
                   <div className="flex rounded-lg bg-black/50 p-1 border border-white/5">
                     {(['all', 'book', 'movie'] as const).map((f) => (
                       <button
@@ -148,49 +150,49 @@ export default function Home() {
                         onClick={() => setFilter(f)}
                         className={`flex-1 py-1.5 text-xs text-center rounded-md transition-colors ${filter === f ? 'bg-white/10 text-white font-medium shadow-sm' : 'text-gray-400 hover:text-white'}`}
                       >
-                        {f === 'all' && 'All'}
-                        {f === 'book' && 'Books'}
-                        {f === 'movie' && 'Movies'}
+                        {f === 'all' && t('all')}
+                        {f === 'book' && t('books')}
+                        {f === 'movie' && t('movies')}
                       </button>
                     ))}
                   </div>
                 </div>
 
                 <div className="flex flex-col gap-2 pt-2 border-t border-white/5">
-                  <span className="text-[10px] uppercase tracking-widest text-gray-400 px-1">Common Filters</span>
+                  <span className="text-[10px] uppercase tracking-widest text-gray-400 px-1">{t('commonFilters')}</span>
                   <input 
                     value={tagFilter}
                     onChange={(e) => setTagFilter(e.target.value)}
-                    placeholder="Tag / Status (e.g. Read, Watched)"
+                    placeholder={t('tagStatusPlaceholder')}
                     className="h-8 px-3 rounded-md bg-black/50 border border-white/5 text-sm text-gray-200 placeholder:text-gray-500 focus:outline-none focus:border-white/20"
                   />
                   <input 
                     value={yearFilter}
                     onChange={(e) => setYearFilter(e.target.value)}
-                    placeholder="Year"
+                    placeholder={t('year')}
                     className="h-8 px-3 rounded-md bg-black/50 border border-white/5 text-sm text-gray-200 placeholder:text-gray-500 focus:outline-none focus:border-white/20"
                   />
                   <input 
                     value={genreFilter}
                     onChange={(e) => setGenreFilter(e.target.value)}
-                    placeholder="Genre"
+                    placeholder={t('genre')}
                     className="h-8 px-3 rounded-md bg-black/50 border border-white/5 text-sm text-gray-200 placeholder:text-gray-500 focus:outline-none focus:border-white/20"
                   />
                 </div>
 
                 {filter === 'movie' && (
                   <div className="flex flex-col gap-2 pt-2 border-t border-white/5">
-                    <span className="text-[10px] uppercase tracking-widest text-gray-400 px-1">Director & Actors</span>
+                    <span className="text-[10px] uppercase tracking-widest text-gray-400 px-1">{t('directorActors')}</span>
                     <input 
                       value={directorFilter}
                       onChange={(e) => setDirectorFilter(e.target.value)}
-                      placeholder="Director"
+                      placeholder={t('director')}
                       className="h-8 px-3 rounded-md bg-black/50 border border-white/5 text-sm text-gray-200 placeholder:text-gray-500 focus:outline-none focus:border-white/20"
                     />
                     <input 
                       value={actorFilter}
                       onChange={(e) => setActorFilter(e.target.value)}
-                      placeholder="Actor"
+                      placeholder={t('actor')}
                       className="h-8 px-3 rounded-md bg-black/50 border border-white/5 text-sm text-gray-200 placeholder:text-gray-500 focus:outline-none focus:border-white/20"
                     />
                   </div>
@@ -208,12 +210,12 @@ export default function Home() {
           <div onClick={(e) => e.stopPropagation()} className="w-full max-w-xl rounded-2xl border border-[var(--border)] bg-[var(--container)] shadow-2xl overflow-hidden">
             <div className="px-5 py-4 border-b border-[var(--divider)] bg-[var(--surface)]">
               <div className="flex items-center gap-2">
-                <h3 className="text-lg font-semibold tracking-wide text-[var(--text)]">Add New Entry</h3>
+                <h3 className="text-lg font-semibold tracking-wide text-[var(--text)]">{t('addNewEntry')}</h3>
                 <button onClick={() => setShowForm(null)} className="ml-auto h-8 w-8 rounded-full bg-[var(--surface)] hover:bg-[var(--surface-hover)] flex items-center justify-center" aria-label="Close modal">
                   <IoClose className="w-4 h-4 text-[var(--text-muted)]" />
                 </button>
               </div>
-              <p className="text-xs text-[var(--text-muted)] mt-1 tracking-wide">Choose a type and fill in the details</p>
+              <p className="text-xs text-[var(--text-muted)] mt-1 tracking-wide">{t('chooseTypeDesc')}</p>
             </div>
 
             <div className="px-5 pt-4">
@@ -223,28 +225,28 @@ export default function Home() {
                   className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition ${showForm === 'book' ? 'bg-[var(--surface-active)] text-[var(--text)] border border-[var(--border-strong)]' : 'text-[var(--text-muted)] hover:bg-[var(--surface-hover)]'}`}
                 >
                   <IoBookOutline className="w-4 h-4" />
-                  Book
+                  {t('book')}
                 </button>
                 <button
                   onClick={() => setShowForm('movie')}
                   className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition ${showForm === 'movie' ? 'bg-[var(--surface-active)] text-[var(--text)] border border-[var(--border-strong)]' : 'text-[var(--text-muted)] hover:bg-[var(--surface-hover)]'}`}
                 >
                   <IoFilmOutline className="w-4 h-4" />
-                  Movie
+                  {t('movie')}
                 </button>
               </div>
             </div>
 
             <div className="p-5 pt-4 flex flex-col gap-3">
-              <input className="h-11 px-3 rounded-lg bg-[var(--input)] border border-[var(--border-subtle)] text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--color-nonsprimaryfocus)]" placeholder="Title" value={form.title} onChange={(e) => setForm((s:any)=>({...s,title:e.target.value}))} />
-              <input className="h-11 px-3 rounded-lg bg-[var(--input)] border border-[var(--border-subtle)] text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--color-nonsprimaryfocus)]" placeholder="Author / Director" value={form.author} onChange={(e) => setForm((s:any)=>({...s,author:e.target.value}))} />
-              <input className="h-11 px-3 rounded-lg bg-[var(--input)] border border-[var(--border-subtle)] text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--color-nonsprimaryfocus)]" placeholder="Cover URL" value={form.coverUrl} onChange={(e) => setForm((s:any)=>({...s,coverUrl:e.target.value}))} />
-              <input className="h-11 px-3 rounded-lg bg-[var(--input)] border border-[var(--border-subtle)] text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--color-nonsprimaryfocus)]" placeholder="Genre (comma separated)" value={form.genre} onChange={(e) => setForm((s:any)=>({...s,genre:e.target.value}))} />
-              <input className="h-11 px-3 rounded-lg bg-[var(--input)] border border-[var(--border-subtle)] text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--color-nonsprimaryfocus)]" placeholder="Tags (comma separated, e.g. Read, Want to Watch)" value={form.tags} onChange={(e) => setForm((s:any)=>({...s,tags:e.target.value}))} />
+              <input className="h-11 px-3 rounded-lg bg-[var(--input)] border border-[var(--border-subtle)] text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--color-nonsprimaryfocus)]" placeholder={t('title')} value={form.title} onChange={(e) => setForm((s:any)=>({...s,title:e.target.value}))} />
+              <input className="h-11 px-3 rounded-lg bg-[var(--input)] border border-[var(--border-subtle)] text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--color-nonsprimaryfocus)]" placeholder={t('authorDirector')} value={form.author} onChange={(e) => setForm((s:any)=>({...s,author:e.target.value}))} />
+              <input className="h-11 px-3 rounded-lg bg-[var(--input)] border border-[var(--border-subtle)] text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--color-nonsprimaryfocus)]" placeholder={t('coverUrl')} value={form.coverUrl} onChange={(e) => setForm((s:any)=>({...s,coverUrl:e.target.value}))} />
+              <input className="h-11 px-3 rounded-lg bg-[var(--input)] border border-[var(--border-subtle)] text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--color-nonsprimaryfocus)]" placeholder={t('genrePlaceholder')} value={form.genre} onChange={(e) => setForm((s:any)=>({...s,genre:e.target.value}))} />
+              <input className="h-11 px-3 rounded-lg bg-[var(--input)] border border-[var(--border-subtle)] text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--color-nonsprimaryfocus)]" placeholder={t('tagsPlaceholder')} value={form.tags} onChange={(e) => setForm((s:any)=>({...s,tags:e.target.value}))} />
               {showForm === 'movie' && (
                 <>
-                  <input className="h-11 px-3 rounded-lg bg-[var(--input)] border border-[var(--border-subtle)] text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--color-nonsprimaryfocus)]" placeholder="Year" value={form.year} onChange={(e) => setForm((s:any)=>({...s,year:e.target.value}))} />
-                  <input className="h-11 px-3 rounded-lg bg-[var(--input)] border border-[var(--border-subtle)] text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--color-nonsprimaryfocus)]" placeholder="Actors (comma separated)" value={form.actors} onChange={(e) => setForm((s:any)=>({...s,actors:e.target.value}))} />
+                  <input className="h-11 px-3 rounded-lg bg-[var(--input)] border border-[var(--border-subtle)] text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--color-nonsprimaryfocus)]" placeholder={t('year')} value={form.year} onChange={(e) => setForm((s:any)=>({...s,year:e.target.value}))} />
+                  <input className="h-11 px-3 rounded-lg bg-[var(--input)] border border-[var(--border-subtle)] text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--color-nonsprimaryfocus)]" placeholder={t('actorsPlaceholder')} value={form.actors} onChange={(e) => setForm((s:any)=>({...s,actors:e.target.value}))} />
                 </>
               )}
               <div className="flex justify-end gap-2 pt-1">
@@ -254,12 +256,12 @@ export default function Home() {
                     setItems(prev => prev.filter(it => it.id !== form.id))
                     setShowForm(null)
                   }} className="px-4 h-10 rounded-lg bg-red-500/20 text-red-500 font-medium hover:bg-red-500/30 transition-colors mr-auto">
-                    Delete
+                    {t('delete')}
                   </button>
                 )}
-                <button onClick={() => setShowForm(null)} className="px-4 h-10 rounded-lg bg-[var(--surface)] border border-[var(--border-subtle)] text-[var(--text-muted)] hover:bg-[var(--surface-hover)]">Cancel</button>
+                <button onClick={() => setShowForm(null)} className="px-4 h-10 rounded-lg bg-[var(--surface)] border border-[var(--border-subtle)] text-[var(--text-muted)] hover:bg-[var(--surface-hover)]">{t('cancel')}</button>
                 <button onClick={addItem} className="px-4 h-10 rounded-lg bg-nonsprimary text-[var(--text)] font-medium hover:bg-nonsprimaryfocus">
-                  {form.id ? 'Save' : `Add ${showForm === 'book' ? 'Book' : 'Movie'}`}
+                  {form.id ? t('save') : `${t('add')} ${showForm === 'book' ? t('book') : t('movie')}`}
                 </button>
               </div>
             </div>

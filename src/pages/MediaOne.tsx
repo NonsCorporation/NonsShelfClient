@@ -5,8 +5,10 @@ import StarsSelector from '../StarsSelector'
 import { libraryService } from '../services/libraryService'
 import type { MediaItem } from '../types'
 import { IoFilm, IoBookSharp, IoTimeOutline, IoBookmark, IoBookmarkOutline, IoShareOutline, IoCreateOutline, IoClose } from 'react-icons/io5'
+import { useLanguage } from '../contexts/LanguageContext'
 
 export default function MediaOnePage() {
+    const { t } = useLanguage()
     const { id } = useParams<{ id: string }>()
     const [item, setItem] = useState<MediaItem | null>(null)
     const [loading, setLoading] = useState(true)
@@ -58,8 +60,8 @@ export default function MediaOnePage() {
         await libraryService.updateItem(id, { rating: val })
     }
 
-    if (loading) return <div className="pt-32 text-center text-gray-500">Loading...</div>
-    if (!item) return <div className="pt-32 text-center text-gray-500">Item not found</div>
+    if (loading) return <div className="pt-32 text-center text-gray-500">{t('loading')}</div>
+    if (!item) return <div className="pt-32 text-center text-gray-500">{t('itemNotFound')}</div>
 
     const isBook = item.type === 'book'
     const Icon = isBook ? IoBookSharp : IoFilm
@@ -121,7 +123,7 @@ export default function MediaOnePage() {
                                     ? <IoBookmark className="w-4 h-4" />
                                     : <IoBookmarkOutline className="w-4 h-4" />
                                 }
-                                {isBookmarked ? 'Saved' : 'Save'}
+                                {isBookmarked ? t('saved') : t('save')}
                             </button>
                             <button
                                 className="h-10 w-10 rounded-lg bg-[var(--surface)] border border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--text)] hover:border-[var(--border)] flex items-center justify-center transition-all duration-200"
@@ -139,7 +141,7 @@ export default function MediaOnePage() {
                         <div>
                             <div className="flex items-center gap-2 text-[var(--text-muted)] text-xs uppercase tracking-widest mb-2">
                                 <Icon className="w-3.5 h-3.5" />
-                                <span>{isBook ? 'Book' : 'Film'}</span>
+                                <span>{isBook ? t('book') : t('film')}</span>
                                 <span className="text-[var(--border)]">·</span>
                                 <span>{mediaData.year}</span>
                                 {!isBook && mediaData.duration && (
@@ -152,7 +154,7 @@ export default function MediaOnePage() {
                                 {isBook && mediaData.pages > 0 && (
                                     <>
                                         <span className="text-[var(--border)]">·</span>
-                                        <span>{mediaData.pages} pages</span>
+                                        <span>{t('pagesCount', { count: mediaData.pages })}</span>
                                     </>
                                 )}
                             </div>
@@ -171,7 +173,7 @@ export default function MediaOnePage() {
                             </div>
 
                             <p className="text-sm text-[var(--text-muted)]">
-                                {isBook ? 'Written by' : 'Directed by'}{' '}
+                                {isBook ? t('writtenBy') : t('directedBy')}{' '}
                                 <span className="text-[var(--text)] font-medium">
                                     {isBook ? mediaData.author : mediaData.director}
                                 </span>
@@ -183,16 +185,16 @@ export default function MediaOnePage() {
 
                         {/* Description */}
                         <div>
-                            <h3 className="text-[10px] uppercase tracking-widest text-[var(--text-muted)] mb-2">Synopsis</h3>
+                            <h3 className="text-[10px] uppercase tracking-widest text-[var(--text-muted)] mb-2">{t('synopsis')}</h3>
                             <p className="text-sm leading-7 text-[var(--text-muted)]">
-                                {mediaData.description || 'No description available.'}
+                                {mediaData.description || t('noDescription')}
                             </p>
                         </div>
 
                         {/* Genre tags */}
                         {item.genre && (Array.isArray(item.genre) ? item.genre.length > 0 : !!item.genre) && (
                             <div>
-                                <h3 className="text-[10px] uppercase tracking-widest text-[var(--text-muted)] mb-2.5">Genre</h3>
+                                <h3 className="text-[10px] uppercase tracking-widest text-[var(--text-muted)] mb-2.5">{t('genre')}</h3>
                                 <div className="flex flex-wrap gap-2">
                                     {(Array.isArray(item.genre) ? item.genre : [item.genre]).map((g) => (
                                         <span
@@ -209,7 +211,7 @@ export default function MediaOnePage() {
                         {/* Cast */}
                         {!isBook && mediaData.actors && (
                             <div>
-                                <h3 className="text-[10px] uppercase tracking-widest text-[var(--text-muted)] mb-2.5">Cast</h3>
+                                <h3 className="text-[10px] uppercase tracking-widest text-[var(--text-muted)] mb-2.5">{t('cast')}</h3>
                                 <div className="flex flex-wrap gap-2">
                                     {mediaData.actors.split(',').map(a => a.trim()).filter(Boolean).map((actor) => (
                                         <span
@@ -226,7 +228,7 @@ export default function MediaOnePage() {
                         {/* User Rating & Review */}
                         <div className="bg-[var(--surface)] border border-[var(--border-subtle)] rounded-xl p-5 flex flex-col gap-4">
                             <div className="flex items-center justify-between">
-                                <h3 className="text-[10px] uppercase tracking-widest text-[var(--text-muted)]">Your Review</h3>
+                                <h3 className="text-[10px] uppercase tracking-widest text-[var(--text-muted)]">{t('yourReview')}</h3>
                             </div>
                             
                             <div className="flex items-center gap-3">
@@ -240,7 +242,7 @@ export default function MediaOnePage() {
                                 value={userReview}
                                 onChange={(event) => setUserReview(event.target.value)}
                                 rows={2}
-                                placeholder={`What did you think of this ${isBook ? 'book' : 'film'}?`}
+                                placeholder={t('reviewPlaceholder', { type: isBook ? t('book').toLowerCase() : t('film').toLowerCase() })}
                                 className="w-full resize-none rounded-lg bg-[var(--bg)] border border-[var(--border-subtle)]/50 p-3 text-sm text-[var(--text)] placeholder:text-[var(--text-muted)]/40 focus:border-[var(--border)] focus:outline-none transition-all"
                             />
                         </div>
@@ -256,8 +258,8 @@ export default function MediaOnePage() {
                         <div className="px-5 py-4 border-b border-[var(--divider)] bg-[var(--surface)] flex-shrink-0">
                             <div className="flex flex-row items-center justify-between gap-2">
                                 <div>
-                                    <h3 className="text-lg font-semibold tracking-wide text-[var(--text)]">Edit Details</h3>
-                                    <p className="text-xs text-[var(--text-muted)] mt-1 tracking-wide">Update the information for this {isBook ? 'book' : 'film'}</p>
+                                    <h3 className="text-lg font-semibold tracking-wide text-[var(--text)]">{t('editDetails')}</h3>
+                                    <p className="text-xs text-[var(--text-muted)] mt-1 tracking-wide">{t('updateInfo', { type: isBook ? t('book').toLowerCase() : t('film').toLowerCase() })}</p>
                                 </div>
                                 <button onClick={() => setIsEditing(false)} className="h-8 w-8 rounded-full bg-[var(--surface)] hover:bg-[var(--surface-hover)] flex items-center justify-center" aria-label="Close modal">
                                     <IoClose className="w-4 h-4 text-[var(--text-muted)]" />
@@ -267,53 +269,53 @@ export default function MediaOnePage() {
 
                         <div className="p-5 flex-1 overflow-y-auto flex flex-col gap-3">
                             <label className="flex flex-col gap-1 text-sm text-[var(--text-muted)]">
-                                Title
-                                <input className="h-11 px-3 rounded-lg bg-[var(--input)] border border-[var(--border-subtle)] text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--color-nonsprimaryfocus)]" placeholder="Title" value={mediaData.title} onChange={(e) => setMediaData(s => ({...s, title: e.target.value}))} />
+                                {t('title')}
+                                <input className="h-11 px-3 rounded-lg bg-[var(--input)] border border-[var(--border-subtle)] text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--color-nonsprimaryfocus)]" placeholder={t('title')} value={mediaData.title} onChange={(e) => setMediaData(s => ({...s, title: e.target.value}))} />
                             </label>
                             
                             <label className="flex flex-col gap-1 text-sm text-[var(--text-muted)]">
-                                {isBook ? 'Author' : 'Director'}
-                                <input className="h-11 px-3 rounded-lg bg-[var(--input)] border border-[var(--border-subtle)] text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--color-nonsprimaryfocus)]" placeholder={isBook ? "Author" : "Director"} value={isBook ? mediaData.author : mediaData.director} onChange={(e) => setMediaData(s => isBook ? ({...s, author: e.target.value}) : ({...s, director: e.target.value}))} />
+                                {isBook ? t('book') : t('director')}
+                                <input className="h-11 px-3 rounded-lg bg-[var(--input)] border border-[var(--border-subtle)] text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--color-nonsprimaryfocus)]" placeholder={isBook ? t('book') : t('director')} value={isBook ? mediaData.author : mediaData.director} onChange={(e) => setMediaData(s => isBook ? ({...s, author: e.target.value}) : ({...s, director: e.target.value}))} />
                             </label>
                             
                             <label className="flex flex-col gap-1 text-sm text-[var(--text-muted)]">
-                                Cover URL
-                                <input className="h-11 px-3 rounded-lg bg-[var(--input)] border border-[var(--border-subtle)] text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--color-nonsprimaryfocus)]" placeholder="Cover URL" value={mediaData.coverUrl} onChange={(e) => setMediaData(s => ({...s, coverUrl: e.target.value}))} />
+                                {t('coverUrl')}
+                                <input className="h-11 px-3 rounded-lg bg-[var(--input)] border border-[var(--border-subtle)] text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--color-nonsprimaryfocus)]" placeholder={t('coverUrl')} value={mediaData.coverUrl} onChange={(e) => setMediaData(s => ({...s, coverUrl: e.target.value}))} />
                             </label>
                             
                             <label className="flex flex-col gap-1 text-sm text-[var(--text-muted)]">
-                                Year
-                                <input className="h-11 px-3 rounded-lg bg-[var(--input)] border border-[var(--border-subtle)] text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--color-nonsprimaryfocus)]" placeholder="Year" value={mediaData.year} onChange={(e) => setMediaData(s => ({...s, year: Number(e.target.value) || e.target.value as any}))} />
+                                {t('year')}
+                                <input className="h-11 px-3 rounded-lg bg-[var(--input)] border border-[var(--border-subtle)] text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--color-nonsprimaryfocus)]" placeholder={t('year')} value={mediaData.year} onChange={(e) => setMediaData(s => ({...s, year: Number(e.target.value) || e.target.value as any}))} />
                             </label>
 
                             {isBook ? (
                                 <label className="flex flex-col gap-1 text-sm text-[var(--text-muted)]">
-                                    Pages
-                                    <input className="h-11 px-3 rounded-lg bg-[var(--input)] border border-[var(--border-subtle)] text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--color-nonsprimaryfocus)]" placeholder="Pages" value={mediaData.pages} onChange={(e) => setMediaData(s => ({...s, pages: Number(e.target.value) || 0}))} />
+                                    {t('pages')}
+                                    <input className="h-11 px-3 rounded-lg bg-[var(--input)] border border-[var(--border-subtle)] text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--color-nonsprimaryfocus)]" placeholder={t('pages')} value={mediaData.pages} onChange={(e) => setMediaData(s => ({...s, pages: Number(e.target.value) || 0}))} />
                                 </label>
                             ) : (
                                 <>
                                     <label className="flex flex-col gap-1 text-sm text-[var(--text-muted)]">
-                                        Duration
-                                        <input className="h-11 px-3 rounded-lg bg-[var(--input)] border border-[var(--border-subtle)] text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--color-nonsprimaryfocus)]" placeholder="E.g., 120 min" value={mediaData.duration} onChange={(e) => setMediaData(s => ({...s, duration: e.target.value}))} />
+                                        {t('duration')}
+                                        <input className="h-11 px-3 rounded-lg bg-[var(--input)] border border-[var(--border-subtle)] text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--color-nonsprimaryfocus)]" placeholder={t('durationPlaceholder')} value={mediaData.duration} onChange={(e) => setMediaData(s => ({...s, duration: e.target.value}))} />
                                     </label>
                                     
                                     <label className="flex flex-col gap-1 text-sm text-[var(--text-muted)]">
-                                        Actors (comma separated)
-                                        <input className="h-11 px-3 rounded-lg bg-[var(--input)] border border-[var(--border-subtle)] text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--color-nonsprimaryfocus)]" placeholder="Actors" value={mediaData.actors} onChange={(e) => setMediaData(s => ({...s, actors: e.target.value}))} />
+                                        {t('actorsPlaceholder')}
+                                        <input className="h-11 px-3 rounded-lg bg-[var(--input)] border border-[var(--border-subtle)] text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--color-nonsprimaryfocus)]" placeholder={t('actorsPlaceholder')} value={mediaData.actors} onChange={(e) => setMediaData(s => ({...s, actors: e.target.value}))} />
                                     </label>
                                 </>
                             )}
 
                             <label className="flex flex-col gap-1 text-sm text-[var(--text-muted)]">
-                                Description
-                                <textarea rows={4} className="p-3 resize-none rounded-lg bg-[var(--input)] border border-[var(--border-subtle)] text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--color-nonsprimaryfocus)]" placeholder="Synopsis" value={mediaData.description} onChange={(e) => setMediaData(s => ({...s, description: e.target.value}))} />
+                                {t('synopsis')}
+                                <textarea rows={4} className="p-3 resize-none rounded-lg bg-[var(--input)] border border-[var(--border-subtle)] text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--color-nonsprimaryfocus)]" placeholder={t('synopsis')} value={mediaData.description} onChange={(e) => setMediaData(s => ({...s, description: e.target.value}))} />
                             </label>
                         </div>
                         
                         <div className="px-5 py-4 border-t border-[var(--divider)] bg-[var(--surface)] flex gap-2 flex-shrink-0">
-                            <button onClick={handleSave} className="px-4 h-10 rounded-lg bg-nonsprimary text-[var(--text)] font-medium hover:bg-nonsprimaryfocus">Save</button>
-                            <button onClick={() => setIsEditing(false)} className="px-4 h-10 rounded-lg bg-[var(--surface)] border border-[var(--border-subtle)] text-[var(--text-muted)] hover:bg-[var(--surface-hover)]">Cancel</button>
+                            <button onClick={handleSave} className="px-4 h-10 rounded-lg bg-nonsprimary text-[var(--text)] font-medium hover:bg-nonsprimaryfocus">{t('save')}</button>
+                            <button onClick={() => setIsEditing(false)} className="px-4 h-10 rounded-lg bg-[var(--surface)] border border-[var(--border-subtle)] text-[var(--text-muted)] hover:bg-[var(--surface-hover)]">{t('cancel')}</button>
                         </div>
                     </div>
                 </div>

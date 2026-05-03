@@ -1,0 +1,219 @@
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+
+export type Language = 'en' | 'ru';
+
+interface Translations {
+  [key: string]: {
+    [key in Language]: string;
+  };
+}
+
+export const translations: Translations = {
+  searchPlaceholder: {
+    en: 'Search by title or author',
+    ru: 'Поиск по названию или автору',
+  },
+  all: {
+    en: 'All',
+    ru: 'Все',
+  },
+  books: {
+    en: 'Books',
+    ru: 'Книги',
+  },
+  movies: {
+    en: 'Movies',
+    ru: 'Фильмы',
+  },
+  clearFilters: {
+    en: 'Clear Filters',
+    ru: 'Сбросить фильтры',
+  },
+  type: {
+    en: 'Type',
+    ru: 'Тип',
+  },
+  commonFilters: {
+    en: 'Common Filters',
+    ru: 'Общие фильтры',
+  },
+  tagStatusPlaceholder: {
+    en: 'Tag / Status (e.g. Read, Watched)',
+    ru: 'Тег / Статус (например, Прочитано, Просмотрено)',
+  },
+  year: {
+    en: 'Year',
+    ru: 'Год',
+  },
+  genre: {
+    en: 'Genre',
+    ru: 'Жанр',
+  },
+  directorActors: {
+    en: 'Director & Actors',
+    ru: 'Режиссер и актеры',
+  },
+  director: {
+    en: 'Director',
+    ru: 'Режиссер',
+  },
+  actor: {
+    en: 'Actor',
+    ru: 'Актер',
+  },
+  addNewEntry: {
+    en: 'Add New Entry',
+    ru: 'Добавить запись',
+  },
+  chooseTypeDesc: {
+    en: 'Choose a type and fill in the details',
+    ru: 'Выберите тип и заполните детали',
+  },
+  book: {
+    en: 'Book',
+    ru: 'Книга',
+  },
+  movie: {
+    en: 'Movie',
+    ru: 'Фильм',
+  },
+  title: {
+    en: 'Title',
+    ru: 'Название',
+  },
+  authorDirector: {
+    en: 'Author / Director',
+    ru: 'Автор / Режиссер',
+  },
+  coverUrl: {
+    en: 'Cover URL',
+    ru: 'Ссылка на обложку',
+  },
+  genrePlaceholder: {
+    en: 'Genre (comma separated)',
+    ru: 'Жанр (через запятую)',
+  },
+  tagsPlaceholder: {
+    en: 'Tags (comma separated, e.g. Read, Want to Watch)',
+    ru: 'Теги (через запятую, например, Прочитано)',
+  },
+  actorsPlaceholder: {
+    en: 'Actors (comma separated)',
+    ru: 'Актеры (через запятую)',
+  },
+  save: {
+    en: 'Save',
+    ru: 'Сохранить',
+  },
+  cancel: {
+    en: 'Cancel',
+    ru: 'Отмена',
+  },
+  delete: {
+    en: 'Delete',
+    ru: 'Удалить',
+  },
+  add: {
+    en: 'Add',
+    ru: 'Добавить',
+  },
+  home: {
+    en: 'Home',
+    ru: 'Главная',
+  },
+  calendar: {
+    en: 'Calendar',
+    ru: 'Календарь',
+  },
+  mediaCalendar: {
+    en: 'Media Calendar',
+    ru: 'Медиа Календарь',
+  },
+  calendarSubtitle: {
+    en: 'What have you watched and read this month?',
+    ru: 'Что вы посмотрели и прочитали в этом месяце?',
+  },
+  mon: { en: 'Mon', ru: 'Пн' },
+  tue: { en: 'Tue', ru: 'Вт' },
+  wed: { en: 'Wed', ru: 'Ср' },
+  thu: { en: 'Thu', ru: 'Чт' },
+  fri: { en: 'Fri', ru: 'Пт' },
+  sat: { en: 'Sat', ru: 'Сб' },
+  sun: { en: 'Sun', ru: 'Вс' },
+  loading: { en: 'Loading...', ru: 'Загрузка...' },
+  itemNotFound: { en: 'Item not found', ru: 'Запись не найдена' },
+  saved: { en: 'Saved', ru: 'Сохранено' },
+  film: { en: 'Film', ru: 'Фильм' },
+  writtenBy: { en: 'Written by', ru: 'Автор:' },
+  directedBy: { en: 'Directed by', ru: 'Режиссер:' },
+  synopsis: { en: 'Synopsis', ru: 'Синопсис' },
+  noDescription: { en: 'No description available.', ru: 'Описание отсутствует.' },
+  cast: { en: 'Cast', ru: 'В ролях' },
+  yourReview: { en: 'Your Review', ru: 'Ваш отзыв' },
+  reviewPlaceholder: { 
+    en: 'What did you think of this {type}?', 
+    ru: 'Что вы думаете об этой {type}?' 
+  },
+  editDetails: { en: 'Edit Details', ru: 'Редактировать детали' },
+  updateInfo: { 
+    en: 'Update the information for this {type}', 
+    ru: 'Обновить информацию об этой {type}' 
+  },
+  pages: { en: 'Pages', ru: 'Страницы' },
+  duration: { en: 'Duration', ru: 'Длительность' },
+  durationPlaceholder: { en: 'E.g., 120 min', ru: 'Например, 120 мин' },
+  pagesCount: { en: '{count} pages', ru: '{count} стр.' }
+};
+
+interface LanguageContextType {
+  language: Language;
+  setLanguage: (lang: Language) => void;
+  t: (key: string, variables?: Record<string, string | number>) => string;
+}
+
+const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
+
+export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const [language, setLanguageState] = useState<Language>(() => {
+    const saved = localStorage.getItem('language');
+    if (saved === 'en' || saved === 'ru') return saved;
+    
+    // Default to browser language if supported
+    const browserLang = navigator.language.split('-')[0];
+    if (browserLang === 'ru') return 'ru';
+    return 'en';
+  });
+
+  const setLanguage = (lang: Language) => {
+    setLanguageState(lang);
+    localStorage.setItem('language', lang);
+  };
+
+  const t = (key: string, variables?: Record<string, string | number>): string => {
+    if (!translations[key]) {
+      console.warn(`Translation key not found: ${key}`);
+      return key;
+    }
+    let translation = translations[key][language];
+    if (variables) {
+      Object.entries(variables).forEach(([name, value]) => {
+        translation = translation.replace(`{${name}}`, String(value));
+      });
+    }
+    return translation;
+  };
+
+  return (
+    <LanguageContext.Provider value={{ language, setLanguage, t }}>
+      {children}
+    </LanguageContext.Provider>
+  );
+};
+
+export const useLanguage = () => {
+  const context = useContext(LanguageContext);
+  if (context === undefined) {
+    throw new Error('useLanguage must be used within a LanguageProvider');
+  }
+  return context;
+};
