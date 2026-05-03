@@ -1,63 +1,85 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useParams } from 'react-router-dom'
 import Navbar from "../components/layout/Navbar"
 import StarsSelector from '../StarsSelector'
-import { IoFilm, IoBookSharp, IoTimeOutline, IoStar, IoBookmark, IoBookmarkOutline, IoShareOutline, IoCreateOutline, IoClose } from 'react-icons/io5'
+import { libraryService } from '../services/libraryService'
+import type { MediaItem } from '../types'
+import { IoFilm, IoBookSharp, IoTimeOutline, IoBookmark, IoBookmarkOutline, IoShareOutline, IoCreateOutline, IoClose } from 'react-icons/io5'
 
-type MediaType = 'book' | 'movie'
+export default function MediaOnePage() {
+    const { id } = useParams<{ id: string }>()
+    const [item, setItem] = useState<MediaItem | null>(null)
+    const [loading, setLoading] = useState(true)
 
-type MediaOneProps = {
-    type?: MediaType
-    title?: string
-    coverUrl?: string
-    author?: string
-    director?: string
-    actors?: string[]
-    pages?: number
-    genre?: string[]
-    year?: number
-    duration?: string
-    rating?: number
-    description?: string
-    review?: string
-}
-
-export default function MediaOnePage({ 
-    type = 'movie',
-    title = 'Oppenheimer',
-    coverUrl = 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTe1j9bbY0YVkv1PltjgDPl1T0pSYCoV9v-8A&s',
-    author = 'Christopher Nolan',
-    director = 'Christopher Nolan',
-    actors = ['Cillian Murphy', 'Emily Blunt', 'Matt Damon'],
-    pages,
-    genre = ['Biography', 'Drama', 'History'],
-    year = 2023,
-    duration = '180 min',
-    rating = 8.5,
-    description = 'The story of American scientist J. Robert Oppenheimer and his role in the development of the atomic bomb.',
-    review = 'A landmark film that balances science, policy, and personal drama with powerful performances.'
-}: MediaOneProps) {
     const [userRating, setUserRating] = useState<number | null>(null)
-    const [userReview, setUserReview] = useState(review)
+    const [userReview, setUserReview] = useState('')
     const [isBookmarked, setIsBookmarked] = useState(false)
     const [isEditing, setIsEditing] = useState(false)
     
     // Store props in local state so they can be edited
     const [mediaData, setMediaData] = useState({
-        title, 
-        author, 
-        director, 
-        actors: actors?.join(', ') || '', 
-        year, 
-        duration, 
-        description,
-        coverUrl
+        title: '', 
+        author: '', 
+        director: '', 
+        actors: '', 
+        year: 2024, 
+        duration: '', 
+        description: '',
+        coverUrl: '',
+        pages: 0
     })
 
-    const isBook = type === 'book'
+    useEffect(() => {
+        if (id) {
+            libraryService.getItems().then(items => {
+                const found = items.find(it => it.id === id)
+                if (found) {
+                    setItem(found)
+                    setUserRating(found.rating ?? null)
+                    setMediaData({
+                        title: found.title,
+                        author: found.author,
+                        director: found.director || '',
+                        actors: found.actors?.join(', ') || '',
+                        year: found.year || 2024,
+                        duration: found.duration || '',
+                        description: found.description || '',
+                        coverUrl: found.coverUrl || '',
+                        pages: found.pages || 0
+                    })
+                }
+                setLoading(false)
+            })
+        }
+    }, [id])
+
+    const handleRatingChange = async (val: number) => {
+        if (!id) return
+        setUserRating(val)
+        await libraryService.updateItem(id, { rating: val })
+    }
+
+    if (loading) return <div className="pt-32 text-center text-gray-500">Loading...</div>
+    if (!item) return <div className="pt-32 text-center text-gray-500">Item not found</div>
+
+    const isBook = item.type === 'book'
     const Icon = isBook ? IoBookSharp : IoFilm
     const displayRating = userRating !== null ? `${userRating / 2}/5` : null
 
-    const handleSave = () => {
+    const handleSave = async () => {
+        if (!id) return
+        const updated = await libraryService.updateItem(id, {
+            title: mediaData.title,
+            author: mediaData.author,
+            director: isBook ? undefined : mediaData.director,
+            actors: mediaData.actors.split(',').map(s => s.trim()).filter(Boolean),
+            year: mediaData.year,
+            coverUrl: mediaData.coverUrl,
+            duration: mediaData.duration,
+            description: mediaData.description,
+            pages: mediaData.pages
+        })
+        setItem(updated)
         setIsEditing(false)
     }
 
@@ -68,7 +90,7 @@ export default function MediaOnePage({
             {/* Blurred hero backdrop */}
             <div
                 className="fixed inset-0 opacity-10 bg-cover bg-center blur-3xl scale-110 pointer-events-none"
-                style={{ backgroundImage: `url(${coverUrl})`, zIndex: 0 }}
+                style={{ backgroundImage: `url(${mediaData.coverUrl})`, zIndex: 0 }}
             />
 
             <div className="relative z-10 max-w-4xl mx-auto px-4 md:px-6 pt-28 md:pt-32">
@@ -121,17 +143,17 @@ export default function MediaOnePage({
                                 <span>{isBook ? 'Book' : 'Film'}</span>
                                 <span className="text-[var(--border)]">·</span>
                                 <span>{mediaData.year}</span>
-                                {!isBook && (
+                                {!isBook && mediaData.duration && (
                                     <>
                                         <span className="text-[var(--border)]">·</span>
                                         <IoTimeOutline className="w-3.5 h-3.5" />
                                         <span>{mediaData.duration}</span>
                                     </>
                                 )}
-                                {isBook && pages && (
+                                {isBook && mediaData.pages > 0 && (
                                     <>
                                         <span className="text-[var(--border)]">·</span>
-                                        <span>{pages} pages</span>
+                                        <span>{mediaData.pages} pages</span>
                                     </>
                                 )}
                             </div>
@@ -164,16 +186,16 @@ export default function MediaOnePage({
                         <div>
                             <h3 className="text-[10px] uppercase tracking-widest text-[var(--text-muted)] mb-2">Synopsis</h3>
                             <p className="text-sm leading-7 text-[var(--text-muted)]">
-                                {mediaData.description}
+                                {mediaData.description || 'No description available.'}
                             </p>
                         </div>
 
                         {/* Genre tags */}
-                        {genre && genre.length > 0 && (
+                        {item.genre && (Array.isArray(item.genre) ? item.genre.length > 0 : !!item.genre) && (
                             <div>
                                 <h3 className="text-[10px] uppercase tracking-widest text-[var(--text-muted)] mb-2.5">Genre</h3>
                                 <div className="flex flex-wrap gap-2">
-                                    {genre.map((g) => (
+                                    {(Array.isArray(item.genre) ? item.genre : [item.genre]).map((g) => (
                                         <span
                                             key={g}
                                             className="px-3 py-1 rounded-full bg-[var(--surface)] border border-[var(--border-subtle)] text-xs text-[var(--text)] hover:border-[var(--border)] transition-colors cursor-default"
@@ -186,7 +208,7 @@ export default function MediaOnePage({
                         )}
 
                         {/* Cast */}
-                        {!isBook && mediaData.actors && mediaData.actors.length > 0 && (
+                        {!isBook && mediaData.actors && (
                             <div>
                                 <h3 className="text-[10px] uppercase tracking-widest text-[var(--text-muted)] mb-2.5">Cast</h3>
                                 <div className="flex flex-wrap gap-2">
@@ -209,7 +231,7 @@ export default function MediaOnePage({
                             </div>
                             
                             <div className="flex items-center gap-3">
-                                <StarsSelector initialValue={userRating} onChange={setUserRating} isEditable />
+                                <StarsSelector initialValue={userRating} onChange={handleRatingChange} isEditable />
                                 <span className={`text-sm font-medium transition-opacity duration-200 ${userRating !== null ? 'opacity-100 text-[var(--text)]' : 'opacity-0'}`}>
                                     {displayRating}
                                 </span>
@@ -265,7 +287,12 @@ export default function MediaOnePage({
                                 <input className="h-11 px-3 rounded-lg bg-[var(--input)] border border-[var(--border-subtle)] text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--color-nonsprimaryfocus)]" placeholder="Year" value={mediaData.year} onChange={(e) => setMediaData(s => ({...s, year: Number(e.target.value) || e.target.value as any}))} />
                             </label>
 
-                            {!isBook && (
+                            {isBook ? (
+                                <label className="flex flex-col gap-1 text-sm text-[var(--text-muted)]">
+                                    Pages
+                                    <input className="h-11 px-3 rounded-lg bg-[var(--input)] border border-[var(--border-subtle)] text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--color-nonsprimaryfocus)]" placeholder="Pages" value={mediaData.pages} onChange={(e) => setMediaData(s => ({...s, pages: Number(e.target.value) || 0}))} />
+                                </label>
+                            ) : (
                                 <>
                                     <label className="flex flex-col gap-1 text-sm text-[var(--text-muted)]">
                                         Duration

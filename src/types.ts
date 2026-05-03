@@ -9,4 +9,8 @@ export type MediaItem = {
   director?: string
   actors?: string[]
   tags?: string[]
+  rating?: number
+  pages?: number
+  description?: string
+  duration?: string
 }

@@ -10,6 +10,7 @@ const defaultItems: MediaItem[] = [
     author: 'F. Scott Fitzgerald',
     coverUrl: 'https://images-na.ssl-images-amazon.com/images/I/81af+MCATTL.jpg',
     tags: ['Read', 'Favorite'],
+    rating: 9,
   },
   {
     id: 'm1',
@@ -21,6 +22,7 @@ const defaultItems: MediaItem[] = [
     year: 2023,
     actors: ["Cillian Murphy", "Emily Blunt", "Matt Damon"],
     tags: ['Watched'],
+    rating: 10,
   },
   {
     id: 'b2',
@@ -29,6 +31,7 @@ const defaultItems: MediaItem[] = [
     author: 'George Orwell',
     coverUrl: 'https://covers.openlibrary.org/b/id/7222246-L.jpg',
     tags: ['Currently Reading'],
+    rating: 8,
   },
   {
     id: 'm2',
@@ -40,6 +43,7 @@ const defaultItems: MediaItem[] = [
     year: 1999,
     actors: ["Keanu Reeves", "Laurence Fishburne", "Carrie-Anne Moss"],
     tags: ['Want to Watch'],
+    rating: 9,
   },
   {
     id: 'b3',
@@ -48,6 +52,7 @@ const defaultItems: MediaItem[] = [
     author: 'Frank Herbert',
     coverUrl: 'https://covers.openlibrary.org/b/id/9254446-L.jpg',
     tags: ['Want to Read'],
+    rating: 7,
   },
   {
     id: 'm3',
@@ -59,6 +64,7 @@ const defaultItems: MediaItem[] = [
     year: 2001,
     actors: ["Rumi Hiiragi", "Miyu Irino", "Mari Natsuki"],
     tags: ['Watched', 'Masterpiece'],
+    rating: 10,
   }
 ]
 

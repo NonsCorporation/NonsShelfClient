@@ -1,4 +1,5 @@
 import { useMemo, useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import Navbar from '../components/layout/Navbar.tsx'
 import { IoAdd, IoBookOutline, IoFilmOutline, IoClose, IoOptionsOutline } from 'react-icons/io5'
 import BookCard from '../BookCard.tsx'
@@ -269,34 +270,43 @@ export default function Home() {
       <div className="flex gap-4 flex-wrap items-start">
         {filtered.map((it) => (
           <div key={it.id} className="w-48">
-            <MediaRatingWrapper rating={null} isEditable={true}>
-              {it.type === 'book' ? (
-                <BookCard 
-                  title={it.title} 
-                  author={it.author} 
-                  coverUrl={it.coverUrl} 
-                  tags={it.tags} 
-                  onEdit={() => {
-                    setForm({ ...it, actors: it.actors ? it.actors.join(', ') : '', genre: it.genre ? (Array.isArray(it.genre) ? it.genre.join(', ') : it.genre) : '', tags: it.tags ? it.tags.join(', ') : '' })
-                    setShowForm('book')
-                  }}
-                />
-              ) : (
-                <MovieCard 
-                  title={it.title} 
-                  author={it.author} 
-                  coverUrl={it.coverUrl} 
-                  year={it.year} 
-                  director={it.director} 
-                  actors={it.actors} 
-                  genre={Array.isArray(it.genre) ? it.genre : it.genre ? [it.genre] : undefined} 
-                  tags={it.tags} 
-                  onEdit={() => {
-                    setForm({ ...it, actors: it.actors ? it.actors.join(', ') : '', genre: it.genre ? (Array.isArray(it.genre) ? it.genre.join(', ') : it.genre) : '', tags: it.tags ? it.tags.join(', ') : '' })
-                    setShowForm('movie')
-                  }}
-                />
-              )}
+            <MediaRatingWrapper 
+              rating={it.rating} 
+              isEditable={true}
+              onRatingChange={async (val) => {
+                const updated = await libraryService.updateItem(it.id, { rating: val })
+                setItems(prev => prev.map(item => item.id === it.id ? updated : item))
+              }}
+            >
+              <Link to={`/shelf/${it.id}`}>
+                {it.type === 'book' ? (
+                  <BookCard 
+                    title={it.title} 
+                    author={it.author} 
+                    coverUrl={it.coverUrl} 
+                    tags={it.tags} 
+                    onEdit={() => {
+                      setForm({ ...it, actors: it.actors ? it.actors.join(', ') : '', genre: it.genre ? (Array.isArray(it.genre) ? it.genre.join(', ') : it.genre) : '', tags: it.tags ? it.tags.join(', ') : '' })
+                      setShowForm('book')
+                    }}
+                  />
+                ) : (
+                  <MovieCard 
+                    title={it.title} 
+                    author={it.author} 
+                    coverUrl={it.coverUrl} 
+                    year={it.year} 
+                    director={it.director} 
+                    actors={it.actors} 
+                    genre={Array.isArray(it.genre) ? it.genre : it.genre ? [it.genre] : undefined} 
+                    tags={it.tags} 
+                    onEdit={() => {
+                      setForm({ ...it, actors: it.actors ? it.actors.join(', ') : '', genre: it.genre ? (Array.isArray(it.genre) ? it.genre.join(', ') : it.genre) : '', tags: it.tags ? it.tags.join(', ') : '' })
+                      setShowForm('movie')
+                    }}
+                  />
+                )}
+              </Link>
             </MediaRatingWrapper>
           </div>
         ))}

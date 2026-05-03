@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { IoMdStar, IoMdStarHalf, IoMdStarOutline } from "react-icons/io"
 
 type StarsSelectorProps = {
@@ -15,6 +15,11 @@ export default function StarsSelector({
   // manage local state for rating and hover
   const [rating, setRating] = useState(initialValue)
   const [hover, setHover] = useState<number | null>(null)
+
+  // Sync state if initialValue changes
+  useEffect(() => {
+    setRating(initialValue)
+  }, [initialValue])
 
   // determine the currently displayed value
   const displayValue = hover !== null ? hover : rating
