@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import Navbar from "../components/layout/Navbar"
-import { IoFilm, IoBookSharp, IoTimeOutline, IoStarOutline, IoBookmarkOutline } from 'react-icons/io5'
+import StarsSelector from '../StarsSelector'
+import { IoFilm, IoBookSharp, IoTimeOutline, IoStar, IoBookmark, IoBookmarkOutline, IoShareOutline } from 'react-icons/io5'
 
 type MediaType = 'book' | 'movie'
 
@@ -17,6 +18,7 @@ type MediaOneProps = {
     duration?: string
     rating?: number
     description?: string
+    review?: string
 }
 
 export default function MediaOnePage({ 
@@ -31,89 +33,125 @@ export default function MediaOnePage({
     year = 2023,
     duration = '180 min',
     rating = 8.5,
-    description = 'The story of American scientist J. Robert Oppenheimer and his role in the development of the atomic bomb.'
+    description = 'The story of American scientist J. Robert Oppenheimer and his role in the development of the atomic bomb.',
+    review = 'A landmark film that balances science, policy, and personal drama with powerful performances.'
 }: MediaOneProps) {
     const [userRating, setUserRating] = useState<number | null>(null)
+    const [userReview, setUserReview] = useState(review)
     const [isBookmarked, setIsBookmarked] = useState(false)
     
     const isBook = type === 'book'
     const Icon = isBook ? IoBookSharp : IoFilm
+    const displayRating = userRating !== null ? `${userRating / 2}/5` : null
 
     return (
-        <div className="min-h-screen bg-[var(--bg)] text-[var(--text)] font-sans pb-12">
+        <div className="min-h-screen bg-[var(--bg)] text-[var(--text)] font-sans pb-16">
             <Navbar />
-            <div className="max-w-4xl mx-auto p-4 md:p-6 pt-28 md:pt-32">
-                <div className="flex flex-col md:flex-row gap-6">
-                    <div className="w-full md:w-80 flex-shrink-0">
-                        <div className="aspect-[2/3] bg-nonscontainerbg rounded-lg overflow-hidden shadow-2xl">
-                            <img 
-                                src={coverUrl} 
-                                alt={title} 
-                                className="w-full h-full object-cover"
+
+            {/* Blurred hero backdrop */}
+            <div
+                className="fixed inset-0 opacity-10 bg-cover bg-center blur-3xl scale-110 pointer-events-none"
+                style={{ backgroundImage: `url(${coverUrl})`, zIndex: 0 }}
+            />
+
+            <div className="relative z-10 max-w-4xl mx-auto px-4 md:px-6 pt-28 md:pt-32">
+                <div className="flex flex-col md:flex-row gap-8 md:gap-10">
+
+                    {/* ── Left Column: Cover ── */}
+                    <div className="w-full md:w-64 flex-shrink-0 flex flex-col gap-3">
+
+                        {/* Cover poster */}
+                        <div className="aspect-[2/3] rounded-xl overflow-hidden shadow-[0_20px_60px_-10px_rgba(0,0,0,0.45)] ring-1 ring-white/5">
+                            <img
+                                src={coverUrl}
+                                alt={title}
+                                className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
                             />
                         </div>
-                        <div className="mt-4 flex gap-2">
-                            <button 
+
+                        {/* Action buttons */}
+                        <div className="flex gap-2">
+                            <button
                                 onClick={() => setIsBookmarked(!isBookmarked)}
-                                className={`flex-1 h-10 rounded-lg border transition-all duration-200 flex items-center justify-center gap-2 ${
-                                    isBookmarked 
-                                        ? 'bg-nonsprimary text-white border-nonsprimary' 
-                                        : 'bg-[var(--surface)] border-[var(--border-subtle)] text-[var(--text-muted)] hover:bg-[var(--surface-hover)]'
+                                className={`flex-1 h-10 rounded-lg text-sm font-medium transition-all duration-200 flex items-center justify-center gap-2 ${
+                                    isBookmarked
+                                        ? 'bg-nonsprimary text-white shadow-md shadow-nonsprimary/20'
+                                        : 'bg-[var(--surface)] border border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--text)] hover:border-[var(--border)]'
                                 }`}
                             >
-                                <IoBookmarkOutline className="w-4 h-4" />
+                                {isBookmarked
+                                    ? <IoBookmark className="w-4 h-4" />
+                                    : <IoBookmarkOutline className="w-4 h-4" />
+                                }
                                 {isBookmarked ? 'Saved' : 'Save'}
+                            </button>
+                            <button
+                                className="h-10 w-10 rounded-lg bg-[var(--surface)] border border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--text)] hover:border-[var(--border)] flex items-center justify-center transition-all duration-200"
+                                aria-label="Share"
+                            >
+                                <IoShareOutline className="w-4 h-4" />
                             </button>
                         </div>
                     </div>
 
-                    <div className="flex-1 flex flex-col">
-                        <div className="mb-4">
-                            <div className="flex items-center gap-2 text-[var(--text-muted)] text-sm mb-2">
-                                <Icon className="w-4 h-4" />
-                                <span>{isBook ? 'Book' : 'Movie'}</span>
-                                <span>•</span>
+                    {/* ── Right Column: Info ── */}
+                    <div className="flex-1 flex flex-col gap-6">
+
+                        {/* Title block */}
+                        <div>
+                            <div className="flex items-center gap-2 text-[var(--text-muted)] text-xs uppercase tracking-widest mb-2">
+                                <Icon className="w-3.5 h-3.5" />
+                                <span>{isBook ? 'Book' : 'Film'}</span>
+                                <span className="text-[var(--border)]">·</span>
                                 <span>{year}</span>
+                                {!isBook && (
+                                    <>
+                                        <span className="text-[var(--border)]">·</span>
+                                        <IoTimeOutline className="w-3.5 h-3.5" />
+                                        <span>{duration}</span>
+                                    </>
+                                )}
+                                {isBook && pages && (
+                                    <>
+                                        <span className="text-[var(--border)]">·</span>
+                                        <span>{pages} pages</span>
+                                    </>
+                                )}
                             </div>
-                            <h1 className="text-3xl md:text-4xl font-bold text-[var(--text)] tracking-tight mb-3">
+
+                            <h1 className="text-3xl md:text-[2.6rem] font-bold leading-tight tracking-tight text-[var(--text)] mb-2">
                                 {title}
                             </h1>
-                            {isBook ? (
-                                <p className="text-[var(--text-muted)] text-sm mb-4">
-                                    by <span className="text-[var(--text)]">{author}</span>
-                                </p>
-                            ) : (
-                                <p className="text-[var(--text-muted)] text-sm mb-4">
-                                    Directed by <span className="text-[var(--text)]">{director}</span>
-                                </p>
-                            )}
+
+                            <p className="text-sm text-[var(--text-muted)]">
+                                {isBook ? 'Written by' : 'Directed by'}{' '}
+                                <span className="text-[var(--text)] font-medium">
+                                    {isBook ? author : director}
+                                </span>
+                            </p>
                         </div>
 
-                        <div className="flex items-center gap-4 mb-6">
-                            {isBook ? (
-                                pages && (
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-sm text-[var(--text)]">{pages} pages</span>
-                                    </div>
-                                )
-                            ) : (
-                                <div className="flex items-center gap-2">
-                                    <IoTimeOutline className="w-4 h-4 text-[var(--text-muted)]" />
-                                    <span className="text-sm text-[var(--text)]">{duration}</span>
-                                </div>
-                            )}
-                            <div className="flex items-center gap-2">
-                                <IoStarOutline className="w-4 h-4 text-yellow-400" />
-                                <span className="text-sm font-medium text-[var(--text)]">{rating}/10</span>
-                            </div>
+                        {/* Divider */}
+                        <hr className="border-[var(--divider)]" />
+
+                        {/* Description */}
+                        <div>
+                            <h3 className="text-[10px] uppercase tracking-widest text-[var(--text-muted)] mb-2">Synopsis</h3>
+                            <p className="text-sm leading-7 text-[var(--text-muted)]">
+                                {description}
+                            </p>
                         </div>
 
+                        {/* Genre tags */}
                         {genre && genre.length > 0 && (
-                            <div className="mb-6">
-                                <h3 className="text-sm font-semibold text-[var(--text)] mb-2 uppercase tracking-wide">{isBook ? 'Genre' : 'Genre'}</h3>
+                            <div>
+                                <h3 className="text-[10px] uppercase tracking-widest text-[var(--text-muted)] mb-2.5">Genre</h3>
                                 <div className="flex flex-wrap gap-2">
                                     {genre.map((g) => (
-                                        <span key={g} className="px-3 py-1 rounded-full bg-[var(--surface)] border border-[var(--border-subtle)] text-xs text-[var(--text)]">
+                                        <span
+                                            key={g}
+                                            className="px-3 py-1 rounded-full bg-[var(--surface)] border border-[var(--border-subtle)] text-xs text-[var(--text)] hover:border-[var(--border)] transition-colors cursor-default"
+                                        >
                                             {g}
                                         </span>
                                     ))}
@@ -121,12 +159,16 @@ export default function MediaOnePage({
                             </div>
                         )}
 
+                        {/* Cast */}
                         {!isBook && actors && actors.length > 0 && (
-                            <div className="mb-6">
-                                <h3 className="text-sm font-semibold text-[var(--text)] mb-2 uppercase tracking-wide">Cast</h3>
+                            <div>
+                                <h3 className="text-[10px] uppercase tracking-widest text-[var(--text-muted)] mb-2.5">Cast</h3>
                                 <div className="flex flex-wrap gap-2">
                                     {actors.map((actor) => (
-                                        <span key={actor} className="px-3 py-1 rounded-full bg-[var(--surface)] border border-[var(--border-subtle)] text-xs text-[var(--text)]">
+                                        <span
+                                            key={actor}
+                                            className="px-3 py-1 rounded-full bg-[var(--surface)] border border-[var(--border-subtle)] text-xs text-[var(--text)] hover:border-[var(--border)] transition-colors cursor-default"
+                                        >
                                             {actor}
                                         </span>
                                     ))}
@@ -134,36 +176,28 @@ export default function MediaOnePage({
                             </div>
                         )}
 
-                        <div className="mb-6 flex-1">
-                            <h3 className="text-sm font-semibold text-[var(--text)] mb-2 uppercase tracking-wide">Description</h3>
-                            <p className="text-[var(--text-muted)] text-sm leading-relaxed">
-                                {description}
-                            </p>
+                        {/* User Rating & Review */}
+                        <div className="bg-[var(--surface)] border border-[var(--border-subtle)] rounded-xl p-5 flex flex-col gap-4">
+                            <div className="flex items-center justify-between">
+                                <h3 className="text-[10px] uppercase tracking-widest text-[var(--text-muted)]">Your Review</h3>
+                            </div>
+                            
+                            <div className="flex items-center gap-3">
+                                <StarsSelector initialValue={userRating} onChange={setUserRating} isEditable />
+                                <span className={`text-sm font-medium transition-opacity duration-200 ${userRating !== null ? 'opacity-100 text-[var(--text)]' : 'opacity-0'}`}>
+                                    {displayRating}
+                                </span>
+                            </div>
+
+                            <textarea
+                                value={userReview}
+                                onChange={(event) => setUserReview(event.target.value)}
+                                rows={2}
+                                placeholder={`What did you think of this ${isBook ? 'book' : 'film'}?`}
+                                className="w-full resize-none rounded-lg bg-[var(--bg)] border border-[var(--border-subtle)]/50 p-3 text-sm text-[var(--text)] placeholder:text-[var(--text-muted)]/40 focus:border-[var(--border)] focus:outline-none transition-all"
+                            />
                         </div>
 
-                        <div className="border-t border-[var(--divider)] pt-4">
-                            <h3 className="text-sm font-semibold text-[var(--text)] mb-3 uppercase tracking-wide">Your Rating</h3>
-                            <div className="flex items-center gap-2">
-                                {[1, 2, 3, 4, 5].map((star) => (
-                                    <button
-                                        key={star}
-                                        onClick={() => setUserRating(star)}
-                                        className="transition-transform hover:scale-110"
-                                    >
-                                        <IoStarOutline 
-                                            className={`w-6 h-6 ${
-                                                userRating && star <= userRating 
-                                                    ? 'text-yellow-400 fill-yellow-400' 
-                                                    : 'text-[var(--border)]'
-                                            }`} 
-                                        />
-                                    </button>
-                                ))}
-                                {userRating && (
-                                    <span className="text-sm text-[var(--text)] ml-2">{userRating}/5</span>
-                                )}
-                            </div>
-                        </div>
                     </div>
                 </div>
             </div>

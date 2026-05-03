@@ -10,9 +10,7 @@ export default function App() {
       <Routes>
         <Route path='/' element={<Home />} />
         <Route path='/calendar' element={<CalendarPage />} />
-        <Route path='/oppenheimer' element={<MediaOnePage />} />
-        <Route path='/media/:id' element={<MediaOnePage />} />
-        <Route path='/shelf/:id' element={<ShelfPage />} />
+        <Route path='/shelf/:id' element={<MediaOnePage />} />
       </Routes>
     </BrowserRouter>
   );
