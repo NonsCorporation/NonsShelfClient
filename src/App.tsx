@@ -5,7 +5,7 @@ import MediaOnePage from './pages/MediaOne.tsx';
 
 export default function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename="/NonsLibraryClient">
       <Routes>
         <Route path='/' element={<Home />} />
         <Route path='/calendar' element={<CalendarPage />} />
