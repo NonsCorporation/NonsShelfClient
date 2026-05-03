@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import Navbar from '../components/layout/Navbar.tsx'
 import { IoAddCircleOutline, IoAdd, IoBookOutline, IoFilmOutline, IoClose } from 'react-icons/io5'
 import BookCard from '../BookCard.tsx'
 import MovieCard from '../MovieCard.tsx'
@@ -107,7 +108,9 @@ export default function Home() {
   }
 
   return (
-    <div className="p-4">
+    <div className="p-4 pt-24">
+      <Navbar />
+
       <div className="mb-4 flex gap-2 items-center">
         <input
           value={query}
