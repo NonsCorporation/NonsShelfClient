@@ -1,34 +1,34 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { IoArrowBack, IoOptionsOutline, IoDownloadOutline, IoChevronBack, IoChevronForward, IoStar, IoStarOutline } from 'react-icons/io5';
+import { IoArrowBack, IoOptionsOutline, IoDownloadOutline, IoChevronBack, IoChevronForward } from 'react-icons/io5';
 
-const mockDataJan2024: Record<number, { covers: string[]; rating: number }> = {
-    1: { covers: ['https://covers.openlibrary.org/b/id/14421255-M.jpg'], rating: 4 },
+const mockDataMay2026: Record<number, { covers: string[]; rating: number }> = {
+    1: { covers: ['https://covers.openlibrary.org/b/id/14421255-M.jpg', 'https://image.tmdb.org/t/p/w200/q6y0Go1tsGEsmtFryDOJo3dENHA.jpg'], rating: 4 },
     2: { covers: ['https://covers.openlibrary.org/b/id/10521270-M.jpg'], rating: 5 },
-    3: { covers: ['https://covers.openlibrary.org/b/id/12818861-M.jpg'], rating: 5 },
+    3: { covers: ['https://image.tmdb.org/t/p/w200/9kigZDefT8nfEceZPbcXgKioW2J.jpg'], rating: 5 },
     4: { covers: ['https://covers.openlibrary.org/b/id/10521270-M.jpg'], rating: 5 },
-    5: { covers: ['https://covers.openlibrary.org/b/id/10521270-M.jpg'], rating: 4 },
+    5: { covers: ['https://covers.openlibrary.org/b/id/10521270-M.jpg', 'https://image.tmdb.org/t/p/w200/saHP97rTPS5eLmrLQEcANmKrsFl.jpg'], rating: 4 },
     6: { covers: ['https://covers.openlibrary.org/b/id/14421255-M.jpg', 'https://covers.openlibrary.org/b/id/12818861-M.jpg'], rating: 5 },
-    7: { covers: ['https://covers.openlibrary.org/b/id/14421255-M.jpg', 'https://covers.openlibrary.org/b/id/12818861-M.jpg'], rating: 0 },
-    8: { covers: ['https://covers.openlibrary.org/b/id/12818861-M.jpg', 'https://covers.openlibrary.org/b/id/10521270-M.jpg', 'https://covers.openlibrary.org/b/id/14421255-M.jpg', 'https://covers.openlibrary.org/b/id/12818861-M.jpg'], rating: 4 },
+    7: { covers: ['https://covers.openlibrary.org/b/id/14421255-M.jpg', 'https://image.tmdb.org/t/p/w200/rCzpDGLbOoPwLjy3OAm5OUcqUUY.jpg'], rating: 0 },
+    8: { covers: ['https://covers.openlibrary.org/b/id/12818861-M.jpg', 'https://covers.openlibrary.org/b/id/10521270-M.jpg', 'https://covers.openlibrary.org/b/id/14421255-M.jpg', 'https://image.tmdb.org/t/p/w200/7WsyChQLEftFiDOVTGkv3hFpyyt.jpg'], rating: 4 },
     9: { covers: ['https://covers.openlibrary.org/b/id/14421255-M.jpg'], rating: 4 },
-    10: { covers: ['https://covers.openlibrary.org/b/id/10521270-M.jpg'], rating: 5 },
+    10: { covers: ['https://image.tmdb.org/t/p/w200/q6y0Go1tsGEsmtFryDOJo3dENHA.jpg'], rating: 5 },
     11: { covers: ['https://covers.openlibrary.org/b/id/12818861-M.jpg'], rating: 3 },
     15: { covers: ['https://covers.openlibrary.org/b/id/14421255-M.jpg', 'https://covers.openlibrary.org/b/id/12818861-M.jpg'], rating: 5 },
-    16: { covers: ['https://covers.openlibrary.org/b/id/10521270-M.jpg'], rating: 4 },
+    16: { covers: ['https://image.tmdb.org/t/p/w200/saHP97rTPS5eLmrLQEcANmKrsFl.jpg'], rating: 4 },
     17: { covers: ['https://covers.openlibrary.org/b/id/12818861-M.jpg'], rating: 4 },
-    18: { covers: ['https://covers.openlibrary.org/b/id/10521270-M.jpg', 'https://covers.openlibrary.org/b/id/14421255-M.jpg'], rating: 5 },
+    18: { covers: ['https://covers.openlibrary.org/b/id/10521270-M.jpg', 'https://image.tmdb.org/t/p/w200/9kigZDefT8nfEceZPbcXgKioW2J.jpg'], rating: 5 },
     19: { covers: ['https://covers.openlibrary.org/b/id/12818861-M.jpg', 'https://covers.openlibrary.org/b/id/10521270-M.jpg'], rating: 4 },
-    20: { covers: ['https://covers.openlibrary.org/b/id/12818861-M.jpg'], rating: 3 },
+    20: { covers: ['https://image.tmdb.org/t/p/w200/rCzpDGLbOoPwLjy3OAm5OUcqUUY.jpg'], rating: 3 },
     21: { covers: ['https://covers.openlibrary.org/b/id/14421255-M.jpg'], rating: 5 },
     22: { covers: ['https://covers.openlibrary.org/b/id/10521270-M.jpg', 'https://covers.openlibrary.org/b/id/14421255-M.jpg'], rating: 4 },
     23: { covers: ['https://covers.openlibrary.org/b/id/12818861-M.jpg'], rating: 4 },
-    24: { covers: ['https://covers.openlibrary.org/b/id/10521270-M.jpg', 'https://covers.openlibrary.org/b/id/14421255-M.jpg'], rating: 0 },
-    25: { covers: ['https://covers.openlibrary.org/b/id/12818861-M.jpg'], rating: 4 },
+    24: { covers: ['https://image.tmdb.org/t/p/w200/7WsyChQLEftFiDOVTGkv3hFpyyt.jpg', 'https://covers.openlibrary.org/b/id/14421255-M.jpg'], rating: 0 },
+    25: { covers: ['https://covers.openlibrary.org/b/id/12818861-M.jpg', 'https://image.tmdb.org/t/p/w200/saHP97rTPS5eLmrLQEcANmKrsFl.jpg'], rating: 4 },
 };
 
 export default function CalendarPage() {
-    const [currentDate, setCurrentDate] = useState(new Date(2024, 0, 1)); // Default to Jan 2024 for mock matching
+    const [currentDate, setCurrentDate] = useState(new Date());
 
     const currentYear = currentDate.getFullYear();
     const currentMonth = currentDate.getMonth();
@@ -45,43 +45,44 @@ export default function CalendarPage() {
 
     return (
         <div className="min-h-screen bg-[var(--bg)] text-[var(--text)] font-sans pb-12">
-            <div className="max-w-md mx-auto p-6 md:p-10 pt-16">
+            <div className="max-w-4xl mx-auto p-4 md:p-6 pt-6 md:pt-10">
                 
-                {/* Header Actions */}
-                <div className="flex justify-between items-center mb-10">
-                    <Link to="/">
-                        <IoArrowBack className="w-8 h-8 text-[var(--text)] hover:text-nonsprimary transition-colors" />
-                    </Link>
-                    <div className="flex gap-4">
-                        <button className="w-12 h-12 bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)] rounded-full flex items-center justify-center shadow-sm transition-colors">
-                            <IoOptionsOutline className="w-6 h-6 text-[var(--text)]" />
+                {/* Header Actions & Title */}
+                <div className="flex justify-between items-center mb-6 border-b border-[var(--border-subtle)] pb-4">
+                    <div className="flex items-center gap-4">
+                        <Link to="/" className="p-2 -ml-2 rounded-full hover:bg-[var(--surface-hover)] transition-colors">
+                            <IoArrowBack className="w-6 h-6 text-[var(--text)] hover:text-nonsprimary transition-colors" />
+                        </Link>
+                        <h1 className="text-2xl md:text-3xl font-bold text-[var(--text)] tracking-tight">Media Calendar</h1>
+                    </div>
+                    <div className="flex gap-2">
+                        <button className="w-10 h-10 bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)] rounded-full flex items-center justify-center shadow-sm transition-colors">
+                            <IoOptionsOutline className="w-5 h-5 text-[var(--text)]" />
                         </button>
-                        <button className="w-12 h-12 bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)] rounded-full flex items-center justify-center shadow-sm transition-colors">
-                            <IoDownloadOutline className="w-6 h-6 text-[var(--text)]" />
+                        <button className="w-10 h-10 bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)] rounded-full flex items-center justify-center shadow-sm transition-colors">
+                            <IoDownloadOutline className="w-5 h-5 text-[var(--text)]" />
                         </button>
                     </div>
                 </div>
 
-                {/* Title */}
-                <h1 className="text-[2.75rem] font-bold text-[var(--text)] leading-tight mb-2 tracking-tight">Book Calendar</h1>
-                <p className="text-lg text-[var(--text-muted)] mb-12">How much have you read this month?</p>
-
-                {/* Month Navigation */}
-                <div className="flex justify-between items-center mb-6 pl-1">
-                    <h2 className="text-3xl font-bold text-[var(--text)]">{displayMonth}</h2>
-                    <div className="flex gap-5 pr-2">
+                {/* Subtitle & Month Navigation */}
+                <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-6 px-1">
+                    <p className="text-[15px] sm:text-base text-[var(--text-muted)]">What have you watched and read this month?</p>
+                    
+                    <div className="flex items-center gap-2.5 bg-[var(--container)] px-3 py-1.5 rounded-lg border border-[var(--border-subtle)] shadow-sm w-fit self-start sm:self-auto">
                         <button onClick={prevMonth} className="hover:bg-[var(--surface-hover)] p-1 rounded-full transition-colors">
-                            <IoChevronBack className="w-6 h-6 text-[var(--text-muted)] hover:text-[var(--text)]" />
+                            <IoChevronBack className="w-4 h-4 md:w-[18px] md:h-[18px] text-[var(--text-muted)] hover:text-[var(--text)]" />
                         </button>
+                        <h2 className="text-base md:text-lg font-bold text-[var(--text)] min-w-[78px] text-center">{displayMonth}</h2>
                         <button onClick={nextMonth} className="hover:bg-[var(--surface-hover)] p-1 rounded-full transition-colors">
-                            <IoChevronForward className="w-6 h-6 text-[var(--text-muted)] hover:text-[var(--text)]" />
+                            <IoChevronForward className="w-4 h-4 md:w-[18px] md:h-[18px] text-[var(--text-muted)] hover:text-[var(--text)]" />
                         </button>
                     </div>
                 </div>
 
                 {/* Calendar View */}
-                <div className="bg-[var(--container)] border border-[var(--border-subtle)] rounded-2xl shadow-sm p-4 overflow-hidden">
-                    <div className="grid grid-cols-7 mb-3 text-center text-[15px] font-medium text-[var(--text-muted)]">
+                <div className="bg-[var(--container)] border border-[var(--border-subtle)] rounded-2xl shadow-sm p-4 md:p-6 overflow-hidden">
+                    <div className="grid grid-cols-7 mb-4 text-center text-sm md:text-base font-medium text-[var(--text-muted)]">
                         <div>Mon</div>
                         <div>Tue</div>
                         <div>Wed</div>
@@ -91,44 +92,35 @@ export default function CalendarPage() {
                         <div className="text-nonslightred">Sun</div>
                     </div>
                     
-                    <div className="grid grid-cols-7 gap-y-4 gap-x-1">
+                    <div className="grid grid-cols-7 gap-y-4 md:gap-y-6 gap-x-1 md:gap-x-2">
                         {[...Array(startOffset)].map((_, i) => (
                             <div key={`empty-${i}`} />
                         ))}
                         
                         {[...Array(daysInMonth)].map((_, i) => {
                             const day = i + 1;
-                            const isJan2024 = currentMonth === 0 && currentYear === 2024;
-                            const data = isJan2024 ? mockDataJan2024[day] : null;
+                            const isMay2026 = currentMonth === 4 && currentYear === 2026;
+                            const data = isMay2026 ? mockDataMay2026[day] : null;
                             const isSunday = (day + startOffset - 1) % 7 === 6;
 
                             return (
-                                <div key={day} className="flex flex-col items-center min-h-[64px]">
-                                    <span className={`text-[15px] mb-1.5 ${isSunday ? 'text-nonslightred font-semibold' : 'text-[var(--text)]'}`}>
+                                <div key={day} className="flex flex-col items-center min-h-[72px] md:min-h-[100px]">
+                                    <span className={`text-sm md:text-base mb-1.5 md:mb-2 ${isSunday ? 'text-nonslightred font-semibold' : 'text-[var(--text)]'}`}>
                                         {day}
                                     </span>
                                     
                                     {data && (
                                         <div className="flex flex-col items-center w-full">
-                                            <div className="flex flex-wrap justify-center gap-[2px] w-full px-0.5">
+                                            <div className="flex flex-wrap justify-center gap-[2px] md:gap-[4px] w-full px-0.5">
                                                 {data.covers.map((url, idx) => (
                                                     <img 
                                                         key={idx} 
                                                         src={url} 
-                                                        className={`object-cover h-auto aspect-[2/3] ${data.covers.length > 2 ? 'w-[40%]' : 'w-[48%]'} max-w-[28px] shadow-sm rounded-xs border border-[var(--border-subtle)]`} 
+                                                        className={`object-cover h-auto aspect-[2/3] ${data.covers.length > 2 ? 'w-[40%] md:w-[45%]' : 'w-[48%] md:w-[60%]'} max-w-[40px] md:max-w-[55px] shadow-sm rounded-xs border border-[var(--border-subtle)]`} 
                                                         alt="cover" 
                                                     />
                                                 ))}
                                             </div>
-                                            {data.rating > 0 && (
-                                                <div className="flex mt-[3px] gap-[1px]">
-                                                    {[...Array(5)].map((_, s) => (
-                                                        s < data.rating
-                                                            ? <IoStar key={s} className="w-[6px] h-[6px] text-[#fbbf24]" />
-                                                            : <IoStarOutline key={s} className="w-[6px] h-[6px] opacity-40 text-[#fbbf24]" />
-                                                    ))}
-                                                </div>
-                                            )}
                                         </div>
                                     )}
                                 </div>
