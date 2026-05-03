@@ -70,6 +70,7 @@ const defaultItems: MediaItem[] = [
 
 export interface ILibraryService {
   getItems(): Promise<MediaItem[]>
+  getItem(id: string): Promise<MediaItem | undefined>
   addItem(item: Omit<MediaItem, 'id'>): Promise<MediaItem>
   updateItem(id: string, updates: Partial<MediaItem>): Promise<MediaItem>
   deleteItem(id: string): Promise<void>
@@ -95,6 +96,11 @@ class LocalStorageLibraryService implements ILibraryService {
 
   async getItems(): Promise<MediaItem[]> {
     return this._getItems()
+  }
+
+  async getItem(id: string): Promise<MediaItem | undefined> {
+    const items = this._getItems()
+    return items.find(it => it.id === id)
   }
 
   async addItem(item: Omit<MediaItem, 'id'>): Promise<MediaItem> {

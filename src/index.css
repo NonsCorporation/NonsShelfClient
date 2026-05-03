@@ -27,6 +27,7 @@
 
 *, *::before, *::after {
   font-family: 'Onest', 'Cormorant Garamond', Georgia, serif;
+  font-weight: 500;
 }
 
 /* Dark theme (default) */

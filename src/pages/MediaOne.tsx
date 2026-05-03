@@ -31,8 +31,7 @@ export default function MediaOnePage() {
 
     useEffect(() => {
         if (id) {
-            libraryService.getItems().then(items => {
-                const found = items.find(it => it.id === id)
+            libraryService.getItem(id).then(found => {
                 if (found) {
                     setItem(found)
                     setUserRating(found.rating ?? null)
