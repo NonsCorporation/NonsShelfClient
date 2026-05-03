@@ -14,7 +14,7 @@ export default function Navbar() {
   const location = useLocation();
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 bg-[var(--container)] px-4 py-3">
+    <nav className="fixed top-0 left-0 right-0 z-50 bg-transparent px-4 py-3">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <Link to="/" className="flex items-center gap-2.5 self-start">
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--surface)]">
