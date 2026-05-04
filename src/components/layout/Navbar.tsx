@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { IoCalendarOutline, IoHomeOutline, IoFilm, IoLanguage } from 'react-icons/io5';
+import { IoCalendarOutline, IoHomeOutline, IoFilm } from 'react-icons/io5';
 import { useLanguage } from '../../contexts/LanguageContext';
 
 export default function Navbar() {
