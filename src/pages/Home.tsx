@@ -196,6 +196,11 @@ export default function Home() {
           )}
         </div>
 
+        <div className="ml-auto text-sm font-medium text-[var(--text-muted)]">
+          {filtered.length !== items.length 
+            ? `Showing: ${filtered.length} (Total: ${items.length})` 
+            : `Total: ${items.length}`}
+        </div>
       </div>
 
       <MediaModal
