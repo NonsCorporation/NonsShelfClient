@@ -4,8 +4,9 @@ import Navbar from "../components/layout/Navbar"
 import StarsSelector from '../StarsSelector'
 import { libraryService } from '../services/libraryService'
 import type { MediaItem } from '../types'
-import { IoFilm, IoBookSharp, IoTimeOutline, IoBookmark, IoBookmarkOutline, IoShareOutline, IoCreateOutline, IoClose } from 'react-icons/io5'
+import { IoFilm, IoBookSharp, IoTimeOutline, IoBookmark, IoBookmarkOutline, IoShareOutline, IoCreateOutline } from 'react-icons/io5'
 import { useLanguage } from '../contexts/LanguageContext'
+import MediaModal from '../components/MediaModal'
 
 export default function MediaOnePage() {
     const { t } = useLanguage()
@@ -67,20 +68,22 @@ export default function MediaOnePage() {
     const Icon = isBook ? IoBookSharp : IoFilm
     const displayRating = userRating !== null ? `${userRating / 2}/5` : null
 
-    const handleSave = async () => {
-        if (!id) return
-        const updated = await libraryService.updateItem(id, {
-            title: mediaData.title,
-            author: mediaData.author,
-            director: isBook ? undefined : mediaData.director,
-            actors: mediaData.actors.split(',').map(s => s.trim()).filter(Boolean),
-            year: mediaData.year,
-            coverUrl: mediaData.coverUrl,
-            duration: mediaData.duration,
-            description: mediaData.description,
-            pages: mediaData.pages
-        })
+    const handleSave = async (data: Partial<MediaItem>) => {
+        if (!id || !item) return
+        const updated = await libraryService.updateItem(id, data)
         setItem(updated)
+        // Also update local `mediaData` to reflect the new state immediately on page
+        setMediaData({
+            title: updated.title,
+            author: updated.author,
+            director: updated.director || '',
+            actors: updated.actors?.join(', ') || '',
+            year: updated.year || 2024,
+            duration: updated.duration || '',
+            description: updated.description || '',
+            coverUrl: updated.coverUrl || '',
+            pages: updated.pages || 0
+        })
         setIsEditing(false)
     }
 
@@ -252,74 +255,12 @@ export default function MediaOnePage() {
             </div>
 
             {/* Edit Modal */}
-            {isEditing && (
-                <div onClick={() => setIsEditing(false)} className="fixed inset-0 z-50 bg-[var(--overlay)] backdrop-blur-sm flex items-center justify-center p-4">
-                    <div onClick={(e) => e.stopPropagation()} className="w-full max-w-xl rounded-2xl border border-[var(--border)] bg-[var(--container)] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-                        <div className="px-5 py-4 border-b border-[var(--divider)] bg-[var(--surface)] flex-shrink-0">
-                            <div className="flex flex-row items-center justify-between gap-2">
-                                <div>
-                                    <h3 className="text-lg font-semibold tracking-wide text-[var(--text)]">{t('editDetails')}</h3>
-                                    <p className="text-xs text-[var(--text-muted)] mt-1 tracking-wide">{t('updateInfo', { type: isBook ? t('book').toLowerCase() : t('film').toLowerCase() })}</p>
-                                </div>
-                                <button onClick={() => setIsEditing(false)} className="h-8 w-8 rounded-full bg-[var(--surface)] hover:bg-[var(--surface-hover)] flex items-center justify-center" aria-label="Close modal">
-                                    <IoClose className="w-4 h-4 text-[var(--text-muted)]" />
-                                </button>
-                            </div>
-                        </div>
-
-                        <div className="p-5 flex-1 overflow-y-auto flex flex-col gap-3">
-                            <label className="flex flex-col gap-1 text-sm text-[var(--text-muted)]">
-                                {t('title')}
-                                <input className="h-11 px-3 rounded-lg bg-[var(--input)] border border-[var(--border-subtle)] text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--color-nonsprimaryfocus)]" placeholder={t('title')} value={mediaData.title} onChange={(e) => setMediaData(s => ({...s, title: e.target.value}))} />
-                            </label>
-                            
-                            <label className="flex flex-col gap-1 text-sm text-[var(--text-muted)]">
-                                {isBook ? t('book') : t('director')}
-                                <input className="h-11 px-3 rounded-lg bg-[var(--input)] border border-[var(--border-subtle)] text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--color-nonsprimaryfocus)]" placeholder={isBook ? t('book') : t('director')} value={isBook ? mediaData.author : mediaData.director} onChange={(e) => setMediaData(s => isBook ? ({...s, author: e.target.value}) : ({...s, director: e.target.value}))} />
-                            </label>
-                            
-                            <label className="flex flex-col gap-1 text-sm text-[var(--text-muted)]">
-                                {t('coverUrl')}
-                                <input className="h-11 px-3 rounded-lg bg-[var(--input)] border border-[var(--border-subtle)] text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--color-nonsprimaryfocus)]" placeholder={t('coverUrl')} value={mediaData.coverUrl} onChange={(e) => setMediaData(s => ({...s, coverUrl: e.target.value}))} />
-                            </label>
-                            
-                            <label className="flex flex-col gap-1 text-sm text-[var(--text-muted)]">
-                                {t('year')}
-                                <input className="h-11 px-3 rounded-lg bg-[var(--input)] border border-[var(--border-subtle)] text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--color-nonsprimaryfocus)]" placeholder={t('year')} value={mediaData.year} onChange={(e) => setMediaData(s => ({...s, year: Number(e.target.value) || e.target.value as any}))} />
-                            </label>
-
-                            {isBook ? (
-                                <label className="flex flex-col gap-1 text-sm text-[var(--text-muted)]">
-                                    {t('pages')}
-                                    <input className="h-11 px-3 rounded-lg bg-[var(--input)] border border-[var(--border-subtle)] text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--color-nonsprimaryfocus)]" placeholder={t('pages')} value={mediaData.pages} onChange={(e) => setMediaData(s => ({...s, pages: Number(e.target.value) || 0}))} />
-                                </label>
-                            ) : (
-                                <>
-                                    <label className="flex flex-col gap-1 text-sm text-[var(--text-muted)]">
-                                        {t('duration')}
-                                        <input className="h-11 px-3 rounded-lg bg-[var(--input)] border border-[var(--border-subtle)] text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--color-nonsprimaryfocus)]" placeholder={t('durationPlaceholder')} value={mediaData.duration} onChange={(e) => setMediaData(s => ({...s, duration: e.target.value}))} />
-                                    </label>
-                                    
-                                    <label className="flex flex-col gap-1 text-sm text-[var(--text-muted)]">
-                                        {t('actorsPlaceholder')}
-                                        <input className="h-11 px-3 rounded-lg bg-[var(--input)] border border-[var(--border-subtle)] text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--color-nonsprimaryfocus)]" placeholder={t('actorsPlaceholder')} value={mediaData.actors} onChange={(e) => setMediaData(s => ({...s, actors: e.target.value}))} />
-                                    </label>
-                                </>
-                            )}
-
-                            <label className="flex flex-col gap-1 text-sm text-[var(--text-muted)]">
-                                {t('synopsis')}
-                                <textarea rows={4} className="p-3 resize-none rounded-lg bg-[var(--input)] border border-[var(--border-subtle)] text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--color-nonsprimaryfocus)]" placeholder={t('synopsis')} value={mediaData.description} onChange={(e) => setMediaData(s => ({...s, description: e.target.value}))} />
-                            </label>
-                        </div>
-                        
-                        <div className="px-5 py-4 border-t border-[var(--divider)] bg-[var(--surface)] flex gap-2 flex-shrink-0">
-                            <button onClick={handleSave} className="px-4 h-10 rounded-lg bg-nonsprimary text-[var(--text)] font-medium hover:bg-nonsprimaryfocus">{t('save')}</button>
-                            <button onClick={() => setIsEditing(false)} className="px-4 h-10 rounded-lg bg-[var(--surface)] border border-[var(--border-subtle)] text-[var(--text-muted)] hover:bg-[var(--surface-hover)]">{t('cancel')}</button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            <MediaModal
+                isOpen={isEditing}
+                initialData={item}
+                onClose={() => setIsEditing(false)}
+                onSave={handleSave}
+            />
         </div>
     )
 }

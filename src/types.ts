@@ -13,4 +13,5 @@ export type MediaItem = {
   pages?: number
   description?: string
   duration?: string
+  dateAdded?: string
 }

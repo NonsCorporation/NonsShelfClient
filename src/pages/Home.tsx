@@ -1,10 +1,11 @@
 import { useMemo, useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import Navbar from '../components/layout/Navbar.tsx'
-import { IoAdd, IoBookOutline, IoFilmOutline, IoClose, IoOptionsOutline } from 'react-icons/io5'
+import { IoAdd, IoOptionsOutline } from 'react-icons/io5'
 import BookCard from '../BookCard.tsx'
 import MovieCard from '../MovieCard.tsx'
 import MediaRatingWrapper from '../MediaRatingWrapper.tsx'
+import MediaModal from '../components/MediaModal.tsx'
 import { libraryService } from '../services/libraryService.ts'
 import type { MediaItem } from '../types.ts'
 import { useLanguage } from '../contexts/LanguageContext.tsx'
@@ -29,7 +30,7 @@ export default function Home() {
   }, [])
 
   const [showForm, setShowForm] = useState<null | 'book' | 'movie'>(null)
-  const [form, setForm] = useState<any>({ title: '', author: '', coverUrl: '', year: '', actors: '', genre: '', tags: '' })
+  const [formInitialData, setFormInitialData] = useState<any>(null)
 
   const filtered = useMemo(() => {
     return items.filter((it) => {
@@ -66,35 +67,27 @@ export default function Home() {
   }, [items, filter, query, yearFilter, genreFilter, directorFilter, actorFilter, tagFilter])
 
   function openForm(type: 'book' | 'movie') {
-    setForm({ title: '', author: '', coverUrl: '', year: '', actors: '', genre: '', tags: '' })
+    setFormInitialData(null)
     setShowForm(type)
   }
 
-  async function addItem() {
-    if (!form.title || !form.author) return
-
-    const baseData = {
-      type: showForm as 'book' | 'movie',
-      title: form.title,
-      author: form.author,
-      coverUrl: form.coverUrl || undefined,
-      year: form.year ? parseInt(form.year) : undefined,
-      director: showForm === 'movie' ? form.author : undefined,
-      actors: showForm === 'movie' && form.actors ? form.actors.split(',').map((s: string) => s.trim()).filter(Boolean) : undefined,
-      genre: form.genre ? form.genre.split(',').map((g: string) => g.trim()).filter(Boolean) : undefined,
-      tags: form.tags ? form.tags.split(',').map((t: string) => t.trim()).filter(Boolean) : undefined,
-    }
-
-    if (form.id) {
+  async function handleSave(data: Partial<MediaItem>) {
+    if (formInitialData?.id) {
       // Editing existing
-      const updated = await libraryService.updateItem(form.id, baseData)
-      setItems((prev) => prev.map(it => it.id === form.id ? updated : it))
+      const updated = await libraryService.updateItem(formInitialData.id, data)
+      setItems((prev) => prev.map(it => it.id === formInitialData.id ? updated : it))
       setShowForm(null)
       return
     }
 
-    const newItem = await libraryService.addItem(baseData as any)
+    const newItem = await libraryService.addItem(data as any)
     setItems((s) => [newItem, ...s])
+    setShowForm(null)
+  }
+
+  async function handleDelete(id: string) {
+    await libraryService.deleteItem(id)
+    setItems(prev => prev.filter(it => it.id !== id))
     setShowForm(null)
   }
 
@@ -205,69 +198,14 @@ export default function Home() {
 
       </div>
 
-      {showForm && (
-        <div onClick={() => setShowForm(null)} className="fixed inset-0 z-40 bg-[var(--overlay)] backdrop-blur-sm flex items-center justify-center p-4">
-          <div onClick={(e) => e.stopPropagation()} className="w-full max-w-xl rounded-2xl border border-[var(--border)] bg-[var(--container)] shadow-2xl overflow-hidden">
-            <div className="px-5 py-4 border-b border-[var(--divider)] bg-[var(--surface)]">
-              <div className="flex items-center gap-2">
-                <h3 className="text-lg font-semibold tracking-wide text-[var(--text)]">{t('addNewEntry')}</h3>
-                <button onClick={() => setShowForm(null)} className="ml-auto h-8 w-8 rounded-full bg-[var(--surface)] hover:bg-[var(--surface-hover)] flex items-center justify-center" aria-label="Close modal">
-                  <IoClose className="w-4 h-4 text-[var(--text-muted)]" />
-                </button>
-              </div>
-              <p className="text-xs text-[var(--text-muted)] mt-1 tracking-wide">{t('chooseTypeDesc')}</p>
-            </div>
-
-            <div className="px-5 pt-4">
-              <div className="inline-flex rounded-xl bg-[var(--surface)] p-1 border border-[var(--border-subtle)]">
-                <button
-                  onClick={() => setShowForm('book')}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition ${showForm === 'book' ? 'bg-[var(--surface-active)] text-[var(--text)] border border-[var(--border-strong)]' : 'text-[var(--text-muted)] hover:bg-[var(--surface-hover)]'}`}
-                >
-                  <IoBookOutline className="w-4 h-4" />
-                  {t('book')}
-                </button>
-                <button
-                  onClick={() => setShowForm('movie')}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition ${showForm === 'movie' ? 'bg-[var(--surface-active)] text-[var(--text)] border border-[var(--border-strong)]' : 'text-[var(--text-muted)] hover:bg-[var(--surface-hover)]'}`}
-                >
-                  <IoFilmOutline className="w-4 h-4" />
-                  {t('movie')}
-                </button>
-              </div>
-            </div>
-
-            <div className="p-5 pt-4 flex flex-col gap-3">
-              <input className="h-11 px-3 rounded-lg bg-[var(--input)] border border-[var(--border-subtle)] text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--color-nonsprimaryfocus)]" placeholder={t('title')} value={form.title} onChange={(e) => setForm((s:any)=>({...s,title:e.target.value}))} />
-              <input className="h-11 px-3 rounded-lg bg-[var(--input)] border border-[var(--border-subtle)] text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--color-nonsprimaryfocus)]" placeholder={t('authorDirector')} value={form.author} onChange={(e) => setForm((s:any)=>({...s,author:e.target.value}))} />
-              <input className="h-11 px-3 rounded-lg bg-[var(--input)] border border-[var(--border-subtle)] text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--color-nonsprimaryfocus)]" placeholder={t('coverUrl')} value={form.coverUrl} onChange={(e) => setForm((s:any)=>({...s,coverUrl:e.target.value}))} />
-              <input className="h-11 px-3 rounded-lg bg-[var(--input)] border border-[var(--border-subtle)] text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--color-nonsprimaryfocus)]" placeholder={t('genrePlaceholder')} value={form.genre} onChange={(e) => setForm((s:any)=>({...s,genre:e.target.value}))} />
-              <input className="h-11 px-3 rounded-lg bg-[var(--input)] border border-[var(--border-subtle)] text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--color-nonsprimaryfocus)]" placeholder={t('tagsPlaceholder')} value={form.tags} onChange={(e) => setForm((s:any)=>({...s,tags:e.target.value}))} />
-              {showForm === 'movie' && (
-                <>
-                  <input className="h-11 px-3 rounded-lg bg-[var(--input)] border border-[var(--border-subtle)] text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--color-nonsprimaryfocus)]" placeholder={t('year')} value={form.year} onChange={(e) => setForm((s:any)=>({...s,year:e.target.value}))} />
-                  <input className="h-11 px-3 rounded-lg bg-[var(--input)] border border-[var(--border-subtle)] text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--color-nonsprimaryfocus)]" placeholder={t('actorsPlaceholder')} value={form.actors} onChange={(e) => setForm((s:any)=>({...s,actors:e.target.value}))} />
-                </>
-              )}
-              <div className="flex justify-end gap-2 pt-1">
-                {form.id && (
-                  <button onClick={async () => {
-                    await libraryService.deleteItem(form.id)
-                    setItems(prev => prev.filter(it => it.id !== form.id))
-                    setShowForm(null)
-                  }} className="px-4 h-10 rounded-lg bg-red-500/20 text-red-500 font-medium hover:bg-red-500/30 transition-colors mr-auto">
-                    {t('delete')}
-                  </button>
-                )}
-                <button onClick={() => setShowForm(null)} className="px-4 h-10 rounded-lg bg-[var(--surface)] border border-[var(--border-subtle)] text-[var(--text-muted)] hover:bg-[var(--surface-hover)]">{t('cancel')}</button>
-                <button onClick={addItem} className="px-4 h-10 rounded-lg bg-nonsprimary text-[var(--text)] font-medium hover:bg-nonsprimaryfocus">
-                  {form.id ? t('save') : `${t('add')} ${showForm === 'book' ? t('book') : t('movie')}`}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <MediaModal
+        isOpen={showForm !== null}
+        initialType={showForm || 'book'}
+        initialData={formInitialData}
+        onClose={() => setShowForm(null)}
+        onSave={handleSave}
+        onDelete={handleDelete}
+      />
 
       <div className="flex gap-4 flex-wrap items-start">
         {filtered.map((it) => (
@@ -288,7 +226,7 @@ export default function Home() {
                     coverUrl={it.coverUrl} 
                     tags={it.tags} 
                     onEdit={() => {
-                      setForm({ ...it, actors: it.actors ? it.actors.join(', ') : '', genre: it.genre ? (Array.isArray(it.genre) ? it.genre.join(', ') : it.genre) : '', tags: it.tags ? it.tags.join(', ') : '' })
+                      setFormInitialData(it)
                       setShowForm('book')
                     }}
                   />
@@ -303,7 +241,7 @@ export default function Home() {
                     genre={Array.isArray(it.genre) ? it.genre : it.genre ? [it.genre] : undefined} 
                     tags={it.tags} 
                     onEdit={() => {
-                      setForm({ ...it, actors: it.actors ? it.actors.join(', ') : '', genre: it.genre ? (Array.isArray(it.genre) ? it.genre.join(', ') : it.genre) : '', tags: it.tags ? it.tags.join(', ') : '' })
+                      setFormInitialData(it)
                       setShowForm('movie')
                     }}
                   />

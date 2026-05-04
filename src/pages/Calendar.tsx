@@ -1,40 +1,45 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import Navbar from '../components/layout/Navbar.tsx';
 import { IoArrowBack, IoOptionsOutline, IoDownloadOutline, IoChevronBack, IoChevronForward } from 'react-icons/io5';
 import { useLanguage } from '../contexts/LanguageContext.tsx';
-
-const mockDataMay2026: Record<number, { covers: string[]; rating: number }> = {
-    1: { covers: ['https://covers.openlibrary.org/b/id/14421255-M.jpg', 'https://image.tmdb.org/t/p/w200/q6y0Go1tsGEsmtFryDOJo3dENHA.jpg'], rating: 4 },
-    2: { covers: ['https://covers.openlibrary.org/b/id/10521270-M.jpg'], rating: 5 },
-    3: { covers: ['https://image.tmdb.org/t/p/w200/9kigZDefT8nfEceZPbcXgKioW2J.jpg'], rating: 5 },
-    4: { covers: ['https://covers.openlibrary.org/b/id/10521270-M.jpg'], rating: 5 },
-    5: { covers: ['https://covers.openlibrary.org/b/id/10521270-M.jpg', 'https://image.tmdb.org/t/p/w200/saHP97rTPS5eLmrLQEcANmKrsFl.jpg'], rating: 4 },
-    6: { covers: ['https://covers.openlibrary.org/b/id/14421255-M.jpg', 'https://covers.openlibrary.org/b/id/12818861-M.jpg'], rating: 5 },
-    7: { covers: ['https://covers.openlibrary.org/b/id/14421255-M.jpg', 'https://image.tmdb.org/t/p/w200/rCzpDGLbOoPwLjy3OAm5OUcqUUY.jpg'], rating: 0 },
-    8: { covers: ['https://covers.openlibrary.org/b/id/12818861-M.jpg', 'https://covers.openlibrary.org/b/id/10521270-M.jpg', 'https://covers.openlibrary.org/b/id/14421255-M.jpg', 'https://image.tmdb.org/t/p/w200/7WsyChQLEftFiDOVTGkv3hFpyyt.jpg'], rating: 4 },
-    9: { covers: ['https://covers.openlibrary.org/b/id/14421255-M.jpg'], rating: 4 },
-    10: { covers: ['https://image.tmdb.org/t/p/w200/q6y0Go1tsGEsmtFryDOJo3dENHA.jpg'], rating: 5 },
-    11: { covers: ['https://covers.openlibrary.org/b/id/12818861-M.jpg'], rating: 3 },
-    15: { covers: ['https://covers.openlibrary.org/b/id/14421255-M.jpg', 'https://covers.openlibrary.org/b/id/12818861-M.jpg'], rating: 5 },
-    16: { covers: ['https://image.tmdb.org/t/p/w200/saHP97rTPS5eLmrLQEcANmKrsFl.jpg'], rating: 4 },
-    17: { covers: ['https://covers.openlibrary.org/b/id/12818861-M.jpg'], rating: 4 },
-    18: { covers: ['https://covers.openlibrary.org/b/id/10521270-M.jpg', 'https://image.tmdb.org/t/p/w200/9kigZDefT8nfEceZPbcXgKioW2J.jpg'], rating: 5 },
-    19: { covers: ['https://covers.openlibrary.org/b/id/12818861-M.jpg', 'https://covers.openlibrary.org/b/id/10521270-M.jpg'], rating: 4 },
-    20: { covers: ['https://image.tmdb.org/t/p/w200/rCzpDGLbOoPwLjy3OAm5OUcqUUY.jpg'], rating: 3 },
-    21: { covers: ['https://covers.openlibrary.org/b/id/14421255-M.jpg'], rating: 5 },
-    22: { covers: ['https://covers.openlibrary.org/b/id/10521270-M.jpg', 'https://covers.openlibrary.org/b/id/14421255-M.jpg'], rating: 4 },
-    23: { covers: ['https://covers.openlibrary.org/b/id/12818861-M.jpg'], rating: 4 },
-    24: { covers: ['https://image.tmdb.org/t/p/w200/7WsyChQLEftFiDOVTGkv3hFpyyt.jpg', 'https://covers.openlibrary.org/b/id/14421255-M.jpg'], rating: 0 },
-    25: { covers: ['https://covers.openlibrary.org/b/id/12818861-M.jpg', 'https://image.tmdb.org/t/p/w200/saHP97rTPS5eLmrLQEcANmKrsFl.jpg'], rating: 4 },
-};
+import { libraryService } from '../services/libraryService.ts';
+import type { MediaItem } from '../types.ts';
 
 export default function CalendarPage() {
     const { t } = useLanguage();
     const [currentDate, setCurrentDate] = useState(new Date());
+    const [items, setItems] = useState<MediaItem[]>([]);
+
+    useEffect(() => {
+        libraryService.getItems().then(setItems);
+    }, []);
 
     const currentYear = currentDate.getFullYear();
     const currentMonth = currentDate.getMonth();
+
+    // Group items by day for the current month
+    const currentMonthItems = useMemo(() => {
+        const grouped: Record<number, { covers: string[]; rating: number }> = {};
+        
+        items.forEach(item => {
+            if (!item.dateAdded) return;
+            const date = new Date(item.dateAdded);
+            if (date.getFullYear() === currentYear && date.getMonth() === currentMonth) {
+                const day = date.getDate();
+                if (!grouped[day]) {
+                    grouped[day] = { covers: [], rating: 0 };
+                }
+                if (item.coverUrl) {
+                    grouped[day].covers.push(item.coverUrl);
+                }
+                // Update average rating maybe? For now just take max or average, the mock had randomly 0-5
+                grouped[day].rating = item.rating || grouped[day].rating;
+            }
+        });
+        
+        return grouped;
+    }, [items, currentYear, currentMonth]);
 
     const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
     // getDay() gives 0 for Sunday, 1 for Monday... we want Monday=0, Sunday=6
@@ -103,8 +108,7 @@ export default function CalendarPage() {
                         
                         {[...Array(daysInMonth)].map((_, i) => {
                             const day = i + 1;
-                            const isMay2026 = currentMonth === 4 && currentYear === 2026;
-                            const data = isMay2026 ? mockDataMay2026[day] : null;
+                            const data = currentMonthItems[day];
                             const isSunday = (day + startOffset - 1) % 7 === 6;
 
                             return (

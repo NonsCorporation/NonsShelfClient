@@ -11,6 +11,7 @@ const defaultItems: MediaItem[] = [
     coverUrl: 'https://images-na.ssl-images-amazon.com/images/I/81af+MCATTL.jpg',
     tags: ['Read', 'Favorite'],
     rating: 9,
+    dateAdded: '2026-05-02T10:00:00Z',
   },
   {
     id: 'm1',
@@ -23,6 +24,7 @@ const defaultItems: MediaItem[] = [
     actors: ["Cillian Murphy", "Emily Blunt", "Matt Damon"],
     tags: ['Watched'],
     rating: 10,
+    dateAdded: '2026-05-06T14:30:00Z',
   },
   {
     id: 'b2',
@@ -32,6 +34,7 @@ const defaultItems: MediaItem[] = [
     coverUrl: 'https://covers.openlibrary.org/b/id/7222246-L.jpg',
     tags: ['Currently Reading'],
     rating: 8,
+    dateAdded: '2026-05-15T09:15:00Z',
   },
   {
     id: 'm2',
@@ -44,6 +47,7 @@ const defaultItems: MediaItem[] = [
     actors: ["Keanu Reeves", "Laurence Fishburne", "Carrie-Anne Moss"],
     tags: ['Want to Watch'],
     rating: 9,
+    dateAdded: '2026-05-20T20:00:00Z',
   },
   {
     id: 'b3',
@@ -53,6 +57,7 @@ const defaultItems: MediaItem[] = [
     coverUrl: 'https://covers.openlibrary.org/b/id/9254446-L.jpg',
     tags: ['Want to Read'],
     rating: 7,
+    dateAdded: '2026-05-25T11:45:00Z',
   },
   {
     id: 'm3',
@@ -65,6 +70,7 @@ const defaultItems: MediaItem[] = [
     actors: ["Rumi Hiiragi", "Miyu Irino", "Mari Natsuki"],
     tags: ['Watched', 'Masterpiece'],
     rating: 10,
+    dateAdded: '2026-04-10T16:20:00Z',
   }
 ]
 
@@ -107,7 +113,8 @@ class LocalStorageLibraryService implements ILibraryService {
     const items = this._getItems()
     const newItem: MediaItem = {
       ...item,
-      id: Math.random().toString(36).substring(2, 9)
+      id: Math.random().toString(36).substring(2, 9),
+      dateAdded: item.dateAdded || new Date().toISOString()
     }
     // Prepend to top of list
     const newItems = [newItem, ...items]
