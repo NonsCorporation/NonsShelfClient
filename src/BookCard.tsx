@@ -5,10 +5,11 @@ type BookCardProps = {
     author: string
     coverUrl?: string
     tags?: string[]
+    genre?: string[]
     onEdit?: () => void
 }
 
-export default function BookCard({ title, author, coverUrl, tags, onEdit }: BookCardProps) {
+export default function BookCard({ title, author, coverUrl, tags, genre, onEdit }: BookCardProps) {
     return (
         <div className="w-48 h-[340px] bg-nonscontainerbg rounded-sm group overflow-hidden cursor-pointer flex flex-col border border-white/5 hover:bg-white/5 hover:border-white/10 transition-all duration-300">
             {/* container for image and absolute elements */}
@@ -33,7 +34,7 @@ export default function BookCard({ title, author, coverUrl, tags, onEdit }: Book
                 {/* genre pills (bottom-left overlay) */}
                 <div className="absolute bottom-2.5 left-2.5 z-30 flex flex-col gap-1.5 items-start max-w-[70%]">
                     <div className="flex flex-wrap gap-1">
-                        {["Classic", "Fiction", "1920s"].map((g) => (
+                        {genre && genre.length > 0 && genre.slice(0, 3).map((g) => (
                             <span key={g} className="bg-black/70 backdrop-blur-md px-1.5 py-0.5 rounded text-[9px] font-medium text-white/90 shadow-sm border border-white/10">
                                 {g}
                             </span>

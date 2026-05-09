@@ -223,13 +223,14 @@ export default function Home() {
                 setItems(prev => prev.map(item => item.id === it.id ? updated : item))
               }}
             >
-              <Link to={`/shelf/${it.id}`}>
+                  <Link to={`/shelf/${it.id}`}>
                 {it.type === 'book' ? (
                   <BookCard 
                     title={it.title} 
                     author={it.author} 
                     coverUrl={it.coverUrl} 
                     tags={it.tags} 
+                    genre={Array.isArray(it.genre) ? it.genre : it.genre ? [it.genre] : undefined}
                     onEdit={() => {
                       setFormInitialData(it)
                       setShowForm('book')

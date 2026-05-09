@@ -12,6 +12,7 @@ const defaultItems: MediaItem[] = [
     tags: ['Read', 'Favorite'],
     rating: 9,
     dateAdded: '2026-05-02T10:00:00Z',
+    genre: ['Classic', 'Fiction'],
   },
   {
     id: 'm1',
@@ -25,6 +26,7 @@ const defaultItems: MediaItem[] = [
     tags: ['Watched'],
     rating: 10,
     dateAdded: '2026-05-06T14:30:00Z',
+    genre: ['Drama', 'History', 'Biography'],
   },
   {
     id: 'b2',
@@ -35,6 +37,7 @@ const defaultItems: MediaItem[] = [
     tags: ['Currently Reading'],
     rating: 8,
     dateAdded: '2026-05-15T09:15:00Z',
+    genre: ['Dystopian', 'Politics'],
   },
   {
     id: 'm2',
@@ -48,6 +51,7 @@ const defaultItems: MediaItem[] = [
     tags: ['Want to Watch'],
     rating: 9,
     dateAdded: '2026-05-20T20:00:00Z',
+    genre: ['Sci-Fi', 'Action'],
   },
   {
     id: 'b3',
@@ -58,6 +62,7 @@ const defaultItems: MediaItem[] = [
     tags: ['Want to Read'],
     rating: 7,
     dateAdded: '2026-05-25T11:45:00Z',
+    genre: ['Sci-Fi', 'Epic'],
   },
   {
     id: 'm3',
@@ -71,6 +76,7 @@ const defaultItems: MediaItem[] = [
     tags: ['Watched', 'Masterpiece'],
     rating: 10,
     dateAdded: '2026-04-10T16:20:00Z',
+    genre: ['Animation', 'Fantasy', 'Adventure'],
   }
 ]
 
