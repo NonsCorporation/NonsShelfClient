@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Link } from 'react-router-dom';
-import Navbar from '../components/layout/Navbar.tsx';
-import { IoArrowBack, IoOptionsOutline, IoDownloadOutline, IoChevronBack, IoChevronForward } from 'react-icons/io5';
+import Layout from '../components/layout/Layout.tsx';
+import { IoOptionsOutline, IoDownloadOutline, IoChevronBack, IoChevronForward } from 'react-icons/io5';
 import { useLanguage } from '../contexts/LanguageContext.tsx';
 import { libraryService } from '../services/libraryService.ts';
 import type { MediaItem } from '../types.ts';
@@ -52,23 +51,17 @@ export default function CalendarPage() {
     const nextMonth = () => setCurrentDate(new Date(currentYear, currentMonth + 1, 1));
 
     return (
-        <div className="min-h-screen bg-[var(--bg)] text-[var(--text)] font-sans pb-12">
-            <Navbar />
-            <div className="max-w-4xl mx-auto p-4 md:p-6 pt-28 md:pt-32">
-                
+        <Layout>
                 {/* Header Actions & Title */}
                 <div className="flex justify-between items-center mb-6 border-b border-[var(--border-subtle)] pb-4">
                     <div className="flex items-center gap-4">
-                        <Link to="/" className="p-2 -ml-2 rounded-full hover:bg-[var(--surface-hover)] transition-colors">
-                            <IoArrowBack className="w-6 h-6 text-[var(--text)] hover:text-nonsprimary transition-colors" />
-                        </Link>
                         <h1 className="text-2xl md:text-3xl font-bold text-[var(--text)] tracking-tight">{t('mediaCalendar')}</h1>
                     </div>
                     <div className="flex gap-2">
-                        <button className="w-10 h-10 bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)] rounded-full flex items-center justify-center shadow-sm transition-colors">
+                        <button className="w-10 h-10 bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)] rounded-full flex items-center justify-center transition-colors">
                             <IoOptionsOutline className="w-5 h-5 text-[var(--text)]" />
                         </button>
-                        <button className="w-10 h-10 bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)] rounded-full flex items-center justify-center shadow-sm transition-colors">
+                        <button className="w-10 h-10 bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)] rounded-full flex items-center justify-center transition-colors">
                             <IoDownloadOutline className="w-5 h-5 text-[var(--text)]" />
                         </button>
                     </div>
@@ -78,7 +71,7 @@ export default function CalendarPage() {
                 <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-6 px-1">
                     <p className="text-[15px] sm:text-base text-[var(--text-muted)]">{t('calendarSubtitle')}</p>
                     
-                    <div className="flex items-center gap-2.5 bg-[var(--container)] px-3 py-1.5 rounded-lg border border-[var(--border-subtle)] shadow-sm w-fit self-start sm:self-auto">
+                    <div className="flex items-center gap-2.5 bg-[var(--container)] px-3 py-1.5 rounded-lg border border-[var(--border-subtle)] w-fit self-start sm:self-auto">
                         <button onClick={prevMonth} className="hover:bg-[var(--surface-hover)] p-1 rounded-full transition-colors">
                             <IoChevronBack className="w-4 h-4 md:w-[18px] md:h-[18px] text-[var(--text-muted)] hover:text-[var(--text)]" />
                         </button>
@@ -90,7 +83,7 @@ export default function CalendarPage() {
                 </div>
 
                 {/* Calendar View */}
-                <div className="bg-[var(--container)] border border-[var(--border-subtle)] rounded-2xl shadow-sm p-4 md:p-6 overflow-hidden">
+                <div className="bg-[var(--container)] border border-[var(--border-subtle)] rounded-2xl p-4 md:p-6 overflow-hidden">
                     <div className="grid grid-cols-7 mb-4 text-center text-sm md:text-base font-medium text-[var(--text-muted)]">
                         <div>{t('mon')}</div>
                         <div>{t('tue')}</div>
@@ -124,7 +117,7 @@ export default function CalendarPage() {
                                                     <img 
                                                         key={idx} 
                                                         src={url} 
-                                                        className={`object-cover h-auto aspect-[2/3] ${data.covers.length > 2 ? 'w-[40%] md:w-[45%]' : 'w-[48%] md:w-[60%]'} max-w-[40px] md:max-w-[55px] shadow-sm rounded-xs border border-[var(--border-subtle)]`} 
+                                                        className={`object-cover h-auto aspect-[2/3] ${data.covers.length > 2 ? 'w-[40%] md:w-[45%]' : 'w-[48%] md:w-[60%]'} max-w-[40px] md:max-w-[55px] rounded-xs border border-[var(--border-subtle)]`} 
                                                         alt="cover" 
                                                     />
                                                 ))}
@@ -136,7 +129,6 @@ export default function CalendarPage() {
                         })}
                     </div>
                 </div>
-            </div>
-        </div>
+        </Layout>
     );
 }

@@ -1,27 +1,31 @@
+@import url('https://fonts.googleapis.com/css2?family=Onest:wght@100..900&display=swap');
 @import "tailwindcss";
 
-@import url('https://fonts.googleapis.com/css2?family=Onest:wght@100..900&display=swap');
-
 @theme {
-  --color-nonsdarkbg: #101010;
-  --color-nonswhitetext: #f9f9f9;
-  --color-nonwhitishgray: #e5e5e5;
-  --color-nonscontainerbg: #202020;
-  --color-nonscontainer2bg: #282828;
+  /* Brand — primary kept from nons-client, neutrals re-tuned with a faint
+     indigo cast so the library feels like its own product (a quiet reading
+     room / screening room) rather than a clone of the main client. */
   --color-nonsprimary: #6768ab;
-  --color-nonsprimaryfocus: #5153bd;
-  --color-nonslightred: #ff6b6b;
-  
-  /* Status badge colors */
+  --color-nonsprimaryfocus: #7c7dca;
+  --color-nonsprimarydeep: #4e4f86;
+
+  --color-nonsdarkbg: #0d0d0e;
+  --color-nonswhitetext: #f5f5f5;
+  --color-nonwhitishgray: #dadada;
+  --color-nonscontainerbg: #161617;
+  --color-nonscontainer2bg: #1e1e20;
+  --color-nonslightred: #ff7a85;
+
+  /* Shelf accents (kept neutral-ish, all in the primary's family) */
   --color-nonsverified: #1d9bf0;
   --color-nonspremium: #f5a623;
   --color-nonspremium-light: #ffd700;
-  
+
   /* Light theme colors */
-  --color-nonslightbg: #f3f4f3;
+  --color-nonslightbg: #f4f4f4;
   --color-nonslighttext: #1a1a1a;
-  --color-nonslightgray: #6b6b6b;
-  --color-nonslightcontainer: #efefef;
+  --color-nonslightgray: #6e6e6e;
+  --color-nonslightcontainer: #ffffff;
   --color-nonslightborder: rgba(0, 0, 0, 0.1);
 }
 
@@ -54,18 +58,21 @@ body {
 html, html[data-theme="dark"] {
   --bg: var(--color-nonsdarkbg);
   --text: var(--color-nonswhitetext);
-  --text-muted: var(--color-nonwhitishgray);
+  --text-muted: #9b9b9b;
   --container: var(--color-nonscontainerbg);
+  --container-2: var(--color-nonscontainer2bg);
   --border: rgba(255, 255, 255, 0.1);
-  --border-subtle: rgba(255, 255, 255, 0.05);
+  --border-subtle: rgba(255, 255, 255, 0.06);
   --border-strong: rgba(255, 255, 255, 0.2);
-  --surface: rgba(255, 255, 255, 0.03);
-  --surface-hover: rgba(255, 255, 255, 0.05);
+  --surface: rgba(255, 255, 255, 0.04);
+  --surface-hover: rgba(255, 255, 255, 0.07);
   --surface-active: rgba(255, 255, 255, 0.1);
-  --input: rgba(255, 255, 255, 0.06);
-  --overlay: rgba(0, 0, 0, 0.6);
+  --input: rgba(255, 255, 255, 0.05);
+  --overlay: rgba(6, 6, 10, 0.7);
   --divider: rgba(255, 255, 255, 0.06);
-  --placeholder: rgba(255, 255, 255, 0.2);
+  --placeholder: rgba(255, 255, 255, 0.25);
+  --primary-soft: rgba(103, 104, 171, 0.14);
+  --primary-ring: rgba(103, 104, 171, 0.45);
 }
 
 html[data-theme="light"] {
@@ -79,10 +86,13 @@ html[data-theme="light"] {
   --surface: rgba(0, 0, 0, 0.02);
   --surface-hover: rgba(0, 0, 0, 0.04);
   --surface-active: rgba(0, 0, 0, 0.08);
+  --container-2: #f3f3f6;
   --input: rgba(0, 0, 0, 0.05);
   --overlay: rgba(0, 0, 0, 0.4);
   --divider: rgba(0, 0, 0, 0.06);
   --placeholder: rgba(0, 0, 0, 0.3);
+  --primary-soft: rgba(103, 104, 171, 0.1);
+  --primary-ring: rgba(103, 104, 171, 0.4);
   background-color: var(--color-nonslightbg);
   color-scheme: light;
 }
@@ -90,4 +100,28 @@ html[data-theme="light"] {
 body {
   background-color: var(--bg);
   color: var(--text);
+}
+
+/* Ambient primary glow anchored to the top-left, behind the sidebar — gives
+   the dark theme some depth without distracting from the covers. */
+.app-ambient::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(60rem 40rem at -10% -10%, rgba(255, 255, 255, 0.035), transparent 60%);
+}
+html[data-theme="light"] .app-ambient::before {
+  background:
+    radial-gradient(60rem 40rem at -10% -10%, rgba(0, 0, 0, 0.025), transparent 60%);
+}
+
+@keyframes nons-fade-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-up {
+  animation: nons-fade-up 0.35s ease both;
 }

@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { IoClose, IoBookOutline, IoFilmOutline } from 'react-icons/io5'
-import type { MediaItem } from '../types.ts'
+import type { MediaItem, ShelfStatus } from '../types.ts'
 import { useLanguage } from '../contexts/LanguageContext.tsx'
+import { STATUS_ORDER, STATUS_COLOR, statusLabel } from '../lib/shelf'
 
 type MediaModalProps = {
   isOpen: boolean
@@ -18,6 +19,7 @@ export default function MediaModal({ isOpen, initialData, initialType, onClose, 
   // Decide if we are editing or creating
   const isEditing = !!initialData?.id
   const [type, setType] = useState<'book' | 'movie'>(initialData?.type || initialType || 'book')
+  const [status, setStatus] = useState<ShelfStatus>(initialData?.status || 'wishlist')
 
   const [form, setForm] = useState({
     title: '',
@@ -36,7 +38,8 @@ export default function MediaModal({ isOpen, initialData, initialType, onClose, 
   useEffect(() => {
     if (isOpen) {
       setType(initialData?.type || initialType || 'book')
-      
+      setStatus(initialData?.status || 'wishlist')
+
       const genre = Array.isArray(initialData?.genre) ? initialData.genre.join(', ') : initialData?.genre || ''
       const tags = Array.isArray(initialData?.tags) ? initialData.tags.join(', ') : initialData?.tags || ''
       const actors = Array.isArray(initialData?.actors) ? initialData.actors.join(', ') : initialData?.actors || ''
@@ -64,6 +67,7 @@ export default function MediaModal({ isOpen, initialData, initialType, onClose, 
 
     const baseData: Partial<MediaItem> = {
       type,
+      status,
       title: form.title,
       author: form.author,
       coverUrl: form.coverUrl || undefined,
@@ -85,8 +89,8 @@ export default function MediaModal({ isOpen, initialData, initialType, onClose, 
   }
 
   return (
-    <div onClick={onClose} className="fixed inset-0 z-[60] bg-[var(--overlay)] backdrop-blur-sm flex items-center justify-center p-4">
-      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-xl rounded-2xl border border-[var(--border)] bg-[var(--container)] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+    <div onClick={onClose} className="fixed inset-0 z-[60] bg-[var(--overlay)] flex items-center justify-center p-4">
+      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-xl rounded-2xl border border-[var(--border)] bg-[var(--container)] overflow-hidden flex flex-col max-h-[90vh]">
         <div className="px-5 py-4 border-b border-[var(--divider)] bg-[var(--surface)] flex-shrink-0 flex items-center justify-between gap-2">
           <div>
             <h3 className="text-lg font-semibold tracking-wide text-[var(--text)]">
@@ -123,6 +127,25 @@ export default function MediaModal({ isOpen, initialData, initialType, onClose, 
         )}
 
         <div className="p-5 flex-1 overflow-y-auto flex flex-col gap-4">
+          <div className="flex flex-col gap-1.5">
+            <span className="text-sm font-medium text-[var(--text)]">{t('status')}</span>
+            <div className="inline-flex rounded-xl bg-[var(--surface)] p-1 border border-[var(--border-subtle)]">
+              {STATUS_ORDER.map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setStatus(s)}
+                  className={`flex-1 px-3 py-2 rounded-lg text-xs font-medium transition flex items-center justify-center gap-1.5 ${
+                    status === s ? 'bg-[var(--surface-active)] text-[var(--text)]' : 'text-[var(--text-muted)] hover:bg-[var(--surface-hover)]'
+                  }`}
+                >
+                  <span className="h-2 w-2 rounded-full" style={{ backgroundColor: STATUS_COLOR[s] }} />
+                  {statusLabel(type, s, t)}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <label className="flex flex-col gap-1.5 text-sm font-medium text-[var(--text)]">
             {t('title')}
             <input className="h-11 px-3 rounded-lg bg-[var(--input)] border border-[var(--border-subtle)] text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--color-nonsprimaryfocus)] transition-shadow" placeholder={t('title')} value={form.title} onChange={(e) => setForm(s => ({...s, title: e.target.value}))} />
@@ -189,7 +212,7 @@ export default function MediaModal({ isOpen, initialData, initialType, onClose, 
           <button onClick={onClose} className="px-4 h-10 rounded-lg bg-[var(--surface)] border border-[var(--border-subtle)] text-[var(--text-muted)] hover:bg-[var(--surface-hover)] transition-colors">
             {t('cancel')}
           </button>
-          <button onClick={handleSave} className="px-6 h-10 rounded-lg bg-nonsprimary text-[var(--text)] font-medium hover:bg-nonsprimaryfocus shadow-md shadow-nonsprimary/20 transition-all">
+          <button onClick={handleSave} className="px-6 h-10 rounded-lg bg-nonsprimary text-white font-medium hover:bg-nonsprimaryfocus transition-colors">
             {isEditing ? t('save') : `${t('add')} ${type === 'book' ? t('book') : t('film')}`}
           </button>
         </div>

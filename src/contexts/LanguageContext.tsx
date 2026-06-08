@@ -163,7 +163,81 @@ export const translations: Translations = {
   pages: { en: 'Pages', ru: 'Страницы' },
   duration: { en: 'Duration', ru: 'Длительность' },
   durationPlaceholder: { en: 'E.g., 120 min', ru: 'Например, 120 мин' },
-  pagesCount: { en: '{count} pages', ru: '{count} стр.' }
+  pagesCount: { en: '{count} pages', ru: '{count} стр.' },
+
+  // Library / shelves
+  library: { en: 'Library', ru: 'Библиотека' },
+  librarySubtitle: { en: 'Your books and films, all in one shelf.', ru: 'Ваши книги и фильмы на одной полке.' },
+  shelves: { en: 'Shelves', ru: 'Полки' },
+  browse: { en: 'Browse', ru: 'Обзор' },
+  allItems: { en: 'Everything', ru: 'Всё' },
+  favorites: { en: 'Favorites', ru: 'Избранное' },
+  shelfWishlist: { en: 'Want to', ru: 'В планах' },
+  shelfActive: { en: 'In progress', ru: 'В процессе' },
+  shelfDone: { en: 'Finished', ru: 'Завершено' },
+  continueHint: { en: 'Pick up where you left off', ru: 'Продолжите с того места, где остановились' },
+  hide: { en: 'Hide', ru: 'Скрыть' },
+  show: { en: 'Show', ru: 'Показать' },
+  inProgressHiddenHint: {
+    en: 'The “In progress” section is hidden. Click the eye next to In progress in the shelves to bring it back.',
+    ru: 'Раздел «В процессе» скрыт. Нажмите на глаз рядом с «В процессе» в полках, чтобы вернуть его.',
+  },
+  wantToRead: { en: 'Want to read', ru: 'Хочу прочитать' },
+  wantToWatch: { en: 'Want to watch', ru: 'Хочу посмотреть' },
+  reading: { en: 'Reading', ru: 'Читаю' },
+  watching: { en: 'Watching', ru: 'Смотрю' },
+  read: { en: 'Read', ru: 'Прочитано' },
+  watched: { en: 'Watched', ru: 'Просмотрено' },
+
+  // Stats
+  statTotal: { en: 'Total', ru: 'Всего' },
+  statBooks: { en: 'Books', ru: 'Книги' },
+  statMovies: { en: 'Films', ru: 'Фильмы' },
+  statAvg: { en: 'Avg. rating', ru: 'Ср. оценка' },
+  statFinished: { en: 'Finished', ru: 'Завершено' },
+
+  // Discover / social
+  discover: { en: 'Discover', ru: 'Интересное' },
+  discoverSubtitle: {
+    en: 'What the community is reading and watching right now.',
+    ru: 'Что сообщество читает и смотрит прямо сейчас.',
+  },
+  trendingNow: { en: 'Trending now', ru: 'Сейчас в тренде' },
+  popularBooks: { en: 'Popular books', ru: 'Популярные книги' },
+  popularFilms: { en: 'Popular films', ru: 'Популярные фильмы' },
+  recommendedForYou: { en: 'Recommended for you', ru: 'Рекомендуем вам' },
+  addToLibrary: { en: 'Add', ru: 'Добавить' },
+  inLibrary: { en: 'In library', ru: 'В библиотеке' },
+  ratingsCountLabel: { en: '{n} ratings', ru: 'оценок: {n}' },
+  membersReading: { en: '{n} reading now', ru: 'читают сейчас: {n}' },
+  membersWatching: { en: '{n} watching now', ru: 'смотрят сейчас: {n}' },
+
+  // Search / global
+  globalSearch: { en: 'Search books & films…', ru: 'Поиск книг и фильмов…' },
+  viewProfile: { en: 'View profile', ru: 'Открыть профиль' },
+  profileSubtitle: { en: 'Your shelf at a glance', ru: 'Ваша полка с высоты птичьего полёта' },
+
+  // Controls
+  sortBy: { en: 'Sort', ru: 'Сортировка' },
+  sortAdded: { en: 'Recently added', ru: 'Недавно добавленные' },
+  sortRating: { en: 'Highest rated', ru: 'По рейтингу' },
+  sortTitle: { en: 'Title (A–Z)', ru: 'Название (А–Я)' },
+  sortYear: { en: 'Newest', ru: 'По году' },
+  gridView: { en: 'Grid', ru: 'Сетка' },
+  listView: { en: 'List', ru: 'Список' },
+  addEntry: { en: 'Add', ru: 'Добавить' },
+  filters: { en: 'Filters', ru: 'Фильтры' },
+  noResults: { en: 'Nothing on this shelf yet.', ru: 'На этой полке пока пусто.' },
+  noResultsHint: { en: 'Try a different shelf, or add something new.', ru: 'Выберите другую полку или добавьте новое.' },
+  showing: { en: 'Showing {n} of {total}', ru: 'Показано {n} из {total}' },
+  itemsCount: { en: '{n} items', ru: '{n} элементов' },
+
+  // Status control
+  status: { en: 'Status', ru: 'Статус' },
+  unrated: { en: 'Unrated', ru: 'Без оценки' },
+  markFavorite: { en: 'Add to favorites', ru: 'В избранное' },
+  unmarkFavorite: { en: 'Remove from favorites', ru: 'Убрать из избранного' },
+  back: { en: 'Back', ru: 'Назад' },
 };
 
 interface LanguageContextType {

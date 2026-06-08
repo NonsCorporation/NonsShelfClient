@@ -1,6 +1,14 @@
+export type MediaType = 'book' | 'movie'
+
+// Shelf status — the Goodreads/IMDb "what am I doing with this" axis.
+//   wishlist -> Want to Read / Want to Watch
+//   active   -> Currently Reading / Watching
+//   done     -> Read / Watched
+export type ShelfStatus = 'wishlist' | 'active' | 'done'
+
 export type MediaItem = {
   id: string
-  type: 'book' | 'movie'
+  type: MediaType
   title: string
   author: string
   coverUrl?: string
@@ -14,4 +22,6 @@ export type MediaItem = {
   description?: string
   duration?: string
   dateAdded?: string
+  status?: ShelfStatus
+  favorite?: boolean
 }
