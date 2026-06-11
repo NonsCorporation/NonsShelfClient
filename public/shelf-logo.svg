@@ -1,0 +1,14 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <!-- Nons Shelf — a staggered stack of books (after shelf.nu's bar stack),
+       drawn in the nons geometric family: rounded forms + the brand dot,
+       white on a black circle like the nons mark. -->
+  <circle cx="256" cy="256" r="256" fill="#000000"/>
+  <g fill="#ffffff">
+    <!-- the nons dot -->
+    <circle cx="318" cy="140" r="42"/>
+    <!-- stacked books -->
+    <rect x="154" y="210" width="180" height="42" rx="21"/>
+    <rect x="216" y="272" width="146" height="42" rx="21"/>
+    <rect x="162" y="334" width="172" height="42" rx="21"/>
+  </g>
+</svg>

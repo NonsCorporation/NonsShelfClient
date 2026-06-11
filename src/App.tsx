@@ -1,18 +1,26 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Home from './pages/Home.tsx';
+import FeedPage from './pages/Feed.tsx';
+import DiscoverPage from './pages/Discover.tsx';
 import CalendarPage from './pages/Calendar.tsx';
 import MediaOnePage from './pages/MediaOne.tsx';
 import ProfilePage from './pages/Profile.tsx';
+import RequireAuth from './components/RequireAuth.tsx';
 
 export default function App() {
   return (
-    <BrowserRouter basename="/NonsLibraryClient">
-      <Routes>
-        <Route path='/' element={<Home />} />
-        <Route path='/calendar' element={<CalendarPage />} />
-        <Route path='/shelf/:id' element={<MediaOnePage />} />
-        <Route path='/u/:handle' element={<ProfilePage />} />
-      </Routes>
+    <BrowserRouter>
+      <RequireAuth>
+        <Routes>
+          <Route path='/' element={<FeedPage />} />
+          <Route path='/library' element={<Home />} />
+          <Route path='/discover' element={<DiscoverPage />} />
+          <Route path='/calendar' element={<CalendarPage />} />
+          <Route path='/shelf/:id' element={<MediaOnePage />} />
+          <Route path='/u/:handle' element={<ProfilePage />} />
+        </Routes>
+      </RequireAuth>
     </BrowserRouter>
   );
 }
+

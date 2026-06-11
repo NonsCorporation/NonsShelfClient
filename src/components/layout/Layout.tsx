@@ -23,12 +23,12 @@ export default function Layout({ children }: LayoutProps) {
     if (value) next.set('q', value)
     else next.delete('q')
     const search = next.toString()
-    navigate({ pathname: '/', search: search ? `?${search}` : '' }, { replace: true })
+    navigate({ pathname: '/library', search: search ? `?${search}` : '' }, { replace: true })
   }
 
   // Adding is also routed (so the action works from any page): the Library
   // reads `?add=` and opens the modal.
-  const onAdd = () => navigate('/?add=book')
+  const onAdd = () => navigate('/library?add=book')
 
   return (
     <div className="app-ambient relative min-h-screen">

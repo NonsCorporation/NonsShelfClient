@@ -1,30 +1,24 @@
 import { useMemo, useState, useEffect } from 'react'
-import { useSearchParams, Link } from 'react-router-dom'
+import { useSearchParams } from 'react-router-dom'
 import {
   IoOptionsOutline,
   IoGridOutline,
   IoListOutline,
   IoChevronDown,
   IoLibraryOutline,
-  IoStar,
-  IoEyeOffOutline,
 } from 'react-icons/io5'
 import Layout from '../components/layout/Layout.tsx'
 import MediaCard from '../components/MediaCard.tsx'
 import MediaModal from '../components/MediaModal.tsx'
-import Hint from '../components/Hint.tsx'
 import { libraryService } from '../services/libraryService.ts'
 import type { MediaItem } from '../types.ts'
 import { useLanguage } from '../contexts/LanguageContext.tsx'
-import { usePreferences } from '../contexts/PreferencesContext.tsx'
-import { statusLabel, STATUS_COLOR } from '../lib/shelf'
 
 type ShelfKey = 'all' | 'wishlist' | 'active' | 'done' | 'favorites'
 type SortKey = 'added' | 'rating' | 'title' | 'year'
 
 export default function Home() {
   const { t } = useLanguage()
-  const { showInProgress, setShowInProgress } = usePreferences()
   const [params, setParams] = useSearchParams()
   const shelf = (params.get('shelf') as ShelfKey) || 'all'
   const query = params.get('q') ?? ''
@@ -77,8 +71,6 @@ export default function Home() {
       done: items.filter((it) => it.status === 'done').length,
     }
   }, [items])
-
-  const inProgress = useMemo(() => items.filter((it) => it.status === 'active'), [items])
 
   const filtered = useMemo(() => {
     const list = items.filter((it) => {
@@ -180,7 +172,7 @@ export default function Home() {
     <Layout>
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold tracking-tight text-[var(--text)] md:text-3xl">{shelfTitle}</h1>
+        <h1 className="text-xl font-bold tracking-tight text-[var(--text)]">{shelfTitle}</h1>
         <p className="mt-1 text-sm text-[var(--text-muted)]">{t('librarySubtitle')}</p>
       </div>
 
@@ -196,60 +188,6 @@ export default function Home() {
           </div>
         ))}
       </div>
-
-      {/* In progress — continue reading/watching */}
-      {!loading && shelf === 'all' && inProgress.length > 0 && showInProgress && (
-        <section className="mb-8">
-          <div className="mb-3 flex items-center gap-3">
-            <h2 className="flex items-center gap-2 text-base font-semibold text-[var(--text)]">
-              <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: STATUS_COLOR.active }} />
-              {t('shelfActive')}
-            </h2>
-            <p className="hidden text-sm text-[var(--text-muted)] sm:block">{t('continueHint')}</p>
-            <button
-              onClick={() => setShowInProgress(false)}
-              title={t('hide')}
-              className="ml-auto inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
-            >
-              <IoEyeOffOutline className="h-4 w-4" />
-              {t('hide')}
-            </button>
-          </div>
-          <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-1 no-scrollbar">
-            {inProgress.map((it) => (
-              <Link
-                key={it.id}
-                to={`/shelf/${it.id}`}
-                className="group flex w-72 flex-shrink-0 items-center gap-3 rounded-2xl border border-[var(--border-subtle)] bg-[var(--container)] p-3 transition-colors hover:border-[var(--border)]"
-              >
-                {it.coverUrl ? (
-                  <img
-                    src={it.coverUrl}
-                    alt={it.title}
-                    loading="lazy"
-                    className="h-[84px] w-14 flex-shrink-0 rounded-lg object-cover"
-                  />
-                ) : (
-                  <div className="h-[84px] w-14 flex-shrink-0 rounded-lg bg-[var(--container-2)]" />
-                )}
-                <div className="min-w-0 flex-1">
-                  <p className="text-[11px] font-medium" style={{ color: STATUS_COLOR.active }}>
-                    {statusLabel(it.type, 'active', t)}
-                  </p>
-                  <h3 className="mt-0.5 truncate text-sm font-semibold text-[var(--text)]">{it.title}</h3>
-                  <p className="truncate text-xs text-[var(--text-muted)]">{it.author}</p>
-                  {typeof it.rating === 'number' && it.rating > 0 && (
-                    <span className="mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-[var(--text)]">
-                      <IoStar className="h-3 w-3 text-nonsprimary" />
-                      {(it.rating / 2).toFixed(1)}
-                    </span>
-                  )}
-                </div>
-              </Link>
-            ))}
-          </div>
-        </section>
-      )}
 
       {/* Toolbar */}
       <div className="mb-6 flex flex-wrap items-center gap-2">
@@ -455,12 +393,6 @@ export default function Home() {
             />
           ))}
         </div>
-      )}
-
-      {!loading && shelf === 'all' && inProgress.length > 0 && !showInProgress && (
-        <Hint icon={IoEyeOffOutline} className="mt-8">
-          {t('inProgressHiddenHint')}
-        </Hint>
       )}
     </Layout>
   )

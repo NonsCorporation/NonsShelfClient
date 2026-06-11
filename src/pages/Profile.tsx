@@ -47,7 +47,7 @@ export default function ProfilePage() {
           {initials(user.name)}
         </span>
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-[var(--text)] md:text-3xl">{user.name}</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-[var(--text)]">{user.name}</h1>
           <p className="text-sm text-[var(--text-muted)]">@{displayHandle}</p>
           <p className="mt-1 text-sm text-[var(--text-muted)]">{t('profileSubtitle')}</p>
         </div>

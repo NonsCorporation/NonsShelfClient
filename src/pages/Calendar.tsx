@@ -55,7 +55,7 @@ export default function CalendarPage() {
                 {/* Header Actions & Title */}
                 <div className="flex justify-between items-center mb-6 border-b border-[var(--border-subtle)] pb-4">
                     <div className="flex items-center gap-4">
-                        <h1 className="text-2xl md:text-3xl font-bold text-[var(--text)] tracking-tight">{t('mediaCalendar')}</h1>
+                        <h1 className="text-xl font-bold text-[var(--text)] tracking-tight">{t('mediaCalendar')}</h1>
                     </div>
                     <div className="flex gap-2">
                         <button className="w-10 h-10 bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)] rounded-full flex items-center justify-center transition-colors">

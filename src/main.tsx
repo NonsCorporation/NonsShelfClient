@@ -4,13 +4,16 @@ import './index.css'
 import App from './App.tsx'
 import { LanguageProvider } from './contexts/LanguageContext.tsx'
 import { PreferencesProvider } from './contexts/PreferencesContext.tsx'
+import { AuthProvider } from './contexts/AuthContext.tsx'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <LanguageProvider>
-      <PreferencesProvider>
-        <App />
-      </PreferencesProvider>
-    </LanguageProvider>
+    <AuthProvider>
+      <LanguageProvider>
+        <PreferencesProvider>
+          <App />
+        </PreferencesProvider>
+      </LanguageProvider>
+    </AuthProvider>
   </StrictMode>,
 )

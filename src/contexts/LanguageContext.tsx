@@ -196,6 +196,16 @@ export const translations: Translations = {
   statAvg: { en: 'Avg. rating', ru: 'Ср. оценка' },
   statFinished: { en: 'Finished', ru: 'Завершено' },
 
+  // Feed
+  feedSubtitle: { en: 'Updates from you and the people you follow.', ru: 'Обновления от вас и тех, на кого вы подписаны.' },
+  friendsActivity: { en: 'Friends activity', ru: 'Активность друзей' },
+  noActivity: { en: 'No activity yet.', ru: 'Пока нет активности.' },
+  verbRated: { en: 'rated', ru: 'оценил(а)' },
+  verbFinished: { en: 'finished', ru: 'завершил(а)' },
+  verbStarted: { en: 'started', ru: 'начал(а)' },
+  verbAdded: { en: 'added', ru: 'добавил(а)' },
+  verbReviewed: { en: 'reviewed', ru: 'оставил(а) отзыв на' },
+
   // Discover / social
   discover: { en: 'Discover', ru: 'Интересное' },
   discoverSubtitle: {
@@ -215,6 +225,58 @@ export const translations: Translations = {
   // Search / global
   globalSearch: { en: 'Search books & films…', ru: 'Поиск книг и фильмов…' },
   viewProfile: { en: 'View profile', ru: 'Открыть профиль' },
+  logout: { en: 'Log out', ru: 'Выйти' },
+  login: { en: 'Sign in', ru: 'Войти' },
+  loginSubtitle: { en: 'Sign in with your nons account.', ru: 'Войдите с аккаунтом nons.' },
+  loginEmailOrUsername: { en: 'Email or username', ru: 'Эл. почта или имя пользователя' },
+  loginPassword: { en: 'Password', ru: 'Пароль' },
+  loginSubmitting: { en: 'Signing in…', ru: 'Вход…' },
+
+  // Signed-out landing page
+  landingEyebrow: { en: 'Part of the nons family', ru: 'Часть семейства nons' },
+  landingTitle: { en: 'Every book and film you love,', ru: 'Все любимые книги и фильмы —' },
+  landingTitle2: { en: 'on one shelf.', ru: 'на одной полке.' },
+  landingSubtitle: {
+    en: 'Track what you read and watch, rate it, and see what your friends on nons are into — without the noise.',
+    ru: 'Отмечайте, что читаете и смотрите, ставьте оценки и следите, чем увлечены ваши друзья в nons — без лишнего шума.',
+  },
+  landingCta: { en: 'Continue with nons', ru: 'Продолжить с nons' },
+  landingSsoNote: {
+    en: 'One nons account — sign in once, use every nons app.',
+    ru: 'Один аккаунт nons — войдите один раз и пользуйтесь всеми приложениями.',
+  },
+  landingFeat1Title: { en: 'Books and films together', ru: 'Книги и фильмы вместе' },
+  landingFeat1Text: {
+    en: 'Want to, in progress, finished — shelves that match how you actually read and watch.',
+    ru: 'Хочу, в процессе, завершено — полки, которые соответствуют тому, как вы читаете и смотрите.',
+  },
+  landingFeat2Title: { en: 'Ratings from your circle', ru: 'Оценки вашего круга' },
+  landingFeat2Text: {
+    en: 'See what your nons friends are reading and watching — recommendations from people, not algorithms.',
+    ru: 'Смотрите, что читают и смотрят ваши друзья в nons — рекомендации от людей, а не алгоритмов.',
+  },
+  landingFeat3Title: { en: 'Powered by your nons account', ru: 'Работает на вашем аккаунте nons' },
+  landingFeat3Text: {
+    en: 'Your profile, friends and privacy settings follow you here. No new account, no new password.',
+    ru: 'Ваш профиль, друзья и настройки приватности доступны и здесь. Без нового аккаунта и пароля.',
+  },
+  landingFooterNons: {
+    en: 'Built on the nons platform — nonsapp.com',
+    ru: 'Создано на платформе nons — nonsapp.com',
+  },
+  landingLovedWeek: { en: 'Loved this week', ru: 'Понравилось на этой неделе' },
+  landingQuote1: {
+    en: 'Finally one shelf for everything — I rate a film and my friends actually see it.',
+    ru: 'Наконец одна полка для всего — я оцениваю фильм, и друзья это действительно видят.',
+  },
+  landingQuote2: {
+    en: 'The “in progress” shelf quietly replaced three apps for me.',
+    ru: 'Полка «в процессе» незаметно заменила мне три приложения.',
+  },
+  landingQuote3: {
+    en: 'Recommendations come from my circle on nons, not from an algorithm.',
+    ru: 'Рекомендации приходят от моего круга в nons, а не от алгоритма.',
+  },
   profileSubtitle: { en: 'Your shelf at a glance', ru: 'Ваша полка с высоты птичьего полёта' },
 
   // Controls

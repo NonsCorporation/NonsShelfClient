@@ -1,6 +1,8 @@
 import { Link, useLocation, useSearchParams } from 'react-router-dom'
 import {
+  IoHomeOutline,
   IoLibraryOutline,
+  IoCompassOutline,
   IoCalendarOutline,
   IoHeartOutline,
   IoLayersOutline,
@@ -12,8 +14,10 @@ import {
   IoEyeOffOutline,
 } from 'react-icons/io5'
 import type { IconType } from 'react-icons'
+import { IoLogOutOutline } from 'react-icons/io5'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { usePreferences } from '../../contexts/PreferencesContext'
+import { useAuth } from '../../contexts/AuthContext'
 import { currentUser, initials } from '../../lib/user'
 
 type ShelfKey = 'all' | 'wishlist' | 'active' | 'done' | 'favorites'
@@ -28,9 +32,18 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
   const [params] = useSearchParams()
   const { language, setLanguage, t } = useLanguage()
   const { showInProgress, setShowInProgress } = usePreferences()
+  const { user, logout } = useAuth()
+
+  // The signed-in nons identity (library session), falling back to the mock while loading.
+  const display = {
+    handle: user?.username ?? currentUser.handle,
+    name: user?.name || user?.username || currentUser.name,
+    color: currentUser.color,
+    avatar: user?.avatar_url || '',
+  }
 
   const activeShelf = (params.get('shelf') as ShelfKey) || 'all'
-  const onLibrary = location.pathname === '/'
+  const onLibrary = location.pathname === '/library'
 
   const shelves: { key: ShelfKey; label: string; icon: IconType; dot?: string }[] = [
     { key: 'all', label: t('allItems'), icon: IoLayersOutline },
@@ -44,7 +57,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
     <div className="flex h-full flex-col gap-6 px-4 py-5">
       {/* Brand */}
       <Link to="/" onClick={onClose} className="flex items-center gap-2.5 px-2 py-1">
-        <IoLibraryOutline className="h-5 w-5 text-nonsprimary" />
+        <img src="/logo.png" alt="Nons Shelf" className="h-5 w-5 text-nonsprimary" />
         <p className="text-sm font-semibold tracking-tight text-[var(--text)]">Nons Shelf</p>
       </Link>
 
@@ -57,6 +70,18 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
           to="/"
           onClick={onClose}
           className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
+            location.pathname === '/'
+              ? 'bg-[var(--surface)] font-medium text-[var(--text)]'
+              : 'text-[var(--text-muted)] hover:text-[var(--text)]'
+          }`}
+        >
+          <IoHomeOutline className="h-[18px] w-[18px]" />
+          {t('home')}
+        </Link>
+        <Link
+          to="/library"
+          onClick={onClose}
+          className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
             onLibrary
               ? 'bg-[var(--surface)] font-medium text-[var(--text)]'
               : 'text-[var(--text-muted)] hover:text-[var(--text)]'
@@ -64,6 +89,18 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
         >
           <IoLibraryOutline className="h-[18px] w-[18px]" />
           {t('library')}
+        </Link>
+        <Link
+          to="/discover"
+          onClick={onClose}
+          className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
+            location.pathname === '/discover'
+              ? 'bg-[var(--surface)] font-medium text-[var(--text)]'
+              : 'text-[var(--text-muted)] hover:text-[var(--text)]'
+          }`}
+        >
+          <IoCompassOutline className="h-[18px] w-[18px]" />
+          {t('discover')}
         </Link>
         <Link
           to="/calendar"
@@ -90,7 +127,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
           return (
             <div key={s.key} className="relative">
               <Link
-                to={s.key === 'all' ? '/' : `/?shelf=${s.key}`}
+                to={s.key === 'all' ? '/library' : `/library?shelf=${s.key}`}
                 onClick={onClose}
                 className={`group flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
                   s.key === 'active' ? 'pr-9' : ''
@@ -143,23 +180,40 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
           ))}
         </div>
 
-        <Link
-          to={`/u/${currentUser.handle}`}
-          onClick={onClose}
-          title={t('viewProfile')}
-          className="flex items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-[var(--surface)]"
-        >
-          <span
-            className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white"
-            style={{ backgroundColor: currentUser.color }}
+        <div className="flex items-center gap-2">
+          <Link
+            to={`/u/${display.handle}`}
+            onClick={onClose}
+            title={t('viewProfile')}
+            className="flex min-w-0 flex-1 items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-[var(--surface)]"
           >
-            {initials(currentUser.name)}
-          </span>
-          <span className="min-w-0">
-            <span className="block truncate text-sm font-medium text-[var(--text)]">{currentUser.name}</span>
-            <span className="block truncate text-xs text-[var(--text-muted)]">@{currentUser.handle}</span>
-          </span>
-        </Link>
+            {display.avatar ? (
+              <img
+                src={display.avatar}
+                alt={display.name}
+                className="h-9 w-9 flex-shrink-0 rounded-full object-cover"
+              />
+            ) : (
+              <span
+                className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white"
+                style={{ backgroundColor: display.color }}
+              >
+                {initials(display.name)}
+              </span>
+            )}
+            <span className="min-w-0">
+              <span className="block truncate text-sm font-medium text-[var(--text)]">{display.name}</span>
+              <span className="block truncate text-xs text-[var(--text-muted)]">@{display.handle}</span>
+            </span>
+          </Link>
+          <button
+            onClick={() => logout()}
+            title={t('logout') || 'Log out'}
+            className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg text-[var(--text-muted)] transition-colors hover:bg-[var(--surface)] hover:text-[var(--text)]"
+          >
+            <IoLogOutOutline className="h-[18px] w-[18px]" />
+          </button>
+        </div>
       </div>
     </div>
   )
