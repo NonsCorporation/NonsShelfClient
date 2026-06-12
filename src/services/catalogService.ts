@@ -1,3 +1,4 @@
+import { authedFetch } from '../lib/api'
 import type { MediaType } from '../types'
 
 // A community catalog item — popular media with aggregate/social signals.
@@ -25,141 +26,62 @@ export type CatalogItem = {
   recommendedBecause?: string
 }
 
-const catalog: CatalogItem[] = [
-  {
-    id: 'c-fourthwing',
-    type: 'book',
-    title: 'Fourth Wing',
-    author: 'Rebecca Yarros',
-    coverUrl: 'https://covers.openlibrary.org/b/id/14346269-L.jpg',
-    year: 2023,
-    genre: ['Fantasy', 'Romance'],
-    communityRating: 9.2,
-    ratingsCount: 184200,
-    activeNow: 5120,
-    trendScore: 98,
-    description: 'Enter a brutal war college for dragon riders where the only way out is to graduate… or die.',
-    recommendedBecause: 'Loved by readers of The Name of the Wind',
-  },
-  {
-    id: 'c-dune-movie',
-    type: 'movie',
-    title: 'Dune: Part Two',
-    author: 'Denis Villeneuve',
-    director: 'Denis Villeneuve',
-    coverUrl: 'https://m.media-amazon.com/images/I/71O3w2Gj-PL._AC_SY679_.jpg',
-    year: 2024,
-    genre: ['Sci-Fi', 'Adventure'],
-    communityRating: 8.8,
-    ratingsCount: 412300,
-    activeNow: 8800,
-    trendScore: 96,
-    description: 'Paul Atreides unites with the Fremen to wage war against the conspirators who destroyed his family.',
-    recommendedBecause: 'Because you have Dune on your shelf',
-  },
-  {
-    id: 'c-tomorrow',
-    type: 'book',
-    title: 'Tomorrow, and Tomorrow, and Tomorrow',
-    author: 'Gabrielle Zevin',
-    coverUrl: 'https://covers.openlibrary.org/b/id/12818862-L.jpg',
-    year: 2022,
-    genre: ['Fiction', 'Contemporary'],
-    communityRating: 8.6,
-    ratingsCount: 96400,
-    activeNow: 2310,
-    trendScore: 81,
-    description: 'Two friends find their partnership tested over thirty years of designing video games together.',
-  },
-  {
-    id: 'c-poorthings',
-    type: 'movie',
-    title: 'Poor Things',
-    author: 'Yorgos Lanthimos',
-    director: 'Yorgos Lanthimos',
-    coverUrl: 'https://m.media-amazon.com/images/I/71eAj7lT7-L._AC_SY679_.jpg',
-    year: 2023,
-    genre: ['Drama', 'Comedy', 'Sci-Fi'],
-    communityRating: 8.4,
-    ratingsCount: 271800,
-    activeNow: 3950,
-    trendScore: 88,
-    description: 'A young woman brought back to life by an unorthodox scientist runs off on an adventure across continents.',
-    recommendedBecause: 'Trending with fans of Oppenheimer',
-  },
-  {
-    id: 'c-babel',
-    type: 'book',
-    title: 'Babel',
-    author: 'R. F. Kuang',
-    coverUrl: 'https://covers.openlibrary.org/b/id/12643765-L.jpg',
-    year: 2022,
-    genre: ['Fantasy', 'Historical'],
-    communityRating: 8.5,
-    ratingsCount: 78900,
-    activeNow: 1840,
-    trendScore: 79,
-    description: 'An orphan is trained in Oxford’s Royal Institute of Translation — and torn between empire and resistance.',
-    recommendedBecause: 'Picked for readers of 1984',
-  },
-  {
-    id: 'c-everything',
-    type: 'movie',
-    title: 'Everything Everywhere All at Once',
-    author: 'Daniel Kwan, Daniel Scheinert',
-    director: 'Daniel Kwan, Daniel Scheinert',
-    coverUrl: 'https://m.media-amazon.com/images/I/71niXI3lxlL._AC_SY679_.jpg',
-    year: 2022,
-    genre: ['Sci-Fi', 'Comedy', 'Adventure'],
-    communityRating: 8.9,
-    ratingsCount: 534100,
-    activeNow: 6200,
-    trendScore: 92,
-    description: 'A laundromat owner is swept into an adventure where she alone can save existence across the multiverse.',
-  },
-  {
-    id: 'c-projecthail',
-    type: 'book',
-    title: 'Project Hail Mary',
-    author: 'Andy Weir',
-    coverUrl: 'https://covers.openlibrary.org/b/id/10520611-L.jpg',
-    year: 2021,
-    genre: ['Sci-Fi', 'Thriller'],
-    communityRating: 9.0,
-    ratingsCount: 142600,
-    activeNow: 3070,
-    trendScore: 85,
-    description: 'A lone astronaut must save Earth from disaster in a story of discovery, friendship and grit.',
-    recommendedBecause: 'Sci-fi fans rate this 9+',
-  },
-  {
-    id: 'c-pastlives',
-    type: 'movie',
-    title: 'Past Lives',
-    author: 'Celine Song',
-    director: 'Celine Song',
-    coverUrl: 'https://m.media-amazon.com/images/I/71y5sFnU8eL._AC_SY679_.jpg',
-    year: 2023,
-    genre: ['Drama', 'Romance'],
-    communityRating: 8.2,
-    ratingsCount: 119500,
-    activeNow: 1620,
-    trendScore: 74,
-    description: 'Two childhood friends reunite for one week, confronting the choices that shape a life.',
-  },
-]
+// Shape of a media row as returned by nons-library-server’s GET /api/media.
+type BackendMedia = {
+  id: number
+  type: MediaType
+  title: string
+  author: string
+  director: string
+  year: number
+  genres: string // comma-separated
+  cover_url: string
+  description: string
+  duration_min: number
+  pages: number
+  created_by: number
+  created_at: number
+  updated_at: number
+}
+
+// mapMedia adapts a backend row to the CatalogItem the UI renders. The social
+// signals (rating, active-now, trend) aren’t computed server-side yet, so they
+// default to 0 until the backend aggregates shelf/rating data.
+function mapMedia(m: BackendMedia): CatalogItem {
+  return {
+    id: String(m.id),
+    type: m.type,
+    title: m.title,
+    author: m.author,
+    director: m.director || undefined,
+    coverUrl: m.cover_url || undefined,
+    year: m.year || undefined,
+    genre: m.genres ? m.genres.split(‘,’).map((g) => g.trim()).filter(Boolean) : [],
+    description: m.description || undefined,
+    communityRating: 0,
+    ratingsCount: 0,
+    activeNow: 0,
+    trendScore: 0,
+  }
+}
 
 export interface ICatalogService {
   getCatalog(): Promise<CatalogItem[]>
 }
 
-class MockCatalogService implements ICatalogService {
+// Talks to nons-library-server over the shared SSO session (authedFetch sends
+// the access_token cookie). The component layer only knows ICatalogService, so
+// this swaps in for the old mock without any UI changes.
+class ApiCatalogService implements ICatalogService {
   async getCatalog(): Promise<CatalogItem[]> {
-    return new Promise((resolve) => setTimeout(() => resolve(catalog), 140))
+    const res = await authedFetch(‘/api/media?limit=100’)
+    if (!res.ok) throw new Error(`catalog fetch failed: ${res.status}`)
+    const data: { items: BackendMedia[] } = await res.json()
+    return data.items.map(mapMedia)
   }
 }
 
-export const catalogService: ICatalogService = new MockCatalogService()
+export const catalogService: ICatalogService = new ApiCatalogService()
 
 /** Compact count formatter: 184200 -> "184k", 1840 -> "1.8k". */
 export function compactCount(n: number): string {
