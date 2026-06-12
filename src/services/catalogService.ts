@@ -74,9 +74,22 @@ export interface ICatalogService {
 // the access_token cookie). The component layer only knows ICatalogService, so
 // this swaps in for the old mock without any UI changes.
 class ApiCatalogService implements ICatalogService {
+  // The backend caps a page at 100 rows, so browsing fetches books and films
+  // as two parallel pages (Discover sections split by type anyway). A search
+  // stays a single mixed query.
   async getCatalog(q?: string): Promise<CatalogItem[]> {
-    const query = q?.trim() ? `&q=${encodeURIComponent(q.trim())}` : ''
-    const res = await authedFetch(`/api/media?limit=100${query}`)
+    if (q?.trim()) {
+      return this.fetchPage(`/api/media?limit=100&q=${encodeURIComponent(q.trim())}`)
+    }
+    const [books, movies] = await Promise.all([
+      this.fetchPage('/api/media?type=book&limit=100'),
+      this.fetchPage('/api/media?type=movie&limit=100'),
+    ])
+    return [...books, ...movies]
+  }
+
+  private async fetchPage(url: string): Promise<CatalogItem[]> {
+    const res = await authedFetch(url)
     if (!res.ok) throw new Error(`catalog fetch failed: ${res.status}`)
     const data: { items: BackendMedia[] } = await res.json()
     return data.items.map(mapMedia)
