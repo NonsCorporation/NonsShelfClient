@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import Layout from '../components/layout/Layout'
 import CatalogCard from '../components/CatalogCard'
 import { catalogService, compactCount } from '../services/catalogService'
@@ -12,18 +13,26 @@ const keyOf = (it: { type: string; title: string }) => `${it.type}:${it.title.tr
 
 export default function DiscoverPage() {
   const { t } = useLanguage()
+  const [params] = useSearchParams()
+  const q = params.get('q')?.trim() ?? ''
   const [catalog, setCatalog] = useState<CatalogItem[]>([])
   const [libKeys, setLibKeys] = useState<Set<string>>(new Set())
   const [added, setAdded] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
 
+  // Search hits the backend (whole catalog, not just the user's library).
+  // Debounced so the top-bar input doesn't fire a request per keystroke.
   useEffect(() => {
-    Promise.all([catalogService.getCatalog(), libraryService.getItems()]).then(([cat, lib]) => {
-      setCatalog(cat)
-      setLibKeys(new Set(lib.map(keyOf)))
-      setLoading(false)
-    })
-  }, [])
+    setLoading(true)
+    const timer = setTimeout(() => {
+      Promise.all([catalogService.getCatalog(q), libraryService.getItems()]).then(([cat, lib]) => {
+        setCatalog(cat)
+        setLibKeys(new Set(lib.map(keyOf)))
+        setLoading(false)
+      })
+    }, q ? 300 : 0)
+    return () => clearTimeout(timer)
+  }, [q])
 
   const inLibrary = (it: CatalogItem) => libKeys.has(keyOf(it)) || added.has(keyOf(it))
 
@@ -84,6 +93,20 @@ export default function DiscoverPage() {
           {Array.from({ length: 6 }).map((_, i) => (
             <div key={i} className="aspect-[2/3] animate-pulse rounded-xl bg-[var(--surface)]" />
           ))}
+        </div>
+      ) : q ? (
+        /* Search mode — flat results from the whole catalog */
+        <div className="animate-fade-up">
+          <h2 className="mb-3 text-base font-semibold text-[var(--text)]">{t('searchResults', { q })}</h2>
+          {catalog.length === 0 ? (
+            <p className="py-16 text-center text-sm text-[var(--text-muted)]">{t('noResults')}</p>
+          ) : (
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+              {catalog.map((it) => (
+                <CatalogCard key={it.id} item={it} inLibrary={inLibrary(it)} onAdd={() => handleAdd(it)} />
+              ))}
+            </div>
+          )}
         </div>
       ) : (
         <div className="animate-fade-up">

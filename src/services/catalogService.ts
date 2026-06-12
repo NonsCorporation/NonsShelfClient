@@ -66,15 +66,17 @@ function mapMedia(m: BackendMedia): CatalogItem {
 }
 
 export interface ICatalogService {
-  getCatalog(): Promise<CatalogItem[]>
+  /** Fetch the catalog; `q` searches the whole DB by title/author server-side. */
+  getCatalog(q?: string): Promise<CatalogItem[]>
 }
 
 // Talks to nons-library-server over the shared SSO session (authedFetch sends
 // the access_token cookie). The component layer only knows ICatalogService, so
 // this swaps in for the old mock without any UI changes.
 class ApiCatalogService implements ICatalogService {
-  async getCatalog(): Promise<CatalogItem[]> {
-    const res = await authedFetch("/api/media?limit=100")
+  async getCatalog(q?: string): Promise<CatalogItem[]> {
+    const query = q?.trim() ? `&q=${encodeURIComponent(q.trim())}` : ''
+    const res = await authedFetch(`/api/media?limit=100${query}`)
     if (!res.ok) throw new Error(`catalog fetch failed: ${res.status}`)
     const data: { items: BackendMedia[] } = await res.json()
     return data.items.map(mapMedia)

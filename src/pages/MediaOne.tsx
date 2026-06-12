@@ -11,11 +11,9 @@ import {
   IoHeart,
   IoHeartOutline,
   IoShareOutline,
-  IoCreateOutline,
   IoArrowBack,
 } from 'react-icons/io5'
 import { useLanguage } from '../contexts/LanguageContext'
-import MediaModal from '../components/MediaModal'
 import { STATUS_ORDER, STATUS_COLOR, statusLabel } from '../lib/shelf'
 
 export default function MediaOnePage() {
@@ -27,7 +25,6 @@ export default function MediaOnePage() {
 
   const [userRating, setUserRating] = useState<number | null>(null)
   const [userReview, setUserReview] = useState('')
-  const [isEditing, setIsEditing] = useState(false)
 
   useEffect(() => {
     if (!id) return
@@ -49,13 +46,6 @@ export default function MediaOnePage() {
   const handleRatingChange = async (val: number) => {
     setUserRating(val)
     await patch({ rating: val })
-  }
-
-  const handleSave = async (data: Partial<MediaItem>) => {
-    const updated = await libraryService.updateItem(id!, data)
-    setItem(updated)
-    setUserRating(updated.rating ?? null)
-    setIsEditing(false)
   }
 
   if (loading) {
@@ -168,17 +158,10 @@ export default function MediaOnePage() {
               ) : null}
             </div>
 
-            <div className="mb-2 flex items-start justify-between gap-4">
+            <div className="mb-2">
               <h1 className="text-3xl font-bold leading-tight tracking-tight text-[var(--text)] md:text-[2.6rem]">
                 {item.title}
               </h1>
-              <button
-                onClick={() => setIsEditing(true)}
-                className="flex-shrink-0 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] p-2 text-[var(--text-muted)] transition-all hover:text-[var(--text)]"
-                aria-label="Edit details"
-              >
-                <IoCreateOutline className="h-5 w-5" />
-              </button>
             </div>
 
             <p className="text-sm text-[var(--text-muted)]">
@@ -243,13 +226,6 @@ export default function MediaOnePage() {
           </div>
         </div>
       </div>
-
-      <MediaModal
-        isOpen={isEditing}
-        initialData={item}
-        onClose={() => setIsEditing(false)}
-        onSave={handleSave}
-      />
     </Layout>
   )
 }

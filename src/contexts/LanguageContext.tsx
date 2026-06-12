@@ -224,6 +224,8 @@ export const translations: Translations = {
 
   // Search / global
   globalSearch: { en: 'Search books & films…', ru: 'Поиск книг и фильмов…' },
+  searchResults: { en: 'Results for "{q}"', ru: 'Результаты по запросу «{q}»' },
+  searchLibrary: { en: 'Search your library…', ru: 'Поиск в библиотеке…' },
   viewProfile: { en: 'View profile', ru: 'Открыть профиль' },
   logout: { en: 'Log out', ru: 'Выйти' },
   login: { en: 'Sign in', ru: 'Войти' },

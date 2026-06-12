@@ -4,7 +4,6 @@ import {
   IoFilmOutline,
   IoHeart,
   IoHeartOutline,
-  IoEllipsisHorizontal,
   IoStar,
 } from 'react-icons/io5'
 import type { MediaItem } from '../types'
@@ -14,7 +13,6 @@ import { statusLabel, STATUS_COLOR } from '../lib/shelf'
 type MediaCardProps = {
   item: MediaItem
   view: 'grid' | 'list'
-  onEdit: () => void
   onToggleFavorite: () => void
 }
 
@@ -30,7 +28,7 @@ function Cover({ item, className }: { item: MediaItem; className?: string }) {
   )
 }
 
-export default function MediaCard({ item, view, onEdit, onToggleFavorite }: MediaCardProps) {
+export default function MediaCard({ item, view, onToggleFavorite }: MediaCardProps) {
   const { t } = useLanguage()
   const isBook = item.type === 'book'
   const TypeIcon = isBook ? IoBookOutline : IoFilmOutline
@@ -50,20 +48,6 @@ export default function MediaCard({ item, view, onEdit, onToggleFavorite }: Medi
       }`}
     >
       {item.favorite ? <IoHeart className="h-[18px] w-[18px]" /> : <IoHeartOutline className="h-[18px] w-[18px]" />}
-    </button>
-  )
-
-  const editBtn = (
-    <button
-      onClick={(e) => {
-        e.preventDefault()
-        e.stopPropagation()
-        onEdit()
-      }}
-      className="flex items-center justify-center rounded-full p-1.5 text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
-      aria-label="Edit"
-    >
-      <IoEllipsisHorizontal className="h-4 w-4" />
     </button>
   )
 
@@ -97,7 +81,6 @@ export default function MediaCard({ item, view, onEdit, onToggleFavorite }: Medi
             </span>
           )}
           <span className="text-[var(--text-muted)]">{favBtn}</span>
-          {editBtn}
         </div>
       </Link>
     )
@@ -141,18 +124,7 @@ export default function MediaCard({ item, view, onEdit, onToggleFavorite }: Medi
       </div>
 
       <div className="relative flex flex-1 flex-col gap-1 p-3">
-        <button
-          onClick={(e) => {
-            e.preventDefault()
-            e.stopPropagation()
-            onEdit()
-          }}
-          className="absolute right-2 top-2 rounded-full p-1.5 text-[var(--text-muted)] opacity-0 transition-all hover:bg-[var(--surface-hover)] hover:text-[var(--text)] group-hover:opacity-100"
-          aria-label="Edit"
-        >
-          <IoEllipsisHorizontal className="h-4 w-4" />
-        </button>
-        <h3 className="truncate pr-6 text-[15px] font-semibold leading-snug text-[var(--text)]" title={item.title}>
+        <h3 className="truncate text-[15px] font-semibold leading-snug text-[var(--text)]" title={item.title}>
           {item.title}
         </h3>
         <p className="truncate text-sm text-[var(--text-muted)]">{item.author}</p>

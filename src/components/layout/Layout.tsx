@@ -16,14 +16,14 @@ export default function Layout({ children }: LayoutProps) {
   const [params] = useSearchParams()
   const q = params.get('q') ?? ''
 
-  // Global search: lives in the top bar on every page and always resolves to the
-  // Library with a `?q=` param, preserving the current shelf if there is one.
+  // Global search: lives in the top bar on every page and resolves to Discover
+  // with a `?q=` param — it searches the whole catalog (backend), not just the
+  // user's own library. The Library page has its own local search.
   const onSearch = (value: string) => {
-    const next = new URLSearchParams(params)
+    const next = new URLSearchParams()
     if (value) next.set('q', value)
-    else next.delete('q')
     const search = next.toString()
-    navigate({ pathname: '/library', search: search ? `?${search}` : '' }, { replace: true })
+    navigate({ pathname: '/discover', search: search ? `?${search}` : '' }, { replace: true })
   }
 
   // Adding is also routed (so the action works from any page): the Library

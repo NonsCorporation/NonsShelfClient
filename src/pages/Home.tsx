@@ -6,6 +6,7 @@ import {
   IoListOutline,
   IoChevronDown,
   IoLibraryOutline,
+  IoSearch,
 } from 'react-icons/io5'
 import Layout from '../components/layout/Layout.tsx'
 import MediaCard from '../components/MediaCard.tsx'
@@ -21,7 +22,10 @@ export default function Home() {
   const { t } = useLanguage()
   const [params, setParams] = useSearchParams()
   const shelf = (params.get('shelf') as ShelfKey) || 'all'
-  const query = params.get('q') ?? ''
+
+  // Local search — filters the user's own library client-side. The global
+  // top-bar search goes to Discover and searches the whole catalog instead.
+  const [query, setQuery] = useState('')
 
   const [items, setItems] = useState<MediaItem[]>([])
   const [loading, setLoading] = useState(true)
@@ -38,7 +42,6 @@ export default function Home() {
   const [actorFilter, setActorFilter] = useState('')
 
   const [showForm, setShowForm] = useState<null | 'book' | 'movie'>(null)
-  const [formInitialData, setFormInitialData] = useState<MediaItem | null>(null)
 
   useEffect(() => {
     libraryService.getItems().then((data) => {
@@ -51,7 +54,6 @@ export default function Home() {
   useEffect(() => {
     const add = params.get('add')
     if (add === 'book' || add === 'movie') {
-      setFormInitialData(null)
       setShowForm(add)
       const next = new URLSearchParams(params)
       next.delete('add')
@@ -120,20 +122,8 @@ export default function Home() {
   const hasAdvanced = !!(genreFilter || yearFilter || directorFilter || actorFilter)
 
   async function handleSave(data: Partial<MediaItem>) {
-    if (formInitialData?.id) {
-      const updated = await libraryService.updateItem(formInitialData.id, data)
-      setItems((prev) => prev.map((it) => (it.id === formInitialData.id ? updated : it)))
-      setShowForm(null)
-      return
-    }
     const newItem = await libraryService.addItem(data as Omit<MediaItem, 'id'>)
     setItems((s) => [newItem, ...s])
-    setShowForm(null)
-  }
-
-  async function handleDelete(id: string) {
-    await libraryService.deleteItem(id)
-    setItems((prev) => prev.filter((it) => it.id !== id))
     setShowForm(null)
   }
 
@@ -191,6 +181,17 @@ export default function Home() {
 
       {/* Toolbar */}
       <div className="mb-6 flex flex-wrap items-center gap-2">
+        {/* Local library search */}
+        <div className="relative w-full sm:w-56">
+          <IoSearch className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={t('searchLibrary')}
+            className="h-10 w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--input)] pl-9 pr-3 text-sm text-[var(--text)] placeholder:text-[var(--placeholder)] focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[var(--primary-ring)]"
+          />
+        </div>
+
         {/* Type chips */}
         <div className="flex rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] p-1">
           {(['all', 'book', 'movie'] as const).map((f) => (
@@ -342,10 +343,8 @@ export default function Home() {
       <MediaModal
         isOpen={showForm !== null}
         initialType={showForm || 'book'}
-        initialData={formInitialData ?? undefined}
         onClose={() => setShowForm(null)}
         onSave={handleSave}
-        onDelete={handleDelete}
       />
 
       {/* Content */}
@@ -366,31 +365,13 @@ export default function Home() {
       ) : view === 'grid' ? (
         <div className="grid animate-fade-up grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
           {filtered.map((it) => (
-            <MediaCard
-              key={it.id}
-              item={it}
-              view="grid"
-              onEdit={() => {
-                setFormInitialData(it)
-                setShowForm(it.type)
-              }}
-              onToggleFavorite={() => toggleFavorite(it)}
-            />
+            <MediaCard key={it.id} item={it} view="grid" onToggleFavorite={() => toggleFavorite(it)} />
           ))}
         </div>
       ) : (
         <div className="flex animate-fade-up flex-col gap-2">
           {filtered.map((it) => (
-            <MediaCard
-              key={it.id}
-              item={it}
-              view="list"
-              onEdit={() => {
-                setFormInitialData(it)
-                setShowForm(it.type)
-              }}
-              onToggleFavorite={() => toggleFavorite(it)}
-            />
+            <MediaCard key={it.id} item={it} view="list" onToggleFavorite={() => toggleFavorite(it)} />
           ))}
         </div>
       )}
