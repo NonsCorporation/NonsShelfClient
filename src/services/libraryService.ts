@@ -1,149 +1,14 @@
+import { authedFetch } from '../lib/api'
 import type { MediaItem, ShelfStatus } from '../types.ts'
 
-// Bumped so the richer (status/favorite) seed replaces any cached v1 data.
-const STORAGE_KEY = 'nons_library_items_v2'
-
-const defaultItems: MediaItem[] = [
-  {
-    id: 'b1',
-    type: 'book',
-    title: 'The Great Gatsby',
-    author: 'F. Scott Fitzgerald',
-    coverUrl: 'https://images-na.ssl-images-amazon.com/images/I/81af+MCATTL.jpg',
-    tags: ['Classic'],
-    rating: 9,
-    status: 'done',
-    favorite: true,
-    pages: 180,
-    year: 1925,
-    dateAdded: '2026-05-02T10:00:00Z',
-    genre: ['Classic', 'Fiction'],
-    description:
-      'A portrait of the Jazz Age in all of its decadence and excess, Gatsby captured the spirit of the authors generation and earned itself a permanent place in American mythology.',
-  },
-  {
-    id: 'm1',
-    type: 'movie',
-    title: 'Oppenheimer',
-    author: 'Christopher Nolan',
-    director: 'Christopher Nolan',
-    coverUrl: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTe1j9bbY0YVkv1PltjgDPl1T0pSYCoV9v-8A&s',
-    year: 2023,
-    actors: ['Cillian Murphy', 'Emily Blunt', 'Matt Damon'],
-    tags: ['Biopic'],
-    rating: 10,
-    status: 'done',
-    favorite: true,
-    duration: '180 min',
-    dateAdded: '2026-05-06T14:30:00Z',
-    genre: ['Drama', 'History', 'Biography'],
-    description:
-      'The story of American scientist J. Robert Oppenheimer and his role in the development of the atomic bomb.',
-  },
-  {
-    id: 'b2',
-    type: 'book',
-    title: '1984',
-    author: 'George Orwell',
-    coverUrl: 'https://covers.openlibrary.org/b/id/7222246-L.jpg',
-    tags: ['Dystopia'],
-    rating: 8,
-    status: 'active',
-    pages: 328,
-    year: 1949,
-    dateAdded: '2026-05-15T09:15:00Z',
-    genre: ['Dystopian', 'Politics'],
-    description:
-      'Among the seminal texts of the 20th century, 1984 is a rare work that grows more haunting as its futuristic purgatory becomes more real.',
-  },
-  {
-    id: 'm2',
-    type: 'movie',
-    title: 'The Matrix',
-    author: 'The Wachowskis',
-    director: 'The Wachowskis',
-    coverUrl: 'https://m.media-amazon.com/images/I/51EG732BV3L.jpg',
-    year: 1999,
-    actors: ['Keanu Reeves', 'Laurence Fishburne', 'Carrie-Anne Moss'],
-    tags: ['Cyberpunk'],
-    rating: 9,
-    status: 'wishlist',
-    duration: '136 min',
-    dateAdded: '2026-05-20T20:00:00Z',
-    genre: ['Sci-Fi', 'Action'],
-    description:
-      'A computer hacker learns from mysterious rebels about the true nature of his reality and his role in the war against its controllers.',
-  },
-  {
-    id: 'b3',
-    type: 'book',
-    title: 'Dune',
-    author: 'Frank Herbert',
-    coverUrl: 'https://covers.openlibrary.org/b/id/9254446-L.jpg',
-    tags: ['Epic'],
-    rating: 7,
-    status: 'wishlist',
-    pages: 412,
-    year: 1965,
-    dateAdded: '2026-05-25T11:45:00Z',
-    genre: ['Sci-Fi', 'Epic'],
-    description:
-      'Set on the desert planet Arrakis, Dune is the story of Paul Atreides and a stunning blend of adventure and mysticism, environmentalism and politics.',
-  },
-  {
-    id: 'm3',
-    type: 'movie',
-    title: 'Spirited Away',
-    author: 'Hayao Miyazaki',
-    director: 'Hayao Miyazaki',
-    coverUrl: 'https://m.media-amazon.com/images/I/51M9C6d6k1L.jpg',
-    year: 2001,
-    actors: ['Rumi Hiiragi', 'Miyu Irino', 'Mari Natsuki'],
-    tags: ['Studio Ghibli'],
-    rating: 10,
-    status: 'done',
-    favorite: true,
-    duration: '125 min',
-    dateAdded: '2026-04-10T16:20:00Z',
-    genre: ['Animation', 'Fantasy', 'Adventure'],
-    description:
-      'During her familys move to the suburbs, a sullen 10-year-old girl wanders into a world ruled by gods, witches and spirits.',
-  },
-  {
-    id: 'b4',
-    type: 'book',
-    title: 'The Name of the Wind',
-    author: 'Patrick Rothfuss',
-    coverUrl: 'https://covers.openlibrary.org/b/id/8333929-L.jpg',
-    tags: ['Fantasy'],
-    rating: 9,
-    status: 'done',
-    pages: 662,
-    year: 2007,
-    dateAdded: '2026-05-28T18:00:00Z',
-    genre: ['Fantasy', 'Adventure'],
-    description:
-      'The tale of Kvothe, from his childhood in a troupe of traveling players to years spent as a near-feral orphan, told in his own voice.',
-  },
-  {
-    id: 'm4',
-    type: 'movie',
-    title: 'Blade Runner 2049',
-    author: 'Denis Villeneuve',
-    director: 'Denis Villeneuve',
-    coverUrl: 'https://m.media-amazon.com/images/I/71fXkBLPYIL._AC_SY679_.jpg',
-    year: 2017,
-    actors: ['Ryan Gosling', 'Harrison Ford', 'Ana de Armas'],
-    tags: ['Neo-noir'],
-    rating: 9,
-    status: 'active',
-    duration: '164 min',
-    dateAdded: '2026-06-01T21:10:00Z',
-    genre: ['Sci-Fi', 'Drama'],
-    description:
-      'A young Blade Runner discovers a long-buried secret that has the potential to plunge what is left of society into chaos.',
-  },
-]
+// The user's library lives in nons-library-server, split across three resources
+// that all reference a shared catalog row (media):
+//   - shelf      -> which items the user added + their status (wishlist/active/done)
+//   - favorites  -> which items the user liked
+//   - ratings    -> the user's 1..10 score per item
+// This service stitches those back into the flat MediaItem the UI works with.
+// The component layer only knows ILibraryService, so this is a drop-in swap for
+// the old localStorage mock.
 
 /** Static, presentational metadata for each shelf status. */
 export const SHELF_META: Record<ShelfStatus, { key: string; dot: string }> = {
@@ -152,78 +17,227 @@ export const SHELF_META: Record<ShelfStatus, { key: string; dot: string }> = {
   done: { key: 'shelfDone', dot: '#3ec98a' },
 }
 
+// ── Backend wire types ──────────────────────────────────────────────────────
+
+type BackendMedia = {
+  id: number
+  type: 'book' | 'movie'
+  title: string
+  author: string
+  director: string
+  year: number
+  genres: string // comma-separated
+  cover_url: string
+  description: string
+  duration_min: number
+  pages: number
+  created_at: number
+  updated_at: number
+}
+
+type ShelfEntry = { media_id: number; status: ShelfStatus; created_at: number; media?: BackendMedia }
+type FavoriteEntry = { media_id: number; media?: BackendMedia }
+type RatingEntry = { media_id: number; value: number; media?: BackendMedia }
+
+// ── Mapping ─────────────────────────────────────────────────────────────────
+
+type Signals = { status?: ShelfStatus; favorite?: boolean; rating?: number; createdAt?: number }
+
+function toItem(m: BackendMedia, s: Signals = {}): MediaItem {
+  return {
+    id: String(m.id),
+    type: m.type,
+    title: m.title,
+    author: m.author || m.director,
+    director: m.director || undefined,
+    coverUrl: m.cover_url || undefined,
+    year: m.year || undefined,
+    genre: m.genres ? m.genres.split(',').map((g) => g.trim()).filter(Boolean) : undefined,
+    description: m.description || undefined,
+    pages: m.pages || undefined,
+    duration: m.duration_min ? `${m.duration_min} min` : undefined,
+    status: s.status,
+    favorite: s.favorite,
+    rating: s.rating,
+    dateAdded: s.createdAt ? new Date(s.createdAt * 1000).toISOString() : undefined,
+  }
+}
+
+/** Parse a leading integer out of a duration string like "180 min" -> 180. */
+function parseDuration(d?: string): number {
+  if (!d) return 0
+  const n = parseInt(d, 10)
+  return Number.isNaN(n) ? 0 : n
+}
+
+/** Map a MediaItem (from the add/edit form) onto the backend catalog shape. */
+function toMediaBody(item: Partial<MediaItem>) {
+  const genres = Array.isArray(item.genre) ? item.genre.join(', ') : item.genre || ''
+  return {
+    type: item.type,
+    title: item.title,
+    author: item.author || item.director || '',
+    director: item.director || '',
+    year: item.year || 0,
+    genres,
+    cover_url: item.coverUrl || '',
+    description: item.description || '',
+    pages: item.pages || 0,
+    duration_min: parseDuration(item.duration),
+  }
+}
+
+async function items<T>(res: Response): Promise<T[]> {
+  if (!res.ok) return []
+  const data = await res.json()
+  return (data.items ?? []) as T[]
+}
+
 export interface ILibraryService {
   getItems(): Promise<MediaItem[]>
   getItem(id: string): Promise<MediaItem | undefined>
-  addItem(item: Omit<MediaItem, 'id'>): Promise<MediaItem>
+  addItem(item: Omit<MediaItem, 'id'> & { id?: string }): Promise<MediaItem>
   updateItem(id: string, updates: Partial<MediaItem>): Promise<MediaItem>
   deleteItem(id: string): Promise<void>
 }
 
-// NOTE: this stands in for the backend. The component layer only ever talks to
-// the ILibraryService interface, so swapping this for a fetch-based client
-// later requires no UI changes.
-class LocalStorageLibraryService implements ILibraryService {
-  private _getItems(): MediaItem[] {
-    const stored = localStorage.getItem(STORAGE_KEY)
-    if (!stored) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultItems))
-      return defaultItems
-    }
-    try {
-      return JSON.parse(stored)
-    } catch {
-      return defaultItems
-    }
-  }
-
-  private _saveItems(items: MediaItem[]) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(items))
-  }
-
-  // Simulate network latency so loading states are real.
-  private _delay<T>(value: T, ms = 120): Promise<T> {
-    return new Promise((resolve) => setTimeout(() => resolve(value), ms))
-  }
-
+class ApiLibraryService implements ILibraryService {
+  // The library view is the user's shelf, enriched with their favorites and
+  // ratings (both keyed by media id).
   async getItems(): Promise<MediaItem[]> {
-    return this._delay(this._getItems())
+    const [shelfRes, favRes, ratRes] = await Promise.all([
+      authedFetch('/api/shelf'),
+      authedFetch('/api/favorites'),
+      authedFetch('/api/ratings'),
+    ])
+    const [shelf, favs, ratings] = await Promise.all([
+      items<ShelfEntry>(shelfRes),
+      items<FavoriteEntry>(favRes),
+      items<RatingEntry>(ratRes),
+    ])
+
+    const favSet = new Set(favs.map((f) => f.media_id))
+    const ratMap = new Map(ratings.map((r) => [r.media_id, r.value]))
+
+    return shelf
+      .filter((e) => e.media)
+      .map((e) =>
+        toItem(e.media!, {
+          status: e.status,
+          favorite: favSet.has(e.media_id),
+          rating: ratMap.get(e.media_id),
+          createdAt: e.created_at,
+        }),
+      )
   }
 
   async getItem(id: string): Promise<MediaItem | undefined> {
-    const items = this._getItems()
-    return this._delay(items.find((it) => it.id === id))
+    const mediaId = Number(id)
+    const [mediaRes, ratRes, favRes, shelfRes] = await Promise.all([
+      authedFetch(`/api/media/${mediaId}`),
+      authedFetch(`/api/media/${mediaId}/rating`),
+      authedFetch(`/api/media/${mediaId}/favorite`),
+      authedFetch('/api/shelf'),
+    ])
+    if (!mediaRes.ok) return undefined
+
+    const media: BackendMedia = await mediaRes.json()
+    const rating = ratRes.ok ? ((await ratRes.json()).own as number | undefined) : undefined
+    const favorite = favRes.ok ? Boolean((await favRes.json()).liked) : false
+    const entry = (await items<ShelfEntry>(shelfRes)).find((e) => e.media_id === mediaId)
+
+    return toItem(media, { status: entry?.status, favorite, rating, createdAt: entry?.created_at })
   }
 
-  async addItem(item: Omit<MediaItem, 'id'>): Promise<MediaItem> {
-    const items = this._getItems()
-    const newItem: MediaItem = {
-      ...item,
-      id: Math.random().toString(36).substring(2, 9),
-      status: item.status || 'wishlist',
-      dateAdded: item.dateAdded || new Date().toISOString(),
+  // Adds an item to the user's library. When `id` is set the catalog row already
+  // exists (e.g. added from Discover); otherwise a new catalog row is created
+  // first (requires writer/admin on the backend).
+  async addItem(item: Omit<MediaItem, 'id'> & { id?: string }): Promise<MediaItem> {
+    let mediaId: number
+    if (item.id) {
+      mediaId = Number(item.id)
+    } else {
+      const res = await authedFetch('/api/media', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(toMediaBody(item)),
+      })
+      if (!res.ok) throw new Error(`create media failed: ${res.status}`)
+      mediaId = ((await res.json()) as BackendMedia).id
     }
-    const newItems = [newItem, ...items]
-    this._saveItems(newItems)
-    return this._delay(newItem)
+
+    await authedFetch(`/api/shelf/${mediaId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: item.status || 'wishlist' }),
+    })
+
+    if (item.favorite) await this.setFavorite(mediaId, true)
+    if (typeof item.rating === 'number' && item.rating > 0) await this.setRating(mediaId, item.rating)
+
+    return (await this.getItem(String(mediaId)))!
   }
 
+  // Routes each kind of change to the resource that owns it. Quick actions
+  // (status / favorite / rating) work for any signed-in user; editing the
+  // catalog fields requires writer/admin.
   async updateItem(id: string, updates: Partial<MediaItem>): Promise<MediaItem> {
-    const items = this._getItems()
-    const index = items.findIndex((it) => it.id === id)
-    if (index === -1) throw new Error('Not found')
+    const mediaId = Number(id)
 
-    items[index] = { ...items[index], ...updates }
-    this._saveItems(items)
-    return this._delay(items[index])
+    if (updates.status) {
+      await authedFetch(`/api/shelf/${mediaId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: updates.status }),
+      })
+    }
+
+    if ('favorite' in updates) await this.setFavorite(mediaId, !!updates.favorite)
+
+    if ('rating' in updates) {
+      const r = updates.rating
+      if (typeof r === 'number' && r > 0) await this.setRating(mediaId, r)
+      else await authedFetch(`/api/media/${mediaId}/rating`, { method: 'DELETE' })
+    }
+
+    // Catalog fields only — change the shared media row.
+    const catalogKeys: (keyof MediaItem)[] = [
+      'title', 'author', 'director', 'year', 'genre', 'coverUrl', 'description', 'pages', 'duration', 'type',
+    ]
+    if (catalogKeys.some((k) => k in updates)) {
+      const current = await this.getItem(id)
+      await authedFetch(`/api/media/${mediaId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(toMediaBody({ ...current, ...updates })),
+      })
+    }
+
+    return (await this.getItem(id))!
   }
 
+  // Removes the item from the user's library (off the shelf). The shared catalog
+  // row stays; their like and rating are detached too.
   async deleteItem(id: string): Promise<void> {
-    let items = this._getItems()
-    items = items.filter((it) => it.id !== id)
-    this._saveItems(items)
-    return this._delay(undefined)
+    const mediaId = Number(id)
+    await Promise.all([
+      authedFetch(`/api/shelf/${mediaId}`, { method: 'DELETE' }),
+      authedFetch(`/api/media/${mediaId}/favorite`, { method: 'DELETE' }),
+      authedFetch(`/api/media/${mediaId}/rating`, { method: 'DELETE' }),
+    ])
+  }
+
+  private setFavorite(mediaId: number, on: boolean) {
+    return authedFetch(`/api/media/${mediaId}/favorite`, { method: on ? 'PUT' : 'DELETE' })
+  }
+
+  private setRating(mediaId: number, value: number) {
+    return authedFetch(`/api/media/${mediaId}/rating`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ value }),
+    })
   }
 }
 
-export const libraryService: ILibraryService = new LocalStorageLibraryService()
+export const libraryService: ILibraryService = new ApiLibraryService()

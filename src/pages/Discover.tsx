@@ -28,7 +28,10 @@ export default function DiscoverPage() {
   const inLibrary = (it: CatalogItem) => libKeys.has(keyOf(it)) || added.has(keyOf(it))
 
   const handleAdd = async (it: CatalogItem) => {
-    const payload: Omit<MediaItem, 'id'> = {
+    // it.id is the backend media id — pass it so the item is added to the shelf
+    // against the existing catalog row instead of creating a duplicate.
+    const payload: Omit<MediaItem, 'id'> & { id?: string } = {
+      id: it.id,
       type: it.type,
       title: it.title,
       author: it.author,
