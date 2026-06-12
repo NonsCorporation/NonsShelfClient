@@ -56,7 +56,7 @@ function mapMedia(m: BackendMedia): CatalogItem {
     director: m.director || undefined,
     coverUrl: m.cover_url || undefined,
     year: m.year || undefined,
-    genre: m.genres ? m.genres.split(‘,’).map((g) => g.trim()).filter(Boolean) : [],
+    genre: m.genres ? m.genres.split(',').map((g) => g.trim()).filter(Boolean) : [],
     description: m.description || undefined,
     communityRating: 0,
     ratingsCount: 0,
@@ -74,7 +74,7 @@ export interface ICatalogService {
 // this swaps in for the old mock without any UI changes.
 class ApiCatalogService implements ICatalogService {
   async getCatalog(): Promise<CatalogItem[]> {
-    const res = await authedFetch(‘/api/media?limit=100’)
+    const res = await authedFetch("/api/media?limit=100")
     if (!res.ok) throw new Error(`catalog fetch failed: ${res.status}`)
     const data: { items: BackendMedia[] } = await res.json()
     return data.items.map(mapMedia)
