@@ -200,6 +200,10 @@ export const translations: Translations = {
   feedSubtitle: { en: 'Updates from you and the people you follow.', ru: 'Обновления от вас и тех, на кого вы подписаны.' },
   friendsActivity: { en: 'Friends activity', ru: 'Активность друзей' },
   noActivity: { en: 'No activity yet.', ru: 'Пока нет активности.' },
+  inviteFriends: {
+    en: 'Invite friends to Nons Shelf to share your books and movies experience',
+    ru: 'Пригласите друзей в Nons Shelf, чтобы делиться впечатлениями о книгах и фильмах',
+  },
   verbRated: { en: 'rated', ru: 'оценил(а)' },
   verbFinished: { en: 'finished', ru: 'завершил(а)' },
   verbStarted: { en: 'started', ru: 'начал(а)' },

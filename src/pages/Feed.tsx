@@ -8,9 +8,10 @@ import type { Activity, ActivityType } from '../services/activityService'
 import type { MediaItem } from '../types'
 import { useLanguage } from '../contexts/LanguageContext'
 import { usePreferences } from '../contexts/PreferencesContext'
+import { useAuth } from '../contexts/AuthContext'
 import { statusLabel, STATUS_COLOR } from '../lib/shelf'
 import { initials } from '../lib/user'
-import { IoStar, IoEyeOffOutline, IoBookOutline, IoFilmOutline } from 'react-icons/io5'
+import { IoStar, IoEyeOffOutline, IoBookOutline, IoFilmOutline, IoPeopleOutline } from 'react-icons/io5'
 
 const VERB_KEY: Record<ActivityType, string> = {
   rated: 'verbRated',
@@ -75,18 +76,20 @@ function ActivityRow({ a }: { a: Activity }) {
 
 export default function FeedPage() {
   const { t } = useLanguage()
+  const { user } = useAuth()
   const { showInProgress, setShowInProgress } = usePreferences()
   const [items, setItems] = useState<MediaItem[]>([])
   const [activity, setActivity] = useState<Activity[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    Promise.all([libraryService.getItems(), activityService.getFriendsActivity()]).then(([lib, act]) => {
+    if (!user) return
+    Promise.all([libraryService.getItems(), activityService.getFriendsActivity(user.id)]).then(([lib, act]) => {
       setItems(lib)
       setActivity(act)
       setLoading(false)
     })
-  }, [])
+  }, [user])
 
   const inProgress = useMemo(() => items.filter((it) => it.status === 'active'), [items])
 
@@ -167,7 +170,12 @@ export default function FeedPage() {
             ))}
           </div>
         ) : activity.length === 0 ? (
-          <p className="py-8 text-center text-sm text-[var(--text-muted)]">{t('noActivity')}</p>
+          <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-[var(--border)] py-16 text-center">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--surface)]">
+              <IoPeopleOutline className="h-7 w-7 text-[var(--text-muted)]" />
+            </div>
+            <p className="max-w-sm px-6 text-sm leading-6 text-[var(--text-muted)]">{t('inviteFriends')}</p>
+          </div>
         ) : (
           <div className="animate-fade-up rounded-2xl border border-[var(--border-subtle)] bg-[var(--container)] px-4">
             {activity.map((a) => (

@@ -1,3 +1,4 @@
+import { authedFetch, nonsFetch } from '../lib/api'
 import type { MediaType } from '../types'
 
 export type ActivityType = 'rated' | 'finished' | 'started' | 'added' | 'reviewed'
@@ -13,97 +14,99 @@ export type Activity = {
   rating?: number
   /** Short review snippet for `reviewed` activities. */
   text?: string
-  /** Mock relative time, e.g. "2h", "1d". */
+  /** Relative time, e.g. "2h", "1d". */
   timeAgo: string
 }
 
-const friends = {
-  anna: { name: 'Anna Petrova', handle: 'anna', color: '#c2557a' },
-  marco: { name: 'Marco Diaz', handle: 'marco', color: '#3e8e7e' },
-  lena: { name: 'Lena Fischer', handle: 'lena', color: '#b8843b' },
-  sofia: { name: 'Sofia Rossi', handle: 'sofia', color: '#5b6cc0' },
+// ── Wire types ──────────────────────────────────────────────────────────────
+
+// nons-server GET /api/friendships/friends — username/name belong to the
+// *other* user; which side is the friend depends on who requested.
+type Friendship = {
+  requester_id: number
+  addressee_id: number
+  status: string
+  username: string
+  name: string
 }
 
-const activity: Activity[] = [
-  {
-    id: 'a1',
-    user: friends.anna,
-    type: 'rated',
-    mediaTitle: 'Dune: Part Two',
-    mediaType: 'movie',
-    coverUrl: 'https://m.media-amazon.com/images/I/71O3w2Gj-PL._AC_SY679_.jpg',
-    rating: 9,
-    timeAgo: '2h',
-  },
-  {
-    id: 'a2',
-    user: friends.marco,
-    type: 'finished',
-    mediaTitle: 'Project Hail Mary',
-    mediaType: 'book',
-    coverUrl: 'https://covers.openlibrary.org/b/id/10520611-L.jpg',
-    rating: 9.5,
-    timeAgo: '5h',
-  },
-  {
-    id: 'a3',
-    user: friends.lena,
-    type: 'started',
-    mediaTitle: 'Babel',
-    mediaType: 'book',
-    coverUrl: 'https://covers.openlibrary.org/b/id/12643765-L.jpg',
-    timeAgo: '8h',
-  },
-  {
-    id: 'a4',
-    user: friends.sofia,
-    type: 'reviewed',
-    mediaTitle: 'Poor Things',
-    mediaType: 'movie',
-    coverUrl: 'https://m.media-amazon.com/images/I/71eAj7lT7-L._AC_SY679_.jpg',
-    rating: 8,
-    text: 'Visually stunning and deeply strange — unlike anything else this year.',
-    timeAgo: '1d',
-  },
-  {
-    id: 'a5',
-    user: friends.anna,
-    type: 'added',
-    mediaTitle: 'Tomorrow, and Tomorrow, and Tomorrow',
-    mediaType: 'book',
-    coverUrl: 'https://covers.openlibrary.org/b/id/12818862-L.jpg',
-    timeAgo: '1d',
-  },
-  {
-    id: 'a6',
-    user: friends.marco,
-    type: 'rated',
-    mediaTitle: 'Everything Everywhere All at Once',
-    mediaType: 'movie',
-    coverUrl: 'https://m.media-amazon.com/images/I/71niXI3lxlL._AC_SY679_.jpg',
-    rating: 9,
-    timeAgo: '2d',
-  },
-  {
-    id: 'a7',
-    user: friends.lena,
-    type: 'finished',
-    mediaTitle: 'Fourth Wing',
-    mediaType: 'book',
-    coverUrl: 'https://covers.openlibrary.org/b/id/14346269-L.jpg',
-    rating: 8.5,
-    timeAgo: '3d',
-  },
-]
+// nons-library-server GET /api/activity
+type ActivityEvent = {
+  user_id: number
+  type: 'added' | 'started' | 'finished' | 'rated'
+  value?: number
+  at: number // unix seconds
+  media?: { id: number; type: MediaType; title: string; cover_url: string }
+}
+
+// ── Helpers ─────────────────────────────────────────────────────────────────
+
+const PALETTE = ['#6768ab', '#c2557a', '#3e8e7e', '#b8843b', '#5b6cc0', '#8a5bc0', '#c05b5b', '#3e8ec0']
+
+/** Deterministic avatar colour per handle, so friends keep their colour. */
+function colorFor(handle: string): string {
+  let h = 0
+  for (let i = 0; i < handle.length; i++) h = (h * 31 + handle.charCodeAt(i)) | 0
+  return PALETTE[Math.abs(h) % PALETTE.length]
+}
+
+function timeAgo(at: number): string {
+  const s = Math.max(1, Math.floor(Date.now() / 1000 - at))
+  if (s < 3600) return `${Math.max(1, Math.floor(s / 60))}m`
+  if (s < 86400) return `${Math.floor(s / 3600)}h`
+  if (s < 7 * 86400) return `${Math.floor(s / 86400)}d`
+  return `${Math.floor(s / (7 * 86400))}w`
+}
 
 export interface IActivityService {
-  getFriendsActivity(): Promise<Activity[]>
+  /** Recent library activity of the user's nons friends. `myId` is the caller's nons user id. */
+  getFriendsActivity(myId: number): Promise<Activity[]>
 }
 
-class MockActivityService implements IActivityService {
-  async getFriendsActivity(): Promise<Activity[]> {
-    return new Promise((resolve) => setTimeout(() => resolve(activity), 130))
+// Two-step fetch across the nons family: friendships live in nons-server (the
+// social platform), the library events live in nons-library-server. We resolve
+// friend ids + display names there, then ask our own backend for their recent
+// shelf/rating events.
+class ApiActivityService implements IActivityService {
+  async getFriendsActivity(myId: number): Promise<Activity[]> {
+    let friendships: Friendship[] = []
+    try {
+      const res = await nonsFetch('/api/friendships/friends?limit=50')
+      if (!res.ok) return []
+      friendships = (await res.json()).friendships ?? []
+    } catch {
+      return [] // nons-server unreachable — feed is just empty
+    }
+
+    const friends = new Map<number, Activity['user']>()
+    for (const f of friendships) {
+      const friendId = f.requester_id === myId ? f.addressee_id : f.requester_id
+      friends.set(friendId, {
+        name: f.name || f.username,
+        handle: f.username,
+        color: colorFor(f.username),
+      })
+    }
+    if (friends.size === 0) return []
+
+    const ids = [...friends.keys()].join(',')
+    const res = await authedFetch(`/api/activity?user_ids=${ids}&limit=30`)
+    if (!res.ok) return []
+    const events: ActivityEvent[] = (await res.json()).items ?? []
+
+    return events
+      .filter((e) => e.media && friends.has(e.user_id))
+      .map((e) => ({
+        id: `${e.user_id}-${e.media!.id}-${e.type}-${e.at}`,
+        user: friends.get(e.user_id)!,
+        type: e.type,
+        mediaTitle: e.media!.title,
+        mediaType: e.media!.type,
+        coverUrl: e.media!.cover_url || undefined,
+        rating: e.value || undefined,
+        timeAgo: timeAgo(e.at),
+      }))
   }
 }
 
-export const activityService: IActivityService = new MockActivityService()
+export const activityService: IActivityService = new ApiActivityService()
