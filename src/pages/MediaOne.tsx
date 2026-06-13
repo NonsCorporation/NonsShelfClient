@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, Link } from 'react-router-dom'
 import Layout from '../components/layout/Layout'
 import StarsSelector from '../StarsSelector'
 import { libraryService } from '../services/libraryService'
+import { authedFetch } from '../lib/api'
 import type { MediaItem, ShelfStatus } from '../types'
 import {
   IoFilmOutline,
@@ -16,12 +17,28 @@ import {
 import { useLanguage } from '../contexts/LanguageContext'
 import { STATUS_ORDER, STATUS_COLOR, statusLabel } from '../lib/shelf'
 
+// Cast & crew from GET /api/media/:id/credits, each carrying the person's
+// stable uuid so names can link to their /p/<uuid> page.
+interface CreditPerson {
+  uuid: string
+  name: string
+  photo_url?: string
+}
+interface MediaCredits {
+  cast: { person: CreditPerson; character?: string }[]
+  directors: { person: CreditPerson }[]
+  writers: { person: CreditPerson }[]
+  authors: { person: CreditPerson }[]
+  translators: { person: CreditPerson }[]
+}
+
 export default function MediaOnePage() {
   const { t } = useLanguage()
   const navigate = useNavigate()
   const { id } = useParams<{ id: string }>()
   const [item, setItem] = useState<MediaItem | null>(null)
   const [loading, setLoading] = useState(true)
+  const [credits, setCredits] = useState<MediaCredits | null>(null)
 
   const [userRating, setUserRating] = useState<number | null>(null)
   const [userReview, setUserReview] = useState('')
@@ -35,6 +52,19 @@ export default function MediaOnePage() {
       }
       setLoading(false)
     })
+  }, [id])
+
+  // Cast & crew with stable person uuids, for linking to /p/<uuid>.
+  useEffect(() => {
+    if (!id) return
+    let cancelled = false
+    authedFetch(`/api/media/${id}/credits`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((c) => !cancelled && setCredits(c))
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
   }, [id])
 
   // Mutations go by the numeric catalog id — the route param may be the uuid
@@ -70,6 +100,30 @@ export default function MediaOnePage() {
   const status = item.status ?? 'wishlist'
   const genres = Array.isArray(item.genre) ? item.genre : item.genre ? [item.genre] : []
   const displayRating = userRating !== null ? `${(userRating / 2).toFixed(1)}/5` : t('unrated')
+
+  // A person rendered as a chip linking to their /p/<uuid> page.
+  const personChip = (p: CreditPerson, sub?: string) => (
+    <Link
+      key={p.uuid}
+      to={`/p/${p.uuid}`}
+      className="rounded-full border border-[var(--border-subtle)] bg-[var(--surface)] px-3 py-1 text-xs text-[var(--text)] transition-colors hover:border-nonsprimary hover:bg-[var(--primary-soft)]"
+    >
+      {p.name}
+      {sub ? <span className="text-[var(--text-muted)]"> · {sub}</span> : null}
+    </Link>
+  )
+
+  const crewSection = (label: string, entries?: { person: CreditPerson }[]) =>
+    entries && entries.length > 0 ? (
+      <div>
+        <h3 className="mb-2.5 text-[10px] uppercase tracking-widest text-[var(--text-muted)]">{label}</h3>
+        <div className="flex flex-wrap gap-2">{entries.map((e) => personChip(e.person))}</div>
+      </div>
+    ) : null
+
+  // Byline makers: authors for books, directors for movies — linked when we have
+  // credits, otherwise the plain denormalized name.
+  const makers = isBook ? credits?.authors : credits?.directors
 
   return (
     <Layout>
@@ -168,7 +222,18 @@ export default function MediaOnePage() {
 
             <p className="text-sm text-[var(--text-muted)]">
               {isBook ? t('writtenBy') : t('directedBy')}{' '}
-              <span className="font-medium text-[var(--text)]">{isBook ? item.author : item.director || item.author}</span>
+              {makers && makers.length > 0 ? (
+                makers.map((m, i) => (
+                  <span key={m.person.uuid}>
+                    {i > 0 ? ', ' : ''}
+                    <Link to={`/p/${m.person.uuid}`} className="font-medium text-[var(--text)] hover:text-nonsprimary">
+                      {m.person.name}
+                    </Link>
+                  </span>
+                ))
+              ) : (
+                <span className="font-medium text-[var(--text)]">{isBook ? item.author : item.director || item.author}</span>
+              )}
             </p>
           </div>
 
@@ -195,7 +260,20 @@ export default function MediaOnePage() {
             </div>
           )}
 
-          {!isBook && item.actors && item.actors.length > 0 && (
+          {/* Cast & crew, linked to person pages. Falls back to the old plain
+              actor strings only when credits haven't loaded. */}
+          {credits && credits.cast.length > 0 && (
+            <div>
+              <h3 className="mb-2.5 text-[10px] uppercase tracking-widest text-[var(--text-muted)]">{t('cast')}</h3>
+              <div className="flex flex-wrap gap-2">
+                {credits.cast.map((c) => personChip(c.person, c.character))}
+              </div>
+            </div>
+          )}
+          {crewSection(t('writers') || 'Writers', credits?.writers)}
+          {crewSection(t('translators') || 'Translators', credits?.translators)}
+
+          {!credits && !isBook && item.actors && item.actors.length > 0 && (
             <div>
               <h3 className="mb-2.5 text-[10px] uppercase tracking-widest text-[var(--text-muted)]">{t('cast')}</h3>
               <div className="flex flex-wrap gap-2">
