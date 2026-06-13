@@ -1,18 +1,42 @@
-import { useEffect, useState } from 'react'
 import { IoStar, IoKeyOutline } from 'react-icons/io5'
 import { useLanguage } from '../contexts/LanguageContext'
 import { redirectToNonsLogin } from '../lib/api'
-import { catalogService, compactCount, type CatalogItem } from '../services/catalogService'
+import { compactCount } from '../services/catalogService'
 
 // Signed-out landing page for the library. Visually its own thing — a dim
 // "screening room" with slowly drifting shelves of covers — rather than a copy
 // of the nons intro page. Sign-in happens through the shared nons account
 // (SSO); after logout you land here, not back on the nons sign-in form.
 
+// The covers come from bundled static assets (public/covers/*) rather than the
+// catalog API: this page is shown while signed OUT, so the authed /api/media
+// call would 401 and leave the shelves empty. Books from Open Library, film
+// posters from TMDB.
+type Cover = { title: string; src: string; rating: number; ratings: number }
+
+const COVERS: Cover[] = [
+  { title: 'Inception', src: '/covers/film-inception.jpg', rating: 8.8, ratings: 2400000 },
+  { title: 'Dune', src: '/covers/book-dune.jpg', rating: 8.6, ratings: 412000 },
+  { title: 'The Dark Knight', src: '/covers/film-darkknight.jpg', rating: 9.0, ratings: 2700000 },
+  { title: 'The Lord of the Rings', src: '/covers/book-lotr.jpg', rating: 9.0, ratings: 720000 },
+  { title: 'Interstellar', src: '/covers/film-interstellar.jpg', rating: 8.7, ratings: 1900000 },
+  { title: 'A Game of Thrones', src: '/covers/book-got.jpg', rating: 8.8, ratings: 690000 },
+  { title: 'Pulp Fiction', src: '/covers/film-pulpfiction.jpg', rating: 8.9, ratings: 2100000 },
+  { title: 'The Martian', src: '/covers/book-martian.jpg', rating: 8.7, ratings: 410000 },
+  { title: 'The Matrix', src: '/covers/film-matrix.jpg', rating: 8.7, ratings: 1900000 },
+  { title: "Harry Potter and the Philosopher's Stone", src: '/covers/book-hp1.jpg', rating: 8.9, ratings: 1100000 },
+  { title: 'Parasite', src: '/covers/film-parasite.jpg', rating: 8.5, ratings: 900000 },
+  { title: 'Mistborn', src: '/covers/book-mistborn.jpg', rating: 8.4, ratings: 98000 },
+  { title: 'Brave New World', src: '/covers/book-bravenew.jpg', rating: 8.1, ratings: 330000 },
+  { title: 'The Way of Kings', src: '/covers/book-wayofkings.jpg', rating: 8.9, ratings: 150000 },
+  { title: 'Fahrenheit 451', src: '/covers/book-fahrenheit.jpg', rating: 8.0, ratings: 280000 },
+  { title: 'The Catcher in the Rye', src: '/covers/book-catcher.jpg', rating: 7.8, ratings: 540000 },
+]
+
 const quotes = [
-  { itemIndex: 0, handle: '@vera.reads', key: 'landingQuote1', fallback: 'Finally one shelf for everything — I rate a film and my friends actually see it.' },
-  { itemIndex: 1, handle: '@kos', key: 'landingQuote2', fallback: 'The “in progress” shelf quietly replaced three apps for me.' },
-  { itemIndex: 3, handle: '@arina', key: 'landingQuote3', fallback: 'Recommendations come from my circle on nons, not from an algorithm.' },
+  { itemIndex: 1, handle: '@vera.reads', key: 'landingQuote1', fallback: 'Finally one shelf for everything — I rate a film and my friends actually see it.' },
+  { itemIndex: 0, handle: '@kos', key: 'landingQuote2', fallback: 'The “in progress” shelf quietly replaced three apps for me.' },
+  { itemIndex: 5, handle: '@arina', key: 'landingQuote3', fallback: 'Recommendations come from my circle on nons, not from an algorithm.' },
 ]
 
 function Stars({ rating }: { rating: number }) {
@@ -26,24 +50,22 @@ function Stars({ rating }: { rating: number }) {
   )
 }
 
-function ShelfRow({ items, reverse }: { items: CatalogItem[]; reverse?: boolean }) {
+function ShelfRow({ items, reverse }: { items: Cover[]; reverse?: boolean }) {
   // Two copies back-to-back so the 50% translate loops seamlessly.
   const doubled = [...items, ...items]
   return (
     <div className="flex w-max gap-4" style={{ animation: `shelf-drift 70s linear infinite ${reverse ? 'reverse' : ''}` }}>
       {doubled.map((item, i) => (
         <div
-          key={`${item.id}-${i}`}
+          key={`${item.title}-${i}`}
           className="relative w-32 flex-shrink-0 overflow-hidden rounded-lg border border-[var(--border-subtle)] bg-[var(--container-2)]"
           style={{ aspectRatio: '2 / 3' }}
         >
-          {item.coverUrl && (
-            <img src={item.coverUrl} alt={item.title} loading="lazy" className="absolute inset-0 h-full w-full object-cover" />
-          )}
+          <img src={item.src} alt={item.title} loading="lazy" className="absolute inset-0 h-full w-full object-cover" />
           <div className="absolute inset-x-0 bottom-0 flex items-center gap-1 bg-gradient-to-t from-black/90 to-transparent p-2 pt-6">
             <IoStar className="h-2.5 w-2.5 text-nonspremium" />
-            <span className="text-[10px] font-semibold text-white">{item.communityRating.toFixed(1)}</span>
-            <span className="text-[10px] text-white/60">· {compactCount(item.ratingsCount)}</span>
+            <span className="text-[10px] font-semibold text-white">{item.rating.toFixed(1)}</span>
+            <span className="text-[10px] text-white/60">· {compactCount(item.ratings)}</span>
           </div>
         </div>
       ))}
@@ -53,18 +75,7 @@ function ShelfRow({ items, reverse }: { items: CatalogItem[]; reverse?: boolean 
 
 export default function Login() {
   const { t } = useLanguage()
-  const [items, setItems] = useState<CatalogItem[]>([])
-
-  useEffect(() => {
-    let cancelled = false
-    catalogService.getCatalog().then((c) => {
-      if (!cancelled) setItems(c)
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
+  const items = COVERS
   const half = Math.ceil(items.length / 2)
 
   return (
@@ -157,12 +168,10 @@ export default function Login() {
                   className="relative w-14 flex-shrink-0 overflow-hidden rounded-md bg-[var(--container-2)]"
                   style={{ aspectRatio: '2 / 3' }}
                 >
-                  {item.coverUrl && (
-                    <img src={item.coverUrl} alt={item.title} loading="lazy" className="absolute inset-0 h-full w-full object-cover" />
-                  )}
+                  <img src={item.src} alt={item.title} loading="lazy" className="absolute inset-0 h-full w-full object-cover" />
                 </div>
                 <div className="min-w-0">
-                  <Stars rating={item.communityRating} />
+                  <Stars rating={item.rating} />
                   <blockquote className="mt-2 text-sm leading-relaxed text-[var(--text)]">
                     “{t(q.key) || q.fallback}”
                   </blockquote>

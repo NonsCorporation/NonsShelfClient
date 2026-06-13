@@ -5,6 +5,8 @@ import { authedFetch, nonsFetch } from '../lib/api'
 // Shape of nons-library-server's /api/me response.
 export interface LibraryUser {
   id: number
+  /** Stable public id used in /u/<uuid> URLs. */
+  uuid?: string
   username: string
   email: string
   name?: string

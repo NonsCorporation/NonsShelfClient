@@ -6,6 +6,8 @@ import type { MediaType } from '../types'
 // "discover" endpoint. Items can be added into the personal library.
 export type CatalogItem = {
   id: string
+  /** Stable public id used in /b/<uuid> and /m/<uuid> URLs. */
+  uuid?: string
   type: MediaType
   title: string
   author: string
@@ -29,6 +31,7 @@ export type CatalogItem = {
 // Shape of a media row as returned by nons-library-server’s GET /api/media.
 type BackendMedia = {
   id: number
+  uuid: string
   type: MediaType
   title: string
   author: string
@@ -50,6 +53,7 @@ type BackendMedia = {
 function mapMedia(m: BackendMedia): CatalogItem {
   return {
     id: String(m.id),
+    uuid: m.uuid || undefined,
     type: m.type,
     title: m.title,
     author: m.author,

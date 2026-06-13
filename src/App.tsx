@@ -16,8 +16,11 @@ export default function App() {
           <Route path='/library' element={<Home />} />
           <Route path='/discover' element={<DiscoverPage />} />
           <Route path='/calendar' element={<CalendarPage />} />
+          <Route path='/b/:id' element={<MediaOnePage />} />
+          <Route path='/m/:id' element={<MediaOnePage />} />
+          {/* Legacy numeric-id links keep working */}
           <Route path='/shelf/:id' element={<MediaOnePage />} />
-          <Route path='/u/:handle' element={<ProfilePage />} />
+          <Route path='/u/:id' element={<ProfilePage />} />
         </Routes>
       </RequireAuth>
     </BrowserRouter>

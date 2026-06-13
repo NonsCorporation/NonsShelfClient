@@ -37,9 +37,11 @@ export default function MediaOnePage() {
     })
   }, [id])
 
+  // Mutations go by the numeric catalog id — the route param may be the uuid
+  // (from /b/<uuid> and /m/<uuid> URLs), which only the read path resolves.
   const patch = async (updates: Partial<MediaItem>) => {
-    if (!id) return
-    const updated = await libraryService.updateItem(id, updates)
+    if (!item) return
+    const updated = await libraryService.updateItem(item.id, updates)
     setItem(updated)
   }
 

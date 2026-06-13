@@ -11,6 +11,7 @@ import { usePreferences } from '../contexts/PreferencesContext'
 import { useAuth } from '../contexts/AuthContext'
 import { statusLabel, STATUS_COLOR } from '../lib/shelf'
 import { initials } from '../lib/user'
+import { mediaPath, userPath } from '../lib/paths'
 import { IoStar, IoEyeOffOutline, IoBookOutline, IoFilmOutline, IoPeopleOutline } from 'react-icons/io5'
 
 const VERB_KEY: Record<ActivityType, string> = {
@@ -27,7 +28,7 @@ function ActivityRow({ a }: { a: Activity }) {
   return (
     <div className="flex items-start gap-3 border-b border-[var(--divider)] py-4 last:border-0">
       <Link
-        to={`/u/${a.user.handle}`}
+        to={userPath(a.user.uuid || a.user.handle)}
         className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full text-[11px] font-semibold text-white"
         style={{ backgroundColor: a.user.color }}
         title={a.user.name}
@@ -37,7 +38,7 @@ function ActivityRow({ a }: { a: Activity }) {
 
       <div className="min-w-0 flex-1">
         <p className="text-sm text-[var(--text)]">
-          <Link to={`/u/${a.user.handle}`} className="font-semibold hover:underline">
+          <Link to={userPath(a.user.uuid || a.user.handle)} className="font-semibold hover:underline">
             {a.user.name}
           </Link>{' '}
           <span className="text-[var(--text-muted)]">{t(VERB_KEY[a.type])}</span>{' '}
@@ -122,7 +123,7 @@ export default function FeedPage() {
             {inProgress.map((it) => (
               <Link
                 key={it.id}
-                to={`/shelf/${it.id}`}
+                to={mediaPath(it)}
                 className="group flex w-72 flex-shrink-0 items-center gap-3 rounded-2xl border border-[var(--border-subtle)] bg-[var(--container)] p-3 transition-colors hover:border-[var(--border)]"
               >
                 {it.coverUrl ? (

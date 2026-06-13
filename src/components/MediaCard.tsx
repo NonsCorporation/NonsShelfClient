@@ -9,6 +9,7 @@ import {
 import type { MediaItem } from '../types'
 import { useLanguage } from '../contexts/LanguageContext'
 import { statusLabel, STATUS_COLOR } from '../lib/shelf'
+import { mediaPath } from '../lib/paths'
 
 type MediaCardProps = {
   item: MediaItem
@@ -55,7 +56,7 @@ export default function MediaCard({ item, view, onToggleFavorite }: MediaCardPro
   if (view === 'list') {
     return (
       <Link
-        to={`/shelf/${item.id}`}
+        to={mediaPath(item)}
         className="group flex items-center gap-4 rounded-2xl border border-[var(--border-subtle)] bg-[var(--container)] p-3 transition-colors hover:border-[var(--border)] hover:bg-[var(--surface-hover)]"
       >
         <Cover item={item} className="h-20 w-14 flex-shrink-0 rounded-lg object-cover" />
@@ -89,7 +90,7 @@ export default function MediaCard({ item, view, onToggleFavorite }: MediaCardPro
   // ── Grid view ─────────────────────────────────────────────────────────────
   return (
     <Link
-      to={`/shelf/${item.id}`}
+      to={mediaPath(item)}
       className="group flex flex-col overflow-hidden rounded-2xl border border-[var(--border-subtle)] bg-[var(--container)] transition-colors duration-200 hover:border-[var(--border)]"
     >
       <div className="relative aspect-[2/3] w-full overflow-hidden bg-[var(--container-2)]">

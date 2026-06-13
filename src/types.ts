@@ -8,6 +8,8 @@ export type ShelfStatus = 'wishlist' | 'active' | 'done'
 
 export type MediaItem = {
   id: string
+  /** Stable public id used in /b/<uuid> and /m/<uuid> URLs. */
+  uuid?: string
   type: MediaType
   title: string
   author: string

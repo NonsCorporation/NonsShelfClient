@@ -29,6 +29,13 @@ jobs:
 
       - name: Build project
         run: npm run build
+        env:
+          # Nons Shelf is served on GitHub Pages (shelf.nonsapp.com); its API and
+          # the identity provider are separate origins, so they must be baked in
+          # at build time. Override via repo Variables if the hosts change.
+          VITE_LIBRARY_API_URL: ${{ vars.VITE_LIBRARY_API_URL || 'https://shelfapi.nonsapp.com' }}
+          VITE_NONS_API_URL: ${{ vars.VITE_NONS_API_URL || 'https://nonsapp.com' }}
+          VITE_NONS_LOGIN_URL: ${{ vars.VITE_NONS_LOGIN_URL || 'https://nonsapp.com' }}
 
       - name: Setup Pages
         uses: actions/configure-pages@v4

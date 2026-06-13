@@ -21,6 +21,7 @@ export const SHELF_META: Record<ShelfStatus, { key: string; dot: string }> = {
 
 type BackendMedia = {
   id: number
+  uuid: string
   type: 'book' | 'movie'
   title: string
   author: string
@@ -46,6 +47,7 @@ type Signals = { status?: ShelfStatus; favorite?: boolean; rating?: number; crea
 function toItem(m: BackendMedia, s: Signals = {}): MediaItem {
   return {
     id: String(m.id),
+    uuid: m.uuid || undefined,
     type: m.type,
     title: m.title,
     author: m.author || m.director,
@@ -131,17 +133,21 @@ class ApiLibraryService implements ILibraryService {
       )
   }
 
+  // `id` is either the numeric catalog id or the media uuid (from /b/<uuid>
+  // and /m/<uuid> URLs) — the backend resolves both. The user's own signals
+  // (rating/favorite/shelf) are keyed by the numeric id, so fetch the media
+  // first to learn it.
   async getItem(id: string): Promise<MediaItem | undefined> {
-    const mediaId = Number(id)
-    const [mediaRes, ratRes, favRes, shelfRes] = await Promise.all([
-      authedFetch(`/api/media/${mediaId}`),
+    const mediaRes = await authedFetch(`/api/media/${id}`)
+    if (!mediaRes.ok) return undefined
+    const media: BackendMedia = await mediaRes.json()
+    const mediaId = media.id
+
+    const [ratRes, favRes, shelfRes] = await Promise.all([
       authedFetch(`/api/media/${mediaId}/rating`),
       authedFetch(`/api/media/${mediaId}/favorite`),
       authedFetch('/api/shelf'),
     ])
-    if (!mediaRes.ok) return undefined
-
-    const media: BackendMedia = await mediaRes.json()
     const rating = ratRes.ok ? ((await ratRes.json()).own as number | undefined) : undefined
     const favorite = favRes.ok ? Boolean((await favRes.json()).liked) : false
     const entry = (await items<ShelfEntry>(shelfRes)).find((e) => e.media_id === mediaId)

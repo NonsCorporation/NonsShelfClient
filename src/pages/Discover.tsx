@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import Layout from '../components/layout/Layout'
 import CatalogCard from '../components/CatalogCard'
 import { catalogService, compactCount } from '../services/catalogService'
@@ -8,6 +8,7 @@ import { libraryService } from '../services/libraryService'
 import type { MediaItem } from '../types'
 import { useLanguage } from '../contexts/LanguageContext'
 import { IoStar, IoFlame, IoPeopleOutline } from 'react-icons/io5'
+import { mediaPath } from '../lib/paths'
 
 const keyOf = (it: { type: string; title: string }) => `${it.type}:${it.title.trim().toLowerCase()}`
 
@@ -118,11 +119,14 @@ export default function DiscoverPage() {
                 <h2 className="text-base font-semibold text-[var(--text)]">{t('trendingNow')}</h2>
               </div>
               <div className="flex flex-col gap-5 rounded-2xl border border-[var(--border-subtle)] bg-[var(--container)] p-4 sm:flex-row sm:p-5">
-                <div className="aspect-[2/3] w-32 flex-shrink-0 overflow-hidden rounded-xl border border-[var(--border-subtle)] bg-[var(--container-2)] sm:w-44">
+                <Link
+                  to={mediaPath(featured)}
+                  className="aspect-[2/3] w-32 flex-shrink-0 overflow-hidden rounded-xl border border-[var(--border-subtle)] bg-[var(--container-2)] transition-colors hover:border-[var(--border)] sm:w-44"
+                >
                   {featured.coverUrl && (
                     <img src={featured.coverUrl} alt={featured.title} className="h-full w-full object-cover" />
                   )}
-                </div>
+                </Link>
                 <div className="flex min-w-0 flex-1 flex-col">
                   <div className="flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-widest text-[var(--text-muted)]">
                     <span>{featured.type === 'book' ? t('book') : t('film')}</span>
@@ -141,7 +145,9 @@ export default function DiscoverPage() {
                   </div>
 
                   <h3 className="mt-1.5 text-2xl font-bold leading-tight tracking-tight text-[var(--text)]">
-                    {featured.title}
+                    <Link to={mediaPath(featured)} className="hover:underline">
+                      {featured.title}
+                    </Link>
                   </h3>
                   <p className="text-sm text-[var(--text-muted)]">
                     {featured.type === 'book' ? featured.author : featured.director || featured.author}

@@ -19,6 +19,7 @@ import { useLanguage } from '../../contexts/LanguageContext'
 import { usePreferences } from '../../contexts/PreferencesContext'
 import { useAuth } from '../../contexts/AuthContext'
 import { currentUser, initials } from '../../lib/user'
+import { userPath } from '../../lib/paths'
 
 type ShelfKey = 'all' | 'wishlist' | 'active' | 'done' | 'favorites'
 
@@ -37,6 +38,9 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
   // The signed-in nons identity (library session), falling back to the mock while loading.
   const display = {
     handle: user?.username ?? currentUser.handle,
+    // Profile links go by uuid (/u/<uuid>); the handle is a fallback while the
+    // session hasn't loaded or the token predates uuids.
+    profileId: user?.uuid || user?.username || currentUser.handle,
     name: user?.name || user?.username || currentUser.name,
     color: currentUser.color,
     avatar: user?.avatar_url || '',
@@ -182,7 +186,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
 
         <div className="flex items-center gap-2">
           <Link
-            to={`/u/${display.handle}`}
+            to={userPath(display.profileId)}
             onClick={onClose}
             title={t('viewProfile')}
             className="flex min-w-0 flex-1 items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-[var(--surface)]"

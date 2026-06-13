@@ -1,23 +1,27 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import Layout from '../components/layout/Layout'
 import { libraryService } from '../services/libraryService'
 import type { MediaItem } from '../types'
 import { useLanguage } from '../contexts/LanguageContext'
+import { useAuth } from '../contexts/AuthContext'
 import { currentUser, initials } from '../lib/user'
+import { mediaPath } from '../lib/paths'
 
 export default function ProfilePage() {
   const { t } = useLanguage()
-  const { handle } = useParams<{ handle: string }>()
+  const { user: authUser } = useAuth()
   const [items, setItems] = useState<MediaItem[]>([])
 
   useEffect(() => {
     libraryService.getItems().then(setItems)
   }, [])
 
-  // Only the signed-in user is mocked for now; fall back to them for any handle.
+  // The route is /u/<uuid>, but only the signed-in user's profile exists for
+  // now — show them regardless of which uuid the URL carries. The @handle is
+  // the username, never the raw uuid.
   const user = currentUser
-  const displayHandle = handle ?? user.handle
+  const displayHandle = authUser?.username ?? user.handle
 
   const stats = useMemo(() => {
     const rated = items.filter((it) => typeof it.rating === 'number' && it.rating > 0)
@@ -67,7 +71,7 @@ export default function ProfilePage() {
           <h2 className="mb-3 text-base font-semibold text-[var(--text)]">{t('sortAdded')}</h2>
           <div className="grid grid-cols-3 gap-4 sm:grid-cols-4 md:grid-cols-6">
             {recent.map((it) => (
-              <Link key={it.id} to={`/shelf/${it.id}`} className="group block" title={it.title}>
+              <Link key={it.id} to={mediaPath(it)} className="group block" title={it.title}>
                 <div className="aspect-[2/3] overflow-hidden rounded-xl border border-[var(--border-subtle)] bg-[var(--container-2)] transition-colors group-hover:border-[var(--border)]">
                   {it.coverUrl && (
                     <img src={it.coverUrl} alt={it.title} loading="lazy" className="h-full w-full object-cover" />

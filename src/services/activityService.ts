@@ -5,7 +5,7 @@ export type ActivityType = 'rated' | 'finished' | 'started' | 'added' | 'reviewe
 
 export type Activity = {
   id: string
-  user: { name: string; handle: string; color: string }
+  user: { name: string; handle: string; color: string; uuid?: string }
   type: ActivityType
   mediaTitle: string
   mediaType: MediaType
@@ -26,6 +26,7 @@ type Friendship = {
   requester_id: number
   addressee_id: number
   status: string
+  uuid: string // the *other* user's public id, for /u/<uuid> links
   username: string
   name: string
 }
@@ -85,6 +86,7 @@ class ApiActivityService implements IActivityService {
         name: f.name || f.username,
         handle: f.username,
         color: colorFor(f.username),
+        uuid: f.uuid || undefined,
       })
     }
     if (friends.size === 0) return []
