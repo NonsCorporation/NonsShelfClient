@@ -32,6 +32,7 @@ type BackendMedia = {
   description: string
   duration_min: number
   pages: number
+  maker_uuid: string
   created_at: number
   updated_at: number
 }
@@ -52,6 +53,7 @@ function toItem(m: BackendMedia, s: Signals = {}): MediaItem {
     title: m.title,
     author: m.author || m.director,
     director: m.director || undefined,
+    makerUuid: m.maker_uuid || undefined,
     coverUrl: m.cover_url || undefined,
     year: m.year || undefined,
     genre: m.genres ? m.genres.split(',').map((g) => g.trim()).filter(Boolean) : undefined,

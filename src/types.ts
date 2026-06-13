@@ -13,6 +13,8 @@ export type MediaItem = {
   type: MediaType
   title: string
   author: string
+  /** Public uuid of the primary author/director, for linking to /p/<uuid>. */
+  makerUuid?: string
   coverUrl?: string
   year?: number
   genre?: string | string[]

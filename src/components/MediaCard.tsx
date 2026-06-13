@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import {
   IoBookOutline,
   IoFilmOutline,
@@ -31,10 +31,28 @@ function Cover({ item, className }: { item: MediaItem; className?: string }) {
 
 export default function MediaCard({ item, view, onToggleFavorite }: MediaCardProps) {
   const { t } = useLanguage()
+  const navigate = useNavigate()
   const isBook = item.type === 'book'
   const TypeIcon = isBook ? IoBookOutline : IoFilmOutline
   const genres = Array.isArray(item.genre) ? item.genre : item.genre ? [item.genre] : []
   const status = item.status ?? 'wishlist'
+
+  // Byline: the author/director name. When we know the person's uuid it links to
+  // their /p/<uuid> page — via navigate (not a nested <a>, the card is a Link).
+  const byline = item.makerUuid ? (
+    <button
+      onClick={(e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        navigate(`/p/${item.makerUuid}`)
+      }}
+      className="block max-w-full truncate text-left text-sm text-[var(--text-muted)] transition-colors hover:text-nonsprimary hover:underline"
+    >
+      {item.author}
+    </button>
+  ) : (
+    <p className="truncate text-sm text-[var(--text-muted)]">{item.author}</p>
+  )
 
   const favBtn = (
     <button
@@ -72,7 +90,7 @@ export default function MediaCard({ item, view, onToggleFavorite }: MediaCardPro
             </span>
           </div>
           <h3 className="mt-1 truncate text-[15px] font-semibold text-[var(--text)]">{item.title}</h3>
-          <p className="truncate text-sm text-[var(--text-muted)]">{item.author}</p>
+          {byline}
         </div>
         <div className="flex flex-shrink-0 items-center gap-3 pr-1">
           {typeof item.rating === 'number' && item.rating > 0 && (
@@ -128,7 +146,7 @@ export default function MediaCard({ item, view, onToggleFavorite }: MediaCardPro
         <h3 className="truncate text-[15px] font-semibold leading-snug text-[var(--text)]" title={item.title}>
           {item.title}
         </h3>
-        <p className="truncate text-sm text-[var(--text-muted)]">{item.author}</p>
+        {byline}
         {genres.length > 0 && (
           <p className="mt-0.5 truncate text-[11px] text-[var(--text-muted)]/70">{genres.slice(0, 3).join(' · ')}</p>
         )}
