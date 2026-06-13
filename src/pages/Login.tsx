@@ -90,7 +90,7 @@ export default function Login() {
       {/* ── top bar ───────────────────────────────────────────────── */}
       <header className="relative z-20 mx-auto flex max-w-6xl items-center justify-between px-6 pt-6">
         <div className="flex items-center gap-2.5">
-          <img src="/icon.svg" alt="Nons Shelf" className="h-8 w-8" />
+          <img src="/shelf.svg" alt="Nons Shelf" className="h-6 w-6" />
           <span className="text-base font-semibold tracking-tight">Nons Shelf</span>
         </div>
         <button
