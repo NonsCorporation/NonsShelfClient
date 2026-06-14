@@ -33,6 +33,9 @@ type BackendMedia = {
   duration_min: number
   pages: number
   maker_uuid: string
+  isbn: string
+  work_id: string
+  details?: { original_language?: string; title_en?: string; ol_work?: string } | null
   created_at: number
   updated_at: number
 }
@@ -54,6 +57,10 @@ function toItem(m: BackendMedia, s: Signals = {}): MediaItem {
     author: m.author || m.director,
     director: m.director || undefined,
     makerUuid: m.maker_uuid || undefined,
+    isbn: m.isbn || undefined,
+    workId: m.work_id || undefined,
+    originalLanguage: m.details?.original_language || undefined,
+    titleEn: m.details?.title_en || undefined,
     coverUrl: m.cover_url || undefined,
     year: m.year || undefined,
     genre: m.genres ? m.genres.split(',').map((g) => g.trim()).filter(Boolean) : undefined,
@@ -97,12 +104,24 @@ async function items<T>(res: Response): Promise<T[]> {
   return (data.items ?? []) as T[]
 }
 
+// Result of a Goodreads import (mirrors importer_service.Summary).
+export interface ImportSummary {
+  total: number
+  created: number
+  matched: number
+  shelved: number
+  rated: number
+  skipped: number
+}
+
 export interface ILibraryService {
   getItems(): Promise<MediaItem[]>
   getItem(id: string): Promise<MediaItem | undefined>
   addItem(item: Omit<MediaItem, 'id'> & { id?: string }): Promise<MediaItem>
   updateItem(id: string, updates: Partial<MediaItem>): Promise<MediaItem>
   deleteItem(id: string): Promise<void>
+  importGoodreads(file: File): Promise<ImportSummary>
+  importBookDiary(file: File): Promise<ImportSummary>
 }
 
 class ApiLibraryService implements ILibraryService {
@@ -233,6 +252,31 @@ class ApiLibraryService implements ILibraryService {
       authedFetch(`/api/media/${mediaId}/favorite`, { method: 'DELETE' }),
       authedFetch(`/api/media/${mediaId}/rating`, { method: 'DELETE' }),
     ])
+  }
+
+  // Upload a CSV export; the backend creates/matches books and shelves + rates
+  // them. Don't set Content-Type — the browser adds the multipart boundary.
+  private async uploadCsv(path: string, file: File): Promise<ImportSummary> {
+    const form = new FormData()
+    form.append('file', file)
+    const res = await authedFetch(path, { method: 'POST', body: form })
+    if (!res.ok) {
+      let msg = `Import failed (${res.status})`
+      try {
+        const body = await res.json()
+        if (body?.error) msg = body.error
+      } catch { /* non-JSON error body (e.g. a 404 route) — keep the status */ }
+      throw new Error(msg)
+    }
+    return res.json() as Promise<ImportSummary>
+  }
+
+  importGoodreads(file: File): Promise<ImportSummary> {
+    return this.uploadCsv('/api/import/goodreads', file)
+  }
+
+  importBookDiary(file: File): Promise<ImportSummary> {
+    return this.uploadCsv('/api/import/bookdiary', file)
   }
 
   private setFavorite(mediaId: number, on: boolean) {

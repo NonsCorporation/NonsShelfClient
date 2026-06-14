@@ -7,10 +7,12 @@ import {
   IoChevronDown,
   IoLibraryOutline,
   IoSearch,
+  IoCloudUploadOutline,
 } from 'react-icons/io5'
 import Layout from '../components/layout/Layout.tsx'
 import MediaCard from '../components/MediaCard.tsx'
 import MediaModal from '../components/MediaModal.tsx'
+import ImportModal from '../components/ImportModal.tsx'
 import { libraryService } from '../services/libraryService.ts'
 import type { MediaItem } from '../types.ts'
 import { useLanguage } from '../contexts/LanguageContext.tsx'
@@ -42,6 +44,7 @@ export default function Home() {
   const [actorFilter, setActorFilter] = useState('')
 
   const [showForm, setShowForm] = useState<null | 'book' | 'movie'>(null)
+  const [showImport, setShowImport] = useState(false)
 
   useEffect(() => {
     libraryService.getItems().then((data) => {
@@ -335,6 +338,16 @@ export default function Home() {
           </button>
         </div>
 
+        {/* Import (Goodreads CSV, etc.) */}
+        <button
+          onClick={() => setShowImport(true)}
+          title={t('importLibrary') || 'Import'}
+          className="flex h-10 items-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] px-3 text-sm text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
+        >
+          <IoCloudUploadOutline className="h-4 w-4" />
+          <span className="hidden sm:inline">{t('import') || 'Import'}</span>
+        </button>
+
         <div className="ml-auto hidden text-sm text-[var(--text-muted)] md:block">
           {t('showing', { n: filtered.length, total: items.length })}
         </div>
@@ -345,6 +358,11 @@ export default function Home() {
         initialType={showForm || 'book'}
         onClose={() => setShowForm(null)}
         onSave={handleSave}
+      />
+      <ImportModal
+        isOpen={showImport}
+        onClose={() => setShowImport(false)}
+        onImported={() => libraryService.getItems().then(setItems)}
       />
 
       {/* Content */}

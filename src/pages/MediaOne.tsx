@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Fragment, type ReactNode } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import Layout from '../components/layout/Layout'
 import StarsSelector from '../StarsSelector'
@@ -32,6 +32,19 @@ interface MediaCredits {
   translators: { person: CreditPerson }[]
 }
 
+// Book editions from GET /api/media/:id/editions.
+interface Edition {
+  id: number
+  language?: string
+  title?: string
+  isbn13?: string
+  isbn10?: string
+  publisher?: string
+  published_year?: number
+  pages?: number
+  cover_url?: string
+}
+
 export default function MediaOnePage() {
   const { t } = useLanguage()
   const navigate = useNavigate()
@@ -39,6 +52,7 @@ export default function MediaOnePage() {
   const [item, setItem] = useState<MediaItem | null>(null)
   const [loading, setLoading] = useState(true)
   const [credits, setCredits] = useState<MediaCredits | null>(null)
+  const [editions, setEditions] = useState<Edition[]>([])
 
   const [userRating, setUserRating] = useState<number | null>(null)
   const [userReview, setUserReview] = useState('')
@@ -61,6 +75,19 @@ export default function MediaOnePage() {
     authedFetch(`/api/media/${id}/credits`)
       .then((r) => (r.ok ? r.json() : null))
       .then((c) => !cancelled && setCredits(c))
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [id])
+
+  // Editions (books) for the metadata section.
+  useEffect(() => {
+    if (!id) return
+    let cancelled = false
+    authedFetch(`/api/media/${id}/editions`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => !cancelled && setEditions(d?.editions ?? []))
       .catch(() => {})
     return () => {
       cancelled = true
@@ -255,6 +282,65 @@ export default function MediaOnePage() {
                   >
                     {g}
                   </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Book metadata — all available catalog fields (ISBN, pages, …). */}
+          {isBook && (() => {
+            const rows: [string, ReactNode][] = []
+            if (item.isbn) rows.push(['ISBN', item.isbn])
+            if (item.pages) rows.push([t('pages') || 'Pages', item.pages])
+            if (item.year) rows.push([t('firstPublished') || 'First published', item.year])
+            if (item.originalLanguage) rows.push([t('originalLanguage') || 'Original language', item.originalLanguage])
+            if (item.titleEn && item.titleEn !== item.title) rows.push([t('originalTitle') || 'Original title', item.titleEn])
+            if (item.workId) {
+              rows.push([
+                'OpenLibrary',
+                <a href={`https://openlibrary.org${item.workId}`} target="_blank" rel="noreferrer" className="text-nonsprimary hover:underline">
+                  {item.workId.replace('/works/', '')}
+                </a>,
+              ])
+            }
+            if (rows.length === 0) return null
+            return (
+              <div>
+                <h3 className="mb-2.5 text-[10px] uppercase tracking-widest text-[var(--text-muted)]">{t('details') || 'Details'}</h3>
+                <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1.5 text-sm">
+                  {rows.map(([k, v]) => (
+                    <Fragment key={k}>
+                      <dt className="text-[var(--text-muted)]">{k}</dt>
+                      <dd className="break-words text-[var(--text)]">{v}</dd>
+                    </Fragment>
+                  ))}
+                </dl>
+              </div>
+            )
+          })()}
+
+          {/* Editions (Goodreads-style), when the work has any. */}
+          {isBook && editions.length > 0 && (
+            <div>
+              <h3 className="mb-2.5 text-[10px] uppercase tracking-widest text-[var(--text-muted)]">
+                {t('editions') || 'Editions'} ({editions.length})
+              </h3>
+              <div className="flex flex-col gap-2">
+                {editions.map((e) => (
+                  <div key={e.id} className="flex items-center gap-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] p-2.5">
+                    <div className="h-14 w-10 flex-shrink-0 overflow-hidden rounded bg-[var(--container-2)]">
+                      {e.cover_url ? <img src={e.cover_url} alt="" loading="lazy" className="h-full w-full object-cover" /> : null}
+                    </div>
+                    <div className="min-w-0 text-sm">
+                      <p className="truncate text-[var(--text)]">{e.title || item.title}</p>
+                      <p className="truncate text-xs text-[var(--text-muted)]">
+                        {[e.publisher, e.published_year || undefined, (e.language || '').toUpperCase() || undefined].filter(Boolean).join(' · ')}
+                      </p>
+                      {(e.isbn13 || e.isbn10) && (
+                        <p className="text-xs text-[var(--text-muted)]">ISBN {e.isbn13 || e.isbn10}</p>
+                      )}
+                    </div>
+                  </div>
                 ))}
               </div>
             </div>

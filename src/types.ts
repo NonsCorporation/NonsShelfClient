@@ -25,6 +25,11 @@ export type MediaItem = {
   pages?: number
   description?: string
   duration?: string
+  // Book metadata (from the catalog row / its OpenLibrary work).
+  isbn?: string
+  workId?: string // OpenLibrary work key, e.g. "/works/OL…W"
+  originalLanguage?: string
+  titleEn?: string // original/English title when the catalog title is localized
   dateAdded?: string
   status?: ShelfStatus
   favorite?: boolean
