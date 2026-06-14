@@ -1,5 +1,5 @@
 import { authedFetch } from '../lib/api'
-import type { MediaItem, ShelfStatus } from '../types.ts'
+import type { MediaItem, MediaType, ShelfStatus } from '../types.ts'
 
 // The user's library lives in nons-library-server, split across three resources
 // that all reference a shared catalog row (media):
@@ -22,7 +22,7 @@ export const SHELF_META: Record<ShelfStatus, { key: string; dot: string }> = {
 type BackendMedia = {
   id: number
   uuid: string
-  type: 'book' | 'movie'
+  type: MediaType
   title: string
   author: string
   director: string
@@ -95,6 +95,7 @@ function toMediaBody(item: Partial<MediaItem>) {
     description: item.description || '',
     pages: item.pages || 0,
     duration_min: parseDuration(item.duration),
+    isbn: item.isbn || '',
   }
 }
 

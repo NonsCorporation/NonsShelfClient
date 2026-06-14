@@ -20,6 +20,8 @@ import { usePreferences } from '../../contexts/PreferencesContext'
 import { useAuth } from '../../contexts/AuthContext'
 import { currentUser, initials } from '../../lib/user'
 import { userPath } from '../../lib/paths'
+import { FaCrown } from 'react-icons/fa6'
+import { isLibrarian } from '../../services/librarianService'
 
 type ShelfKey = 'all' | 'wishlist' | 'active' | 'done' | 'favorites'
 
@@ -118,6 +120,21 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
           <IoCalendarOutline className="h-[18px] w-[18px]" />
           {t('calendar')}
         </Link>
+
+        {isLibrarian(user?.role) && (
+          <Link
+            to="/librarians"
+            onClick={onClose}
+            className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
+              location.pathname.startsWith('/librarian')
+                ? 'bg-[var(--surface)] font-medium text-[var(--text)]'
+                : 'text-[var(--text-muted)] hover:text-[var(--text)]'
+            }`}
+          >
+            <FaCrown className="h-[18px] w-[18px]" />
+            {t('librarians')}
+          </Link>
+        )}
       </nav>
 
       {/* Shelves */}

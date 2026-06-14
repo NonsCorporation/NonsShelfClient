@@ -2,6 +2,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import {
   IoBookOutline,
   IoFilmOutline,
+  IoTvOutline,
   IoHeart,
   IoHeartOutline,
   IoStar,
@@ -21,7 +22,7 @@ function Cover({ item, className }: { item: MediaItem; className?: string }) {
   if (item.coverUrl) {
     return <img src={item.coverUrl} alt={item.title} className={className} loading="lazy" />
   }
-  const Icon = item.type === 'book' ? IoBookOutline : IoFilmOutline
+  const Icon = item.type === 'book' ? IoBookOutline : item.type === 'series' ? IoTvOutline : IoFilmOutline
   return (
     <div className={`flex items-center justify-center bg-[var(--container-2)] ${className ?? ''}`}>
       <Icon className="h-8 w-8 text-[var(--placeholder)]" />
@@ -33,7 +34,7 @@ export default function MediaCard({ item, view, onToggleFavorite }: MediaCardPro
   const { t } = useLanguage()
   const navigate = useNavigate()
   const isBook = item.type === 'book'
-  const TypeIcon = isBook ? IoBookOutline : IoFilmOutline
+  const TypeIcon = isBook ? IoBookOutline : item.type === 'series' ? IoTvOutline : IoFilmOutline
   const genres = Array.isArray(item.genre) ? item.genre : item.genre ? [item.genre] : []
   const status = item.status ?? 'wishlist'
 

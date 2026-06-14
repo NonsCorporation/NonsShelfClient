@@ -32,7 +32,7 @@ export default function Home() {
   const [items, setItems] = useState<MediaItem[]>([])
   const [loading, setLoading] = useState(true)
 
-  const [typeFilter, setTypeFilter] = useState<'all' | 'book' | 'movie'>('all')
+  const [typeFilter, setTypeFilter] = useState<'all' | 'book' | 'movie' | 'series'>('all')
   const [sort, setSort] = useState<SortKey>('added')
   const [view, setView] = useState<'grid' | 'list'>('grid')
 
@@ -197,7 +197,7 @@ export default function Home() {
 
         {/* Type chips */}
         <div className="flex rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] p-1">
-          {(['all', 'book', 'movie'] as const).map((f) => (
+          {(['all', 'book', 'movie', 'series'] as const).map((f) => (
             <button
               key={f}
               onClick={() => setTypeFilter(f)}
@@ -207,7 +207,7 @@ export default function Home() {
                   : 'text-[var(--text-muted)] hover:text-[var(--text)]'
               }`}
             >
-              {f === 'all' ? t('all') : f === 'book' ? t('books') : t('movies')}
+              {f === 'all' ? t('all') : f === 'book' ? t('books') : f === 'movie' ? t('movies') : t('seriesPlural')}
             </button>
           ))}
         </div>

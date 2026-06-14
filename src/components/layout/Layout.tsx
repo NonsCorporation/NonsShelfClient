@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { ReactNode } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { IoMenu, IoSearch, IoAdd } from 'react-icons/io5'
+import { IoMenu, IoSearch } from 'react-icons/io5'
 import Sidebar from './Sidebar'
 import { useLanguage } from '../../contexts/LanguageContext'
 
@@ -25,10 +25,6 @@ export default function Layout({ children }: LayoutProps) {
     const search = next.toString()
     navigate({ pathname: '/discover', search: search ? `?${search}` : '' }, { replace: true })
   }
-
-  // Adding is also routed (so the action works from any page): the Library
-  // reads `?add=` and opens the modal.
-  const onAdd = () => navigate('/library?add=book')
 
   return (
     <div className="app-ambient relative min-h-screen">
@@ -55,14 +51,6 @@ export default function Layout({ children }: LayoutProps) {
                 className="h-10 w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--input)] pl-11 pr-3 text-sm text-[var(--text)] placeholder:text-[var(--placeholder)] focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[var(--primary-ring)]"
               />
             </div>
-
-            <button
-              onClick={onAdd}
-              className="ml-auto inline-flex h-10 flex-shrink-0 items-center gap-2 rounded-xl bg-nonsprimary px-3.5 text-sm font-semibold text-white transition-colors hover:bg-nonsprimaryfocus"
-            >
-              <IoAdd className="h-5 w-5" />
-              <span className="hidden sm:inline">{t('addEntry')}</span>
-            </button>
           </div>
         </header>
 

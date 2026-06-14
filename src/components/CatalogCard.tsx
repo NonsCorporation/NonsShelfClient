@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { IoStar, IoBookOutline, IoFilmOutline, IoAdd, IoCheckmark, IoPeopleOutline } from 'react-icons/io5'
+import { IoStar, IoBookOutline, IoFilmOutline, IoTvOutline, IoAdd, IoCheckmark, IoPeopleOutline } from 'react-icons/io5'
 import type { CatalogItem } from '../services/catalogService'
 import { compactCount } from '../services/catalogService'
 import { useLanguage } from '../contexts/LanguageContext'
@@ -15,7 +15,7 @@ type CatalogCardProps = {
 export default function CatalogCard({ item, inLibrary, onAdd, showReason }: CatalogCardProps) {
   const { t } = useLanguage()
   const isBook = item.type === 'book'
-  const TypeIcon = isBook ? IoBookOutline : IoFilmOutline
+  const TypeIcon = isBook ? IoBookOutline : item.type === 'series' ? IoTvOutline : IoFilmOutline
   const credit = isBook ? item.author : item.director || item.author
 
   return (

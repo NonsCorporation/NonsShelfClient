@@ -85,11 +85,12 @@ class ApiCatalogService implements ICatalogService {
     if (q?.trim()) {
       return this.fetchPage(`/api/media?limit=100&q=${encodeURIComponent(q.trim())}`)
     }
-    const [books, movies] = await Promise.all([
+    const [books, movies, series] = await Promise.all([
       this.fetchPage('/api/media?type=book&limit=100'),
       this.fetchPage('/api/media?type=movie&limit=100'),
+      this.fetchPage('/api/media?type=series&limit=100'),
     ])
-    return [...books, ...movies]
+    return [...books, ...movies, ...series]
   }
 
   private async fetchPage(url: string): Promise<CatalogItem[]> {

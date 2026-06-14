@@ -37,6 +37,9 @@ jobs:
           VITE_LIBRARY_API_URL: ${{ vars.VITE_LIBRARY_API_URL || 'https://shelfapi.nonsapp.com' }}
           VITE_NONS_API_URL: ${{ vars.VITE_NONS_API_URL || 'https://nonsapp.com' }}
           VITE_NONS_LOGIN_URL: ${{ vars.VITE_NONS_LOGIN_URL || 'https://nonsapp.com' }}
+          # Google Books API key for ISBN autofill (avoids the shared keyless 429).
+          # Add a repo Secret GOOGLE_BOOKS_KEY; restrict the key by HTTP referrer.
+          VITE_GOOGLE_BOOKS_KEY: ${{ secrets.GOOGLE_BOOKS_KEY }}
 
       - name: Setup Pages
         uses: actions/configure-pages@v4

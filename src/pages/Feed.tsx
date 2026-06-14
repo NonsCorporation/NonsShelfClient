@@ -12,7 +12,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { statusLabel, STATUS_COLOR } from '../lib/shelf'
 import { initials } from '../lib/user'
 import { mediaPath, userPath } from '../lib/paths'
-import { IoStar, IoEyeOffOutline, IoBookOutline, IoFilmOutline, IoPeopleOutline } from 'react-icons/io5'
+import { IoStar, IoEyeOffOutline, IoBookOutline, IoFilmOutline, IoTvOutline, IoPeopleOutline } from 'react-icons/io5'
 
 const VERB_KEY: Record<ActivityType, string> = {
   rated: 'verbRated',
@@ -24,7 +24,7 @@ const VERB_KEY: Record<ActivityType, string> = {
 
 function ActivityRow({ a }: { a: Activity }) {
   const { t } = useLanguage()
-  const TypeIcon = a.mediaType === 'book' ? IoBookOutline : IoFilmOutline
+  const TypeIcon = a.mediaType === 'book' ? IoBookOutline : a.mediaType === 'series' ? IoTvOutline : IoFilmOutline
   return (
     <div className="flex items-start gap-3 border-b border-[var(--divider)] py-4 last:border-0">
       <Link
@@ -48,7 +48,7 @@ function ActivityRow({ a }: { a: Activity }) {
         <div className="mt-0.5 flex items-center gap-2 text-xs text-[var(--text-muted)]">
           <span className="inline-flex items-center gap-1">
             <TypeIcon className="h-3.5 w-3.5" />
-            {a.mediaType === 'book' ? t('book') : t('film')}
+            {a.mediaType === 'book' ? t('book') : a.mediaType === 'series' ? t('series') : t('film')}
           </span>
           {typeof a.rating === 'number' && (
             <span className="inline-flex items-center gap-1 font-medium text-[var(--text)]">

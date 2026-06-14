@@ -7,6 +7,8 @@ import MediaOnePage from './pages/MediaOne.tsx';
 import PersonPage from './pages/Person.tsx';
 import ProfilePage from './pages/Profile.tsx';
 import RequireAuth from './components/RequireAuth.tsx';
+import LibrariansPage from './pages/Librarians.tsx';
+import LibrarianEditPage from './pages/LibrarianEdit.tsx';
 
 export default function App() {
   return (
@@ -17,6 +19,8 @@ export default function App() {
           <Route path='/library' element={<Home />} />
           <Route path='/discover' element={<DiscoverPage />} />
           <Route path='/calendar' element={<CalendarPage />} />
+          <Route path='/librarians' element={<LibrariansPage />} />
+          <Route path='/librarian/edit/:id' element={<LibrarianEditPage />} />
           <Route path='/b/:id' element={<MediaOnePage />} />
           <Route path='/m/:id' element={<MediaOnePage />} />
           {/* Legacy numeric-id links keep working */}

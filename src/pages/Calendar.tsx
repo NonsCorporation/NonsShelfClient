@@ -98,9 +98,9 @@ export default function CalendarPage() {
     // determines color intensity class based on activity count
     const getActivityColor = (count: number) => {
         if (count === 0) return 'bg-[var(--surface-hover)]';
-        if (count === 1) return 'bg-emerald-200 dark:bg-emerald-900';
-        if (count === 2) return 'bg-emerald-300 dark:bg-emerald-700';
-        if (count >= 3) return 'bg-emerald-500 dark:bg-emerald-500';
+        if (count === 1) return 'bg-nonsprimary/30';
+        if (count === 2) return 'bg-nonsprimary/50';
+        if (count >= 3) return 'bg-nonsprimary';
         return 'bg-[var(--surface-hover)]';
     };
 

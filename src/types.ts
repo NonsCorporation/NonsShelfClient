@@ -1,4 +1,4 @@
-export type MediaType = 'book' | 'movie'
+export type MediaType = 'book' | 'movie' | 'series'
 
 // Shelf status — the Goodreads/IMDb "what am I doing with this" axis.
 //   wishlist -> Want to Read / Want to Watch

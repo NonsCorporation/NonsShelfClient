@@ -67,6 +67,10 @@ export default function DiscoverPage() {
     () => catalog.filter((c) => c.type === 'movie').sort((a, b) => b.ratingsCount - a.ratingsCount),
     [catalog],
   )
+  const popularSeries = useMemo(
+    () => catalog.filter((c) => c.type === 'series').sort((a, b) => b.ratingsCount - a.ratingsCount),
+    [catalog],
+  )
 
   const Row = ({ title, items, showReason }: { title: string; items: CatalogItem[]; showReason?: boolean }) =>
     items.length === 0 ? null : (
@@ -129,7 +133,7 @@ export default function DiscoverPage() {
                 </Link>
                 <div className="flex min-w-0 flex-1 flex-col">
                   <div className="flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-widest text-[var(--text-muted)]">
-                    <span>{featured.type === 'book' ? t('book') : t('film')}</span>
+                    <span>{featured.type === 'book' ? t('book') : featured.type === 'series' ? t('series') : t('film')}</span>
                     {featured.year && (
                       <>
                         <span className="text-[var(--border-strong)]">·</span>
@@ -197,6 +201,7 @@ export default function DiscoverPage() {
           <Row title={t('trendingNow')} items={trending.slice(1)} />
           <Row title={t('popularBooks')} items={popularBooks} />
           <Row title={t('popularFilms')} items={popularFilms} />
+          <Row title={t('popularSeries')} items={popularSeries} />
         </div>
       )}
     </Layout>

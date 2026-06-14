@@ -8,11 +8,14 @@ import type { MediaItem, ShelfStatus } from '../types'
 import {
   IoFilmOutline,
   IoBookOutline,
+  IoTvOutline,
   IoTimeOutline,
   IoHeart,
   IoHeartOutline,
   IoShareOutline,
   IoArrowBack,
+  IoCheckmarkCircle,
+  IoCheckmarkCircleOutline,
 } from 'react-icons/io5'
 import { useLanguage } from '../contexts/LanguageContext'
 import { STATUS_ORDER, STATUS_COLOR, statusLabel } from '../lib/shelf'
@@ -45,6 +48,29 @@ interface Edition {
   cover_url?: string
 }
 
+// Series episodes from GET /api/media/:id/episodes — grouped by season, with the
+// current user's watched flags keyed by episode id.
+interface Episode {
+  id: number
+  season: number
+  number: number
+  title?: string
+  overview?: string
+  air_date?: string
+  runtime_min?: number
+  still_url?: string
+}
+interface SeasonGroup {
+  season: number
+  episodes: Episode[]
+}
+interface EpisodesResponse {
+  seasons: SeasonGroup[]
+  watched: Record<string, number> // episode_id -> watched_at
+  watched_count: number
+  total: number
+}
+
 export default function MediaOnePage() {
   const { t } = useLanguage()
   const navigate = useNavigate()
@@ -53,6 +79,7 @@ export default function MediaOnePage() {
   const [loading, setLoading] = useState(true)
   const [credits, setCredits] = useState<MediaCredits | null>(null)
   const [editions, setEditions] = useState<Edition[]>([])
+  const [episodes, setEpisodes] = useState<EpisodesResponse | null>(null)
 
   const [userRating, setUserRating] = useState<number | null>(null)
   const [userReview, setUserReview] = useState('')
@@ -94,6 +121,32 @@ export default function MediaOnePage() {
     }
   }, [id])
 
+  // Episodes (series), grouped by season with the user's watched flags. Only
+  // fetched once we know the item is a series.
+  useEffect(() => {
+    if (!id || item?.type !== 'series') return
+    let cancelled = false
+    authedFetch(`/api/media/${id}/episodes`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => !cancelled && setEpisodes(d))
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [id, item?.type])
+
+  // Mark/unmark an episode watched and reflect it in local state immediately.
+  const toggleWatched = async (episodeId: number, watched: boolean) => {
+    setEpisodes((prev) => {
+      if (!prev) return prev
+      const next = { ...prev.watched }
+      if (watched) next[episodeId] = Math.floor(Date.now() / 1000)
+      else delete next[episodeId]
+      return { ...prev, watched: next, watched_count: Object.keys(next).length }
+    })
+    await authedFetch(`/api/episodes/${episodeId}/watch`, { method: watched ? 'PUT' : 'DELETE' })
+  }
+
   // Mutations go by the numeric catalog id — the route param may be the uuid
   // (from /b/<uuid> and /m/<uuid> URLs), which only the read path resolves.
   const patch = async (updates: Partial<MediaItem>) => {
@@ -123,7 +176,9 @@ export default function MediaOnePage() {
   }
 
   const isBook = item.type === 'book'
-  const Icon = isBook ? IoBookOutline : IoFilmOutline
+  const isSeries = item.type === 'series'
+  const Icon = isBook ? IoBookOutline : isSeries ? IoTvOutline : IoFilmOutline
+  const typeLabel = isBook ? t('book') : isSeries ? t('series') : t('film')
   const status = item.status ?? 'wishlist'
   const genres = Array.isArray(item.genre) ? item.genre : item.genre ? [item.genre] : []
   const displayRating = userRating !== null ? `${(userRating / 2).toFixed(1)}/5` : t('unrated')
@@ -219,7 +274,7 @@ export default function MediaOnePage() {
           <div>
             <div className="mb-2 flex flex-wrap items-center gap-2 text-xs uppercase tracking-widest text-[var(--text-muted)]">
               <Icon className="h-3.5 w-3.5" />
-              <span>{isBook ? t('book') : t('film')}</span>
+              <span>{typeLabel}</span>
               {item.year && (
                 <>
                   <span className="text-[var(--border-strong)]">·</span>
@@ -339,6 +394,82 @@ export default function MediaOnePage() {
                       {(e.isbn13 || e.isbn10) && (
                         <p className="text-xs text-[var(--text-muted)]">ISBN {e.isbn13 || e.isbn10}</p>
                       )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Episodes (series), grouped by season, each toggleable as watched. */}
+          {isSeries && episodes && episodes.total > 0 && (
+            <div>
+              <div className="mb-2.5 flex items-center justify-between">
+                <h3 className="text-[10px] uppercase tracking-widest text-[var(--text-muted)]">
+                  {t('episodes')} ({episodes.total})
+                </h3>
+                <span className="text-xs text-[var(--text-muted)]">
+                  {t('watchedOfTotal', { watched: episodes.watched_count, total: episodes.total })}
+                </span>
+              </div>
+              <div className="flex flex-col gap-5">
+                {episodes.seasons.map((s) => (
+                  <div key={s.season}>
+                    <h4 className="mb-2 text-sm font-semibold text-[var(--text)]">
+                      {t('season')} {s.season}
+                      <span className="ml-2 font-normal text-[var(--text-muted)]">
+                        {t('episodesCount', { count: s.episodes.length })}
+                      </span>
+                    </h4>
+                    <div className="flex flex-col gap-1.5">
+                      {s.episodes.map((ep) => {
+                        const watched = !!episodes.watched[ep.id]
+                        return (
+                          <div
+                            key={ep.id}
+                            className="flex items-start gap-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] p-2.5"
+                          >
+                            {ep.still_url ? (
+                              <img
+                                src={ep.still_url}
+                                alt=""
+                                loading="lazy"
+                                className="h-14 w-24 flex-shrink-0 rounded object-cover"
+                              />
+                            ) : (
+                              <div className="flex h-14 w-24 flex-shrink-0 items-center justify-center rounded bg-[var(--container-2)]">
+                                <IoTvOutline className="h-5 w-5 text-[var(--placeholder)]" />
+                              </div>
+                            )}
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm text-[var(--text)]">
+                                <span className="text-[var(--text-muted)]">{ep.number}. </span>
+                                {ep.title || `${t('season')} ${ep.season}`}
+                              </p>
+                              <p className="mt-0.5 flex flex-wrap gap-2 text-xs text-[var(--text-muted)]">
+                                {ep.air_date ? <span>{ep.air_date}</span> : null}
+                                {ep.runtime_min ? <span>· {ep.runtime_min} min</span> : null}
+                              </p>
+                              {ep.overview ? (
+                                <p className="mt-1 line-clamp-2 text-xs leading-5 text-[var(--text-muted)]">{ep.overview}</p>
+                              ) : null}
+                            </div>
+                            <button
+                              onClick={() => toggleWatched(ep.id, !watched)}
+                              title={watched ? t('watched') : t('markWatched')}
+                              className={`flex-shrink-0 transition-colors ${
+                                watched ? 'text-nonsprimary' : 'text-[var(--text-muted)] hover:text-[var(--text)]'
+                              }`}
+                            >
+                              {watched ? (
+                                <IoCheckmarkCircle className="h-6 w-6" />
+                              ) : (
+                                <IoCheckmarkCircleOutline className="h-6 w-6" />
+                              )}
+                            </button>
+                          </div>
+                        )
+                      })}
                     </div>
                   </div>
                 ))}
