@@ -35,6 +35,44 @@ export interface Edition {
   cover_url?: string
 }
 
+// An episode of a series. Mirrors media_model.Episode's JSON.
+export interface Episode {
+  id: number
+  media_id?: number
+  season: number
+  number: number
+  title?: string
+  overview?: string
+  air_date?: string // YYYY-MM-DD
+  runtime_min?: number
+  still_url?: string
+}
+
+// Fields a librarian can set when adding/editing an episode.
+export type EpisodeInput = Omit<Episode, 'id' | 'media_id'>
+
+// Wire shape of GET /api/media/:id/episodes (seasons grouped).
+type EpisodesResponse = {
+  seasons?: { season: number; episodes: Episode[] }[]
+}
+
+// A TMDB search candidate (GET /api/tmdb/search).
+export interface TmdbCandidate {
+  tmdb_id: number
+  title: string
+  year?: number
+  overview?: string
+  poster_url?: string
+}
+
+// Result of POST /api/tmdb/import.
+export interface TmdbImportResult {
+  id: number
+  uuid?: string
+  created: boolean
+  imported_episodes: number
+}
+
 async function jsonOrThrow(res: Response): Promise<unknown> {
   if (!res.ok) {
     let msg = `Request failed (${res.status})`
@@ -127,6 +165,64 @@ export const librarianService = {
     )
   },
 
+  // ── episodes (series) ──
+  // Reads a series' episodes through the same endpoint the series page uses,
+  // flattened to a single ordered list for the editor.
+  async getEpisodes(mediaId: string): Promise<Episode[]> {
+    const res = await authedFetch(`/api/media/${mediaId}/episodes`)
+    if (!res.ok) return []
+    const data = (await res.json()) as EpisodesResponse
+    return (data.seasons ?? []).flatMap((s) => s.episodes)
+  },
+
+  async addEpisode(mediaId: string, ep: EpisodeInput): Promise<Episode> {
+    return jsonOrThrow(
+      await authedFetch(`/api/media/${mediaId}/episodes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(ep),
+      }),
+    ) as Promise<Episode>
+  },
+
+  async updateEpisode(mediaId: string, episodeId: number, ep: EpisodeInput): Promise<Episode> {
+    return jsonOrThrow(
+      await authedFetch(`/api/media/${mediaId}/episodes/${episodeId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(ep),
+      }),
+    ) as Promise<Episode>
+  },
+
+  async deleteEpisode(mediaId: string, episodeId: number): Promise<void> {
+    await jsonOrThrow(
+      await authedFetch(`/api/media/${mediaId}/episodes/${episodeId}`, { method: 'DELETE' }),
+    )
+  },
+
+  // ── TMDB import (movies & series) ──
+  // Search TMDB by title via the server proxy (the API key stays server-side).
+  async tmdbSearch(type: 'movie' | 'series', q: string): Promise<TmdbCandidate[]> {
+    if (!q.trim()) return []
+    const data = (await jsonOrThrow(
+      await authedFetch(`/api/tmdb/search?type=${type}&q=${encodeURIComponent(q.trim())}`),
+    )) as { items: TmdbCandidate[] }
+    return data.items ?? []
+  },
+
+  // Import (or enrich) a catalog row from a TMDB id; series also pull all their
+  // episodes. Returns the catalog id to jump into the editor.
+  async tmdbImport(type: 'movie' | 'series', tmdbId: number): Promise<TmdbImportResult> {
+    return jsonOrThrow(
+      await authedFetch('/api/tmdb/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tmdb_id: tmdbId, type }),
+      }),
+    ) as Promise<TmdbImportResult>
+  },
+
   // ── people ──
   async searchPeople(q: string): Promise<PersonSummary[]> {
     if (!q.trim()) return []
@@ -134,6 +230,23 @@ export const librarianService = {
       await authedFetch(`/api/people?q=${encodeURIComponent(q.trim())}`),
     )) as { items: PersonSummary[] }
     return data.items ?? []
+  },
+
+  // Create a new person (or return the existing one with the same name). Returns
+  // the PersonSummary so it can be linked as a maker straight away.
+  async createPerson(fields: {
+    name: string
+    bio?: string
+    photo_url?: string
+    birth_year?: number
+  }): Promise<PersonSummary> {
+    return jsonOrThrow(
+      await authedFetch('/api/people', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(fields),
+      }),
+    ) as Promise<PersonSummary>
   },
 
   async updatePerson(

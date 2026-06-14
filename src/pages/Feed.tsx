@@ -28,7 +28,7 @@ function ActivityRow({ a }: { a: Activity }) {
   return (
     <div className="flex items-start gap-3 border-b border-[var(--divider)] py-4 last:border-0">
       <Link
-        to={userPath(a.user.uuid || a.user.handle)}
+        to={userPath(a.user.handle || a.user.uuid || '')}
         className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full text-[11px] font-semibold text-white"
         style={{ backgroundColor: a.user.color }}
         title={a.user.name}
@@ -38,7 +38,7 @@ function ActivityRow({ a }: { a: Activity }) {
 
       <div className="min-w-0 flex-1">
         <p className="text-sm text-[var(--text)]">
-          <Link to={userPath(a.user.uuid || a.user.handle)} className="font-semibold hover:underline">
+          <Link to={userPath(a.user.handle || a.user.uuid || '')} className="font-semibold hover:underline">
             {a.user.name}
           </Link>{' '}
           <span className="text-[var(--text-muted)]">{t(VERB_KEY[a.type])}</span>{' '}

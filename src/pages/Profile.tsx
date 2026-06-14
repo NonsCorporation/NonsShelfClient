@@ -1,71 +1,142 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import Layout from '../components/layout/Layout'
 import { libraryService } from '../services/libraryService'
+import { fetchPublicProfile } from '../services/userService'
 import type { MediaItem } from '../types'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
-import { currentUser, initials } from '../lib/user'
+import { currentUser, initials, colorFor } from '../lib/user'
 import { mediaPath } from '../lib/paths'
+
+type ProfileView = {
+  name: string
+  handle: string
+  color: string
+  avatar: string
+}
 
 export default function ProfilePage() {
   const { t } = useLanguage()
-  const { user: authUser } = useAuth()
+  const { id: routeId } = useParams<{ id: string }>()
+  const { user: authUser, loading: authLoading } = useAuth()
+
   const [items, setItems] = useState<MediaItem[]>([])
+  const [profile, setProfile] = useState<ProfileView | null>(null)
+  const [isSelf, setIsSelf] = useState(true)
+  const [loading, setLoading] = useState(true)
+  const [notFound, setNotFound] = useState(false)
 
+  // Resolve whose profile this is. The route is /u/<username|uuid>: when it
+  // matches the signed-in user (or is absent) it's their own; otherwise resolve
+  // the username against nons-server (the identity provider) and pull that
+  // user's public library by the shared numeric id.
   useEffect(() => {
-    libraryService.getItems().then(setItems)
-  }, [])
+    if (authLoading) return
+    let cancelled = false
+    setLoading(true)
+    setNotFound(false)
 
-  // The route is /u/<uuid>, but only the signed-in user's profile exists for
-  // now — show them regardless of which uuid the URL carries. Prefer the real
-  // nons session, falling back to the mock only while it's still loading. The
-  // @handle is the username, never the raw uuid.
-  const display = {
-    name: authUser?.name || authUser?.username || currentUser.name,
-    handle: authUser?.username ?? currentUser.handle,
-    color: currentUser.color,
-    avatar: authUser?.avatar_url || '',
-  }
+    const mine = !routeId || routeId === authUser?.username || routeId === authUser?.uuid
+
+    async function load() {
+      if (mine) {
+        const its = await libraryService.getItems()
+        if (cancelled) return
+        setIsSelf(true)
+        setProfile({
+          name: authUser?.name || authUser?.username || currentUser.name,
+          handle: authUser?.username ?? currentUser.handle,
+          color: currentUser.color,
+          avatar: authUser?.avatar_url || '',
+        })
+        setItems(its)
+      } else {
+        const p = await fetchPublicProfile(routeId!)
+        if (cancelled) return
+        if (!p) {
+          setNotFound(true)
+          setLoading(false)
+          return
+        }
+        setIsSelf(false)
+        setProfile({
+          name: p.name,
+          handle: p.username,
+          color: colorFor(p.username),
+          avatar: p.avatarUrl || '',
+        })
+        const its = await libraryService.getUserItems(p.id)
+        if (cancelled) return
+        setItems(its)
+      }
+      if (!cancelled) setLoading(false)
+    }
+    load()
+    return () => {
+      cancelled = true
+    }
+  }, [routeId, authUser, authLoading])
 
   const stats = useMemo(() => {
     const rated = items.filter((it) => typeof it.rating === 'number' && it.rating > 0)
     const avg = rated.length ? rated.reduce((s, it) => s + (it.rating || 0), 0) / rated.length / 2 : 0
-    return [
+    const base = [
       { label: t('statTotal'), value: items.length },
       { label: t('statBooks'), value: items.filter((it) => it.type === 'book').length },
       { label: t('statMovies'), value: items.filter((it) => it.type === 'movie').length },
+      { label: t('seriesPlural'), value: items.filter((it) => it.type === 'series').length },
       { label: t('statFinished'), value: items.filter((it) => it.status === 'done').length },
-      { label: t('favorites'), value: items.filter((it) => it.favorite).length },
       { label: t('statAvg'), value: avg ? avg.toFixed(1) : '—' },
     ]
-  }, [items, t])
+    // Favorites are only fetched for the signed-in user (others' stay private).
+    if (isSelf) {
+      base.splice(4, 0, { label: t('favorites'), value: items.filter((it) => it.favorite).length })
+    }
+    return base
+  }, [items, isSelf, t])
 
   const recent = useMemo(
     () => [...items].sort((a, b) => (b.dateAdded ?? '').localeCompare(a.dateAdded ?? '')).slice(0, 6),
     [items],
   )
 
+  if (loading) {
+    return (
+      <Layout>
+        <div className="py-24 text-center text-[var(--text-muted)]">{t('loading')}</div>
+      </Layout>
+    )
+  }
+
+  if (notFound || !profile) {
+    return (
+      <Layout>
+        <div className="py-24 text-center text-[var(--text-muted)]">{t('userNotFound')}</div>
+      </Layout>
+    )
+  }
+
   return (
     <Layout>
       <div className="flex items-center gap-5">
-        {display.avatar ? (
+        {profile.avatar ? (
           <img
-            src={display.avatar}
-            alt={display.name}
+            src={profile.avatar}
+            alt={profile.name}
             className="h-20 w-20 flex-shrink-0 rounded-2xl object-cover"
           />
         ) : (
           <span
             className="flex h-20 w-20 flex-shrink-0 items-center justify-center rounded-2xl text-2xl font-semibold text-white"
-            style={{ backgroundColor: display.color }}
+            style={{ backgroundColor: profile.color }}
           >
-            {initials(display.name)}
+            {initials(profile.name)}
           </span>
         )}
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-[var(--text)]">{display.name}</h1>
-          <p className="text-sm text-[var(--text-muted)]">@{display.handle}</p>
+          <h1 className="text-2xl font-bold tracking-tight text-[var(--text)]">{profile.name}</h1>
+          <p className="text-sm text-[var(--text-muted)]">@{profile.handle}</p>
           <p className="mt-1 text-sm text-[var(--text-muted)]">{t('profileSubtitle')}</p>
         </div>
       </div>

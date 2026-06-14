@@ -117,6 +117,8 @@ export interface ImportSummary {
 
 export interface ILibraryService {
   getItems(): Promise<MediaItem[]>
+  /** Another user's public library (shelf + ratings), for their profile page. */
+  getUserItems(userId: number): Promise<MediaItem[]>
   getItem(id: string): Promise<MediaItem | undefined>
   addItem(item: Omit<MediaItem, 'id'> & { id?: string }): Promise<MediaItem>
   updateItem(id: string, updates: Partial<MediaItem>): Promise<MediaItem>
@@ -149,6 +151,29 @@ class ApiLibraryService implements ILibraryService {
         toItem(e.media!, {
           status: e.status,
           favorite: favSet.has(e.media_id),
+          rating: ratMap.get(e.media_id),
+          createdAt: e.created_at,
+        }),
+      )
+  }
+
+  // Another user's public library: their shelf joined with their ratings (no
+  // favorites — those stay private). Addressed by the shared numeric user id.
+  async getUserItems(userId: number): Promise<MediaItem[]> {
+    const [shelfRes, ratRes] = await Promise.all([
+      authedFetch(`/api/users/${userId}/shelf`),
+      authedFetch(`/api/users/${userId}/ratings`),
+    ])
+    const [shelf, ratings] = await Promise.all([
+      items<ShelfEntry>(shelfRes),
+      items<RatingEntry>(ratRes),
+    ])
+    const ratMap = new Map(ratings.map((r) => [r.media_id, r.value]))
+    return shelf
+      .filter((e) => e.media)
+      .map((e) =>
+        toItem(e.media!, {
+          status: e.status,
           rating: ratMap.get(e.media_id),
           createdAt: e.created_at,
         }),

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useSearchParams, Link, useNavigate } from 'react-router-dom'
 import Layout from '../components/layout/Layout'
 import MediaModal from '../components/MediaModal'
+import ImportSearchModal from '../components/ImportSearchModal'
 import { catalogService } from '../services/catalogService'
 import type { CatalogItem } from '../services/catalogService'
 import { librarianService, isLibrarian } from '../services/librarianService'
@@ -13,6 +14,7 @@ import {
   IoSearch,
   IoCreateOutline,
   IoAdd,
+  IoCloudDownloadOutline,
   IoPersonOutline,
   IoGitMergeOutline,
   IoCheckmark,
@@ -72,6 +74,7 @@ function CatalogTab() {
   const [results, setResults] = useState<CatalogItem[]>([])
   const [loading, setLoading] = useState(false)
   const [adding, setAdding] = useState(false)
+  const [importing, setImporting] = useState(false)
 
   useEffect(() => {
     if (!q) {
@@ -115,11 +118,18 @@ function CatalogTab() {
           />
         </div>
         <button
+          onClick={() => setImporting(true)}
+          className="inline-flex h-12 flex-shrink-0 items-center justify-center gap-2 rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface)] px-5 text-sm font-semibold text-[var(--text)] transition-colors hover:bg-[var(--border-subtle)]"
+        >
+          <IoCloudDownloadOutline className="h-5 w-5" />
+          {t('importEntry')}
+        </button>
+        <button
           onClick={() => setAdding(true)}
           className="inline-flex h-12 flex-shrink-0 items-center justify-center gap-2 rounded-2xl bg-nonsprimary px-5 text-sm font-semibold text-white transition-colors hover:bg-nonsprimaryfocus"
         >
           <IoAdd className="h-5 w-5" />
-          {t('addBook')}
+          {t('addEntry')}
         </button>
       </div>
 
@@ -150,7 +160,7 @@ function CatalogTab() {
                 )}
                 <div className="flex min-w-0 flex-col">
                   <div className="mb-1 flex items-center gap-2 text-[10px] uppercase tracking-widest text-[var(--text-muted)] sm:text-[11px]">
-                    <span>{item.type === 'book' ? t('book') : t('film')}</span>
+                    <span>{item.type === 'book' ? t('book') : item.type === 'series' ? t('series') : t('film')}</span>
                     {item.year && (
                       <>
                         <span className="text-[var(--border-strong)]">·</span>
@@ -183,6 +193,15 @@ function CatalogTab() {
         catalogOnly
         onClose={() => setAdding(false)}
         onSave={handleAdd}
+      />
+
+      <ImportSearchModal
+        isOpen={importing}
+        onClose={() => setImporting(false)}
+        onImported={(newId) => {
+          setImporting(false)
+          navigate(`/librarian/edit/${newId}`)
+        }}
       />
     </>
   )
@@ -237,17 +256,39 @@ function AuthorsTab() {
     runSearch(q)
   }
 
+  const handleCreate = async () => {
+    const name = q.trim()
+    if (!name) return
+    await librarianService.createPerson({ name })
+    flash(t('savedToast'))
+    runSearch(q)
+  }
+
+  const term = q.trim()
+  const exactMatch = people.some((p) => p.name.toLowerCase() === term.toLowerCase())
+
   return (
     <>
-      <div className="relative mb-4 max-w-2xl">
-        <IoSearch className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-[var(--text-muted)]" />
-        <input
-          type="text"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder={t('searchAuthorsPlaceholder')}
-          className="w-full rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface)] py-3 pl-12 pr-4 text-base text-[var(--text)] focus:border-nonsprimary focus:outline-none"
-        />
+      <div className="mb-4 flex max-w-2xl flex-col gap-3 sm:flex-row">
+        <div className="relative flex-1">
+          <IoSearch className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-[var(--text-muted)]" />
+          <input
+            type="text"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder={t('searchAuthorsPlaceholder')}
+            className="w-full rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface)] py-3 pl-12 pr-4 text-base text-[var(--text)] focus:border-nonsprimary focus:outline-none"
+          />
+        </div>
+        {term && !loading && !exactMatch && (
+          <button
+            onClick={handleCreate}
+            className="inline-flex h-12 flex-shrink-0 items-center justify-center gap-2 rounded-2xl bg-nonsprimary px-5 text-sm font-semibold text-white transition-colors hover:bg-nonsprimaryfocus"
+          >
+            <IoAdd className="h-5 w-5" />
+            {t('createAuthor')}
+          </button>
+        )}
       </div>
 
       {dup && (

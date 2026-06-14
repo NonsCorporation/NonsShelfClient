@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import Layout from '../components/layout/Layout'
 import MediaModal from '../components/MediaModal'
@@ -7,7 +7,7 @@ import { catalogService } from '../services/catalogService'
 import { authedFetch } from '../lib/api'
 import type { CatalogItem } from '../services/catalogService'
 import { librarianService, isLibrarian } from '../services/librarianService'
-import type { Edition, PersonSummary } from '../services/librarianService'
+import type { Edition, Episode, EpisodeInput, PersonSummary } from '../services/librarianService'
 import type { MediaItem } from '../types'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
@@ -20,6 +20,8 @@ import {
   IoSearch,
   IoGitMergeOutline,
   IoLinkOutline,
+  IoCheckmark,
+  IoClose,
 } from 'react-icons/io5'
 
 export default function LibrarianEditPage() {
@@ -79,6 +81,8 @@ export default function LibrarianEditPage() {
   }
 
   const isBook = item.type === 'book'
+  const isSeries = item.type === 'series'
+  const typeLabel = isBook ? t('book') : isSeries ? t('series') : t('film')
   const makerRole: 'author' | 'director' = isBook ? 'author' : 'director'
 
   const handleSaveMeta = async (data: Partial<MediaItem>) => {
@@ -139,7 +143,7 @@ export default function LibrarianEditPage() {
         </div>
         <div className="min-w-0 flex-1">
           <p className="text-[10px] uppercase tracking-widest text-[var(--text-muted)]">
-            {isBook ? t('book') : t('film')}
+            {typeLabel}
             {item.year ? ` · ${item.year}` : ''}
           </p>
           <h1 className="mt-1 text-2xl font-bold leading-tight tracking-tight text-[var(--text)]">{item.title}</h1>
@@ -206,6 +210,13 @@ export default function LibrarianEditPage() {
           </Section>
         )}
 
+        {/* Episodes (series) */}
+        {isSeries && (
+          <Section title={t('episodesTitle')} hint={t('episodesHint')}>
+            <EpisodesEditor mediaId={id} />
+          </Section>
+        )}
+
         {/* Merge a duplicate entry into this one */}
         <Section title={t('mergeDuplicateTitle')} hint={t('mergeDuplicateHint')}>
           <MediaAutocomplete type={item.type} excludeId={item.id} onPick={handleMergeDuplicate} actionLabel={t('mergeHere')} />
@@ -258,12 +269,13 @@ function Section({ title, hint, children }: { title: string; hint?: string; chil
   )
 }
 
-// Author search → pick a person to link as the maker.
+// Author search → pick a person to link as the maker, or create a new one.
 function PersonAutocomplete({ onPick, actionLabel }: { onPick: (p: PersonSummary) => void; actionLabel: string }) {
   const { t } = useLanguage()
   const [q, setQ] = useState('')
   const [results, setResults] = useState<PersonSummary[]>([])
   const [loading, setLoading] = useState(false)
+  const [creating, setCreating] = useState(false)
 
   useEffect(() => {
     if (!q.trim()) {
@@ -281,6 +293,24 @@ function PersonAutocomplete({ onPick, actionLabel }: { onPick: (p: PersonSummary
     return () => clearTimeout(timer)
   }, [q])
 
+  // Create a brand-new person from the typed name and immediately link them.
+  const handleCreate = async () => {
+    const name = q.trim()
+    if (!name || creating) return
+    setCreating(true)
+    try {
+      const person = await librarianService.createPerson({ name })
+      onPick(person)
+      setQ('')
+      setResults([])
+    } finally {
+      setCreating(false)
+    }
+  }
+
+  const term = q.trim()
+  const exactMatch = results.some((p) => p.name.toLowerCase() === term.toLowerCase())
+
   return (
     <div>
       <div className="relative max-w-md">
@@ -293,6 +323,17 @@ function PersonAutocomplete({ onPick, actionLabel }: { onPick: (p: PersonSummary
         />
       </div>
       {loading && <p className="mt-2 text-xs text-[var(--text-muted)]">…</p>}
+      {/* Offer to create when the typed name isn't an exact existing match. */}
+      {term && !loading && !exactMatch && (
+        <button
+          onClick={handleCreate}
+          disabled={creating}
+          className="mt-2 inline-flex max-w-md items-center gap-2 rounded-lg border border-dashed border-[var(--border-subtle)] px-3 py-2 text-sm text-[var(--text)] transition-colors hover:border-nonsprimary hover:bg-[var(--primary-soft)] disabled:opacity-50"
+        >
+          <IoAdd className="h-4 w-4 text-nonsprimary" />
+          {creating ? t('creating') : t('createAndLink', { name: term })}
+        </button>
+      )}
       {results.length > 0 && (
         <div className="mt-2 flex max-w-md flex-col gap-1.5">
           {results.map((p) => (
@@ -396,6 +437,235 @@ function MediaAutocomplete({
           ))}
         </div>
       )}
+    </div>
+  )
+}
+
+// Episodes manager for a series: list grouped by season, add/edit/delete.
+function EpisodesEditor({ mediaId }: { mediaId: string }) {
+  const { t } = useLanguage()
+  const [episodes, setEpisodes] = useState<Episode[]>([])
+  const [loading, setLoading] = useState(true)
+  const [editingId, setEditingId] = useState<number | null>(null)
+  const [error, setError] = useState('')
+
+  const reload = useCallback(() => {
+    setLoading(true)
+    librarianService
+      .getEpisodes(mediaId)
+      .then(setEpisodes)
+      .finally(() => setLoading(false))
+  }, [mediaId])
+
+  useEffect(() => {
+    reload()
+  }, [reload])
+
+  // Group episodes by season, seasons and episodes both ascending.
+  const seasons = useMemo(() => {
+    const map = new Map<number, Episode[]>()
+    for (const e of episodes) {
+      const arr = map.get(e.season) ?? []
+      arr.push(e)
+      map.set(e.season, arr)
+    }
+    return [...map.entries()]
+      .sort((a, b) => a[0] - b[0])
+      .map(([season, eps]) => ({ season, eps: eps.sort((a, b) => a.number - b.number) }))
+  }, [episodes])
+
+  // Default the add form to the next episode of the latest season.
+  const nextSlot = useMemo(() => {
+    if (seasons.length === 0) return { season: 1, number: 1 }
+    const last = seasons[seasons.length - 1]
+    return { season: last.season, number: (last.eps[last.eps.length - 1]?.number ?? 0) + 1 }
+  }, [seasons])
+
+  const wrap = (fn: () => Promise<void>) => async () => {
+    setError('')
+    try {
+      await fn()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    }
+  }
+
+  const handleAdd = (input: EpisodeInput) =>
+    wrap(async () => {
+      await librarianService.addEpisode(mediaId, input)
+      reload()
+    })()
+
+  const handleUpdate = (id: number, input: EpisodeInput) =>
+    wrap(async () => {
+      await librarianService.updateEpisode(mediaId, id, input)
+      setEditingId(null)
+      reload()
+    })()
+
+  const handleDelete = (id: number) =>
+    wrap(async () => {
+      await librarianService.deleteEpisode(mediaId, id)
+      setEpisodes((prev) => prev.filter((e) => e.id !== id))
+    })()
+
+  if (loading) return <p className="text-sm text-[var(--text-muted)]">{t('loading')}</p>
+
+  return (
+    <div className="flex flex-col gap-5">
+      {error && (
+        <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-500">{error}</p>
+      )}
+
+      {seasons.length === 0 ? (
+        <p className="text-sm text-[var(--text-muted)]">{t('noEpisodesYet')}</p>
+      ) : (
+        seasons.map(({ season, eps }) => (
+          <div key={season}>
+            <h4 className="mb-2 text-sm font-semibold text-[var(--text)]">
+              {t('season')} {season}
+              <span className="ml-2 font-normal text-[var(--text-muted)]">({eps.length})</span>
+            </h4>
+            <div className="flex flex-col gap-1.5">
+              {eps.map((ep) =>
+                editingId === ep.id ? (
+                  <EpisodeForm
+                    key={ep.id}
+                    initial={ep}
+                    submitLabel={t('save')}
+                    onSubmit={(input) => handleUpdate(ep.id, input)}
+                    onCancel={() => setEditingId(null)}
+                  />
+                ) : (
+                  <div
+                    key={ep.id}
+                    className="flex items-start gap-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] p-2.5"
+                  >
+                    <div className="h-12 w-20 flex-shrink-0 overflow-hidden rounded bg-[var(--container-2)]">
+                      {ep.still_url ? (
+                        <img src={ep.still_url} alt="" loading="lazy" className="h-full w-full object-cover" />
+                      ) : null}
+                    </div>
+                    <div className="min-w-0 flex-1 text-sm">
+                      <p className="truncate text-[var(--text)]">
+                        <span className="text-[var(--text-muted)]">{ep.number}. </span>
+                        {ep.title || `${t('season')} ${ep.season}`}
+                      </p>
+                      <p className="truncate text-xs text-[var(--text-muted)]">
+                        {[ep.air_date, ep.runtime_min ? `${ep.runtime_min} min` : undefined].filter(Boolean).join(' · ')}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setEditingId(ep.id)}
+                      title={t('edit')}
+                      className="flex-shrink-0 rounded-lg p-2 text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
+                    >
+                      <IoCreateOutline className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(ep.id)}
+                      title={t('delete')}
+                      className="flex-shrink-0 rounded-lg p-2 text-[var(--text-muted)] hover:bg-red-500/10 hover:text-red-500"
+                    >
+                      <IoTrashOutline className="h-4 w-4" />
+                    </button>
+                  </div>
+                ),
+              )}
+            </div>
+          </div>
+        ))
+      )}
+
+      <div>
+        <h4 className="mb-2 text-sm font-semibold text-[var(--text)]">{t('addEpisode')}</h4>
+        <EpisodeForm key={`${nextSlot.season}-${nextSlot.number}`} initial={nextSlot} submitLabel={t('addEpisode')} onSubmit={handleAdd} />
+      </div>
+    </div>
+  )
+}
+
+// Add/edit form for one episode. `initial` seeds the fields (and season/number
+// for a new episode); on edit it also carries the existing values.
+function EpisodeForm({
+  initial,
+  submitLabel,
+  onSubmit,
+  onCancel,
+}: {
+  initial: Partial<Episode> & { season: number; number: number }
+  submitLabel: string
+  onSubmit: (input: EpisodeInput) => void | Promise<void>
+  onCancel?: () => void
+}) {
+  const { t } = useLanguage()
+  const [form, setForm] = useState({
+    season: String(initial.season ?? 1),
+    number: String(initial.number ?? 1),
+    title: initial.title ?? '',
+    air_date: initial.air_date ?? '',
+    runtime_min: initial.runtime_min ? String(initial.runtime_min) : '',
+    still_url: initial.still_url ?? '',
+    overview: initial.overview ?? '',
+  })
+  const [busy, setBusy] = useState(false)
+
+  const submit = async () => {
+    setBusy(true)
+    try {
+      await onSubmit({
+        season: parseInt(form.season, 10) || 1,
+        number: parseInt(form.number, 10) || 1,
+        title: form.title || undefined,
+        air_date: form.air_date || undefined,
+        runtime_min: form.runtime_min ? parseInt(form.runtime_min, 10) : undefined,
+        still_url: form.still_url || undefined,
+        overview: form.overview || undefined,
+      })
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const input =
+    'h-10 rounded-lg border border-[var(--border-subtle)] bg-[var(--input)] px-3 text-sm text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-ring)]'
+
+  return (
+    <div className="flex flex-col gap-2 rounded-xl border border-dashed border-[var(--border-subtle)] p-3">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <input className={input} type="number" placeholder={t('season')} value={form.season} onChange={(e) => setForm((s) => ({ ...s, season: e.target.value }))} />
+        <input className={input} type="number" placeholder={t('episodeNumber')} value={form.number} onChange={(e) => setForm((s) => ({ ...s, number: e.target.value }))} />
+        <input className={input} placeholder={t('airDate')} value={form.air_date} onChange={(e) => setForm((s) => ({ ...s, air_date: e.target.value }))} />
+        <input className={input} type="number" placeholder={t('runtimeMin')} value={form.runtime_min} onChange={(e) => setForm((s) => ({ ...s, runtime_min: e.target.value }))} />
+      </div>
+      <input className={input} placeholder={t('episodeTitle')} value={form.title} onChange={(e) => setForm((s) => ({ ...s, title: e.target.value }))} />
+      <input className={input} placeholder={t('stillUrl')} value={form.still_url} onChange={(e) => setForm((s) => ({ ...s, still_url: e.target.value }))} />
+      <textarea
+        rows={2}
+        className="resize-none rounded-lg border border-[var(--border-subtle)] bg-[var(--input)] p-3 text-sm text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-ring)]"
+        placeholder={t('synopsis')}
+        value={form.overview}
+        onChange={(e) => setForm((s) => ({ ...s, overview: e.target.value }))}
+      />
+      <div className="flex items-center gap-2">
+        <button
+          onClick={submit}
+          disabled={busy}
+          className="inline-flex w-fit items-center gap-2 rounded-lg bg-nonsprimary px-4 py-2 text-sm font-semibold text-white hover:bg-nonsprimaryfocus disabled:opacity-50"
+        >
+          <IoCheckmark className="h-4 w-4" />
+          {submitLabel}
+        </button>
+        {onCancel && (
+          <button
+            onClick={onCancel}
+            className="inline-flex w-fit items-center gap-2 rounded-lg bg-[var(--surface)] px-4 py-2 text-sm font-medium text-[var(--text-muted)] hover:text-[var(--text)]"
+          >
+            <IoClose className="h-4 w-4" />
+            {t('cancel')}
+          </button>
+        )}
+      </div>
     </div>
   )
 }

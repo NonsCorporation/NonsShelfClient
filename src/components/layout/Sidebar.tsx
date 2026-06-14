@@ -40,9 +40,9 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
   // The signed-in nons identity (library session), falling back to the mock while loading.
   const display = {
     handle: user?.username ?? currentUser.handle,
-    // Profile links go by uuid (/u/<uuid>); the handle is a fallback while the
-    // session hasn't loaded or the token predates uuids.
-    profileId: user?.uuid || user?.username || currentUser.handle,
+    // Profile links go by username (/u/<username>) so they resolve against
+    // nons-server's public-profile lookup; uuid is a fallback for older tokens.
+    profileId: user?.username || user?.uuid || currentUser.handle,
     name: user?.name || user?.username || currentUser.name,
     color: currentUser.color,
     avatar: user?.avatar_url || '',

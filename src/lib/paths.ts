@@ -1,9 +1,10 @@
 import type { MediaType } from '../types'
 
 // Canonical client routes:
-//   /b/<uuid>  book page
-//   /m/<uuid>  movie page
-//   /u/<uuid>  user profile
+//   /b/<uuid>      book page
+//   /m/<uuid>      movie page
+//   /u/<username>  user profile (username resolves via nons-server; uuid is a
+//                  fallback for the signed-in user only)
 // The uuid is the media row's public id from nons-library-server. `id` (the
 // numeric catalog id) is the fallback while older rows or cached payloads
 // haven't carried a uuid yet — the backend accepts both forms.

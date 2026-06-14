@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { IoClose, IoBookOutline, IoFilmOutline, IoSparklesOutline } from 'react-icons/io5'
+import { IoClose, IoBookOutline, IoFilmOutline, IoTvOutline, IoSparklesOutline } from 'react-icons/io5'
 import type { MediaItem, MediaType, ShelfStatus } from '../types.ts'
 import { useLanguage } from '../contexts/LanguageContext.tsx'
 import { STATUS_ORDER, STATUS_COLOR, statusLabel } from '../lib/shelf'
@@ -259,6 +259,13 @@ export default function MediaModal({ isOpen, initialData, initialType, catalogOn
                 <IoFilmOutline className="w-4 h-4" />
                 {t('movie')}
               </button>
+              <button
+                onClick={() => setType('series')}
+                className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition ${type === 'series' ? 'bg-[var(--surface-active)] text-[var(--text)] border border-[var(--border-strong)]' : 'text-[var(--text-muted)] hover:bg-[var(--surface-hover)]'}`}
+              >
+                <IoTvOutline className="w-4 h-4" />
+                {t('series')}
+              </button>
             </div>
           </div>
         )}
@@ -377,7 +384,7 @@ export default function MediaModal({ isOpen, initialData, initialType, catalogOn
             {t('cancel')}
           </button>
           <button onClick={handleSave} className="px-6 h-10 rounded-lg bg-nonsprimary text-white font-medium hover:bg-nonsprimaryfocus transition-colors">
-            {isEditing ? t('save') : `${t('add')} ${type === 'book' ? t('book') : t('film')}`}
+            {isEditing ? t('save') : `${t('add')} ${type === 'book' ? t('book') : type === 'series' ? t('series') : t('film')}`}
           </button>
         </div>
       </div>
