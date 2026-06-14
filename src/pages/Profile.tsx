@@ -18,10 +18,15 @@ export default function ProfilePage() {
   }, [])
 
   // The route is /u/<uuid>, but only the signed-in user's profile exists for
-  // now — show them regardless of which uuid the URL carries. The @handle is
-  // the username, never the raw uuid.
-  const user = currentUser
-  const displayHandle = authUser?.username ?? user.handle
+  // now — show them regardless of which uuid the URL carries. Prefer the real
+  // nons session, falling back to the mock only while it's still loading. The
+  // @handle is the username, never the raw uuid.
+  const display = {
+    name: authUser?.name || authUser?.username || currentUser.name,
+    handle: authUser?.username ?? currentUser.handle,
+    color: currentUser.color,
+    avatar: authUser?.avatar_url || '',
+  }
 
   const stats = useMemo(() => {
     const rated = items.filter((it) => typeof it.rating === 'number' && it.rating > 0)
@@ -44,15 +49,23 @@ export default function ProfilePage() {
   return (
     <Layout>
       <div className="flex items-center gap-5">
-        <span
-          className="flex h-20 w-20 flex-shrink-0 items-center justify-center rounded-2xl text-2xl font-semibold text-white"
-          style={{ backgroundColor: user.color }}
-        >
-          {initials(user.name)}
-        </span>
+        {display.avatar ? (
+          <img
+            src={display.avatar}
+            alt={display.name}
+            className="h-20 w-20 flex-shrink-0 rounded-2xl object-cover"
+          />
+        ) : (
+          <span
+            className="flex h-20 w-20 flex-shrink-0 items-center justify-center rounded-2xl text-2xl font-semibold text-white"
+            style={{ backgroundColor: display.color }}
+          >
+            {initials(display.name)}
+          </span>
+        )}
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-[var(--text)]">{user.name}</h1>
-          <p className="text-sm text-[var(--text-muted)]">@{displayHandle}</p>
+          <h1 className="text-2xl font-bold tracking-tight text-[var(--text)]">{display.name}</h1>
+          <p className="text-sm text-[var(--text-muted)]">@{display.handle}</p>
           <p className="mt-1 text-sm text-[var(--text-muted)]">{t('profileSubtitle')}</p>
         </div>
       </div>
