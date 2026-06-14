@@ -80,6 +80,8 @@ export default function MediaOnePage() {
   const [credits, setCredits] = useState<MediaCredits | null>(null)
   const [editions, setEditions] = useState<Edition[]>([])
   const [episodes, setEpisodes] = useState<EpisodesResponse | null>(null)
+  const [editionId, setEditionId] = useState<number | null>(null)
+  const [isbnFind, setIsbnFind] = useState('')
 
   const [userRating, setUserRating] = useState<number | null>(null)
   const [userReview, setUserReview] = useState('')
@@ -90,6 +92,7 @@ export default function MediaOnePage() {
       if (found) {
         setItem(found)
         setUserRating(found.rating ?? null)
+        setEditionId(found.editionId ?? null)
       }
       setLoading(false)
     })
@@ -158,6 +161,15 @@ export default function MediaOnePage() {
   const handleRatingChange = async (val: number) => {
     setUserRating(val)
     await patch({ rating: val })
+  }
+
+  // Pick (or, by re-clicking, clear) the edition the user is reading. Requires
+  // the book to be on their shelf — the server rejects otherwise.
+  const chooseEdition = async (eid: number) => {
+    if (!item) return
+    const next = editionId === eid ? 0 : eid
+    setEditionId(next || null)
+    await libraryService.setEdition(item.id, next)
   }
 
   if (loading) {
@@ -374,32 +386,74 @@ export default function MediaOnePage() {
             )
           })()}
 
-          {/* Editions (Goodreads-style), when the work has any. */}
-          {isBook && editions.length > 0 && (
-            <div>
-              <h3 className="mb-2.5 text-[10px] uppercase tracking-widest text-[var(--text-muted)]">
-                {t('editions') || 'Editions'} ({editions.length})
-              </h3>
-              <div className="flex flex-col gap-2">
-                {editions.map((e) => (
-                  <div key={e.id} className="flex items-center gap-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] p-2.5">
-                    <div className="h-14 w-10 flex-shrink-0 overflow-hidden rounded bg-[var(--container-2)]">
-                      {e.cover_url ? <img src={e.cover_url} alt="" loading="lazy" className="h-full w-full object-cover" /> : null}
-                    </div>
-                    <div className="min-w-0 text-sm">
-                      <p className="truncate text-[var(--text)]">{e.title || item.title}</p>
-                      <p className="truncate text-xs text-[var(--text-muted)]">
-                        {[e.publisher, e.published_year || undefined, (e.language || '').toUpperCase() || undefined].filter(Boolean).join(' · ')}
-                      </p>
-                      {(e.isbn13 || e.isbn10) && (
-                        <p className="text-xs text-[var(--text-muted)]">ISBN {e.isbn13 || e.isbn10}</p>
-                      )}
-                    </div>
-                  </div>
-                ))}
+          {/* Editions (Goodreads-style). When the book is on the user's shelf,
+              each edition is selectable as "the one I'm reading", and an ISBN box
+              jumps to a specific printing. */}
+          {isBook && editions.length > 0 && (() => {
+            const onShelf = !!item.status
+            const find = isbnFind.replace(/[^0-9Xx]/g, '')
+            const shown = find
+              ? editions.filter((e) => (e.isbn13 || '').includes(find) || (e.isbn10 || '').includes(find))
+              : editions
+            return (
+              <div>
+                <div className="mb-2.5 flex items-center justify-between gap-3">
+                  <h3 className="text-[10px] uppercase tracking-widest text-[var(--text-muted)]">
+                    {t('editions') || 'Editions'} ({editions.length})
+                  </h3>
+                  {onShelf && (
+                    <input
+                      value={isbnFind}
+                      onChange={(e) => setIsbnFind(e.target.value)}
+                      placeholder={t('findByIsbn')}
+                      className="h-8 w-40 rounded-lg border border-[var(--border-subtle)] bg-[var(--input)] px-2.5 text-xs text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-ring)]"
+                    />
+                  )}
+                </div>
+                {onShelf && <p className="mb-2 text-xs text-[var(--text-muted)]">{t('selectEditionHint')}</p>}
+                <div className="flex flex-col gap-2">
+                  {shown.map((e) => {
+                    const selected = editionId === e.id
+                    const inner = (
+                      <>
+                        <div className="h-14 w-10 flex-shrink-0 overflow-hidden rounded bg-[var(--container-2)]">
+                          {e.cover_url ? <img src={e.cover_url} alt="" loading="lazy" className="h-full w-full object-cover" /> : null}
+                        </div>
+                        <div className="min-w-0 flex-1 text-sm">
+                          <p className="truncate text-[var(--text)]">{e.title || item.title}</p>
+                          <p className="truncate text-xs text-[var(--text-muted)]">
+                            {[e.publisher, e.published_year || undefined, (e.language || '').toUpperCase() || undefined].filter(Boolean).join(' · ')}
+                          </p>
+                          {(e.isbn13 || e.isbn10) && (
+                            <p className="text-xs text-[var(--text-muted)]">ISBN {e.isbn13 || e.isbn10}</p>
+                          )}
+                        </div>
+                        {onShelf &&
+                          (selected ? (
+                            <IoCheckmarkCircle className="h-5 w-5 flex-shrink-0 text-nonsprimary" />
+                          ) : (
+                            <IoCheckmarkCircleOutline className="h-5 w-5 flex-shrink-0 text-[var(--text-muted)]" />
+                          ))}
+                      </>
+                    )
+                    const cls = `flex items-center gap-3 rounded-xl border p-2.5 text-left transition-colors ${
+                      selected ? 'border-nonsprimary bg-[var(--primary-soft)]' : 'border-[var(--border-subtle)] bg-[var(--surface)]'
+                    }`
+                    return onShelf ? (
+                      <button key={e.id} onClick={() => chooseEdition(e.id)} className={`${cls} hover:border-nonsprimary`}>
+                        {inner}
+                      </button>
+                    ) : (
+                      <div key={e.id} className={cls}>
+                        {inner}
+                      </div>
+                    )
+                  })}
+                  {shown.length === 0 && <p className="text-xs text-[var(--text-muted)]">{t('noResults')}</p>}
+                </div>
               </div>
-            </div>
-          )}
+            )
+          })()}
 
           {/* Episodes (series), grouped by season, each toggleable as watched. */}
           {isSeries && episodes && episodes.total > 0 && (

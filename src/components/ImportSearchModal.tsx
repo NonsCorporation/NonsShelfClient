@@ -4,7 +4,7 @@ import { useLanguage } from '../contexts/LanguageContext'
 import { librarianService } from '../services/librarianService'
 import type { TmdbCandidate } from '../services/librarianService'
 import { catalogService } from '../services/catalogService'
-import { searchBooks, bookCandidateToItem, bookKey } from '../services/bookSearch'
+import { searchBooks, bookCandidateToItem, bookKey, fetchWorkEditions } from '../services/bookSearch'
 import type { BookCandidate } from '../services/bookSearch'
 
 type Kind = 'book' | 'movie' | 'series'
@@ -227,7 +227,19 @@ async function searchBooksRows(q: string): Promise<Row[]> {
       coverUrl: c.coverUrl,
       source: SOURCE_LABEL[c.source],
       existing: !!existingId,
-      run: async () => (existingId ? Number(existingId) : librarianService.createMedia(bookCandidateToItem(c))),
+      run: async () => {
+        if (existingId) return Number(existingId)
+        const id = await librarianService.createMedia(bookCandidateToItem(c))
+        // Pull every OpenLibrary edition of the work (e.g. all printings of
+        // "Theatre") and attach them. Best-effort: a failed edition is skipped.
+        if (c.workId) {
+          const editions = await fetchWorkEditions(c.workId).catch(() => [])
+          for (const ed of editions) {
+            await librarianService.addEdition(String(id), ed).catch(() => {})
+          }
+        }
+        return id
+      },
     }
   })
 }

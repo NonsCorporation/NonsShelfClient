@@ -5,6 +5,7 @@
 // Returns candidates a librarian can import into the catalog as a book row.
 
 import type { MediaItem } from '../types'
+import { authedFetch } from '../lib/api'
 
 export interface BookCandidate {
   title: string
@@ -74,7 +75,43 @@ type GBVolume = {
 const GBOOKS_KEY = import.meta.env.VITE_GOOGLE_BOOKS_KEY as string | undefined
 const year4 = (s?: string) => (s || '').match(/\d{4}/)?.[0]
 
+// Server-proxied result (GET /api/books/search) — uses the server's key.
+type ServerBook = {
+  title: string
+  author?: string
+  year?: number
+  cover_url?: string
+  isbn?: string
+  pages?: number
+  description?: string
+}
+
 async function searchGoogleBooks(q: string): Promise<BookCandidate[]> {
+  // Prefer the server proxy: it uses the server's Google Books key, so Russian
+  // and long-tail titles resolve and we never hit the browser's anonymous quota.
+  // Fall back to a direct browser call when the endpoint isn't available.
+  try {
+    const res = await authedFetch(`/api/books/search?q=${encodeURIComponent(q)}`)
+    if (res.ok) {
+      const data: { items?: ServerBook[] } = await res.json()
+      return (data.items ?? []).map((b) => ({
+        title: b.title,
+        author: b.author ?? '',
+        year: b.year || undefined,
+        coverUrl: b.cover_url || undefined,
+        isbn: b.isbn || undefined,
+        pages: b.pages || undefined,
+        description: b.description || undefined,
+        source: 'googlebooks' as const,
+      }))
+    }
+  } catch {
+    /* fall through to the direct call */
+  }
+  return searchGoogleBooksDirect(q)
+}
+
+async function searchGoogleBooksDirect(q: string): Promise<BookCandidate[]> {
   const query = isIsbn(q) ? `isbn:${q.replace(/[^0-9Xx]/g, '')}` : q
   const url =
     `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&maxResults=12` +
@@ -146,6 +183,57 @@ export async function searchBooks(q: string): Promise<BookCandidate[]> {
     }
   }
   return [...merged.values()].slice(0, 20)
+}
+
+// ── editions ──────────────────────────────────────────────────────────────────
+
+// An edition body for POST /api/media/:id/editions.
+export interface EditionInput {
+  title?: string
+  publisher?: string
+  published_year?: number
+  isbn13?: string
+  isbn10?: string
+  pages?: number
+  language?: string
+  cover_url?: string
+}
+
+type OLEdition = {
+  title?: string
+  publishers?: string[]
+  publish_date?: string
+  isbn_13?: string[]
+  isbn_10?: string[]
+  number_of_pages?: number
+  languages?: { key?: string }[] // "/languages/eng"
+  covers?: number[]
+}
+
+const OL_COVER_L = (id: number) => `https://covers.openlibrary.org/b/id/${id}-L.jpg`
+
+// Fetch a work's editions from OpenLibrary (e.g. every printing of "Theatre"),
+// mapped to the catalog's edition shape. `workId` is the "/works/OL…W" key.
+// Capped so a work with hundreds of printings doesn't flood the catalog.
+export async function fetchWorkEditions(workId: string, max = 40): Promise<EditionInput[]> {
+  const key = workId.startsWith('/works/') ? workId : `/works/${workId}`
+  try {
+    const res = await fetch(`https://openlibrary.org${key}/editions.json?limit=${max}`)
+    if (!res.ok) return []
+    const data: { entries?: OLEdition[] } = await res.json()
+    return (data.entries ?? []).map((e) => ({
+      title: e.title || undefined,
+      publisher: e.publishers?.[0] || undefined,
+      published_year: e.publish_date ? Number((e.publish_date.match(/\d{4}/) || [])[0]) || undefined : undefined,
+      isbn13: e.isbn_13?.[0] || undefined,
+      isbn10: e.isbn_10?.[0] || undefined,
+      pages: e.number_of_pages || undefined,
+      language: e.languages?.[0]?.key?.replace('/languages/', '') || undefined,
+      cover_url: e.covers?.find((c) => c > 0) ? OL_COVER_L(e.covers!.find((c) => c > 0)!) : undefined,
+    }))
+  } catch {
+    return []
+  }
 }
 
 // Shape a candidate as the MediaItem the catalog create form expects.

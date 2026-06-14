@@ -33,4 +33,6 @@ export type MediaItem = {
   dateAdded?: string
   status?: ShelfStatus
   favorite?: boolean
+  /** The book edition (printing) the user is reading, when chosen. 0/undefined = none. */
+  editionId?: number
 }

@@ -15,11 +15,14 @@ import {
   IoCreateOutline,
   IoAdd,
   IoCloudDownloadOutline,
+  IoFilmOutline,
+  IoTvOutline,
   IoPersonOutline,
   IoGitMergeOutline,
   IoCheckmark,
   IoClose,
 } from 'react-icons/io5'
+import type { BulkJob } from '../services/librarianService'
 
 type Tab = 'catalog' | 'authors'
 
@@ -106,6 +109,8 @@ function CatalogTab() {
 
   return (
     <>
+      <BulkImportPanel />
+
       <div className="mb-8 flex flex-col gap-3 sm:flex-row">
         <div className="relative flex-1">
           <IoSearch className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-[var(--text-muted)]" />
@@ -204,6 +209,143 @@ function CatalogTab() {
         }}
       />
     </>
+  )
+}
+
+// ── Bulk import: top-N popular movies/series from TMDB (background job) ────────
+
+function BulkImportPanel() {
+  const { t } = useLanguage()
+  const [type, setType] = useState<'movie' | 'series'>('movie')
+  const [count, setCount] = useState(100)
+  const [jobId, setJobId] = useState<string | null>(null)
+  const [job, setJob] = useState<BulkJob | null>(null)
+  const [error, setError] = useState('')
+  const [starting, setStarting] = useState(false)
+
+  // Poll the job while it runs.
+  useEffect(() => {
+    if (!jobId) return
+    let active = true
+    const tick = async () => {
+      try {
+        const j = await librarianService.tmdbBulkStatus(jobId)
+        if (!active) return
+        setJob(j)
+        if (j.status === 'running') setTimeout(tick, 1500)
+      } catch {
+        if (active) setTimeout(tick, 2500)
+      }
+    }
+    tick()
+    return () => {
+      active = false
+    }
+  }, [jobId])
+
+  const start = async () => {
+    setError('')
+    setJob(null)
+    setStarting(true)
+    try {
+      setJobId(await librarianService.tmdbBulkImport(type, count))
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setStarting(false)
+    }
+  }
+
+  const running = job?.status === 'running'
+  const pct = job && job.total ? Math.round((job.processed / job.total) * 100) : 0
+  const presets = [100, 250, 500, 1000]
+
+  return (
+    <div className="mb-6 rounded-2xl border border-[var(--border-subtle)] bg-[var(--container)] p-5">
+      <div className="mb-3 flex items-center gap-2">
+        <IoCloudDownloadOutline className="h-5 w-5 text-nonsprimary" />
+        <h3 className="text-sm font-semibold text-[var(--text)]">{t('bulkTitle')}</h3>
+      </div>
+      <p className="mb-4 text-xs text-[var(--text-muted)]">{t('bulkHint')}</p>
+
+      <div className="flex flex-wrap items-center gap-3">
+        {/* Type */}
+        <div className="inline-flex rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] p-1">
+          {([
+            ['movie', t('movies'), IoFilmOutline],
+            ['series', t('seriesPlural'), IoTvOutline],
+          ] as const).map(([k, label, Icon]) => (
+            <button
+              key={k}
+              onClick={() => setType(k)}
+              disabled={running}
+              className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors disabled:opacity-50 ${
+                type === k ? 'bg-[var(--surface-active)] text-[var(--text)]' : 'text-[var(--text-muted)] hover:text-[var(--text)]'
+              }`}
+            >
+              <Icon className="h-4 w-4" />
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {/* Count presets + custom */}
+        <div className="inline-flex rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] p-1">
+          {presets.map((n) => (
+            <button
+              key={n}
+              onClick={() => setCount(n)}
+              disabled={running}
+              className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors disabled:opacity-50 ${
+                count === n ? 'bg-[var(--surface-active)] text-[var(--text)]' : 'text-[var(--text-muted)] hover:text-[var(--text)]'
+              }`}
+            >
+              {n}
+            </button>
+          ))}
+        </div>
+        <input
+          type="number"
+          min={1}
+          max={1000}
+          value={count}
+          disabled={running}
+          onChange={(e) => setCount(Math.max(1, Math.min(1000, Number(e.target.value) || 1)))}
+          className="h-9 w-20 rounded-lg border border-[var(--border-subtle)] bg-[var(--input)] px-2 text-sm text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-ring)] disabled:opacity-50"
+        />
+
+        <button
+          onClick={start}
+          disabled={running || starting}
+          className="inline-flex h-9 items-center gap-2 rounded-xl bg-nonsprimary px-4 text-sm font-semibold text-white transition-colors hover:bg-nonsprimaryfocus disabled:opacity-50"
+        >
+          <IoCloudDownloadOutline className="h-4 w-4" />
+          {running ? t('importing') : t('bulkStart')}
+        </button>
+      </div>
+
+      {error && <p className="mt-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-500">{error}</p>}
+
+      {job && (
+        <div className="mt-4">
+          <div className="mb-1.5 flex items-center justify-between text-xs text-[var(--text-muted)]">
+            <span>
+              {job.processed} / {job.total} · {t('bulkCreated')} {job.created} · {t('bulkSkipped')} {job.skipped}
+              {job.failed > 0 ? ` · ${t('bulkFailed')} ${job.failed}` : ''}
+              {job.episodes > 0 ? ` · ${job.episodes} ${t('episodes').toLowerCase()}` : ''}
+            </span>
+            <span className="font-medium text-[var(--text)]">{job.status === 'done' ? t('bulkDoneLabel') : `${pct}%`}</span>
+          </div>
+          <div className="h-2 w-full overflow-hidden rounded-full bg-[var(--surface-active)]">
+            <div
+              className={`h-full rounded-full transition-all ${job.status === 'error' ? 'bg-red-500' : 'bg-nonsprimary'}`}
+              style={{ width: `${job.status === 'done' ? 100 : pct}%` }}
+            />
+          </div>
+          {job.status === 'error' && job.error && <p className="mt-2 text-xs text-red-500">{job.error}</p>}
+        </div>
+      )}
+    </div>
   )
 }
 

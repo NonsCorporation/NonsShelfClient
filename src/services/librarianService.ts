@@ -73,6 +73,20 @@ export interface TmdbImportResult {
   imported_episodes: number
 }
 
+// Live progress of a bulk import job (GET /api/tmdb/import-bulk/:jobId).
+export interface BulkJob {
+  id: string
+  type: 'movie' | 'series'
+  total: number
+  processed: number
+  created: number
+  skipped: number
+  failed: number
+  episodes: number
+  status: 'running' | 'done' | 'error'
+  error?: string
+}
+
 async function jsonOrThrow(res: Response): Promise<unknown> {
   if (!res.ok) {
     let msg = `Request failed (${res.status})`
@@ -221,6 +235,22 @@ export const librarianService = {
         body: JSON.stringify({ tmdb_id: tmdbId, type }),
       }),
     ) as Promise<TmdbImportResult>
+  },
+
+  // Start a background bulk import of the top `count` popular movies/series.
+  async tmdbBulkImport(type: 'movie' | 'series', count: number): Promise<string> {
+    const data = (await jsonOrThrow(
+      await authedFetch('/api/tmdb/import-bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type, count }),
+      }),
+    )) as { job_id: string }
+    return data.job_id
+  },
+
+  async tmdbBulkStatus(jobId: string): Promise<BulkJob> {
+    return jsonOrThrow(await authedFetch(`/api/tmdb/import-bulk/${jobId}`)) as Promise<BulkJob>
   },
 
   // ── people ──
