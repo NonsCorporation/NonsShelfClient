@@ -3,9 +3,7 @@ import { IoClose, IoSearch, IoBookOutline, IoFilmOutline, IoTvOutline, IoCloudDo
 import { useLanguage } from '../contexts/LanguageContext'
 import { librarianService } from '../services/librarianService'
 import type { TmdbCandidate } from '../services/librarianService'
-import { catalogService } from '../services/catalogService'
-import { searchBooks, bookCandidateToItem, bookKey, fetchWorkEditions } from '../services/bookSearch'
-import type { BookCandidate } from '../services/bookSearch'
+import { searchBooks, bookCandidateToItem, fetchWorkEditions, sourceLabel } from '../services/bookSearch'
 
 type Kind = 'book' | 'movie' | 'series'
 
@@ -19,11 +17,6 @@ type Row = {
   existing?: boolean // already in the local catalog
   run: () => Promise<number> // imports (or returns the existing id) and yields the catalog id
 }
-
-// Normalized title+author key, for matching external candidates to local rows
-// (the local catalog search doesn't expose ISBNs).
-const taKey = (title: string, author?: string) =>
-  `${title.trim().toLowerCase()}|${(author ?? '').trim().toLowerCase()}`
 
 type Props = {
   isOpen: boolean
@@ -207,41 +200,29 @@ export default function ImportSearchModal({ isOpen, onClose, onImported }: Props
 
 // ── source adapters → unified rows ────────────────────────────────────────────
 
-const SOURCE_LABEL: Record<BookCandidate['source'], string> = {
-  openlibrary: 'OpenLibrary',
-  googlebooks: 'Google Books',
-}
-
 async function searchBooksRows(q: string): Promise<Row[]> {
-  // External candidates (OpenLibrary + Google Books) and the local catalog in
-  // parallel, so we can flag which results are already in the catalog.
-  const [candidates, local] = await Promise.all([searchBooks(q), catalogService.getCatalog(q).catch(() => [])])
-  const localByKey = new Map(local.filter((m) => m.type === 'book').map((m) => [taKey(m.title, m.author), m.id]))
-
-  return candidates.map((c, i) => {
-    const existingId = localByKey.get(taKey(c.title, c.author))
-    return {
-      key: `book-${bookKey(c)}-${i}`,
-      title: c.title,
-      subtitle: [c.author, c.year].filter(Boolean).join(' · '),
-      coverUrl: c.coverUrl,
-      source: SOURCE_LABEL[c.source],
-      existing: !!existingId,
-      run: async () => {
-        if (existingId) return Number(existingId)
-        const id = await librarianService.createMedia(bookCandidateToItem(c))
-        // Pull every OpenLibrary edition of the work (e.g. all printings of
-        // "Theatre") and attach them. Best-effort: a failed edition is skipped.
-        if (c.workId) {
-          const editions = await fetchWorkEditions(c.workId).catch(() => [])
-          for (const ed of editions) {
-            await librarianService.addEdition(String(id), ed).catch(() => {})
-          }
-        }
-        return id
-      },
-    }
-  })
+  // The server already searches the local catalog first, then external sources,
+  // and flags which hits are already in the catalog (in_catalog + media_id).
+  const candidates = await searchBooks(q)
+  return candidates.map((c, i) => ({
+    key: `book-${c.isbn ?? c.workId ?? c.title}-${i}`,
+    title: c.title,
+    subtitle: [c.author, c.year].filter(Boolean).join(' · '),
+    coverUrl: c.coverUrl,
+    source: sourceLabel(c.source),
+    existing: !!c.inCatalog,
+    run: async () => {
+      if (c.inCatalog && c.mediaId) return c.mediaId
+      const id = await librarianService.createMedia(bookCandidateToItem(c))
+      // Attach the work's editions (resolved + cleaned server-side, original
+      // script titles). Idempotent server-side, so re-import upgrades in place.
+      const editions = await fetchWorkEditions(c.workId ?? '', c.title, c.author).catch(() => [])
+      for (const ed of editions.slice(0, 80)) {
+        await librarianService.addEdition(String(id), ed).catch(() => {})
+      }
+      return id
+    },
+  }))
 }
 
 async function searchTmdbRows(kind: 'movie' | 'series', q: string): Promise<Row[]> {

@@ -1,8 +1,10 @@
-import { useState, useEffect, Fragment, type ReactNode } from 'react'
-import { useParams, useNavigate, Link } from 'react-router-dom'
+import { useState, useEffect, useCallback, Fragment, type ReactNode } from 'react'
+import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom'
 import Layout from '../components/layout/Layout'
+import MediaModal from '../components/MediaModal'
 import StarsSelector from '../StarsSelector'
 import { libraryService } from '../services/libraryService'
+import { librarianService } from '../services/librarianService'
 import { authedFetch } from '../lib/api'
 import type { MediaItem, ShelfStatus } from '../types'
 import {
@@ -16,8 +18,11 @@ import {
   IoArrowBack,
   IoCheckmarkCircle,
   IoCheckmarkCircleOutline,
+  IoCreateOutline,
 } from 'react-icons/io5'
 import { useLanguage } from '../contexts/LanguageContext'
+import { useAuth } from '../contexts/AuthContext'
+import { isLibrarian } from '../services/librarianService'
 import { STATUS_ORDER, STATUS_COLOR, statusLabel } from '../lib/shelf'
 
 // Cast & crew from GET /api/media/:id/credits, each carrying the person's
@@ -38,6 +43,7 @@ interface MediaCredits {
 // Book editions from GET /api/media/:id/editions.
 interface Edition {
   id: number
+  uuid?: string
   language?: string
   title?: string
   isbn13?: string
@@ -74,7 +80,9 @@ interface EpisodesResponse {
 export default function MediaOnePage() {
   const { t } = useLanguage()
   const navigate = useNavigate()
+  const { user } = useAuth()
   const { id } = useParams<{ id: string }>()
+  const [params, setParams] = useSearchParams()
   const [item, setItem] = useState<MediaItem | null>(null)
   const [loading, setLoading] = useState(true)
   const [credits, setCredits] = useState<MediaCredits | null>(null)
@@ -85,8 +93,9 @@ export default function MediaOnePage() {
 
   const [userRating, setUserRating] = useState<number | null>(null)
   const [userReview, setUserReview] = useState('')
+  const [editing, setEditing] = useState(false)
 
-  useEffect(() => {
+  const loadItem = useCallback(() => {
     if (!id) return
     libraryService.getItem(id).then((found) => {
       if (found) {
@@ -97,6 +106,10 @@ export default function MediaOnePage() {
       setLoading(false)
     })
   }, [id])
+
+  useEffect(() => {
+    loadItem()
+  }, [loadItem])
 
   // Cast & crew with stable person uuids, for linking to /p/<uuid>.
   useEffect(() => {
@@ -163,13 +176,23 @@ export default function MediaOnePage() {
     await patch({ rating: val })
   }
 
-  // Pick (or, by re-clicking, clear) the edition the user is reading. Requires
-  // the book to be on their shelf — the server rejects otherwise.
-  const chooseEdition = async (eid: number) => {
+  // Select an edition: reflect it in the URL (?e=<edition-uuid>) so the choice is
+  // shareable, and — when the book is on the user's shelf — persist it as the
+  // edition they're reading. Re-clicking the selected one clears it.
+  const chooseEdition = async (e: Edition) => {
     if (!item) return
-    const next = editionId === eid ? 0 : eid
-    setEditionId(next || null)
-    await libraryService.setEdition(item.id, next)
+    const selected = (e.uuid && e.uuid === params.get('e')) || editionId === e.id
+    const next = new URLSearchParams(params)
+    if (selected) {
+      next.delete('e')
+      setEditionId(null)
+      if (item.status) await libraryService.setEdition(item.id, 0)
+    } else {
+      if (e.uuid) next.set('e', e.uuid)
+      setEditionId(e.id)
+      if (item.status) await libraryService.setEdition(item.id, e.id)
+    }
+    setParams(next, { replace: true })
   }
 
   if (loading) {
@@ -219,6 +242,12 @@ export default function MediaOnePage() {
   // credits, otherwise the plain denormalized name.
   const makers = isBook ? credits?.authors : credits?.directors
 
+  // The edition currently in focus: from the ?e=<uuid> URL param, falling back to
+  // the user's shelf reading-edition. Its cover/details take over the page.
+  const selectedEdition =
+    editions.find((e) => e.uuid && e.uuid === params.get('e')) ?? editions.find((e) => e.id === editionId) ?? null
+  const coverUrl = selectedEdition?.cover_url || item.coverUrl
+
   return (
     <Layout>
       <button
@@ -233,8 +262,8 @@ export default function MediaOnePage() {
         {/* ── Left: cover + actions ── */}
         <div className="flex w-full flex-shrink-0 flex-col gap-3 md:w-64">
           <div className="aspect-[2/3] overflow-hidden rounded-2xl border border-[var(--border-subtle)]">
-            {item.coverUrl ? (
-              <img src={item.coverUrl} alt={item.title} className="h-full w-full object-cover" />
+            {coverUrl ? (
+              <img src={coverUrl} alt={item.title} className="h-full w-full object-cover" />
             ) : (
               <div className="flex h-full w-full items-center justify-center bg-[var(--container-2)]">
                 <Icon className="h-10 w-10 text-[var(--placeholder)]" />
@@ -257,6 +286,15 @@ export default function MediaOnePage() {
             <button className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] text-[var(--text-muted)] transition-colors hover:text-[var(--text)]">
               <IoShareOutline className="h-4 w-4" />
             </button>
+            {isLibrarian(user?.role) && (
+              <button
+                onClick={() => setEditing(true)}
+                title={t('edit')}
+                className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] text-[var(--text-muted)] transition-colors hover:border-nonsprimary hover:text-nonsprimary"
+              >
+                <IoCreateOutline className="h-4 w-4" />
+              </button>
+            )}
           </div>
 
           {/* Status shelf control */}
@@ -357,8 +395,12 @@ export default function MediaOnePage() {
           {/* Book metadata — all available catalog fields (ISBN, pages, …). */}
           {isBook && (() => {
             const rows: [string, ReactNode][] = []
-            if (item.isbn) rows.push(['ISBN', item.isbn])
-            if (item.pages) rows.push([t('pages') || 'Pages', item.pages])
+            const isbn = selectedEdition?.isbn13 || selectedEdition?.isbn10 || item.isbn
+            const pages = selectedEdition?.pages || item.pages
+            if (isbn) rows.push(['ISBN', isbn])
+            if (pages) rows.push([t('pages') || 'Pages', pages])
+            if (selectedEdition?.publisher) rows.push([t('publisher') || 'Publisher', selectedEdition.publisher])
+            if (selectedEdition?.published_year) rows.push([t('publishedYear') || 'Published', selectedEdition.published_year])
             if (item.year) rows.push([t('firstPublished') || 'First published', item.year])
             if (item.originalLanguage) rows.push([t('originalLanguage') || 'Original language', item.originalLanguage])
             if (item.titleEn && item.titleEn !== item.title) rows.push([t('originalTitle') || 'Original title', item.titleEn])
@@ -386,11 +428,12 @@ export default function MediaOnePage() {
             )
           })()}
 
-          {/* Editions (Goodreads-style). When the book is on the user's shelf,
-              each edition is selectable as "the one I'm reading", and an ISBN box
+          {/* Editions (Goodreads-style). Each edition is selectable — selecting
+              one drives the page (cover/details) and is reflected in the URL
+              (?e=<edition-uuid>) so it's shareable; if the book is on the user's
+              shelf it's also saved as the edition they're reading. An ISBN box
               jumps to a specific printing. */}
           {isBook && editions.length > 0 && (() => {
-            const onShelf = !!item.status
             const find = isbnFind.replace(/[^0-9Xx]/g, '')
             const shown = find
               ? editions.filter((e) => (e.isbn13 || '').includes(find) || (e.isbn10 || '').includes(find))
@@ -401,52 +444,50 @@ export default function MediaOnePage() {
                   <h3 className="text-[10px] uppercase tracking-widest text-[var(--text-muted)]">
                     {t('editions') || 'Editions'} ({editions.length})
                   </h3>
-                  {onShelf && (
-                    <input
-                      value={isbnFind}
-                      onChange={(e) => setIsbnFind(e.target.value)}
-                      placeholder={t('findByIsbn')}
-                      className="h-8 w-40 rounded-lg border border-[var(--border-subtle)] bg-[var(--input)] px-2.5 text-xs text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-ring)]"
-                    />
-                  )}
+                  <input
+                    value={isbnFind}
+                    onChange={(e) => setIsbnFind(e.target.value)}
+                    placeholder={t('findByIsbn')}
+                    className="h-8 w-40 rounded-lg border border-[var(--border-subtle)] bg-[var(--input)] px-2.5 text-xs text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-ring)]"
+                  />
                 </div>
-                {onShelf && <p className="mb-2 text-xs text-[var(--text-muted)]">{t('selectEditionHint')}</p>}
+                <p className="mb-2 text-xs text-[var(--text-muted)]">{t('selectEditionHint')}</p>
                 <div className="flex flex-col gap-2">
                   {shown.map((e) => {
-                    const selected = editionId === e.id
-                    const inner = (
-                      <>
+                    const selected = selectedEdition?.id === e.id
+                    return (
+                      <button
+                        key={e.id}
+                        onClick={() => chooseEdition(e)}
+                        className={`flex items-center gap-3 rounded-xl border p-2.5 text-left transition-colors hover:border-nonsprimary ${
+                          selected ? 'border-nonsprimary bg-[var(--primary-soft)]' : 'border-[var(--border-subtle)] bg-[var(--surface)]'
+                        }`}
+                      >
                         <div className="h-14 w-10 flex-shrink-0 overflow-hidden rounded bg-[var(--container-2)]">
                           {e.cover_url ? <img src={e.cover_url} alt="" loading="lazy" className="h-full w-full object-cover" /> : null}
                         </div>
                         <div className="min-w-0 flex-1 text-sm">
                           <p className="truncate text-[var(--text)]">{e.title || item.title}</p>
                           <p className="truncate text-xs text-[var(--text-muted)]">
-                            {[e.publisher, e.published_year || undefined, (e.language || '').toUpperCase() || undefined].filter(Boolean).join(' · ')}
+                            {[
+                              e.publisher,
+                              e.published_year || undefined,
+                              (e.language || '').toUpperCase() || undefined,
+                              e.pages ? t('pagesCount', { count: e.pages }) : undefined,
+                            ]
+                              .filter(Boolean)
+                              .join(' · ')}
                           </p>
                           {(e.isbn13 || e.isbn10) && (
                             <p className="text-xs text-[var(--text-muted)]">ISBN {e.isbn13 || e.isbn10}</p>
                           )}
                         </div>
-                        {onShelf &&
-                          (selected ? (
-                            <IoCheckmarkCircle className="h-5 w-5 flex-shrink-0 text-nonsprimary" />
-                          ) : (
-                            <IoCheckmarkCircleOutline className="h-5 w-5 flex-shrink-0 text-[var(--text-muted)]" />
-                          ))}
-                      </>
-                    )
-                    const cls = `flex items-center gap-3 rounded-xl border p-2.5 text-left transition-colors ${
-                      selected ? 'border-nonsprimary bg-[var(--primary-soft)]' : 'border-[var(--border-subtle)] bg-[var(--surface)]'
-                    }`
-                    return onShelf ? (
-                      <button key={e.id} onClick={() => chooseEdition(e.id)} className={`${cls} hover:border-nonsprimary`}>
-                        {inner}
+                        {selected ? (
+                          <IoCheckmarkCircle className="h-5 w-5 flex-shrink-0 text-nonsprimary" />
+                        ) : (
+                          <IoCheckmarkCircleOutline className="h-5 w-5 flex-shrink-0 text-[var(--text-muted)]" />
+                        )}
                       </button>
-                    ) : (
-                      <div key={e.id} className={cls}>
-                        {inner}
-                      </div>
                     )
                   })}
                   {shown.length === 0 && <p className="text-xs text-[var(--text-muted)]">{t('noResults')}</p>}
@@ -577,6 +618,19 @@ export default function MediaOnePage() {
           </div>
         </div>
       </div>
+
+      <MediaModal
+        isOpen={editing}
+        catalogOnly
+        withEditions
+        initialData={item}
+        onClose={() => setEditing(false)}
+        onSave={async (data) => {
+          await librarianService.updateMedia(item.id, data)
+          setEditing(false)
+          loadItem()
+        }}
+      />
     </Layout>
   )
 }

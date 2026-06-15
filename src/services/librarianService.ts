@@ -108,6 +108,7 @@ function toMediaBody(item: Partial<MediaItem>) {
   return {
     type: item.type,
     title: item.title,
+    original_title: item.titleEn || '',
     author: item.author || item.director || '',
     director: item.director || '',
     year: item.year || 0,
@@ -173,10 +174,28 @@ export const librarianService = {
     ) as Promise<Edition>
   },
 
+  async updateEdition(mediaId: string, editionId: number, edition: Partial<Edition>): Promise<Edition> {
+    return jsonOrThrow(
+      await authedFetch(`/api/media/${mediaId}/editions/${editionId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(edition),
+      }),
+    ) as Promise<Edition>
+  },
+
   async deleteEdition(mediaId: string, editionId: number): Promise<void> {
     await jsonOrThrow(
       await authedFetch(`/api/media/${mediaId}/editions/${editionId}`, { method: 'DELETE' }),
     )
+  },
+
+  // Convert a romanized edition title to Cyrillic (ISBN lookup, then reverse
+  // transliteration). Returns the updated edition.
+  async rusifyEdition(editionId: number): Promise<Edition> {
+    return jsonOrThrow(
+      await authedFetch(`/api/books/editions/${editionId}/rusify`, { method: 'POST' }),
+    ) as Promise<Edition>
   },
 
   // ── episodes (series) ──

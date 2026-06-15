@@ -164,6 +164,8 @@ export const translations: Translations = {
   pages: { en: 'Pages', ru: 'Страницы' },
   duration: { en: 'Duration', ru: 'Длительность' },
   durationPlaceholder: { en: 'E.g., 120 min', ru: 'Например, 120 мин' },
+  originalTitle: { en: 'Original title', ru: 'Оригинальное название' },
+  firstPublished: { en: 'First published', ru: 'Год издания' },
   pagesCount: { en: '{count} pages', ru: '{count} стр.' },
 
   // Library / shelves
@@ -404,8 +406,10 @@ export const translations: Translations = {
   bulkSkipped: { en: 'existing', ru: 'уже есть' },
   bulkFailed: { en: 'failed', ru: 'ошибок' },
   bulkDoneLabel: { en: 'Done', ru: 'Готово' },
-  selectEditionHint: { en: 'Tap the edition you’re reading.', ru: 'Выберите издание, которое читаете.' },
+  selectEditionHint: { en: 'Tap an edition to view it (and mark the one you’re reading).', ru: 'Нажмите на издание, чтобы открыть его (и отметить читаемое).' },
   findByIsbn: { en: 'Find by ISBN…', ru: 'Поиск по ISBN…' },
+  rusify: { en: 'Rusify title', ru: 'В кириллицу' },
+  rusifyAll: { en: 'Rusify romanized titles', ru: 'Перевести в кириллицу' },
   importBookPlaceholder: { en: 'Title, author, or ISBN…', ru: 'Название, автор или ISBN…' },
   importTmdbPlaceholder: { en: 'Search by title…', ru: 'Поиск по названию…' },
   import: { en: 'Import', ru: 'Импорт' },

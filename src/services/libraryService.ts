@@ -24,6 +24,7 @@ type BackendMedia = {
   uuid: string
   type: MediaType
   title: string
+  original_title?: string
   author: string
   director: string
   year: number
@@ -60,7 +61,7 @@ function toItem(m: BackendMedia, s: Signals = {}): MediaItem {
     isbn: m.isbn || undefined,
     workId: m.work_id || undefined,
     originalLanguage: m.details?.original_language || undefined,
-    titleEn: m.details?.title_en || undefined,
+    titleEn: m.original_title || m.details?.title_en || undefined,
     coverUrl: m.cover_url || undefined,
     year: m.year || undefined,
     genre: m.genres ? m.genres.split(',').map((g) => g.trim()).filter(Boolean) : undefined,
@@ -88,6 +89,7 @@ function toMediaBody(item: Partial<MediaItem>) {
   return {
     type: item.type,
     title: item.title,
+    original_title: item.titleEn || '',
     author: item.author || item.director || '',
     director: item.director || '',
     year: item.year || 0,

@@ -22,7 +22,11 @@ import {
   IoLinkOutline,
   IoCheckmark,
   IoClose,
+  IoLanguageOutline,
 } from 'react-icons/io5'
+
+// True when the text contains any Cyrillic letter (already "rusified").
+const hasCyrillic = (s?: string) => !!s && /[Ѐ-ӿ]/.test(s)
 
 export default function LibrarianEditPage() {
   const { t } = useLanguage()
@@ -108,6 +112,19 @@ export default function LibrarianEditPage() {
     setEditions((eds) => eds.filter((x) => x.id !== editionId))
   }
 
+  const handleRusifyEdition = async (editionId: number) => {
+    const updated = await librarianService.rusifyEdition(editionId)
+    setEditions((eds) => eds.map((x) => (x.id === editionId ? { ...x, title: updated.title } : x)))
+  }
+
+  const handleRusifyAll = async () => {
+    const romanized = editions.filter((e) => !hasCyrillic(e.title))
+    for (const e of romanized) {
+      await handleRusifyEdition(e.id)
+    }
+    flash(t('savedToast'))
+  }
+
   const handleMergeDuplicate = async (dup: CatalogItem) => {
     await librarianService.mergeMedia(id, { id: dup.id })
     flash(t('savedToast'))
@@ -179,6 +196,15 @@ export default function LibrarianEditPage() {
         {/* Editions (books) */}
         {isBook && (
           <Section title={t('editionsTitle')}>
+            {editions.some((e) => !hasCyrillic(e.title)) && (
+              <button
+                onClick={handleRusifyAll}
+                className="mb-3 inline-flex items-center gap-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] px-3 py-1.5 text-xs font-medium text-[var(--text)] transition-colors hover:border-nonsprimary hover:bg-[var(--primary-soft)]"
+              >
+                <IoLanguageOutline className="h-4 w-4 text-nonsprimary" />
+                {t('rusifyAll')}
+              </button>
+            )}
             {editions.length === 0 ? (
               <p className="mb-4 text-sm text-[var(--text-muted)]">{t('noEditionsYet')}</p>
             ) : (
@@ -195,6 +221,15 @@ export default function LibrarianEditPage() {
                       </p>
                       {(e.isbn13 || e.isbn10) && <p className="text-xs text-[var(--text-muted)]">ISBN {e.isbn13 || e.isbn10}</p>}
                     </div>
+                    {!hasCyrillic(e.title) && (
+                      <button
+                        onClick={() => handleRusifyEdition(e.id)}
+                        title={t('rusify')}
+                        className="flex-shrink-0 rounded-lg p-2 text-[var(--text-muted)] hover:bg-[var(--primary-soft)] hover:text-nonsprimary"
+                      >
+                        <IoLanguageOutline className="h-4 w-4" />
+                      </button>
+                    )}
                     <button
                       onClick={() => handleRemoveEdition(e.id)}
                       title={t('removeEdition')}

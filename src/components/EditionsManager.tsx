@@ -1,0 +1,248 @@
+import { useEffect, useState, useCallback } from 'react'
+import { IoTrashOutline, IoCreateOutline, IoAdd, IoCheckmark, IoClose, IoLanguageOutline } from 'react-icons/io5'
+import { authedFetch } from '../lib/api'
+import { librarianService } from '../services/librarianService'
+import type { Edition } from '../services/librarianService'
+import { useLanguage } from '../contexts/LanguageContext'
+
+// True when the text contains any Cyrillic letter (already "rusified").
+const hasCyrillic = (s?: string) => !!s && /[Ѐ-ӿ]/.test(s)
+
+type EditionForm = {
+  title: string
+  publisher: string
+  language: string
+  published_year: string
+  pages: string
+  isbn13: string
+  cover_url: string
+}
+
+const empty: EditionForm = { title: '', publisher: '', language: '', published_year: '', pages: '', isbn13: '', cover_url: '' }
+
+function toForm(e: Edition): EditionForm {
+  return {
+    title: e.title ?? '',
+    publisher: e.publisher ?? '',
+    language: e.language ?? '',
+    published_year: e.published_year ? String(e.published_year) : '',
+    pages: e.pages ? String(e.pages) : '',
+    isbn13: e.isbn13 ?? e.isbn10 ?? '',
+    cover_url: e.cover_url ?? '',
+  }
+}
+
+function fromForm(f: EditionForm): Partial<Edition> {
+  const isbn = f.isbn13.replace(/[^0-9Xx]/g, '')
+  return {
+    title: f.title || undefined,
+    publisher: f.publisher || undefined,
+    language: f.language || undefined,
+    published_year: f.published_year ? parseInt(f.published_year, 10) : undefined,
+    pages: f.pages ? parseInt(f.pages, 10) : undefined,
+    isbn13: isbn.length === 13 ? isbn : undefined,
+    isbn10: isbn.length === 10 ? isbn : undefined,
+    cover_url: f.cover_url || undefined,
+  }
+}
+
+// Full editions CRUD for a book work: list, add, inline edit, delete, rusify.
+// Reused by the media edit modal and the librarian edit page.
+export default function EditionsManager({ mediaId, fallbackTitle }: { mediaId: string; fallbackTitle?: string }) {
+  const { t } = useLanguage()
+  const [editions, setEditions] = useState<Edition[]>([])
+  const [loading, setLoading] = useState(true)
+  const [editingId, setEditingId] = useState<number | null>(null)
+  const [adding, setAdding] = useState(false)
+  const [error, setError] = useState('')
+
+  const reload = useCallback(() => {
+    setLoading(true)
+    authedFetch(`/api/media/${mediaId}/editions`)
+      .then((r) => (r.ok ? r.json() : { editions: [] }))
+      .then((d) => setEditions(d?.editions ?? []))
+      .catch(() => setEditions([]))
+      .finally(() => setLoading(false))
+  }, [mediaId])
+
+  useEffect(() => {
+    reload()
+  }, [reload])
+
+  const wrap = async (fn: () => Promise<unknown>) => {
+    setError('')
+    try {
+      await fn()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    }
+  }
+
+  const handleAdd = (f: EditionForm) =>
+    wrap(async () => {
+      await librarianService.addEdition(mediaId, fromForm(f))
+      setAdding(false)
+      reload()
+    })
+
+  const handleUpdate = (id: number, f: EditionForm) =>
+    wrap(async () => {
+      await librarianService.updateEdition(mediaId, id, fromForm(f))
+      setEditingId(null)
+      reload()
+    })
+
+  const handleDelete = (id: number) =>
+    wrap(async () => {
+      await librarianService.deleteEdition(mediaId, id)
+      setEditions((eds) => eds.filter((e) => e.id !== id))
+    })
+
+  const handleRusify = (id: number) =>
+    wrap(async () => {
+      const updated = await librarianService.rusifyEdition(id)
+      setEditions((eds) => eds.map((e) => (e.id === id ? { ...e, title: updated.title } : e)))
+    })
+
+  const handleRusifyAll = () =>
+    wrap(async () => {
+      for (const e of editions.filter((x) => !hasCyrillic(x.title))) {
+        const updated = await librarianService.rusifyEdition(e.id)
+        setEditions((eds) => eds.map((x) => (x.id === e.id ? { ...x, title: updated.title } : x)))
+      }
+    })
+
+  if (loading) return <p className="text-sm text-[var(--text-muted)]">{t('loading')}</p>
+
+  return (
+    <div className="flex flex-col gap-3">
+      {error && <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-500">{error}</p>}
+
+      <div className="flex items-center justify-between">
+        <span className="text-xs text-[var(--text-muted)]">
+          {editions.length} {(t('editions') || 'Editions').toLowerCase()}
+        </span>
+        {editions.some((e) => !hasCyrillic(e.title)) && (
+          <button
+            onClick={handleRusifyAll}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] px-2.5 py-1 text-xs font-medium text-[var(--text)] transition-colors hover:border-nonsprimary hover:text-nonsprimary"
+          >
+            <IoLanguageOutline className="h-3.5 w-3.5 text-nonsprimary" />
+            {t('rusifyAll')}
+          </button>
+        )}
+      </div>
+
+      {editions.length === 0 && <p className="text-sm text-[var(--text-muted)]">{t('noEditionsYet')}</p>}
+
+      <div className="flex flex-col gap-2">
+        {editions.map((e) =>
+          editingId === e.id ? (
+            <EditionRowForm
+              key={e.id}
+              initial={toForm(e)}
+              submitLabel={t('save')}
+              onSubmit={(f) => handleUpdate(e.id, f)}
+              onCancel={() => setEditingId(null)}
+            />
+          ) : (
+            <div key={e.id} className="flex items-center gap-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] p-2.5">
+              <div className="h-14 w-10 flex-shrink-0 overflow-hidden rounded bg-[var(--container-2)]">
+                {e.cover_url ? <img src={e.cover_url} alt="" loading="lazy" className="h-full w-full object-cover" /> : null}
+              </div>
+              <div className="min-w-0 flex-1 text-sm">
+                <p className="truncate text-[var(--text)]">{e.title || fallbackTitle}</p>
+                <p className="truncate text-xs text-[var(--text-muted)]">
+                  {[
+                    e.publisher,
+                    e.published_year || undefined,
+                    (e.language || '').toUpperCase() || undefined,
+                    e.pages ? t('pagesCount', { count: e.pages }) : undefined,
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')}
+                </p>
+                {(e.isbn13 || e.isbn10) && <p className="text-xs text-[var(--text-muted)]">ISBN {e.isbn13 || e.isbn10}</p>}
+              </div>
+              {!hasCyrillic(e.title) && (
+                <button onClick={() => handleRusify(e.id)} title={t('rusify')} className="flex-shrink-0 rounded-lg p-2 text-[var(--text-muted)] hover:bg-[var(--primary-soft)] hover:text-nonsprimary">
+                  <IoLanguageOutline className="h-4 w-4" />
+                </button>
+              )}
+              <button onClick={() => setEditingId(e.id)} title={t('edit')} className="flex-shrink-0 rounded-lg p-2 text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]">
+                <IoCreateOutline className="h-4 w-4" />
+              </button>
+              <button onClick={() => handleDelete(e.id)} title={t('delete')} className="flex-shrink-0 rounded-lg p-2 text-[var(--text-muted)] hover:bg-red-500/10 hover:text-red-500">
+                <IoTrashOutline className="h-4 w-4" />
+              </button>
+            </div>
+          ),
+        )}
+      </div>
+
+      {adding ? (
+        <EditionRowForm initial={empty} submitLabel={t('addEdition')} onSubmit={handleAdd} onCancel={() => setAdding(false)} />
+      ) : (
+        <button
+          onClick={() => setAdding(true)}
+          className="inline-flex w-fit items-center gap-2 rounded-lg bg-[var(--surface)] px-4 py-2 text-sm font-semibold text-[var(--text)] hover:bg-[var(--border-subtle)]"
+        >
+          <IoAdd className="h-4 w-4" />
+          {t('addEdition')}
+        </button>
+      )}
+    </div>
+  )
+}
+
+// Inline add/edit form for one edition.
+function EditionRowForm({
+  initial,
+  submitLabel,
+  onSubmit,
+  onCancel,
+}: {
+  initial: EditionForm
+  submitLabel: string
+  onSubmit: (f: EditionForm) => void | Promise<void>
+  onCancel: () => void
+}) {
+  const { t } = useLanguage()
+  const [form, setForm] = useState(initial)
+  const [busy, setBusy] = useState(false)
+  const input =
+    'h-10 rounded-lg border border-[var(--border-subtle)] bg-[var(--input)] px-3 text-sm text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-ring)]'
+
+  const submit = async () => {
+    setBusy(true)
+    try {
+      await onSubmit(form)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-2 rounded-xl border border-dashed border-[var(--border-subtle)] p-3">
+      <input className={input} placeholder={t('editionTitle')} value={form.title} onChange={(e) => setForm((s) => ({ ...s, title: e.target.value }))} />
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        <input className={input} placeholder={t('publisher')} value={form.publisher} onChange={(e) => setForm((s) => ({ ...s, publisher: e.target.value }))} />
+        <input className={input} placeholder="ISBN" value={form.isbn13} onChange={(e) => setForm((s) => ({ ...s, isbn13: e.target.value }))} />
+        <input className={input} placeholder={t('language')} value={form.language} onChange={(e) => setForm((s) => ({ ...s, language: e.target.value }))} />
+        <input className={input} placeholder={t('publishedYear')} value={form.published_year} onChange={(e) => setForm((s) => ({ ...s, published_year: e.target.value }))} />
+        <input className={input} type="number" placeholder={t('pages')} value={form.pages} onChange={(e) => setForm((s) => ({ ...s, pages: e.target.value }))} />
+      </div>
+      <input className={input} placeholder={t('coverUrl')} value={form.cover_url} onChange={(e) => setForm((s) => ({ ...s, cover_url: e.target.value }))} />
+      <div className="flex items-center gap-2">
+        <button onClick={submit} disabled={busy} className="inline-flex w-fit items-center gap-2 rounded-lg bg-nonsprimary px-4 py-2 text-sm font-semibold text-white hover:bg-nonsprimaryfocus disabled:opacity-50">
+          <IoCheckmark className="h-4 w-4" />
+          {submitLabel}
+        </button>
+        <button onClick={onCancel} className="inline-flex w-fit items-center gap-2 rounded-lg bg-[var(--surface)] px-4 py-2 text-sm font-medium text-[var(--text-muted)] hover:text-[var(--text)]">
+          <IoClose className="h-4 w-4" />
+          {t('cancel')}
+        </button>
+      </div>
+    </div>
+  )
+}

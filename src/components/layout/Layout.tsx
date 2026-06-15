@@ -33,10 +33,13 @@ export default function Layout({ children }: LayoutProps) {
     }
   }, [])
 
-  // sync local state with external url changes
+  // sync local state with external url changes. Depend on the q STRING, not the
+  // params object (which changes identity on every render) — otherwise this fires
+  // each keystroke and clobbers what the user is typing.
+  const qParam = params.get('q') ?? ''
   useEffect(() => {
-    setSearchValue(params.get('q') ?? '')
-  }, [params])
+    setSearchValue(qParam)
+  }, [qParam])
 
   // fetch quick results for the search dropdown modal
   useEffect(() => {
