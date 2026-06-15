@@ -18,7 +18,31 @@ export interface PersonSummary {
   photo_url?: string
   bio?: string
   birth_year?: number
+  birth_date?: string // YYYY-MM-DD
   credit_count: number
+}
+
+// Editable fields for a person (create/update).
+export interface PersonInput {
+  name: string
+  bio?: string
+  photo_url?: string
+  birth_date?: string
+  aliases?: string[]
+}
+
+// A credit role and which media kinds it applies to.
+export interface CreditRole {
+  role: string
+  kinds: string[] // 'book' | 'movie' | 'series'
+}
+
+// One credit on a media item (cast/crew member in a role).
+export interface Credit {
+  id: number
+  role: string
+  character?: string
+  person: { uuid: string; name: string; photo_url?: string }
 }
 
 // An edition of a book work (GET /api/media/:id/editions).
@@ -281,14 +305,18 @@ export const librarianService = {
     return data.items ?? []
   },
 
+  // Full person detail incl. alternative names (the search list omits aliases).
+  async getPerson(uuid: string): Promise<{ person: PersonSummary; aliases: string[] }> {
+    const data = (await jsonOrThrow(await authedFetch(`/api/people/${uuid}`))) as {
+      person: PersonSummary
+      aliases?: { name: string; lang?: string }[]
+    }
+    return { person: data.person, aliases: (data.aliases ?? []).map((a) => a.name) }
+  },
+
   // Create a new person (or return the existing one with the same name). Returns
   // the PersonSummary so it can be linked as a maker straight away.
-  async createPerson(fields: {
-    name: string
-    bio?: string
-    photo_url?: string
-    birth_year?: number
-  }): Promise<PersonSummary> {
+  async createPerson(fields: PersonInput): Promise<PersonSummary> {
     return jsonOrThrow(
       await authedFetch('/api/people', {
         method: 'POST',
@@ -298,10 +326,7 @@ export const librarianService = {
     ) as Promise<PersonSummary>
   },
 
-  async updatePerson(
-    uuid: string,
-    fields: { name: string; bio?: string; photo_url?: string; birth_year?: number },
-  ): Promise<PersonSummary> {
+  async updatePerson(uuid: string, fields: PersonInput): Promise<PersonSummary> {
     return jsonOrThrow(
       await authedFetch(`/api/people/${uuid}`, {
         method: 'PUT',
@@ -309,6 +334,33 @@ export const librarianService = {
         body: JSON.stringify(fields),
       }),
     ) as Promise<PersonSummary>
+  },
+
+  // ── credits (cast/crew) ──
+  async getCreditRoles(): Promise<CreditRole[]> {
+    const data = (await jsonOrThrow(await authedFetch('/api/credit-roles'))) as { roles: CreditRole[] }
+    return data.roles ?? []
+  },
+
+  async getCredits(mediaId: string): Promise<Credit[]> {
+    const res = await authedFetch(`/api/media/${mediaId}/credits`)
+    if (!res.ok) return []
+    const data = (await res.json()) as { credits?: Credit[] }
+    return data.credits ?? []
+  },
+
+  async addCredit(mediaId: string, fields: { person_uuid: string; role: string; character?: string }): Promise<void> {
+    await jsonOrThrow(
+      await authedFetch(`/api/media/${mediaId}/credits`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(fields),
+      }),
+    )
+  },
+
+  async deleteCredit(mediaId: string, creditId: number): Promise<void> {
+    await jsonOrThrow(await authedFetch(`/api/media/${mediaId}/credits/${creditId}`, { method: 'DELETE' }))
   },
 
   // Fold `dupUuid` into `keepUuid` (the survivor).

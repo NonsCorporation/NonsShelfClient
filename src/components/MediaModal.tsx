@@ -4,6 +4,10 @@ import type { MediaItem, MediaType, ShelfStatus } from '../types.ts'
 import { useLanguage } from '../contexts/LanguageContext.tsx'
 import { STATUS_ORDER, STATUS_COLOR, statusLabel } from '../lib/shelf'
 import EditionsManager from './EditionsManager'
+import EpisodesManager from './EpisodesManager'
+import CreditsManager from './CreditsManager'
+import PersonPicker from './PersonPicker'
+import { librarianService } from '../services/librarianService'
 
 type MediaModalProps = {
   isOpen: boolean
@@ -40,7 +44,6 @@ export default function MediaModal({ isOpen, initialData, initialType, catalogOn
     duration: '',
     description: '',
     genre: '',
-    actors: '',
   })
 
   useEffect(() => {
@@ -49,7 +52,6 @@ export default function MediaModal({ isOpen, initialData, initialType, catalogOn
       setStatus(initialData?.status || 'wishlist')
 
       const genre = Array.isArray(initialData?.genre) ? initialData.genre.join(', ') : initialData?.genre || ''
-      const actors = Array.isArray(initialData?.actors) ? initialData.actors.join(', ') : initialData?.actors || ''
 
       setForm({
         title: initialData?.title || '',
@@ -61,7 +63,6 @@ export default function MediaModal({ isOpen, initialData, initialType, catalogOn
         duration: initialData?.duration || '',
         description: initialData?.description || '',
         genre,
-        actors,
       })
     }
   }, [isOpen, initialData, initialType])
@@ -86,7 +87,6 @@ export default function MediaModal({ isOpen, initialData, initialType, catalogOn
     if (type !== 'book') {
       baseData.director = form.director || form.author
       baseData.duration = form.duration || undefined
-      baseData.actors = form.actors ? form.actors.split(',').map((s: string) => s.trim()).filter(Boolean) : undefined
     }
 
     await onSave(baseData)
@@ -174,6 +174,20 @@ export default function MediaModal({ isOpen, initialData, initialType, catalogOn
             <input className="h-11 px-3 rounded-lg bg-[var(--input)] border border-[var(--border-subtle)] text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--color-nonsprimaryfocus)] transition-shadow" placeholder={type === 'book' ? t('author') : t('director')} value={type === 'book' ? form.author : form.director} onChange={(e) => setForm(s => type === 'book' ? ({...s, author: e.target.value}) : ({...s, director: e.target.value}))} />
           </label>
 
+          {/* Link the author/director to a person entity (searchable + creatable). */}
+          {withEditions && isEditing && initialData?.id && (
+            <div className="flex flex-col gap-1.5 text-sm font-medium text-[var(--text)]">
+              {type === 'book' ? t('linkAuthor') : t('linkDirector')}
+              <PersonPicker
+                current={{ uuid: initialData.makerUuid, name: type === 'book' ? form.author : form.director }}
+                onPick={async (p) => {
+                  setForm((s) => (type === 'book' ? { ...s, author: p.name } : { ...s, director: p.name }))
+                  await librarianService.setMaker(initialData.id!, p.uuid, type === 'book' ? 'author' : 'director').catch(() => {})
+                }}
+              />
+            </div>
+          )}
+
           <label className="flex flex-col gap-1.5 text-sm font-medium text-[var(--text)]">
             {t('coverUrl')}
             <input className="h-11 px-3 rounded-lg bg-[var(--input)] border border-[var(--border-subtle)] text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--color-nonsprimaryfocus)] transition-shadow" placeholder={t('coverUrl')} value={form.coverUrl} onChange={(e) => setForm(s => ({...s, coverUrl: e.target.value}))} />
@@ -198,23 +212,32 @@ export default function MediaModal({ isOpen, initialData, initialType, catalogOn
             <input className="h-11 px-3 rounded-lg bg-[var(--input)] border border-[var(--border-subtle)] text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--color-nonsprimaryfocus)] transition-shadow" placeholder={t('genrePlaceholder')} value={form.genre} onChange={(e) => setForm(s => ({...s, genre: e.target.value}))} />
           </label>
 
-          {type !== 'book' && (
-            <label className="flex flex-col gap-1.5 text-sm font-medium text-[var(--text)]">
-              {t('actorsPlaceholder')}
-              <input className="h-11 px-3 rounded-lg bg-[var(--input)] border border-[var(--border-subtle)] text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--color-nonsprimaryfocus)] transition-shadow" placeholder={t('actorsPlaceholder')} value={form.actors} onChange={(e) => setForm(s => ({...s, actors: e.target.value}))} />
-            </label>
-          )}
-
           <label className="flex flex-col gap-1.5 text-sm font-medium text-[var(--text)]">
             {t('synopsis')}
             <textarea rows={4} className="p-3 resize-none rounded-lg bg-[var(--input)] border border-[var(--border-subtle)] text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--color-nonsprimaryfocus)] transition-shadow" placeholder={t('synopsis')} value={form.description} onChange={(e) => setForm(s => ({...s, description: e.target.value}))} />
           </label>
+
+          {/* Cast & crew — credits in roles (actors, producers, translators, …). */}
+          {withEditions && isEditing && initialData?.id && (
+            <div className="flex flex-col gap-2 border-t border-[var(--divider)] pt-4">
+              <span className="text-sm font-medium text-[var(--text)]">{t('castAndCrew')}</span>
+              <CreditsManager mediaId={initialData.id} mediaType={type} />
+            </div>
+          )}
 
           {/* Editions manager — only when editing an existing book. */}
           {withEditions && isEditing && type === 'book' && initialData?.id && (
             <div className="flex flex-col gap-2 border-t border-[var(--divider)] pt-4">
               <span className="text-sm font-medium text-[var(--text)]">{t('editionsTitle')}</span>
               <EditionsManager mediaId={initialData.id} fallbackTitle={form.title} />
+            </div>
+          )}
+
+          {/* Episodes manager — only when editing an existing series. */}
+          {withEditions && isEditing && type === 'series' && initialData?.id && (
+            <div className="flex flex-col gap-2 border-t border-[var(--divider)] pt-4">
+              <span className="text-sm font-medium text-[var(--text)]">{t('episodesTitle')}</span>
+              <EpisodesManager mediaId={initialData.id} />
             </div>
           )}
         </div>

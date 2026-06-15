@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
-import { useSearchParams, Link, useNavigate } from 'react-router-dom'
+import { useSearchParams, Link } from 'react-router-dom'
 import Layout from '../components/layout/Layout'
 import MediaModal from '../components/MediaModal'
 import ImportSearchModal from '../components/ImportSearchModal'
 import { catalogService } from '../services/catalogService'
 import type { CatalogItem } from '../services/catalogService'
+import { libraryService } from '../services/libraryService'
 import { librarianService, isLibrarian } from '../services/librarianService'
 import type { PersonSummary } from '../services/librarianService'
 import type { MediaItem } from '../types'
@@ -19,10 +20,9 @@ import {
   IoTvOutline,
   IoPersonOutline,
   IoGitMergeOutline,
-  IoCheckmark,
-  IoClose,
 } from 'react-icons/io5'
 import type { BulkJob } from '../services/librarianService'
+import PersonModal from '../components/PersonModal'
 
 type Tab = 'catalog' | 'authors'
 
@@ -71,13 +71,13 @@ export default function LibrariansPage() {
 
 function CatalogTab() {
   const { t } = useLanguage()
-  const navigate = useNavigate()
   const [params, setParams] = useSearchParams()
   const q = params.get('q')?.trim() ?? ''
   const [results, setResults] = useState<CatalogItem[]>([])
   const [loading, setLoading] = useState(false)
   const [adding, setAdding] = useState(false)
   const [importing, setImporting] = useState(false)
+  const [editItem, setEditItem] = useState<MediaItem | null>(null)
 
   useEffect(() => {
     if (!q) {
@@ -99,12 +99,22 @@ function CatalogTab() {
     setParams(val ? { q: val } : {})
   }
 
-  // Create a catalog row (no shelving), then jump into its editor to link the
-  // author and editions.
+  // Re-run the catalog search to reflect edits/deletes.
+  const refresh = () => {
+    if (q) catalogService.getCatalog(q).then(setResults)
+  }
+
+  // Open the full edit modal for a catalog id (fetches the complete record).
+  const openEdit = async (id: string) => {
+    const full = await libraryService.getItem(id)
+    if (full) setEditItem(full)
+  }
+
+  // Create a catalog row (no shelving), then open its full editor (author + editions).
   const handleAdd = async (data: Partial<MediaItem>) => {
     const id = await librarianService.createMedia(data)
     setAdding(false)
-    navigate(`/librarian/edit/${id}`)
+    openEdit(String(id))
   }
 
   return (
@@ -180,18 +190,19 @@ function CatalogTab() {
                 </div>
               </div>
 
-              <Link
-                to={`/librarian/edit/${item.id}`}
+              <button
+                onClick={() => openEdit(item.id)}
                 className="ml-4 flex h-10 flex-shrink-0 items-center justify-center gap-2 rounded-xl bg-[var(--surface)] px-4 text-sm font-semibold text-[var(--text)] transition-colors hover:bg-[var(--border-subtle)]"
               >
                 <IoCreateOutline className="h-5 w-5" />
                 <span className="hidden sm:inline">{t('edit')}</span>
-              </Link>
+              </button>
             </div>
           ))}
         </div>
       )}
 
+      {/* Add new */}
       <MediaModal
         isOpen={adding}
         initialType="book"
@@ -200,12 +211,33 @@ function CatalogTab() {
         onSave={handleAdd}
       />
 
+      {/* Full edit (metadata + editions + author) */}
+      <MediaModal
+        isOpen={!!editItem}
+        catalogOnly
+        withEditions
+        initialData={editItem ?? undefined}
+        onClose={() => setEditItem(null)}
+        onSave={async (data) => {
+          if (!editItem) return
+          await librarianService.updateMedia(editItem.id, data)
+          setEditItem(null)
+          refresh()
+        }}
+        onDelete={async (id) => {
+          if (!window.confirm(t('confirmDeleteEntry'))) return
+          await librarianService.deleteMedia(id)
+          setEditItem(null)
+          refresh()
+        }}
+      />
+
       <ImportSearchModal
         isOpen={importing}
         onClose={() => setImporting(false)}
         onImported={(newId) => {
           setImporting(false)
-          navigate(`/librarian/edit/${newId}`)
+          openEdit(newId)
         }}
       />
     </>
@@ -357,7 +389,8 @@ function AuthorsTab() {
   const [people, setPeople] = useState<PersonSummary[]>([])
   const [loading, setLoading] = useState(false)
   const [dup, setDup] = useState<PersonSummary | null>(null)
-  const [editing, setEditing] = useState<{ uuid: string; name: string } | null>(null)
+  const [editPerson, setEditPerson] = useState<PersonSummary | null>(null)
+  const [adding, setAdding] = useState(false)
   const [toast, setToast] = useState('')
 
   const runSearch = (term: string) => {
@@ -391,23 +424,12 @@ function AuthorsTab() {
     runSearch(q)
   }
 
-  const handleRename = async () => {
-    if (!editing) return
-    await librarianService.updatePerson(editing.uuid, { name: editing.name })
-    setEditing(null)
-    runSearch(q)
-  }
-
-  const handleCreate = async () => {
-    const name = q.trim()
-    if (!name) return
-    await librarianService.createPerson({ name })
+  const onSaved = () => {
+    setAdding(false)
+    setEditPerson(null)
     flash(t('savedToast'))
     runSearch(q)
   }
-
-  const term = q.trim()
-  const exactMatch = people.some((p) => p.name.toLowerCase() === term.toLowerCase())
 
   return (
     <>
@@ -422,15 +444,13 @@ function AuthorsTab() {
             className="w-full rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface)] py-3 pl-12 pr-4 text-base text-[var(--text)] focus:border-nonsprimary focus:outline-none"
           />
         </div>
-        {term && !loading && !exactMatch && (
-          <button
-            onClick={handleCreate}
-            className="inline-flex h-12 flex-shrink-0 items-center justify-center gap-2 rounded-2xl bg-nonsprimary px-5 text-sm font-semibold text-white transition-colors hover:bg-nonsprimaryfocus"
-          >
-            <IoAdd className="h-5 w-5" />
-            {t('createAuthor')}
-          </button>
-        )}
+        <button
+          onClick={() => setAdding(true)}
+          className="inline-flex h-12 flex-shrink-0 items-center justify-center gap-2 rounded-2xl bg-nonsprimary px-5 text-sm font-semibold text-white transition-colors hover:bg-nonsprimaryfocus"
+        >
+          <IoAdd className="h-5 w-5" />
+          {t('addAuthor')}
+        </button>
       </div>
 
       {dup && (
@@ -482,71 +502,59 @@ function AuthorsTab() {
                     </span>
                   )}
                   <div className="min-w-0">
-                    {editing?.uuid === p.uuid ? (
-                      <div className="flex items-center gap-2">
-                        <input
-                          autoFocus
-                          value={editing.name}
-                          onChange={(e) => setEditing({ uuid: p.uuid, name: e.target.value })}
-                          onKeyDown={(e) => e.key === 'Enter' && handleRename()}
-                          className="h-9 rounded-lg border border-[var(--border-subtle)] bg-[var(--input)] px-2 text-sm text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-ring)]"
-                        />
-                        <button onClick={handleRename} className="text-emerald-500 hover:opacity-80">
-                          <IoCheckmark className="h-5 w-5" />
-                        </button>
-                        <button onClick={() => setEditing(null)} className="text-[var(--text-muted)] hover:text-[var(--text)]">
-                          <IoClose className="h-5 w-5" />
-                        </button>
-                      </div>
-                    ) : (
-                      <>
-                        <Link to={`/p/${p.uuid}`} className="block truncate text-sm font-semibold text-[var(--text)] hover:text-nonsprimary">
-                          {p.name}
-                        </Link>
-                        <p className="text-xs text-[var(--text-muted)]">
-                          {t('creditsCount', { n: p.credit_count })}
-                          {p.birth_year ? ` · b. ${p.birth_year}` : ''}
-                        </p>
-                      </>
-                    )}
+                    <Link to={`/p/${p.uuid}`} className="block truncate text-sm font-semibold text-[var(--text)] hover:text-nonsprimary">
+                      {p.name}
+                    </Link>
+                    <p className="text-xs text-[var(--text-muted)]">
+                      {t('creditsCount', { n: p.credit_count })}
+                      {p.birth_year ? ` · b. ${p.birth_year}` : ''}
+                    </p>
                   </div>
                 </div>
 
-                {editing?.uuid !== p.uuid && (
-                  <div className="flex flex-shrink-0 items-center gap-1.5">
-                    {dup && !isDup && (
-                      <button
-                        onClick={() => handleMerge(p)}
-                        title={t('mergeInto')}
-                        className="inline-flex items-center gap-1.5 rounded-lg bg-nonsprimary px-3 py-1.5 text-xs font-semibold text-white hover:bg-nonsprimaryfocus"
-                      >
-                        <IoGitMergeOutline className="h-4 w-4" />
-                        <span className="hidden sm:inline">{t('keepLabel')}</span>
-                      </button>
-                    )}
-                    {!dup && (
-                      <button
-                        onClick={() => setDup(p)}
-                        title={t('selectDuplicate')}
-                        className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] px-3 py-1.5 text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text)]"
-                      >
-                        {t('merge')}
-                      </button>
-                    )}
+                <div className="flex flex-shrink-0 items-center gap-1.5">
+                  {dup && !isDup && (
                     <button
-                      onClick={() => setEditing({ uuid: p.uuid, name: p.name })}
-                      title={t('rename')}
-                      className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] p-1.5 text-[var(--text-muted)] hover:text-[var(--text)]"
+                      onClick={() => handleMerge(p)}
+                      title={t('mergeInto')}
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-nonsprimary px-3 py-1.5 text-xs font-semibold text-white hover:bg-nonsprimaryfocus"
                     >
-                      <IoCreateOutline className="h-4 w-4" />
+                      <IoGitMergeOutline className="h-4 w-4" />
+                      <span className="hidden sm:inline">{t('keepLabel')}</span>
                     </button>
-                  </div>
-                )}
+                  )}
+                  {!dup && (
+                    <button
+                      onClick={() => setDup(p)}
+                      title={t('selectDuplicate')}
+                      className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] px-3 py-1.5 text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text)]"
+                    >
+                      {t('merge')}
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setEditPerson(p)}
+                    title={t('edit')}
+                    className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] p-1.5 text-[var(--text-muted)] hover:text-[var(--text)]"
+                  >
+                    <IoCreateOutline className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
             )
           })}
         </div>
       )}
+
+      <PersonModal
+        isOpen={adding || !!editPerson}
+        person={editPerson}
+        onClose={() => {
+          setAdding(false)
+          setEditPerson(null)
+        }}
+        onSaved={onSaved}
+      />
     </>
   )
 }
