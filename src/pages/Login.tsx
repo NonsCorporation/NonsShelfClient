@@ -88,17 +88,25 @@ export default function Login() {
       `}</style>
 
       {/* ── top bar ───────────────────────────────────────────────── */}
-      <header className="relative z-20 mx-auto flex max-w-6xl items-center justify-between px-6 pt-6">
-        <div className="flex items-center gap-2.5">
-          <img src="/shelf.svg" alt="Nons Shelf" className="h-6 w-6" />
-          <span className="text-base font-semibold tracking-tight">Nons Shelf</span>
+      {/* Mirrors the signed-in app header (Layout.tsx): a sticky, bordered
+          bar with a consistent max-width and gutters. Translucent + blurred
+          so the drifting shelves stay visible behind it. */}
+      <header
+        className="sticky top-0 z-30 border-b border-[var(--border-subtle)] backdrop-blur-md"
+        style={{ backgroundColor: 'color-mix(in srgb, var(--bg) 80%, transparent)' }}
+      >
+        <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4 md:px-8">
+          <div className="flex items-center gap-2.5">
+            <img src="/shelf.svg" alt="Nons Shelf" className="h-6 w-6" />
+            <span className="text-base font-semibold tracking-tight">Nons Shelf</span>
+          </div>
+          <button
+            onClick={redirectToNonsLogin}
+            className="rounded-lg border border-[var(--border)] px-4 py-2 text-sm font-medium transition-colors hover:border-nonsprimary hover:bg-[var(--primary-soft)]"
+          >
+            {t('login') || 'Sign in'}
+          </button>
         </div>
-        <button
-          onClick={redirectToNonsLogin}
-          className="rounded-lg border border-[var(--border)] px-4 py-2 text-sm font-medium transition-colors hover:border-nonsprimary hover:bg-[var(--primary-soft)]"
-        >
-          {t('login') || 'Sign in'}
-        </button>
       </header>
 
       {/* ── hero: drifting shelves behind centered copy ──────────── */}
@@ -142,10 +150,10 @@ export default function Login() {
             onClick={redirectToNonsLogin}
             className="mt-9 rounded-xl bg-nonsprimary px-7 py-3.5 text-sm font-semibold text-white shadow-lg shadow-[var(--primary-soft)] transition-colors hover:bg-nonsprimaryfocus"
           >
-            {t('landingCta') || 'Continue with nons'}
+            {t('landingCta') || 'Continue with Nons'}
           </button>
           <p className="mt-3 text-xs text-[var(--text-muted)]">
-            {t('landingSsoNote') || 'One nons account — sign in once, use every nons app.'}
+            {t('landingSsoNote') || 'One Nons account — to rule them all. No new password, no new account.'}
           </p>
         </div>
       </section>
@@ -192,7 +200,7 @@ export default function Login() {
             <IoKeyOutline className="h-5 w-5" />
           </div>
           <div className="flex-1">
-            <h3 className="text-sm font-semibold">{t('landingFeat3Title') || 'Powered by your nons account'}</h3>
+            <h3 className="text-sm font-semibold">{t('landingFeat3Title') || 'Powered by your Nons account'}</h3>
             <p className="mt-1 text-sm text-[var(--text-muted)]">
               {t('landingFeat3Text') ||
                 'Your profile, friends and privacy settings follow you here. No new account, no new password.'}
@@ -202,7 +210,7 @@ export default function Login() {
             onClick={redirectToNonsLogin}
             className="rounded-lg border border-[var(--border)] px-5 py-2.5 text-sm font-medium transition-colors hover:border-nonsprimary hover:bg-[var(--primary-soft)]"
           >
-            {t('landingCta') || 'Continue with nons'}
+            {t('landingCta') || 'Continue with Nons'} 
           </button>
         </div>
       </section>
@@ -212,7 +220,7 @@ export default function Login() {
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-6 sm:flex-row">
           <p className="text-xs uppercase tracking-widest text-[var(--text-muted)]">© Nons Company</p>
           <a href="https://nonsapp.com" className="text-xs text-[var(--text-muted)] transition-colors hover:text-nonsprimary">
-            {t('landingFooterNons') || 'Built on the nons platform — nonsapp.com'}
+            {t('landingFooterNons') || 'Built on the Nons platform — nonsapp.com'}
           </a>
         </div>
       </footer>
