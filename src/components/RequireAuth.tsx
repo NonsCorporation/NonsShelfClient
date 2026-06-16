@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { useAuth } from '../contexts/AuthContext'
-import Login from '../pages/Login'
+import Login from '../screens/Login'
 
 // Gates the app behind the shared nons SSO session. While we check /api/me we
 // show a spinner; if the user isn't signed in, we show the SSO entry screen

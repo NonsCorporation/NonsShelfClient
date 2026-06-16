@@ -7,16 +7,16 @@
 // back here via ?redirect=.
 
 // nons-library-server base URL — this app's backend. Empty = same origin.
-export const LIBRARY_API_URL = import.meta.env.VITE_LIBRARY_API_URL || ''
+export const LIBRARY_API_URL = process.env.NEXT_PUBLIC_LIBRARY_API_URL || ''
 
 // nons-server base URL — the identity provider. Used to refresh the shared
 // session cookie and to log out (both are domain-wide operations only the
 // identity provider can do).
-export const NONS_API_URL = import.meta.env.VITE_NONS_API_URL || 'http://localhost:8080'
+export const NONS_API_URL = process.env.NEXT_PUBLIC_NONS_API_URL || 'http://localhost:8080'
 
 // The nons login page (the main app's intro page). We append ?redirect= so the
 // user lands back in the library after signing in.
-export const NONS_LOGIN_URL = import.meta.env.VITE_NONS_LOGIN_URL || 'http://localhost:3000'
+export const NONS_LOGIN_URL = process.env.NEXT_PUBLIC_NONS_LOGIN_URL || 'http://localhost:3000'
 
 // authedFetch always sends the shared session cookie.
 export function authedFetch(input: string, init: RequestInit = {}): Promise<Response> {

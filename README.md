@@ -1,20 +1,26 @@
 # nons-library (Nons Shelf)
 
-React SPA for tracking books and films — shelves, favorites, ratings, and a
-shared catalog. Part of the nons family: it has **no auth of its own** and
-rides the shared nons SSO session.
+React client-side app (Next.js App Router) for tracking books and films —
+shelves, favorites, ratings, and a shared catalog. Part of the nons family: it
+has **no auth of its own** and rides the shared nons SSO session.
+
+The whole UI is still a React Router SPA; Next.js mounts it client-only
+(`ssr: false`) under an optional catch-all route (`src/app/[[...slug]]`), so
+every path serves the same shell and React Router resolves the page in the
+browser. This is the staging ground for incrementally moving public catalog
+pages to server rendering for SEO later.
 
 ```
 npm install
 npm run dev          # http://localhost:5173
 ```
 
-`.env.local` for development:
+`.env.local` for development (browser-exposed vars use the `NEXT_PUBLIC_` prefix):
 
 ```
-VITE_LIBRARY_API_URL=http://localhost:8081   # nons-library-server (this app's backend)
-VITE_NONS_API_URL=http://localhost:8080      # nons-server (identity + social)
-VITE_NONS_LOGIN_URL=http://localhost:3000    # nons login page (for redirects)
+NEXT_PUBLIC_LIBRARY_API_URL=http://localhost:8081   # nons-library-server (this app's backend)
+NEXT_PUBLIC_NONS_API_URL=http://localhost:8080      # nons-server (identity + social)
+NEXT_PUBLIC_NONS_LOGIN_URL=http://localhost:3000    # nons login page (for redirects)
 ```
 
 ## Architecture: who talks to whom

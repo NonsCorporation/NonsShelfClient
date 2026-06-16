@@ -1,14 +1,14 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import Home from './pages/Home.tsx';
-import FeedPage from './pages/Feed.tsx';
-import DiscoverPage from './pages/Discover.tsx';
-import CalendarPage from './pages/Calendar.tsx';
-import MediaOnePage from './pages/MediaOne.tsx';
-import PersonPage from './pages/Person.tsx';
-import ProfilePage from './pages/Profile.tsx';
+import Home from './screens/Home.tsx';
+import FeedPage from './screens/Feed.tsx';
+import DiscoverPage from './screens/Discover.tsx';
+import CalendarPage from './screens/Calendar.tsx';
+import MediaOnePage from './screens/MediaOne.tsx';
+import PersonPage from './screens/Person.tsx';
+import ProfilePage from './screens/Profile.tsx';
 import RequireAuth from './components/RequireAuth.tsx';
-import LibrariansPage from './pages/Librarians.tsx';
-import LibrarianEditPage from './pages/LibrarianEdit.tsx';
+import LibrariansPage from './screens/Librarians.tsx';
+import LibrarianEditPage from './screens/LibrarianEdit.tsx';
 
 export default function App() {
   return (

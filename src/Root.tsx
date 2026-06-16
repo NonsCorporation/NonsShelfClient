@@ -1,13 +1,12 @@
-import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
-import './index.css'
 import App from './App.tsx'
 import { LanguageProvider } from './contexts/LanguageContext.tsx'
 import { PreferencesProvider } from './contexts/PreferencesContext.tsx'
 import { AuthProvider } from './contexts/AuthContext.tsx'
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
+// Mirrors the old src/main.tsx provider tree. StrictMode is applied globally
+// via reactStrictMode in next.config.ts.
+export default function Root() {
+  return (
     <AuthProvider>
       <LanguageProvider>
         <PreferencesProvider>
@@ -15,5 +14,5 @@ createRoot(document.getElementById('root')!).render(
         </PreferencesProvider>
       </LanguageProvider>
     </AuthProvider>
-  </StrictMode>,
-)
+  )
+}
