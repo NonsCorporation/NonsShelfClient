@@ -7,8 +7,13 @@ export type Activity = {
   id: string
   user: { name: string; handle: string; color: string; uuid?: string }
   type: ActivityType
+  mediaId: number
+  mediaUuid?: string
   mediaTitle: string
   mediaType: MediaType
+  mediaAuthor?: string
+  mediaYear?: number
+  mediaDescription?: string
   coverUrl?: string
   /** Rating out of 10, when the activity carries one. */
   rating?: number
@@ -37,7 +42,7 @@ type ActivityEvent = {
   type: 'added' | 'started' | 'finished' | 'rated'
   value?: number
   at: number // unix seconds
-  media?: { id: number; type: MediaType; title: string; cover_url: string }
+  media?: { id: number; uuid?: string; type: MediaType; title: string; author?: string; year?: number; description?: string; cover_url: string }
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -59,29 +64,34 @@ function timeAgo(at: number): string {
   return `${Math.floor(s / (7 * 86400))}w`
 }
 
+// The current user, so their own activity (shelf state changes, ratings) shows
+// in the feed alongside friends'.
+export type FeedSelf = { id: number; name: string; handle: string; uuid?: string }
+
 export interface IActivityService {
-  /** Recent library activity of the user's nons friends. `myId` is the caller's nons user id. */
-  getFriendsActivity(myId: number): Promise<Activity[]>
+  /** Recent library activity of the user + their nons friends. */
+  getFriendsActivity(me: FeedSelf): Promise<Activity[]>
 }
 
 // Two-step fetch across the nons family: friendships live in nons-server (the
 // social platform), the library events live in nons-library-server. We resolve
-// friend ids + display names there, then ask our own backend for their recent
-// shelf/rating events.
+// friend ids + display names there (plus the user themselves), then ask our own
+// backend for their recent shelf/rating events.
 class ApiActivityService implements IActivityService {
-  async getFriendsActivity(myId: number): Promise<Activity[]> {
+  async getFriendsActivity(me: FeedSelf): Promise<Activity[]> {
     let friendships: Friendship[] = []
     try {
       const res = await nonsFetch('/api/friendships/friends?limit=50')
-      if (!res.ok) return []
-      friendships = (await res.json()).friendships ?? []
+      if (res.ok) friendships = (await res.json()).friendships ?? []
     } catch {
-      return [] // nons-server unreachable — feed is just empty
+      /* nons-server unreachable — fall back to just the user's own activity */
     }
 
     const friends = new Map<number, Activity['user']>()
+    // Include the user themselves so their own shelf changes appear in the feed.
+    friends.set(me.id, { name: me.name, handle: me.handle, color: colorFor(me.handle), uuid: me.uuid })
     for (const f of friendships) {
-      const friendId = f.requester_id === myId ? f.addressee_id : f.requester_id
+      const friendId = f.requester_id === me.id ? f.addressee_id : f.requester_id
       friends.set(friendId, {
         name: f.name || f.username,
         handle: f.username,
@@ -89,7 +99,6 @@ class ApiActivityService implements IActivityService {
         uuid: f.uuid || undefined,
       })
     }
-    if (friends.size === 0) return []
 
     const ids = [...friends.keys()].join(',')
     const res = await authedFetch(`/api/activity?user_ids=${ids}&limit=30`)
@@ -102,8 +111,13 @@ class ApiActivityService implements IActivityService {
         id: `${e.user_id}-${e.media!.id}-${e.type}-${e.at}`,
         user: friends.get(e.user_id)!,
         type: e.type,
+        mediaId: e.media!.id,
+        mediaUuid: e.media!.uuid || undefined,
         mediaTitle: e.media!.title,
         mediaType: e.media!.type,
+        mediaAuthor: e.media!.author || undefined,
+        mediaYear: e.media!.year || undefined,
+        mediaDescription: e.media!.description || undefined,
         coverUrl: e.media!.cover_url || undefined,
         rating: e.value || undefined,
         timeAgo: timeAgo(e.at),

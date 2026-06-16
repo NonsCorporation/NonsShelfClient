@@ -12,8 +12,8 @@
   --color-nonsdarkbg: #0d0d0e;
   --color-nonswhitetext: #f5f5f5;
   --color-nonwhitishgray: #dadada;
-  --color-nonscontainerbg: #161617;
-  --color-nonscontainer2bg: #1e1e20;
+  --color-nonscontainerbg: #1c1c1f;
+  --color-nonscontainer2bg: #252528;
   --color-nonslightred: #ff7a85;
 
   /* Shelf accents (kept neutral-ish, all in the primary's family) */
@@ -61,6 +61,7 @@ html, html[data-theme="dark"] {
   --text-muted: #9b9b9b;
   --container: var(--color-nonscontainerbg);
   --container-2: var(--color-nonscontainer2bg);
+  --sidebar: #141417;
   --border: rgba(255, 255, 255, 0.1);
   --border-subtle: rgba(255, 255, 255, 0.06);
   --border-strong: rgba(255, 255, 255, 0.2);
@@ -87,6 +88,7 @@ html[data-theme="light"] {
   --surface-hover: rgba(0, 0, 0, 0.04);
   --surface-active: rgba(0, 0, 0, 0.08);
   --container-2: #f3f3f6;
+  --sidebar: #ececef;
   --input: rgba(0, 0, 0, 0.05);
   --overlay: rgba(0, 0, 0, 0.4);
   --divider: rgba(0, 0, 0, 0.06);

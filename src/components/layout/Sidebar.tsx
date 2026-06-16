@@ -242,7 +242,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
   return (
     <>
       {/* Desktop: fixed rail */}
-      <aside className="fixed inset-y-0 left-0 z-40 hidden w-60 border-r border-[var(--border-subtle)] bg-[var(--bg)] lg:block">
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-60 border-r border-[var(--border-subtle)] bg-[var(--sidebar)] lg:block">
         {content}
       </aside>
 
@@ -255,7 +255,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
           }`}
         />
         <aside
-          className={`fixed inset-y-0 left-0 z-50 w-64 border-r border-[var(--border-subtle)] bg-[var(--container)] transition-transform duration-300 ${
+          className={`fixed inset-y-0 left-0 z-50 w-64 border-r border-[var(--border-subtle)] bg-[var(--sidebar)] transition-transform duration-300 ${
             open ? 'translate-x-0' : '-translate-x-full'
           }`}
         >
