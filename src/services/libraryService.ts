@@ -119,6 +119,22 @@ export interface ImportSummary {
   skipped: number
 }
 
+// One reading/watching progress update. `eventDate` is unix seconds (0 = now),
+// so progress can be backdated like on Goodreads.
+export interface ProgressUpdate {
+  page?: number
+  pct?: number
+  note?: string
+  eventDate?: number
+}
+
+// What the "ending" (finish) modal collects.
+export interface FinishOptions {
+  rating?: number | null
+  review?: string
+  finishedAt?: number // unix seconds
+}
+
 export interface ILibraryService {
   getItems(): Promise<MediaItem[]>
   /** Another user's public library (shelf + ratings), for their profile page. */
@@ -130,6 +146,12 @@ export interface ILibraryService {
   setEdition(mediaId: string, editionId: number): Promise<void>
   /** Save (or clear) the user's free-text review. */
   setReview(mediaId: string, review: string): Promise<void>
+  /** Append a reading/watching progress event (book page or percent). */
+  logProgress(mediaId: string, p: ProgressUpdate): Promise<void>
+  /** Mark/unmark a series episode as watched. */
+  setEpisodeWatched(episodeId: number, watched: boolean): Promise<void>
+  /** Finish an item: shelf → done, save rating/review, log a (backdatable) finished event. */
+  finish(mediaId: string, opts: FinishOptions): Promise<void>
   deleteItem(id: string): Promise<void>
   importGoodreads(file: File): Promise<ImportSummary>
   importBookDiary(file: File): Promise<ImportSummary>
@@ -227,6 +249,43 @@ class ApiLibraryService implements ILibraryService {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ review }),
     })
+  }
+
+  // Append a reading/watching progress event (book page and/or percent),
+  // backdatable via eventDate. Powers the "update progress" modal + the calendar.
+  async logProgress(mediaId: string, p: ProgressUpdate): Promise<void> {
+    await authedFetch('/api/activity/progress', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        media_id: Number(mediaId),
+        page: p.page ?? 0,
+        progress_pct: p.pct ?? 0,
+        note: p.note ?? '',
+        event_date: p.eventDate ?? 0,
+      }),
+    })
+  }
+
+  // Mark/unmark a single series episode as watched.
+  async setEpisodeWatched(episodeId: number, watched: boolean): Promise<void> {
+    await authedFetch(`/api/episodes/${episodeId}/watch`, { method: watched ? 'PUT' : 'DELETE' })
+  }
+
+  // Finish an item: move the shelf entry to "done", save the rating/review, and
+  // log a finished event (backdated to finishedAt) so the calendar is accurate.
+  async finish(mediaId: string, opts: FinishOptions): Promise<void> {
+    const id = Number(mediaId)
+    await authedFetch(`/api/shelf/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'done' }),
+    })
+    if (typeof opts.rating === 'number' && opts.rating > 0) await this.setRating(id, opts.rating)
+    if (opts.review !== undefined) await this.setReview(mediaId, opts.review)
+    if (opts.finishedAt) {
+      await this.logProgress(mediaId, { pct: 100, eventDate: opts.finishedAt, note: 'finished' })
+    }
   }
 
   // Set (or clear, with 0) which book edition the user is reading on their shelf.
