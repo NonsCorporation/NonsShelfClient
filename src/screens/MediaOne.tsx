@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, Fragment, type ReactNode } from 'react'
-import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom'
+import { useParams, useNavigate, useSearchParams, Link } from '@/lib/router'
 import Layout from '../components/layout/Layout'
 import MediaModal from '../components/MediaModal'
 import StarsSelector from '../StarsSelector'

@@ -1,4 +1,4 @@
-import { Link, useLocation, useSearchParams } from 'react-router-dom'
+import { Link, useLocation, useSearchParams } from '@/lib/router'
 import {
   IoHomeOutline,
   IoLibraryOutline,

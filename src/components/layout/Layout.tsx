@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import type { ReactNode } from 'react'
-import { useNavigate, useSearchParams, Link } from 'react-router-dom'
+import { useNavigate, useSearchParams, Link } from '@/lib/router'
 import { IoMenu, IoSearch } from 'react-icons/io5'
 import Sidebar from './Sidebar'
 import { useLanguage } from '../../contexts/LanguageContext'

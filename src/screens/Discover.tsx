@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from '@/lib/router'
 import Layout from '../components/layout/Layout'
 import CatalogCard from '../components/CatalogCard'
 import { catalogService, compactCount } from '../services/catalogService'

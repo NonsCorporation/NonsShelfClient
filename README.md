@@ -4,11 +4,32 @@ React client-side app (Next.js App Router) for tracking books and films —
 shelves, favorites, ratings, and a shared catalog. Part of the nons family: it
 has **no auth of its own** and rides the shared nons SSO session.
 
-The whole UI is still a React Router SPA; Next.js mounts it client-only
-(`ssr: false`) under an optional catch-all route (`src/app/[[...slug]]`), so
-every path serves the same shell and React Router resolves the page in the
-browser. This is the staging ground for incrementally moving public catalog
-pages to server rendering for SEO later.
+## Routing
+
+Real Next.js App Router file-based routes live under `src/app/`:
+
+| Route | Screen |
+|---|---|
+| `/` | Feed |
+| `/library` | Home (shelves) |
+| `/discover` | Discover |
+| `/calendar` | Calendar |
+| `/librarians`, `/librarian/edit/[id]` | Librarian dashboard |
+| `/b/[id]`, `/m/[id]`, `/shelf/[id]` | Media detail (book / film / legacy id) |
+| `/p/[uuid]` | Person |
+| `/u/[id]` | User profile |
+
+Each `page.tsx` renders a screen component from `src/screens/`. Navigation runs
+on Next's router via a thin compatibility layer in `src/lib/router.tsx` that
+keeps the old `react-router-dom` API (`Link to=`, `useNavigate`, `useParams`,
+`useSearchParams`) so the screens didn't need a risky rewrite — inline it if you
+want zero abstraction.
+
+Rendering is still **client-only**: `src/app/providers.tsx` holds the provider
+tree + the `RequireAuth` SSO gate and renders nothing until mounted, because the
+Language/Preferences contexts read `localStorage` during render. Moving public
+catalog routes (`/b`, `/m`, `/discover`) to server rendering is the deliberate
+next step for SEO — that's the payoff of being on real routes now.
 
 ```
 npm install

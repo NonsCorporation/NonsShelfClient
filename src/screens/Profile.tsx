@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams } from '@/lib/router'
 import Layout from '../components/layout/Layout'
 import { libraryService } from '../services/libraryService'
 import { fetchPublicProfile } from '../services/userService'

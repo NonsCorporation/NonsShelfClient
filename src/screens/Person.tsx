@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { useParams, useNavigate, Link } from 'react-router-dom'
+import { useParams, useNavigate, Link } from '@/lib/router'
 import Layout from '../components/layout/Layout'
 import PersonModal from '../components/PersonModal'
 import { authedFetch } from '../lib/api'

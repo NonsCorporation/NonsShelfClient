@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import { Link } from '@/lib/router'
 import { IoStar, IoBookOutline, IoFilmOutline, IoTvOutline, IoAdd, IoCheckmark, IoPeopleOutline } from 'react-icons/io5'
 import type { CatalogItem } from '../services/catalogService'
 import { compactCount } from '../services/catalogService'

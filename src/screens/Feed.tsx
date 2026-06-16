@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link } from '@/lib/router'
 import Layout from '../components/layout/Layout'
 import Hint from '../components/Hint'
 import ActivityCard from '../components/ActivityCard'

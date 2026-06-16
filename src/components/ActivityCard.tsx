@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link } from '@/lib/router'
 import type { Activity, ActivityType } from '../services/activityService'
 import { useLanguage } from '../contexts/LanguageContext'
 import { initials } from '../lib/user'

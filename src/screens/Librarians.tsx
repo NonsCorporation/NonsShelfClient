@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link } from '@/lib/router'
 import Layout from '../components/layout/Layout'
 import MediaModal from '../components/MediaModal'
 import ImportSearchModal from '../components/ImportSearchModal'

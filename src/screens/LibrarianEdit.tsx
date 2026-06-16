@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { useParams, useNavigate, Link } from 'react-router-dom'
+import { useParams, useNavigate, Link } from '@/lib/router'
 import Layout from '../components/layout/Layout'
 import MediaModal from '../components/MediaModal'
 import EpisodesManager from '../components/EpisodesManager'
