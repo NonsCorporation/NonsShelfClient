@@ -14,11 +14,12 @@ import {
   IoEyeOffOutline,
 } from 'react-icons/io5'
 import type { IconType } from 'react-icons'
-import { IoLogOutOutline } from 'react-icons/io5'
+import { IoLogOutOutline, IoLogInOutline } from 'react-icons/io5'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { usePreferences } from '../../contexts/PreferencesContext'
 import { useAuth } from '../../contexts/AuthContext'
-import { currentUser, initials } from '../../lib/user'
+import { initials, colorFor } from '../../lib/user'
+import { redirectToNonsLogin } from '../../lib/api'
 import { userPath } from '../../lib/paths'
 import { FaCrown } from 'react-icons/fa6'
 import { isLibrarian } from '../../services/librarianService'
@@ -35,18 +36,21 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
   const [params] = useSearchParams()
   const { language, setLanguage, t } = useLanguage()
   const { showInProgress, setShowInProgress } = usePreferences()
-  const { user, logout } = useAuth()
+  const { user, logout, isAuthenticated, loading } = useAuth()
 
-  // The signed-in nons identity (library session), falling back to the mock while loading.
-  const display = {
-    handle: user?.username ?? currentUser.handle,
-    // Profile links go by username (/u/<username>) so they resolve against
-    // nons-server's public-profile lookup; uuid is a fallback for older tokens.
-    profileId: user?.username || user?.uuid || currentUser.handle,
-    name: user?.name || user?.username || currentUser.name,
-    color: currentUser.color,
-    avatar: user?.avatar_url || '',
-  }
+  // The signed-in nons identity. Null when logged out (possible on the public
+  // /b and /m pages, which have no auth gate) — the account section at the
+  // bottom renders a Sign in button in that case instead of a mock user.
+  // Profile links go by username (/u/<username>) so they resolve against
+  // nons-server's public-profile lookup; uuid is a fallback for older tokens.
+  const display = user
+    ? {
+        handle: user.username,
+        profileId: user.username || user.uuid || '',
+        name: user.name || user.username,
+        avatar: user.avatar_url || '',
+      }
+    : null
 
   const activeShelf = (params.get('shelf') as ShelfKey) || 'all'
   const onLibrary = location.pathname === '/library'
@@ -201,40 +205,50 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
           ))}
         </div>
 
-        <div className="flex items-center gap-2">
-          <Link
-            to={userPath(display.profileId)}
-            onClick={onClose}
-            title={t('viewProfile')}
-            className="flex min-w-0 flex-1 items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-[var(--surface)]"
-          >
-            {display.avatar ? (
-              <img
-                src={display.avatar}
-                alt={display.name}
-                className="h-9 w-9 flex-shrink-0 rounded-full object-cover"
-              />
-            ) : (
-              <span
-                className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white"
-                style={{ backgroundColor: display.color }}
-              >
-                {initials(display.name)}
+        {isAuthenticated && display ? (
+          <div className="flex items-center gap-2">
+            <Link
+              to={userPath(display.profileId)}
+              onClick={onClose}
+              title={t('viewProfile')}
+              className="flex min-w-0 flex-1 items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-[var(--surface)]"
+            >
+              {display.avatar ? (
+                <img
+                  src={display.avatar}
+                  alt={display.name}
+                  className="h-9 w-9 flex-shrink-0 rounded-full object-cover"
+                />
+              ) : (
+                <span
+                  className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white"
+                  style={{ backgroundColor: colorFor(display.handle) }}
+                >
+                  {initials(display.name)}
+                </span>
+              )}
+              <span className="min-w-0">
+                <span className="block truncate text-sm font-medium text-[var(--text)]">{display.name}</span>
+                <span className="block truncate text-xs text-[var(--text-muted)]">@{display.handle}</span>
               </span>
-            )}
-            <span className="min-w-0">
-              <span className="block truncate text-sm font-medium text-[var(--text)]">{display.name}</span>
-              <span className="block truncate text-xs text-[var(--text-muted)]">@{display.handle}</span>
-            </span>
-          </Link>
+            </Link>
+            <button
+              onClick={() => logout()}
+              title={t('logout') || 'Log out'}
+              className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg text-[var(--text-muted)] transition-colors hover:bg-[var(--surface)] hover:text-[var(--text)]"
+            >
+              <IoLogOutOutline className="h-[18px] w-[18px]" />
+            </button>
+          </div>
+        ) : !loading ? (
           <button
-            onClick={() => logout()}
-            title={t('logout') || 'Log out'}
-            className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg text-[var(--text-muted)] transition-colors hover:bg-[var(--surface)] hover:text-[var(--text)]"
+            onClick={() => redirectToNonsLogin()}
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-nonsprimary px-3 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
           >
-            <IoLogOutOutline className="h-[18px] w-[18px]" />
+            <IoLogInOutline className="h-[18px] w-[18px]" />
+            {t('login') || 'Sign in'}
           </button>
-        </div>
+        ) : null}
       </div>
     </div>
   )
