@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { IoClose, IoPersonOutline } from 'react-icons/io5'
+import { IoClose, IoPersonOutline, IoCloudDownloadOutline } from 'react-icons/io5'
 import { librarianService } from '../services/librarianService'
 import type { PersonSummary } from '../services/librarianService'
 import { useLanguage } from '../contexts/LanguageContext'
@@ -19,6 +19,7 @@ export default function PersonModal({ isOpen, person, initialName, onClose, onSa
   const { t } = useLanguage()
   const [form, setForm] = useState({ name: '', bio: '', birthDate: '', photoUrl: '', aliases: '' })
   const [busy, setBusy] = useState(false)
+  const [importing, setImporting] = useState(false)
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -79,6 +80,30 @@ export default function PersonModal({ isOpen, person, initialName, onClose, onSa
     }
   }
 
+  // Pull bio/photo/birth date + name variants from TMDB into the form (needs a
+  // stored TMDB id — set when the person was imported as cast/crew). The user can
+  // still tweak the fields before saving.
+  const importFromTMDB = async () => {
+    if (!person?.uuid) return
+    setImporting(true)
+    setError('')
+    try {
+      await librarianService.enrichPersonFromTMDB(person.uuid)
+      const { person: p, aliases } = await librarianService.getPerson(person.uuid)
+      setForm({
+        name: p.name ?? '',
+        bio: p.bio ?? '',
+        birthDate: p.birth_date ?? '',
+        photoUrl: p.photo_url ?? '',
+        aliases: aliases.join(', '),
+      })
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setImporting(false)
+    }
+  }
+
   const input =
     'h-11 px-3 rounded-lg bg-[var(--input)] border border-[var(--border-subtle)] text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-ring)] transition-shadow'
 
@@ -89,9 +114,22 @@ export default function PersonModal({ isOpen, person, initialName, onClose, onSa
           <h3 className="text-lg font-semibold tracking-wide text-[var(--text)]">
             {person?.uuid ? t('editPerson') : t('addAuthor')}
           </h3>
-          <button onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--surface)] text-[var(--text-muted)] hover:bg-[var(--surface-hover)]">
-            <IoClose className="h-5 w-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            {person?.uuid && (
+              <button
+                onClick={importFromTMDB}
+                disabled={importing}
+                title={t('importFromTmdb') || 'Import from TMDB'}
+                className="flex h-8 items-center gap-1.5 rounded-full border border-[var(--border-subtle)] bg-[var(--surface)] px-3 text-xs font-medium text-[var(--text-muted)] transition-colors hover:border-nonsprimary hover:text-nonsprimary disabled:opacity-50"
+              >
+                <IoCloudDownloadOutline className="h-4 w-4" />
+                {importing ? t('importing') || 'Importing…' : 'TMDB'}
+              </button>
+            )}
+            <button onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--surface)] text-[var(--text-muted)] hover:bg-[var(--surface-hover)]">
+              <IoClose className="h-5 w-5" />
+            </button>
+          </div>
         </div>
 
         <div className="flex items-center gap-3">

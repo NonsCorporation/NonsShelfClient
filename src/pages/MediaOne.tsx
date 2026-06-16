@@ -19,6 +19,7 @@ import {
   IoCheckmarkCircle,
   IoCheckmarkCircleOutline,
   IoCreateOutline,
+  IoChevronDown,
 } from 'react-icons/io5'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
@@ -93,6 +94,9 @@ export default function MediaOnePage() {
 
   const [userRating, setUserRating] = useState<number | null>(null)
   const [userReview, setUserReview] = useState('')
+  const [reviewSaving, setReviewSaving] = useState(false)
+  const [reviewSaved, setReviewSaved] = useState(false)
+  const [episodesOpen, setEpisodesOpen] = useState(true)
   const [editing, setEditing] = useState(false)
 
   const loadItem = useCallback(() => {
@@ -101,6 +105,7 @@ export default function MediaOnePage() {
       if (found) {
         setItem(found)
         setUserRating(found.rating ?? null)
+        setUserReview(found.review ?? '')
         setEditionId(found.editionId ?? null)
       }
       setLoading(false)
@@ -174,6 +179,19 @@ export default function MediaOnePage() {
   const handleRatingChange = async (val: number) => {
     setUserRating(val)
     await patch({ rating: val })
+  }
+
+  const saveReview = async () => {
+    if (!item) return
+    setReviewSaving(true)
+    setReviewSaved(false)
+    try {
+      await libraryService.setReview(item.id, userReview)
+      setItem((prev) => (prev ? { ...prev, review: userReview } : prev))
+      setReviewSaved(true)
+    } finally {
+      setReviewSaving(false)
+    }
   }
 
   // Select an edition: reflect it in the URL (?e=<edition-uuid>) so the choice is
@@ -392,6 +410,35 @@ export default function MediaOnePage() {
             </div>
           )}
 
+          {/* Cast & crew, linked to person pages. Falls back to the old plain
+              actor strings only when credits haven't loaded. */}
+          {credits && credits.cast.length > 0 && (
+            <div>
+              <h3 className="mb-2.5 text-[10px] uppercase tracking-widest text-[var(--text-muted)]">{t('cast')}</h3>
+              <div className="flex flex-wrap gap-2">
+                {credits.cast.map((c) => personChip(c.person, c.character))}
+              </div>
+            </div>
+          )}
+          {crewSection(t('writers') || 'Writers', credits?.writers)}
+          {crewSection(t('translators') || 'Translators', credits?.translators)}
+
+          {!credits && !isBook && item.actors && item.actors.length > 0 && (
+            <div>
+              <h3 className="mb-2.5 text-[10px] uppercase tracking-widest text-[var(--text-muted)]">{t('cast')}</h3>
+              <div className="flex flex-wrap gap-2">
+                {item.actors.map((actor) => (
+                  <span
+                    key={actor}
+                    className="rounded-full border border-[var(--border-subtle)] bg-[var(--surface)] px-3 py-1 text-xs text-[var(--text)]"
+                  >
+                    {actor}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Book metadata — all available catalog fields (ISBN, pages, …). */}
           {isBook && (() => {
             const rows: [string, ReactNode][] = []
@@ -496,17 +543,53 @@ export default function MediaOnePage() {
             )
           })()}
 
-          {/* Episodes (series), grouped by season, each toggleable as watched. */}
+          {/* Rating & review — shown above the episode list so the user's own
+              take comes first. */}
+          <div className="flex flex-col gap-4 rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface)] p-5">
+            <div className="flex items-center justify-between">
+              <h3 className="text-[10px] uppercase tracking-widest text-[var(--text-muted)]">{t('yourReview')}</h3>
+              <span className="text-sm font-medium text-[var(--text)]">{displayRating}</span>
+            </div>
+            <StarsSelector initialValue={userRating} onChange={handleRatingChange} isEditable />
+            <textarea
+              value={userReview}
+              onChange={(e) => {
+                setUserReview(e.target.value)
+                setReviewSaved(false)
+              }}
+              rows={4}
+              placeholder={t('reviewPlaceholder', { type: isBook ? t('book').toLowerCase() : t('film').toLowerCase() })}
+              className="w-full resize-y rounded-lg border border-[var(--border-subtle)] bg-[var(--bg)] p-3 text-sm text-[var(--text)] placeholder:text-[var(--placeholder)] focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[var(--primary-ring)]"
+            />
+            <div className="flex items-center justify-end gap-3">
+              {reviewSaved && <span className="text-xs text-[var(--text-muted)]">{t('saved') || 'Saved'}</span>}
+              <button
+                onClick={saveReview}
+                disabled={reviewSaving || userReview === (item.review ?? '')}
+                className="rounded-lg bg-nonsprimary px-4 py-1.5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {reviewSaving ? t('saving') || 'Saving…' : t('saveReview') || 'Save review'}
+              </button>
+            </div>
+          </div>
+
+          {/* Episodes (series), grouped by season, each toggleable as watched.
+              The whole list collapses behind the header. */}
           {isSeries && episodes && episodes.total > 0 && (
             <div>
-              <div className="mb-2.5 flex items-center justify-between">
-                <h3 className="text-[10px] uppercase tracking-widest text-[var(--text-muted)]">
+              <button
+                onClick={() => setEpisodesOpen((v) => !v)}
+                className="mb-2.5 flex w-full items-center justify-between gap-3 text-left"
+              >
+                <span className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-[var(--text-muted)]">
+                  <IoChevronDown className={`h-3.5 w-3.5 transition-transform ${episodesOpen ? '' : '-rotate-90'}`} />
                   {t('episodes')} ({episodes.total})
-                </h3>
+                </span>
                 <span className="text-xs text-[var(--text-muted)]">
                   {t('watchedOfTotal', { watched: episodes.watched_count, total: episodes.total })}
                 </span>
-              </div>
+              </button>
+              {episodesOpen && (
               <div className="flex flex-col gap-5">
                 {episodes.seasons.map((s) => (
                   <div key={s.season}>
@@ -569,53 +652,10 @@ export default function MediaOnePage() {
                   </div>
                 ))}
               </div>
+              )}
             </div>
           )}
 
-          {/* Cast & crew, linked to person pages. Falls back to the old plain
-              actor strings only when credits haven't loaded. */}
-          {credits && credits.cast.length > 0 && (
-            <div>
-              <h3 className="mb-2.5 text-[10px] uppercase tracking-widest text-[var(--text-muted)]">{t('cast')}</h3>
-              <div className="flex flex-wrap gap-2">
-                {credits.cast.map((c) => personChip(c.person, c.character))}
-              </div>
-            </div>
-          )}
-          {crewSection(t('writers') || 'Writers', credits?.writers)}
-          {crewSection(t('translators') || 'Translators', credits?.translators)}
-
-          {!credits && !isBook && item.actors && item.actors.length > 0 && (
-            <div>
-              <h3 className="mb-2.5 text-[10px] uppercase tracking-widest text-[var(--text-muted)]">{t('cast')}</h3>
-              <div className="flex flex-wrap gap-2">
-                {item.actors.map((actor) => (
-                  <span
-                    key={actor}
-                    className="rounded-full border border-[var(--border-subtle)] bg-[var(--surface)] px-3 py-1 text-xs text-[var(--text)]"
-                  >
-                    {actor}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Rating & review */}
-          <div className="flex flex-col gap-4 rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface)] p-5">
-            <div className="flex items-center justify-between">
-              <h3 className="text-[10px] uppercase tracking-widest text-[var(--text-muted)]">{t('yourReview')}</h3>
-              <span className="text-sm font-medium text-[var(--text)]">{displayRating}</span>
-            </div>
-            <StarsSelector initialValue={userRating} onChange={handleRatingChange} isEditable />
-            <textarea
-              value={userReview}
-              onChange={(e) => setUserReview(e.target.value)}
-              rows={2}
-              placeholder={t('reviewPlaceholder', { type: isBook ? t('book').toLowerCase() : t('film').toLowerCase() })}
-              className="w-full resize-none rounded-lg border border-[var(--border-subtle)] bg-[var(--bg)] p-3 text-sm text-[var(--text)] placeholder:text-[var(--placeholder)] focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[var(--primary-ring)]"
-            />
-          </div>
         </div>
       </div>
 

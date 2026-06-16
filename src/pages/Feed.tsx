@@ -2,143 +2,17 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import Layout from '../components/layout/Layout'
 import Hint from '../components/Hint'
+import ActivityCard from '../components/ActivityCard'
 import { libraryService } from '../services/libraryService'
 import { activityService } from '../services/activityService'
-import type { Activity, ActivityType } from '../services/activityService'
+import type { Activity } from '../services/activityService'
 import type { MediaItem } from '../types'
 import { useLanguage } from '../contexts/LanguageContext'
 import { usePreferences } from '../contexts/PreferencesContext'
 import { useAuth } from '../contexts/AuthContext'
 import { statusLabel, STATUS_COLOR } from '../lib/shelf'
-import { initials } from '../lib/user'
-import { mediaPath, userPath } from '../lib/paths'
-import { IoStar, IoStarOutline, IoEyeOffOutline, IoPeopleOutline, IoHeart, IoHeartOutline, IoChatbubbleOutline } from 'react-icons/io5'
-
-const VERB_KEY: Record<ActivityType, string> = {
-  rated: 'verbRated',
-  finished: 'verbFinished',
-  started: 'verbStarted',
-  added: 'verbAdded',
-  reviewed: 'verbReviewed',
-}
-
-// Five-star display from a 0–10 rating.
-function Stars({ rating }: { rating: number }) {
-  const filled = Math.round(rating / 2)
-  return (
-    <span className="inline-flex">
-      {Array.from({ length: 5 }).map((_, i) =>
-        i < filled ? (
-          <IoStar key={i} className="h-4 w-4 text-nonspremium" />
-        ) : (
-          <IoStarOutline key={i} className="h-4 w-4 text-[var(--placeholder)]" />
-        ),
-      )}
-    </span>
-  )
-}
-
-// Goodreads-style update card: "<name> <verb>", then cover + title / author /
-// rating / description, with a Like · Comment footer.
-function ActivityRow({ a }: { a: Activity }) {
-  const { t } = useLanguage()
-  const [liked, setLiked] = useState(false)
-  const to = mediaPath({ type: a.mediaType, uuid: a.mediaUuid, id: String(a.mediaId) })
-  const typeLabel = a.mediaType === 'book' ? t('book') : a.mediaType === 'series' ? t('series') : t('film')
-
-  return (
-    <article className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--container)] p-4 sm:p-5">
-      {/* header */}
-      <div className="mb-3 flex items-center gap-2.5">
-        <Link
-          to={userPath(a.user.handle || a.user.uuid || '')}
-          className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full text-[11px] font-semibold text-white"
-          style={{ backgroundColor: a.user.color }}
-          title={a.user.name}
-        >
-          {initials(a.user.name)}
-        </Link>
-        <p className="min-w-0 flex-1 truncate text-sm text-[var(--text)]">
-          <Link to={userPath(a.user.handle || a.user.uuid || '')} className="font-semibold hover:underline">
-            {a.user.name}
-          </Link>{' '}
-          <span className="text-[var(--text-muted)]">{t(VERB_KEY[a.type])}</span>
-        </p>
-        <span className="flex-shrink-0 text-xs text-[var(--text-muted)]">{a.timeAgo}</span>
-      </div>
-
-      {/* body: cover + details */}
-      <div className="flex gap-4">
-        <Link to={to} className="flex-shrink-0">
-          {a.coverUrl ? (
-            <img
-              src={a.coverUrl}
-              alt={a.mediaTitle}
-              loading="lazy"
-              className="h-32 w-[88px] rounded-md border border-[var(--border-subtle)] object-cover"
-            />
-          ) : (
-            <div className="h-32 w-[88px] rounded-md border border-[var(--border-subtle)] bg-[var(--container-2)]" />
-          )}
-        </Link>
-
-        <div className="min-w-0 flex-1">
-          <Link to={to} className="block text-lg font-bold leading-snug text-[var(--text)] hover:text-nonsprimary">
-            {a.mediaTitle}
-          </Link>
-          {a.mediaAuthor && (
-            <p className="mt-0.5 text-sm text-[var(--text-muted)]">
-              {t('by')} <span className="text-[var(--text)]">{a.mediaAuthor}</span>
-            </p>
-          )}
-          <p className="mt-0.5 text-xs uppercase tracking-wide text-[var(--text-muted)]">
-            {typeLabel}
-            {a.mediaYear ? ` · ${a.mediaYear}` : ''}
-          </p>
-
-          {typeof a.rating === 'number' && a.rating > 0 && (
-            <div className="mt-1.5 flex items-center gap-2 text-xs text-[var(--text-muted)]">
-              <span>{t('rating')}:</span>
-              <Stars rating={a.rating} />
-            </div>
-          )}
-
-          {a.text ? (
-            <p className="mt-2 text-sm italic leading-6 text-[var(--text-muted)]">“{a.text}”</p>
-          ) : a.mediaDescription ? (
-            <p className="mt-2 text-sm leading-6 text-[var(--text-muted)]">
-              <span className="line-clamp-3">{a.mediaDescription}</span>
-              <Link to={to} className="text-nonsprimary hover:underline">
-                {t('continueReading')}
-              </Link>
-            </p>
-          ) : null}
-        </div>
-      </div>
-
-      {/* footer: like · comment */}
-      <div className="mt-4 flex items-center gap-4 border-t border-[var(--divider)] pt-3 text-sm">
-        <button
-          onClick={() => setLiked((v) => !v)}
-          className={`inline-flex items-center gap-1.5 font-medium transition-colors ${
-            liked ? 'text-nonsprimary' : 'text-[var(--text-muted)] hover:text-[var(--text)]'
-          }`}
-        >
-          {liked ? <IoHeart className="h-4 w-4" /> : <IoHeartOutline className="h-4 w-4" />}
-          {t('like')}
-        </button>
-        <span className="inline-flex items-center gap-1.5 font-medium text-[var(--text-muted)]">
-          <IoChatbubbleOutline className="h-4 w-4" />
-          {t('comment')}
-        </span>
-      </div>
-      <input
-        placeholder={t('writeComment')}
-        className="mt-2 h-10 w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--input)] px-3 text-sm text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-ring)]"
-      />
-    </article>
-  )
-}
+import { mediaPath } from '../lib/paths'
+import { IoStar, IoEyeOffOutline, IoPeopleOutline } from 'react-icons/io5'
 
 export default function FeedPage() {
   const { t } = useLanguage()
@@ -246,7 +120,7 @@ export default function FeedPage() {
         ) : (
           <div className="animate-fade-up flex flex-col gap-4">
             {activity.map((a) => (
-              <ActivityRow key={a.id} a={a} />
+              <ActivityCard key={a.id} a={a} />
             ))}
           </div>
         )}

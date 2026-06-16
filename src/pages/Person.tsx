@@ -1,9 +1,12 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import Layout from '../components/layout/Layout'
+import PersonModal from '../components/PersonModal'
 import { authedFetch } from '../lib/api'
+import { isLibrarian } from '../services/librarianService'
 import { useLanguage } from '../contexts/LanguageContext'
-import { IoArrowBack, IoPersonOutline, IoBookOutline, IoFilmOutline } from 'react-icons/io5'
+import { useAuth } from '../contexts/AuthContext'
+import { IoArrowBack, IoPersonOutline, IoBookOutline, IoFilmOutline, IoCreateOutline } from 'react-icons/io5'
 
 // Shape returned by GET /api/people/:uuid.
 interface PersonResp {
@@ -36,22 +39,25 @@ const mediaHref = (m: PersonResp['credits'][number]['media']) =>
 export default function PersonPage() {
   const { t } = useLanguage()
   const navigate = useNavigate()
+  const { user } = useAuth()
   const { uuid } = useParams<{ uuid: string }>()
   const [data, setData] = useState<PersonResp | null>(null)
   const [loading, setLoading] = useState(true)
+  const [editing, setEditing] = useState(false)
+  const canEdit = isLibrarian(user?.role)
 
-  useEffect(() => {
+  const load = useCallback(() => {
     if (!uuid) return
-    let cancelled = false
     authedFetch(`/api/people/${uuid}`)
       .then((r) => (r.ok ? r.json() : null))
-      .then((d) => !cancelled && setData(d))
-      .catch(() => !cancelled && setData(null))
-      .finally(() => !cancelled && setLoading(false))
-    return () => {
-      cancelled = true
-    }
+      .then((d) => setData(d))
+      .catch(() => setData(null))
+      .finally(() => setLoading(false))
   }, [uuid])
+
+  useEffect(() => {
+    load()
+  }, [load])
 
   if (loading) {
     return (
@@ -101,9 +107,20 @@ export default function PersonPage() {
         {/* ── Right: identity + credits ── */}
         <div className="flex flex-1 flex-col gap-6">
           <div>
-            <h1 className="text-3xl font-bold leading-tight tracking-tight text-[var(--text)] md:text-[2.6rem]">
-              {person.name}
-            </h1>
+            <div className="flex items-start justify-between gap-4">
+              <h1 className="text-3xl font-bold leading-tight tracking-tight text-[var(--text)] md:text-[2.6rem]">
+                {person.name}
+              </h1>
+              {canEdit && (
+                <button
+                  onClick={() => setEditing(true)}
+                  title={t('edit')}
+                  className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] text-[var(--text-muted)] transition-colors hover:border-nonsprimary hover:text-nonsprimary"
+                >
+                  <IoCreateOutline className="h-4 w-4" />
+                </button>
+              )}
+            </div>
             {person.birth_year ? (
               <p className="mt-1 text-sm text-[var(--text-muted)]">b. {person.birth_year}</p>
             ) : null}
@@ -167,6 +184,16 @@ export default function PersonPage() {
           ))}
         </div>
       </div>
+
+      <PersonModal
+        isOpen={editing}
+        person={{ id: 0, credit_count: 0, uuid: person.uuid, name: person.name, photo_url: person.photo_url, bio: person.bio }}
+        onClose={() => setEditing(false)}
+        onSaved={() => {
+          setEditing(false)
+          load()
+        }}
+      />
     </Layout>
   )
 }

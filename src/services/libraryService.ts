@@ -47,7 +47,7 @@ type RatingEntry = { media_id: number; value: number; media?: BackendMedia }
 
 // ── Mapping ─────────────────────────────────────────────────────────────────
 
-type Signals = { status?: ShelfStatus; favorite?: boolean; rating?: number; createdAt?: number; editionId?: number }
+type Signals = { status?: ShelfStatus; favorite?: boolean; rating?: number; review?: string; createdAt?: number; editionId?: number }
 
 function toItem(m: BackendMedia, s: Signals = {}): MediaItem {
   return {
@@ -71,6 +71,7 @@ function toItem(m: BackendMedia, s: Signals = {}): MediaItem {
     status: s.status,
     favorite: s.favorite,
     rating: s.rating,
+    review: s.review || undefined,
     editionId: s.editionId || undefined,
     dateAdded: s.createdAt ? new Date(s.createdAt * 1000).toISOString() : undefined,
   }
@@ -127,6 +128,8 @@ export interface ILibraryService {
   updateItem(id: string, updates: Partial<MediaItem>): Promise<MediaItem>
   /** Choose the book edition (printing) the user is reading; 0 clears it. */
   setEdition(mediaId: string, editionId: number): Promise<void>
+  /** Save (or clear) the user's free-text review. */
+  setReview(mediaId: string, review: string): Promise<void>
   deleteItem(id: string): Promise<void>
   importGoodreads(file: File): Promise<ImportSummary>
   importBookDiary(file: File): Promise<ImportSummary>
@@ -201,7 +204,9 @@ class ApiLibraryService implements ILibraryService {
       authedFetch(`/api/media/${mediaId}/favorite`),
       authedFetch('/api/shelf'),
     ])
-    const rating = ratRes.ok ? ((await ratRes.json()).own as number | undefined) : undefined
+    const summary = ratRes.ok ? await ratRes.json() : {}
+    const rating = summary.own as number | undefined
+    const review = summary.own_review as string | undefined
     const favorite = favRes.ok ? Boolean((await favRes.json()).liked) : false
     const entry = (await items<ShelfEntry>(shelfRes)).find((e) => e.media_id === mediaId)
 
@@ -209,8 +214,18 @@ class ApiLibraryService implements ILibraryService {
       status: entry?.status,
       favorite,
       rating,
+      review,
       createdAt: entry?.created_at,
       editionId: entry?.edition_id,
+    })
+  }
+
+  // Save (or clear) the user's free-text review for a media item.
+  async setReview(mediaId: string, review: string): Promise<void> {
+    await authedFetch(`/api/media/${Number(mediaId)}/review`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ review }),
     })
   }
 

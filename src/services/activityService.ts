@@ -39,8 +39,9 @@ type Friendship = {
 // nons-library-server GET /api/activity
 type ActivityEvent = {
   user_id: number
-  type: 'added' | 'started' | 'finished' | 'rated'
+  type: 'added' | 'started' | 'finished' | 'rated' | 'reviewed'
   value?: number
+  note?: string // reviewed: the review text
   at: number // unix seconds
   media?: { id: number; uuid?: string; type: MediaType; title: string; author?: string; year?: number; description?: string; cover_url: string }
 }
@@ -120,6 +121,7 @@ class ApiActivityService implements IActivityService {
         mediaDescription: e.media!.description || undefined,
         coverUrl: e.media!.cover_url || undefined,
         rating: e.value || undefined,
+        text: e.note || undefined,
         timeAgo: timeAgo(e.at),
       }))
   }

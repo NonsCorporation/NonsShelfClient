@@ -22,6 +22,8 @@ export type MediaItem = {
   actors?: string[]
   tags?: string[]
   rating?: number
+  /** The user's own free-text review. */
+  review?: string
   pages?: number
   description?: string
   duration?: string

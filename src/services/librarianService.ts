@@ -352,6 +352,14 @@ export const librarianService = {
     ) as Promise<PersonSummary>
   },
 
+  // Pull a person's bio/photo/birth date + name variants from TMDB (needs a
+  // stored TMDB id, set when they were imported as cast/crew).
+  async enrichPersonFromTMDB(uuid: string): Promise<PersonSummary> {
+    return jsonOrThrow(
+      await authedFetch(`/api/people/${uuid}/tmdb`, { method: 'POST' }),
+    ) as Promise<PersonSummary>
+  },
+
   // ── credits (cast/crew) ──
   async getCreditRoles(): Promise<CreditRole[]> {
     const data = (await jsonOrThrow(await authedFetch('/api/credit-roles'))) as { roles: CreditRole[] }
