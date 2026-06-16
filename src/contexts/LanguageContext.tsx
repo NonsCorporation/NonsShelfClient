@@ -265,6 +265,11 @@ export const translations: Translations = {
   loginEmailOrUsername: { en: 'Email or username', ru: 'Эл. почта или имя пользователя' },
   loginPassword: { en: 'Password', ru: 'Пароль' },
   loginSubmitting: { en: 'Signing in…', ru: 'Вход…' },
+  signInToShelfTitle: { en: 'Track this on your shelf', ru: 'Добавьте на свою полку' },
+  signInToShelfText: {
+    en: 'Sign in with your nons account to rate it, write a review, and add it to your shelf.',
+    ru: 'Войдите с аккаунтом nons, чтобы поставить оценку, написать отзыв и добавить на полку.',
+  },
 
   // Signed-out landing page
   landingEyebrow: { en: 'Part of the nons family', ru: 'Часть семейства nons' },
@@ -465,9 +470,13 @@ const LanguageContext = createContext<LanguageContextType | undefined>(undefined
 
 export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [language, setLanguageState] = useState<Language>(() => {
+    // Guarded for SSR: the public /b and /m pages render on the server (no
+    // localStorage/navigator), where we default to English — which is also what
+    // crawlers index. The client adopts the stored/browser language on hydration.
+    if (typeof window === 'undefined') return 'en';
     const saved = localStorage.getItem('language');
     if (saved === 'en' || saved === 'ru') return saved;
-    
+
     // Default to browser language if supported
     const browserLang = navigator.language.split('-')[0];
     if (browserLang === 'ru') return 'ru';
@@ -476,7 +485,7 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
 
   const setLanguage = (lang: Language) => {
     setLanguageState(lang);
-    localStorage.setItem('language', lang);
+    if (typeof window !== 'undefined') localStorage.setItem('language', lang);
   };
 
   const t = (key: string, variables?: Record<string, string | number>): string => {

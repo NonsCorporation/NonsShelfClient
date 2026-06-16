@@ -12,13 +12,15 @@ interface PreferencesContextType {
 const PreferencesContext = createContext<PreferencesContextType | undefined>(undefined)
 
 export const PreferencesProvider = ({ children }: { children: ReactNode }) => {
-  const [showInProgress, setShowInProgressState] = useState<boolean>(
-    () => localStorage.getItem(STORAGE_KEY) !== 'false',
+  const [showInProgress, setShowInProgressState] = useState<boolean>(() =>
+    // Guarded for SSR (public /b and /m pages render on the server, where there
+    // is no localStorage). Defaults to shown.
+    typeof window === 'undefined' ? true : localStorage.getItem(STORAGE_KEY) !== 'false',
   )
 
   const setShowInProgress = (value: boolean) => {
     setShowInProgressState(value)
-    localStorage.setItem(STORAGE_KEY, String(value))
+    if (typeof window !== 'undefined') localStorage.setItem(STORAGE_KEY, String(value))
   }
 
   return (

@@ -1,3 +1,5 @@
+'use client'
+
 import { useState, useEffect, useCallback, Fragment, type ReactNode } from 'react'
 import { useParams, useNavigate, useSearchParams, Link } from '@/lib/router'
 import Layout from '../components/layout/Layout'
@@ -5,8 +7,9 @@ import MediaModal from '../components/MediaModal'
 import StarsSelector from '../StarsSelector'
 import { libraryService } from '../services/libraryService'
 import { librarianService } from '../services/librarianService'
-import { authedFetch } from '../lib/api'
+import { authedFetch, redirectToNonsLogin } from '../lib/api'
 import type { MediaItem, ShelfStatus } from '../types'
+import type { CreditPerson, MediaCredits, Edition } from '../lib/mediaMap'
 import {
   IoFilmOutline,
   IoBookOutline,
@@ -26,34 +29,8 @@ import { useAuth } from '../contexts/AuthContext'
 import { isLibrarian } from '../services/librarianService'
 import { STATUS_ORDER, STATUS_COLOR, statusLabel } from '../lib/shelf'
 
-// Cast & crew from GET /api/media/:id/credits, each carrying the person's
-// stable uuid so names can link to their /p/<uuid> page.
-interface CreditPerson {
-  uuid: string
-  name: string
-  photo_url?: string
-}
-interface MediaCredits {
-  cast: { person: CreditPerson; character?: string }[]
-  directors: { person: CreditPerson }[]
-  writers: { person: CreditPerson }[]
-  authors: { person: CreditPerson }[]
-  translators: { person: CreditPerson }[]
-}
-
-// Book editions from GET /api/media/:id/editions.
-interface Edition {
-  id: number
-  uuid?: string
-  language?: string
-  title?: string
-  isbn13?: string
-  isbn10?: string
-  publisher?: string
-  published_year?: number
-  pages?: number
-  cover_url?: string
-}
+// CreditPerson, MediaCredits and Edition come from ../lib/mediaMap so the
+// server-rendered /b and /m pages can share them.
 
 // Series episodes from GET /api/media/:id/episodes — grouped by season, with the
 // current user's watched flags keyed by episode id.
@@ -78,22 +55,37 @@ interface EpisodesResponse {
   total: number
 }
 
-export default function MediaOnePage() {
+interface MediaOneProps {
+  /** SSR mode: public catalog data was fetched on the server (the /b and /m
+   *  pages). Skips the authed public fetches and overlays personal signals on
+   *  the client. Omitted on the legacy authed /shelf route. */
+  ssr?: boolean
+  initialItem?: MediaItem | null
+  initialCredits?: MediaCredits | null
+  initialEditions?: Edition[]
+}
+
+export default function MediaOnePage({
+  ssr = false,
+  initialItem = null,
+  initialCredits = null,
+  initialEditions = [],
+}: MediaOneProps = {}) {
   const { t } = useLanguage()
   const navigate = useNavigate()
-  const { user } = useAuth()
+  const { user, isAuthenticated, loading: authLoading } = useAuth()
   const { id } = useParams<{ id: string }>()
   const [params, setParams] = useSearchParams()
-  const [item, setItem] = useState<MediaItem | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [credits, setCredits] = useState<MediaCredits | null>(null)
-  const [editions, setEditions] = useState<Edition[]>([])
+  const [item, setItem] = useState<MediaItem | null>(initialItem)
+  const [loading, setLoading] = useState(!initialItem)
+  const [credits, setCredits] = useState<MediaCredits | null>(initialCredits)
+  const [editions, setEditions] = useState<Edition[]>(initialEditions)
   const [episodes, setEpisodes] = useState<EpisodesResponse | null>(null)
-  const [editionId, setEditionId] = useState<number | null>(null)
+  const [editionId, setEditionId] = useState<number | null>(initialItem?.editionId ?? null)
   const [isbnFind, setIsbnFind] = useState('')
 
-  const [userRating, setUserRating] = useState<number | null>(null)
-  const [userReview, setUserReview] = useState('')
+  const [userRating, setUserRating] = useState<number | null>(initialItem?.rating ?? null)
+  const [userReview, setUserReview] = useState(initialItem?.review ?? '')
   const [reviewSaving, setReviewSaving] = useState(false)
   const [reviewSaved, setReviewSaved] = useState(false)
   const [episodesOpen, setEpisodesOpen] = useState(true)
@@ -112,13 +104,33 @@ export default function MediaOnePage() {
     })
   }, [id])
 
+  // SSR pages (/b, /m) already carry the public catalog data from the server;
+  // once we know who's signed in, overlay their personal signals
+  // (shelf/like/rating/review). Non-SSR routes (legacy /shelf) fetch everything
+  // through the authed API as before.
   useEffect(() => {
-    loadItem()
-  }, [loadItem])
+    if (!ssr) {
+      loadItem()
+      return
+    }
+    if (!isAuthenticated || !initialItem) return
+    let cancelled = false
+    libraryService.getSignals(initialItem.id).then((sig) => {
+      if (cancelled) return
+      setItem((prev) => (prev ? { ...prev, ...sig } : prev))
+      setUserRating(sig.rating ?? null)
+      setUserReview(sig.review ?? '')
+      setEditionId(sig.editionId ?? null)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [ssr, isAuthenticated, initialItem, loadItem])
 
-  // Cast & crew with stable person uuids, for linking to /p/<uuid>.
+  // Cast & crew with stable person uuids, for linking to /p/<uuid>. On SSR pages
+  // these came from the server already.
   useEffect(() => {
-    if (!id) return
+    if (!id || ssr) return
     let cancelled = false
     authedFetch(`/api/media/${id}/credits`)
       .then((r) => (r.ok ? r.json() : null))
@@ -127,11 +139,11 @@ export default function MediaOnePage() {
     return () => {
       cancelled = true
     }
-  }, [id])
+  }, [id, ssr])
 
-  // Editions (books) for the metadata section.
+  // Editions (books) for the metadata section. SSR pages already have them.
   useEffect(() => {
-    if (!id) return
+    if (!id || ssr) return
     let cancelled = false
     authedFetch(`/api/media/${id}/editions`)
       .then((r) => (r.ok ? r.json() : null))
@@ -140,7 +152,7 @@ export default function MediaOnePage() {
     return () => {
       cancelled = true
     }
-  }, [id])
+  }, [id, ssr])
 
   // Episodes (series), grouped by season with the user's watched flags. Only
   // fetched once we know the item is a series.
@@ -266,6 +278,25 @@ export default function MediaOnePage() {
     editions.find((e) => e.uuid && e.uuid === params.get('e')) ?? editions.find((e) => e.id === editionId) ?? null
   const coverUrl = selectedEdition?.cover_url || item.coverUrl
 
+  // Interactive controls (shelf, rating, review, favorite, edit) are for signed-in
+  // users. Anonymous visitors and crawlers still get the full public content; we
+  // show them a sign-in call-to-action instead. While the session check is in
+  // flight (and during SSR) we show neither, so the server HTML stays clean.
+  const canInteract = isAuthenticated
+  const showSignIn = !authLoading && !isAuthenticated
+  const signInPrompt = (
+    <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface)] p-4">
+      <p className="text-sm font-semibold text-[var(--text)]">{t('signInToShelfTitle')}</p>
+      <p className="mt-1 text-xs leading-5 text-[var(--text-muted)]">{t('signInToShelfText')}</p>
+      <button
+        onClick={() => redirectToNonsLogin()}
+        className="mt-3 w-full rounded-xl bg-nonsprimary py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
+      >
+        {t('login')}
+      </button>
+    </div>
+  )
+
   return (
     <Layout>
       <button
@@ -289,52 +320,58 @@ export default function MediaOnePage() {
             )}
           </div>
 
-          <div className="flex gap-2">
-            <button
-              onClick={() => patch({ favorite: !item.favorite })}
-              className={`flex h-10 flex-1 items-center justify-center gap-2 rounded-xl text-sm font-medium transition-all ${
-                item.favorite
-                  ? 'bg-nonsprimary text-white'
-                  : 'border border-[var(--border-subtle)] bg-[var(--surface)] text-[var(--text-muted)] hover:text-[var(--text)]'
-              }`}
-            >
-              {item.favorite ? <IoHeart className="h-4 w-4" /> : <IoHeartOutline className="h-4 w-4" />}
-              {item.favorite ? t('saved') : t('save')}
-            </button>
-            <button className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] text-[var(--text-muted)] transition-colors hover:text-[var(--text)]">
-              <IoShareOutline className="h-4 w-4" />
-            </button>
-            {isLibrarian(user?.role) && (
+          {canInteract && (
+            <div className="flex gap-2">
               <button
-                onClick={() => setEditing(true)}
-                title={t('edit')}
-                className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] text-[var(--text-muted)] transition-colors hover:border-nonsprimary hover:text-nonsprimary"
+                onClick={() => patch({ favorite: !item.favorite })}
+                className={`flex h-10 flex-1 items-center justify-center gap-2 rounded-xl text-sm font-medium transition-all ${
+                  item.favorite
+                    ? 'bg-nonsprimary text-white'
+                    : 'border border-[var(--border-subtle)] bg-[var(--surface)] text-[var(--text-muted)] hover:text-[var(--text)]'
+                }`}
               >
-                <IoCreateOutline className="h-4 w-4" />
+                {item.favorite ? <IoHeart className="h-4 w-4" /> : <IoHeartOutline className="h-4 w-4" />}
+                {item.favorite ? t('saved') : t('save')}
               </button>
-            )}
-          </div>
-
-          {/* Status shelf control */}
-          <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface)] p-3">
-            <p className="mb-2 text-[10px] uppercase tracking-widest text-[var(--text-muted)]">{t('status')}</p>
-            <div className="flex flex-col gap-1">
-              {STATUS_ORDER.map((s: ShelfStatus) => (
+              <button className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] text-[var(--text-muted)] transition-colors hover:text-[var(--text)]">
+                <IoShareOutline className="h-4 w-4" />
+              </button>
+              {isLibrarian(user?.role) && (
                 <button
-                  key={s}
-                  onClick={() => patch({ status: s })}
-                  className={`flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition-colors ${
-                    status === s
-                      ? 'bg-[var(--surface-active)] font-medium text-[var(--text)]'
-                      : 'text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]'
-                  }`}
+                  onClick={() => setEditing(true)}
+                  title={t('edit')}
+                  className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] text-[var(--text-muted)] transition-colors hover:border-nonsprimary hover:text-nonsprimary"
                 >
-                  <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: STATUS_COLOR[s] }} />
-                  {statusLabel(item.type, s, t)}
+                  <IoCreateOutline className="h-4 w-4" />
                 </button>
-              ))}
+              )}
             </div>
-          </div>
+          )}
+
+          {/* Status shelf control — signed in; otherwise a sign-in prompt. */}
+          {canInteract ? (
+            <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface)] p-3">
+              <p className="mb-2 text-[10px] uppercase tracking-widest text-[var(--text-muted)]">{t('status')}</p>
+              <div className="flex flex-col gap-1">
+                {STATUS_ORDER.map((s: ShelfStatus) => (
+                  <button
+                    key={s}
+                    onClick={() => patch({ status: s })}
+                    className={`flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition-colors ${
+                      status === s
+                        ? 'bg-[var(--surface-active)] font-medium text-[var(--text)]'
+                        : 'text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]'
+                    }`}
+                  >
+                    <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: STATUS_COLOR[s] }} />
+                    {statusLabel(item.type, s, t)}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : showSignIn ? (
+            signInPrompt
+          ) : null}
         </div>
 
         {/* ── Right: info ── */}
@@ -543,8 +580,8 @@ export default function MediaOnePage() {
             )
           })()}
 
-          {/* Rating & review — shown above the episode list so the user's own
-              take comes first. */}
+          {/* Rating & review — signed-in users only. */}
+          {canInteract && (
           <div className="flex flex-col gap-4 rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface)] p-5">
             <div className="flex items-center justify-between">
               <h3 className="text-[10px] uppercase tracking-widest text-[var(--text-muted)]">{t('yourReview')}</h3>
@@ -572,6 +609,7 @@ export default function MediaOnePage() {
               </button>
             </div>
           </div>
+          )}
 
           {/* Episodes (series), grouped by season, each toggleable as watched.
               The whole list collapses behind the header. */}
@@ -632,19 +670,21 @@ export default function MediaOnePage() {
                                 <p className="mt-1 line-clamp-2 text-xs leading-5 text-[var(--text-muted)]">{ep.overview}</p>
                               ) : null}
                             </div>
-                            <button
-                              onClick={() => toggleWatched(ep.id, !watched)}
-                              title={watched ? t('watched') : t('markWatched')}
-                              className={`flex-shrink-0 transition-colors ${
-                                watched ? 'text-nonsprimary' : 'text-[var(--text-muted)] hover:text-[var(--text)]'
-                              }`}
-                            >
-                              {watched ? (
-                                <IoCheckmarkCircle className="h-6 w-6" />
-                              ) : (
-                                <IoCheckmarkCircleOutline className="h-6 w-6" />
-                              )}
-                            </button>
+                            {canInteract && (
+                              <button
+                                onClick={() => toggleWatched(ep.id, !watched)}
+                                title={watched ? t('watched') : t('markWatched')}
+                                className={`flex-shrink-0 transition-colors ${
+                                  watched ? 'text-nonsprimary' : 'text-[var(--text-muted)] hover:text-[var(--text)]'
+                                }`}
+                              >
+                                {watched ? (
+                                  <IoCheckmarkCircle className="h-6 w-6" />
+                                ) : (
+                                  <IoCheckmarkCircleOutline className="h-6 w-6" />
+                                )}
+                              </button>
+                            )}
                           </div>
                         )
                       })}

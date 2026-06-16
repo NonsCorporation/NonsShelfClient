@@ -6,7 +6,13 @@ has **no auth of its own** and rides the shared nons SSO session.
 
 ## Routing
 
-Real Next.js App Router file-based routes live under `src/app/`:
+Real Next.js App Router file-based routes live under `src/app/`, split into two
+route groups:
+
+**`(app)` — the signed-in application** (client-only, behind the `RequireAuth`
+SSO gate). `src/app/(app)/providers.tsx` holds the provider tree and renders
+nothing until mounted, because the Language/Preferences contexts read
+`localStorage` during render. Behavior is unchanged from the SPA.
 
 | Route | Screen |
 |---|---|
@@ -15,34 +21,52 @@ Real Next.js App Router file-based routes live under `src/app/`:
 | `/discover` | Discover |
 | `/calendar` | Calendar |
 | `/librarians`, `/librarian/edit/[id]` | Librarian dashboard |
-| `/b/[id]`, `/m/[id]`, `/shelf/[id]` | Media detail (book / film / legacy id) |
+| `/shelf/[id]` | Media detail (legacy numeric-id links) |
 | `/p/[uuid]` | Person |
 | `/u/[id]` | User profile |
 
-Each `page.tsx` renders a screen component from `src/screens/`. Navigation runs
-on Next's router via a thin compatibility layer in `src/lib/router.tsx` that
-keeps the old `react-router-dom` API (`Link to=`, `useNavigate`, `useParams`,
-`useSearchParams`) so the screens didn't need a risky rewrite — inline it if you
-want zero abstraction.
+**`(public)` — server-rendered, no auth gate** (for SEO):
 
-Rendering is still **client-only**: `src/app/providers.tsx` holds the provider
-tree + the `RequireAuth` SSO gate and renders nothing until mounted, because the
-Language/Preferences contexts read `localStorage` during render. Moving public
-catalog routes (`/b`, `/m`, `/discover`) to server rendering is the deliberate
-next step for SEO — that's the payoff of being on real routes now.
+| Route | Screen |
+|---|---|
+| `/b/[id]` | Book detail |
+| `/m/[id]` | Film/series detail |
+
+`/b` and `/m` are **Server Components** (`src/lib/mediaRoute.tsx`): they fetch
+public catalog data server-side (`src/lib/serverApi.ts`), emit per-page
+`<title>`/description/OpenGraph (`generateMetadata`) and schema.org JSON-LD
+(`src/lib/jsonld.ts`), and render `MediaOne` with that data as initial state — so
+the title, synopsis, author, cast and editions are in the server HTML for
+crawlers. The interactive controls (shelf, rating, review, favorite, edit) are a
+client overlay: signed-in users get them after hydration; logged-out visitors
+get a sign-in call-to-action. Personal signals are fetched client-side via
+`libraryService.getSignals`.
+
+Navigation runs on Next's router via a thin compatibility layer in
+`src/lib/router.tsx` that keeps the old `react-router-dom` API (`Link to=`,
+`useNavigate`, `useParams`, `useSearchParams`).
 
 ```
 npm install
 npm run dev          # http://localhost:5173
 ```
 
-`.env.local` for development (browser-exposed vars use the `NEXT_PUBLIC_` prefix):
+`.env.local` for development (browser-exposed vars use the `NEXT_PUBLIC_` prefix;
+the others are read only on the Next.js server):
 
 ```
-NEXT_PUBLIC_LIBRARY_API_URL=http://localhost:8081   # nons-library-server (this app's backend)
+NEXT_PUBLIC_LIBRARY_API_URL=http://localhost:8081   # nons-library-server (browser, this app's backend)
 NEXT_PUBLIC_NONS_API_URL=http://localhost:8080      # nons-server (identity + social)
 NEXT_PUBLIC_NONS_LOGIN_URL=http://localhost:3000    # nons login page (for redirects)
+LIBRARY_SERVER_URL=http://localhost:8081            # server-side base for SSR catalog fetches (no same-origin on the server)
+NEXT_PUBLIC_SITE_URL=http://localhost:5173          # canonical/OpenGraph origin for SSR pages (prod: https://shelf.nonsapp.com)
 ```
+
+> **Backend dependency:** SSR pages fetch catalog data with no cookie, so
+> `nons-library-server` serves `GET /api/media/:id`, `/editions`, `/episodes`
+> and `/media/:id/credits` from a **public, optional-auth, rate-limited** group
+> (`PUBLIC_READ_RATE_LIMIT`, default 120 req/min/IP). Personal data and writes
+> stay behind `RequireAuth`.
 
 ## Architecture: who talks to whom
 
@@ -87,8 +111,8 @@ const { items } = await res.json()
 This is the answer to "how do I get nons friends / post to nons from the
 library": call nons-server **directly from the browser** with `nonsFetch`.
 The shared cookie authenticates you; nons-server's CORS already allowlists the
-library origins (`localhost:5173` in dev, `LIBRARY_URL` env in prod, default
-`https://library.nonsapp.com`).
+library origins (`localhost:5173` in dev, `LIBRARY_URL` env in prod, which must
+be set to `https://shelf.nonsapp.com`).
 
 ```ts
 import { nonsFetch } from '../lib/api'

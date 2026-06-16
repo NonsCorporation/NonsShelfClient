@@ -1,4 +1,5 @@
 import { authedFetch } from '../lib/api'
+import { toMediaItem as toItem, type BackendMedia, type Signals } from '../lib/mediaMap'
 import type { MediaItem, MediaType, ShelfStatus } from '../types.ts'
 
 // The user's library lives in nons-library-server, split across three resources
@@ -18,64 +19,12 @@ export const SHELF_META: Record<ShelfStatus, { key: string; dot: string }> = {
 }
 
 // ── Backend wire types ──────────────────────────────────────────────────────
-
-type BackendMedia = {
-  id: number
-  uuid: string
-  type: MediaType
-  title: string
-  original_title?: string
-  author: string
-  director: string
-  year: number
-  genres: string // comma-separated
-  cover_url: string
-  description: string
-  duration_min: number
-  pages: number
-  maker_uuid: string
-  isbn: string
-  work_id: string
-  details?: { original_language?: string; title_en?: string; ol_work?: string } | null
-  created_at: number
-  updated_at: number
-}
+// BackendMedia, Signals and the toItem mapper live in ../lib/mediaMap so the
+// Next.js server can reuse them for the public /b and /m pages.
 
 type ShelfEntry = { media_id: number; status: ShelfStatus; edition_id?: number; created_at: number; media?: BackendMedia }
 type FavoriteEntry = { media_id: number; media?: BackendMedia }
 type RatingEntry = { media_id: number; value: number; media?: BackendMedia }
-
-// ── Mapping ─────────────────────────────────────────────────────────────────
-
-type Signals = { status?: ShelfStatus; favorite?: boolean; rating?: number; review?: string; createdAt?: number; editionId?: number }
-
-function toItem(m: BackendMedia, s: Signals = {}): MediaItem {
-  return {
-    id: String(m.id),
-    uuid: m.uuid || undefined,
-    type: m.type,
-    title: m.title,
-    author: m.author || m.director,
-    director: m.director || undefined,
-    makerUuid: m.maker_uuid || undefined,
-    isbn: m.isbn || undefined,
-    workId: m.work_id || undefined,
-    originalLanguage: m.details?.original_language || undefined,
-    titleEn: m.original_title || m.details?.title_en || undefined,
-    coverUrl: m.cover_url || undefined,
-    year: m.year || undefined,
-    genre: m.genres ? m.genres.split(',').map((g) => g.trim()).filter(Boolean) : undefined,
-    description: m.description || undefined,
-    pages: m.pages || undefined,
-    duration: m.duration_min ? `${m.duration_min} min` : undefined,
-    status: s.status,
-    favorite: s.favorite,
-    rating: s.rating,
-    review: s.review || undefined,
-    editionId: s.editionId || undefined,
-    dateAdded: s.createdAt ? new Date(s.createdAt * 1000).toISOString() : undefined,
-  }
-}
 
 /** Parse a leading integer out of a duration string like "180 min" -> 180. */
 function parseDuration(d?: string): number {
@@ -140,6 +89,10 @@ export interface ILibraryService {
   /** Another user's public library (shelf + ratings), for their profile page. */
   getUserItems(userId: number): Promise<MediaItem[]>
   getItem(id: string): Promise<MediaItem | undefined>
+  /** The signed-in user's personal overlay (shelf/like/rating/review) on a
+   *  catalog row — used to enrich the server-rendered public /b and /m pages
+   *  after the page learns who's logged in. */
+  getSignals(mediaId: string): Promise<Signals>
   addItem(item: Omit<MediaItem, 'id'> & { id?: string }): Promise<MediaItem>
   updateItem(id: string, updates: Partial<MediaItem>): Promise<MediaItem>
   /** Choose the book edition (printing) the user is reading; 0 clears it. */
@@ -240,6 +193,29 @@ class ApiLibraryService implements ILibraryService {
       createdAt: entry?.created_at,
       editionId: entry?.edition_id,
     })
+  }
+
+  // The signed-in user's personal overlay for one catalog row, keyed by numeric
+  // media id. Mirrors the personal half of getItem, without re-fetching the
+  // public catalog data (the server already rendered that).
+  async getSignals(mediaId: string): Promise<Signals> {
+    const numId = Number(mediaId)
+    const [ratRes, favRes, shelfRes] = await Promise.all([
+      authedFetch(`/api/media/${numId}/rating`),
+      authedFetch(`/api/media/${numId}/favorite`),
+      authedFetch('/api/shelf'),
+    ])
+    const summary = ratRes.ok ? await ratRes.json() : {}
+    const favorite = favRes.ok ? Boolean((await favRes.json()).liked) : false
+    const entry = (await items<ShelfEntry>(shelfRes)).find((e) => e.media_id === numId)
+    return {
+      status: entry?.status,
+      favorite,
+      rating: summary.own as number | undefined,
+      review: summary.own_review as string | undefined,
+      editionId: entry?.edition_id,
+      createdAt: entry?.created_at,
+    }
   }
 
   // Save (or clear) the user's free-text review for a media item.
