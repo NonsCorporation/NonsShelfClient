@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useSearchParams, Link } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import Layout from '../components/layout/Layout'
 import MediaModal from '../components/MediaModal'
 import ImportSearchModal from '../components/ImportSearchModal'
@@ -71,8 +71,9 @@ export default function LibrariansPage() {
 
 function CatalogTab() {
   const { t } = useLanguage()
-  const [params, setParams] = useSearchParams()
-  const q = params.get('q')?.trim() ?? ''
+  // Local state (not the URL ?q=) so the librarian search doesn't drive the
+  // global top-bar search, and so spaces aren't trimmed away while typing.
+  const [q, setQ] = useState('')
   const [results, setResults] = useState<CatalogItem[]>([])
   const [loading, setLoading] = useState(false)
   const [adding, setAdding] = useState(false)
@@ -80,13 +81,13 @@ function CatalogTab() {
   const [editItem, setEditItem] = useState<MediaItem | null>(null)
 
   useEffect(() => {
-    if (!q) {
+    if (!q.trim()) {
       setResults([])
       return
     }
     setLoading(true)
     const timer = setTimeout(() => {
-      catalogService.getCatalog(q).then((data) => {
+      catalogService.getCatalog(q.trim()).then((data) => {
         setResults(data)
         setLoading(false)
       })
@@ -94,14 +95,11 @@ function CatalogTab() {
     return () => clearTimeout(timer)
   }, [q])
 
-  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value
-    setParams(val ? { q: val } : {})
-  }
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => setQ(e.target.value)
 
   // Re-run the catalog search to reflect edits/deletes.
   const refresh = () => {
-    if (q) catalogService.getCatalog(q).then(setResults)
+    if (q.trim()) catalogService.getCatalog(q.trim()).then(setResults)
   }
 
   // Open the full edit modal for a catalog id (fetches the complete record).

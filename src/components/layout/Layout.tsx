@@ -5,6 +5,7 @@ import { IoMenu, IoSearch } from 'react-icons/io5'
 import Sidebar from './Sidebar'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { catalogService, type CatalogItem } from '../../services/catalogService'
+import { mediaPath } from '../../lib/paths'
 
 type LayoutProps = {
   children: ReactNode
@@ -128,7 +129,7 @@ export default function Layout({ children }: LayoutProps) {
                       previewResults.map((item) => (
                         <Link
                           key={item.id}
-                          to={`/media/${item.id}`}
+                          to={mediaPath(item)}
                           onClick={() => setIsModalOpen(false)}
                           className="flex items-center gap-3 rounded-lg p-2 transition-colors hover:bg-[var(--container)]"
                         >

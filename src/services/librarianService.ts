@@ -214,6 +214,22 @@ export const librarianService = {
     )
   },
 
+  // Look up edition fields for an ISBN (Google Books + OpenLibrary, server-side).
+  async lookupEdition(isbn: string): Promise<Partial<Edition> | null> {
+    const res = await authedFetch(`/api/books/isbn?isbn=${encodeURIComponent(isbn)}`)
+    if (!res.ok) return null
+    return (await res.json()) as Partial<Edition>
+  },
+
+  // Resolve the book's work and auto-import all its editions (idempotent).
+  // Returns how many editions were written.
+  async autoFindEditions(mediaId: string): Promise<number> {
+    const data = (await jsonOrThrow(
+      await authedFetch(`/api/media/${mediaId}/editions/auto`, { method: 'POST' }),
+    )) as { imported: number }
+    return data.imported
+  },
+
   // Convert a romanized edition title to Cyrillic (ISBN lookup, then reverse
   // transliteration). Returns the updated edition.
   async rusifyEdition(editionId: number): Promise<Edition> {
@@ -361,6 +377,14 @@ export const librarianService = {
 
   async deleteCredit(mediaId: string, creditId: number): Promise<void> {
     await jsonOrThrow(await authedFetch(`/api/media/${mediaId}/credits/${creditId}`, { method: 'DELETE' }))
+  },
+
+  // Auto-import a movie/series' cast & crew from TMDB (people + credits).
+  async autoFindCredits(mediaId: string): Promise<number> {
+    const data = (await jsonOrThrow(
+      await authedFetch(`/api/media/${mediaId}/credits/auto`, { method: 'POST' }),
+    )) as { imported: number }
+    return data.imported
   },
 
   // Fold `dupUuid` into `keepUuid` (the survivor).

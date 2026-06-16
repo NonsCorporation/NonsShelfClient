@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { IoTrashOutline, IoCreateOutline, IoAdd, IoCheckmark, IoClose, IoLanguageOutline } from 'react-icons/io5'
+import { IoTrashOutline, IoCreateOutline, IoAdd, IoCheckmark, IoClose, IoLanguageOutline, IoCloudDownloadOutline, IoSparklesOutline } from 'react-icons/io5'
 import { authedFetch } from '../lib/api'
 import { librarianService } from '../services/librarianService'
 import type { Edition } from '../services/librarianService'
@@ -55,6 +55,7 @@ export default function EditionsManager({ mediaId, fallbackTitle }: { mediaId: s
   const [editingId, setEditingId] = useState<number | null>(null)
   const [adding, setAdding] = useState(false)
   const [error, setError] = useState('')
+  const [finding, setFinding] = useState(false)
 
   const reload = useCallback(() => {
     setLoading(true)
@@ -112,25 +113,48 @@ export default function EditionsManager({ mediaId, fallbackTitle }: { mediaId: s
       }
     })
 
+  const handleAutoFind = async () => {
+    setError('')
+    setFinding(true)
+    try {
+      await librarianService.autoFindEditions(mediaId)
+      reload()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setFinding(false)
+    }
+  }
+
   if (loading) return <p className="text-sm text-[var(--text-muted)]">{t('loading')}</p>
 
   return (
     <div className="flex flex-col gap-3">
       {error && <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-500">{error}</p>}
 
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         <span className="text-xs text-[var(--text-muted)]">
           {editions.length} {(t('editions') || 'Editions').toLowerCase()}
         </span>
-        {editions.some((e) => !hasCyrillic(e.title)) && (
+        <div className="flex items-center gap-2">
           <button
-            onClick={handleRusifyAll}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] px-2.5 py-1 text-xs font-medium text-[var(--text)] transition-colors hover:border-nonsprimary hover:text-nonsprimary"
+            onClick={handleAutoFind}
+            disabled={finding}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] px-2.5 py-1 text-xs font-medium text-[var(--text)] transition-colors hover:border-nonsprimary hover:text-nonsprimary disabled:opacity-50"
           >
-            <IoLanguageOutline className="h-3.5 w-3.5 text-nonsprimary" />
-            {t('rusifyAll')}
+            <IoCloudDownloadOutline className="h-3.5 w-3.5 text-nonsprimary" />
+            {finding ? t('importing') : t('autoFindEditions')}
           </button>
-        )}
+          {editions.some((e) => !hasCyrillic(e.title)) && (
+            <button
+              onClick={handleRusifyAll}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] px-2.5 py-1 text-xs font-medium text-[var(--text)] transition-colors hover:border-nonsprimary hover:text-nonsprimary"
+            >
+              <IoLanguageOutline className="h-3.5 w-3.5 text-nonsprimary" />
+              {t('rusifyAll')}
+            </button>
+          )}
+        </div>
       </div>
 
       {editions.length === 0 && <p className="text-sm text-[var(--text-muted)]">{t('noEditionsYet')}</p>}
@@ -210,6 +234,7 @@ function EditionRowForm({
   const { t } = useLanguage()
   const [form, setForm] = useState(initial)
   const [busy, setBusy] = useState(false)
+  const [finding, setFinding] = useState(false)
   const input =
     'h-10 rounded-lg border border-[var(--border-subtle)] bg-[var(--input)] px-3 text-sm text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-ring)]'
 
@@ -222,12 +247,57 @@ function EditionRowForm({
     }
   }
 
+  // Look the ISBN up server-side (Google Books + OpenLibrary) and fill the form.
+  const autofill = async () => {
+    const isbn = form.isbn13.replace(/[^0-9Xx]/g, '')
+    if (!isbn) return
+    setFinding(true)
+    try {
+      const ed = await librarianService.lookupEdition(isbn)
+      if (ed) {
+        setForm((s) => ({
+          title: ed.title || s.title,
+          publisher: ed.publisher || s.publisher,
+          language: ed.language || s.language,
+          published_year: ed.published_year ? String(ed.published_year) : s.published_year,
+          pages: ed.pages ? String(ed.pages) : s.pages,
+          isbn13: ed.isbn13 || ed.isbn10 || s.isbn13,
+          cover_url: ed.cover_url || s.cover_url,
+        }))
+      }
+    } finally {
+      setFinding(false)
+    }
+  }
+
   return (
     <div className="flex flex-col gap-2 rounded-xl border border-dashed border-[var(--border-subtle)] p-3">
       <input className={input} placeholder={t('editionTitle')} value={form.title} onChange={(e) => setForm((s) => ({ ...s, title: e.target.value }))} />
+      <div className="flex gap-2">
+        <input
+          className={`${input} flex-1`}
+          placeholder="ISBN"
+          value={form.isbn13}
+          onChange={(e) => setForm((s) => ({ ...s, isbn13: e.target.value }))}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault()
+              autofill()
+            }
+          }}
+        />
+        <button
+          type="button"
+          onClick={autofill}
+          disabled={!form.isbn13 || finding}
+          className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-lg bg-nonsprimary px-3 text-sm font-medium text-white hover:bg-nonsprimaryfocus disabled:opacity-50"
+        >
+          <IoSparklesOutline className="h-4 w-4" />
+          {finding ? t('looking') : t('autofill')}
+        </button>
+      </div>
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         <input className={input} placeholder={t('publisher')} value={form.publisher} onChange={(e) => setForm((s) => ({ ...s, publisher: e.target.value }))} />
-        <input className={input} placeholder="ISBN" value={form.isbn13} onChange={(e) => setForm((s) => ({ ...s, isbn13: e.target.value }))} />
         <input className={input} placeholder={t('language')} value={form.language} onChange={(e) => setForm((s) => ({ ...s, language: e.target.value }))} />
         <input className={input} placeholder={t('publishedYear')} value={form.published_year} onChange={(e) => setForm((s) => ({ ...s, published_year: e.target.value }))} />
         <input className={input} type="number" placeholder={t('pages')} value={form.pages} onChange={(e) => setForm((s) => ({ ...s, pages: e.target.value }))} />

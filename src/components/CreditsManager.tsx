@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { IoCloseCircle } from 'react-icons/io5'
+import { IoCloseCircle, IoCloudDownloadOutline } from 'react-icons/io5'
 import { librarianService } from '../services/librarianService'
 import type { Credit, CreditRole } from '../services/librarianService'
 import { useLanguage } from '../contexts/LanguageContext'
@@ -22,6 +22,7 @@ export default function CreditsManager({ mediaId, mediaType }: { mediaId: string
   const [role, setRole] = useState('')
   const [character, setCharacter] = useState('')
   const [error, setError] = useState('')
+  const [finding, setFinding] = useState(false)
 
   const reloadCredits = useCallback(() => {
     librarianService.getCredits(mediaId).then(setCredits).catch(() => setCredits([]))
@@ -60,6 +61,19 @@ export default function CreditsManager({ mediaId, mediaType }: { mediaId: string
     }
   }
 
+  const autoFind = async () => {
+    setError('')
+    setFinding(true)
+    try {
+      await librarianService.autoFindCredits(mediaId)
+      reloadCredits()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setFinding(false)
+    }
+  }
+
   // Group existing credits by role, in the role catalog's order.
   const byRole = roles
     .map((r) => ({ role: r.role, items: credits.filter((c) => c.role === r.role) }))
@@ -69,13 +83,32 @@ export default function CreditsManager({ mediaId, mediaType }: { mediaId: string
     <div className="flex flex-col gap-3">
       {error && <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-500">{error}</p>}
 
+      {mediaType !== 'book' && (
+        <button
+          onClick={autoFind}
+          disabled={finding}
+          className="inline-flex w-fit items-center gap-1.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] px-2.5 py-1 text-xs font-medium text-[var(--text)] transition-colors hover:border-nonsprimary hover:text-nonsprimary disabled:opacity-50"
+        >
+          <IoCloudDownloadOutline className="h-3.5 w-3.5 text-nonsprimary" />
+          {finding ? t('importing') : t('autoFindCredits')}
+        </button>
+      )}
+
       {byRole.map((g) => (
         <div key={g.role}>
           <h4 className="mb-1.5 text-[10px] uppercase tracking-widest text-[var(--text-muted)]">{roleLabel(t, g.role)}</h4>
           <div className="flex flex-wrap gap-2">
             {g.items.map((c) => (
               <span key={c.id} className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border-subtle)] bg-[var(--surface)] py-1 pl-3 pr-1.5 text-sm text-[var(--text)]">
-                {c.person.name}
+                <a
+                  href={`/p/${c.person.uuid}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  title={t('viewProfile')}
+                  className="hover:text-nonsprimary hover:underline"
+                >
+                  {c.person.name}
+                </a>
                 {c.character ? <span className="text-[var(--text-muted)]"> · {c.character}</span> : null}
                 <button onClick={() => remove(c.id)} title={t('delete')} className="text-[var(--text-muted)] hover:text-red-500">
                   <IoCloseCircle className="h-4 w-4" />
