@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from '@/lib/router'
 import Layout from '../components/layout/Layout'
 import Hint from '../components/Hint'
@@ -13,8 +13,10 @@ import { useLanguage } from '../contexts/LanguageContext'
 import { usePreferences } from '../contexts/PreferencesContext'
 import { useAuth } from '../contexts/AuthContext'
 import { statusLabel, STATUS_COLOR } from '../lib/shelf'
+import type { ShelfStatus } from '../types'
 import { mediaPath } from '../lib/paths'
-import { IoStar, IoEyeOffOutline, IoPeopleOutline, IoTrendingUpOutline } from 'react-icons/io5'
+import { IoStar, IoEyeOffOutline, IoPeopleOutline, IoChevronBack, IoChevronForward } from 'react-icons/io5'
+import ShelfStatusBar from '../components/ShelfStatusBar'
 
 export default function FeedPage() {
   const { t } = useLanguage()
@@ -23,8 +25,6 @@ export default function FeedPage() {
   const [items, setItems] = useState<MediaItem[]>([])
   const [activity, setActivity] = useState<Activity[]>([])
   const [loading, setLoading] = useState(true)
-  // Progress modal (books/series) and the ending modal (all types).
-  const [progressItem, setProgressItem] = useState<MediaItem | null>(null)
   const [finishItem, setFinishItem] = useState<MediaItem | null>(null)
 
   const load = useCallback(() => {
@@ -41,12 +41,9 @@ export default function FeedPage() {
     load()
   }, [load])
 
-  // The "edit progress" icon: movies jump straight to the ending modal (nothing
-  // partial to track); books/series open the progress modal first.
-  const editProgress = (it: MediaItem) => {
-    if (it.type === 'movie') setFinishItem(it)
-    else setProgressItem(it)
-  }
+  const [progressItem, setProgressItem] = useState<MediaItem | null>(null)
+  const openFinish = (it: MediaItem) => setFinishItem(it)
+  const openProgress = (it: MediaItem) => setProgressItem(it)
 
   const inProgress = useMemo(() => items.filter((it) => it.status === 'active'), [items])
 
@@ -59,64 +56,13 @@ export default function FeedPage() {
 
       {/* Currently watching / reading */}
       {!loading && inProgress.length > 0 && showInProgress && (
-        <section className="mb-10">
-          <div className="mb-3 flex items-center gap-3">
-            <h2 className="flex items-center gap-2 text-base font-semibold text-[var(--text)]">
-              <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: STATUS_COLOR.active }} />
-              {t('shelfActive')}
-            </h2>
-            <p className="hidden text-sm text-[var(--text-muted)] sm:block">{t('continueHint')}</p>
-            <button
-              onClick={() => setShowInProgress(false)}
-              title={t('hide')}
-              className="ml-auto inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
-            >
-              <IoEyeOffOutline className="h-4 w-4" />
-              {t('hide')}
-            </button>
-          </div>
-          <div className="no-scrollbar -mx-4 flex gap-3 overflow-x-auto px-4 pb-1 md:-mx-8 md:px-8">
-            {inProgress.map((it) => (
-              <div key={it.id} className="relative w-72 flex-shrink-0">
-                <Link
-                  to={mediaPath(it)}
-                  className="group flex w-full items-center gap-3 rounded-2xl border border-[var(--border-subtle)] bg-[var(--container)] p-3 transition-colors hover:border-[var(--border)]"
-                >
-                  {it.coverUrl ? (
-                    <img
-                      src={it.coverUrl}
-                      alt={it.title}
-                      loading="lazy"
-                      className="h-[84px] w-14 flex-shrink-0 rounded-lg object-cover"
-                    />
-                  ) : (
-                    <div className="h-[84px] w-14 flex-shrink-0 rounded-lg bg-[var(--container-2)]" />
-                  )}
-                  <div className="min-w-0 flex-1 pr-7">
-                    <p className="text-[11px] font-medium" style={{ color: STATUS_COLOR.active }}>
-                      {statusLabel(it.type, 'active', t)}
-                    </p>
-                    <h3 className="mt-0.5 truncate text-sm font-semibold text-[var(--text)]">{it.title}</h3>
-                    <p className="truncate text-xs text-[var(--text-muted)]">{it.author}</p>
-                    {typeof it.rating === 'number' && it.rating > 0 && (
-                      <span className="mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-[var(--text)]">
-                        <IoStar className="h-3 w-3 text-nonsprimary" />
-                        {(it.rating / 2).toFixed(1)}
-                      </span>
-                    )}
-                  </div>
-                </Link>
-                <button
-                  onClick={() => editProgress(it)}
-                  title={t('updateProgress') || 'Update progress'}
-                  className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-lg bg-[var(--surface)] text-[var(--text-muted)] transition-colors hover:text-nonsprimary"
-                >
-                  <IoTrendingUpOutline className="h-4 w-4" />
-                </button>
-              </div>
-            ))}
-          </div>
-        </section>
+        <InProgressSection
+          items={inProgress}
+          onHide={() => setShowInProgress(false)}
+          onFinish={openFinish}
+          onEditProgress={openProgress}
+          t={t}
+        />
       )}
 
       {!loading && inProgress.length > 0 && !showInProgress && (
@@ -154,10 +100,7 @@ export default function FeedPage() {
         isOpen={!!progressItem}
         item={progressItem}
         onClose={() => setProgressItem(null)}
-        onFinish={() => {
-          setFinishItem(progressItem)
-          setProgressItem(null)
-        }}
+        onFinish={() => { setFinishItem(progressItem); setProgressItem(null) }}
       />
       <FinishModal
         isOpen={!!finishItem}
@@ -169,5 +112,160 @@ export default function FeedPage() {
         }}
       />
     </Layout>
+  )
+}
+
+
+function InProgressSection({
+  items,
+  onHide,
+  onFinish,
+  onEditProgress,
+  t,
+}: {
+  items: MediaItem[]
+  onHide: () => void
+  onFinish: (it: MediaItem) => void
+  onEditProgress: (it: MediaItem) => void
+  t: (key: string) => string
+}) {
+  const rowRef = useRef<HTMLDivElement>(null)
+  const [canScrollLeft, setCanScrollLeft] = useState(false)
+  const [canScrollRight, setCanScrollRight] = useState(false)
+  const [expandedId, setExpandedId] = useState<string | null>(null)
+
+  const updateArrows = () => {
+    const el = rowRef.current
+    if (!el) return
+    setCanScrollLeft(el.scrollLeft > 4)
+    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 4)
+  }
+
+  useEffect(() => {
+    updateArrows()
+    const el = rowRef.current
+    if (!el) return
+    el.addEventListener('scroll', updateArrows, { passive: true })
+    const ro = new ResizeObserver(updateArrows)
+    ro.observe(el)
+    return () => {
+      el.removeEventListener('scroll', updateArrows)
+      ro.disconnect()
+    }
+  }, [items])
+
+  const scroll = (dir: 'left' | 'right') => {
+    rowRef.current?.scrollBy({ left: dir === 'left' ? -300 : 300, behavior: 'smooth' })
+  }
+
+  const toggle = (id: string) => setExpandedId((cur) => (cur === id ? null : id))
+
+  return (
+    <section className="mb-10">
+      <div className="mb-3 flex items-center gap-3">
+        <h2 className="flex items-center gap-2 text-base font-semibold text-[var(--text)]">
+          <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: STATUS_COLOR.active }} />
+          {t('shelfActive')}
+        </h2>
+        <p className="hidden text-sm text-[var(--text-muted)] sm:block">{t('continueHint')}</p>
+        <button
+          onClick={onHide}
+          title={t('hide')}
+          className="ml-auto inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
+        >
+          <IoEyeOffOutline className="h-4 w-4" />
+          {t('hide')}
+        </button>
+      </div>
+
+      <div className="relative">
+        {canScrollLeft && (
+          <button
+            onClick={() => scroll('left')}
+            className="absolute -left-3 top-1/2 z-10 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-full border border-[var(--border-subtle)] bg-[var(--container)] text-[var(--text)] shadow-lg hover:bg-[var(--surface-hover)]"
+          >
+            <IoChevronBack className="h-4 w-4" />
+          </button>
+        )}
+
+        {canScrollRight && (
+          <>
+            <div className="pointer-events-none absolute right-0 top-0 z-10 h-full w-24 bg-gradient-to-l from-[var(--bg)] to-transparent" />
+            <button
+              onClick={() => scroll('right')}
+              className="absolute -right-3 top-1/2 z-20 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-full border border-[var(--border-subtle)] bg-[var(--container)] text-[var(--text)] shadow-lg hover:bg-[var(--surface-hover)]"
+            >
+              <IoChevronForward className="h-4 w-4" />
+            </button>
+          </>
+        )}
+
+        <div ref={rowRef} className="no-scrollbar flex items-start gap-3 overflow-x-auto pb-1">
+          {items.map((it) => (
+            <InProgressCard
+              key={it.id}
+              item={it}
+              expanded={expandedId === it.id}
+              onFinish={() => onFinish(it)}
+              onEditProgress={() => onEditProgress(it)}
+              t={t}
+            />
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function InProgressCard({
+  item,
+  onFinish,
+  onEditProgress,
+  t,
+}: {
+  item: MediaItem
+  expanded: boolean
+  onFinish: () => void
+  onEditProgress: () => void
+  t: (key: string) => string
+}) {
+  const handleStatusChange = (key: ShelfStatus) => {
+    if (key === 'done') { onFinish(); return }
+    libraryService.updateItem(item.id, { status: key }).catch(() => {})
+  }
+
+  return (
+    <div className="w-72 flex-shrink-0">
+      <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--container)]">
+        <Link to={mediaPath(item)} className="flex items-center gap-3 p-3">
+          {item.coverUrl ? (
+            <img src={item.coverUrl} alt={item.title} loading="lazy" className="h-[84px] w-14 flex-shrink-0 rounded-lg object-cover" />
+          ) : (
+            <div className="h-[84px] w-14 flex-shrink-0 rounded-lg bg-[var(--container-2)]" />
+          )}
+          <div className="min-w-0 flex-1">
+            <h3 className="truncate text-sm font-semibold text-[var(--text)]">{item.title}</h3>
+            <p className="truncate text-xs text-[var(--text-muted)]">{item.author}</p>
+            {typeof item.rating === 'number' && item.rating > 0 && (
+              <span className="mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-[var(--text)]">
+                <IoStar className="h-3 w-3 text-nonsprimary" />
+                {(item.rating / 2).toFixed(1)}
+              </span>
+            )}
+          </div>
+        </Link>
+
+        <div className="mx-3 h-px bg-[var(--border-subtle)]" />
+
+        <div className="p-1.5">
+          <ShelfStatusBar
+            item={item}
+            currentStatus="active"
+            onStatusChange={handleStatusChange}
+            onEditProgress={onEditProgress}
+          />
+        </div>
+      </div>
+    </div>
   )
 }

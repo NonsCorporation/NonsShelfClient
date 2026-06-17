@@ -1,9 +1,12 @@
 'use client'
 
-import { useState, useEffect, useCallback, Fragment, type ReactNode } from 'react'
+import { useState, useEffect, useCallback, Fragment, type ReactNode, useRef } from 'react'
 import { useParams, useNavigate, useSearchParams, Link } from '@/lib/router'
 import Layout from '../components/layout/Layout'
 import MediaModal from '../components/MediaModal'
+import ProgressModal from '../components/ProgressModal'
+import FinishModal from '../components/FinishModal'
+import ShelfStatusBar from '../components/ShelfStatusBar'
 import StarsSelector from '../StarsSelector'
 import { libraryService } from '../services/libraryService'
 import { librarianService } from '../services/librarianService'
@@ -27,7 +30,7 @@ import {
 import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
 import { isLibrarian } from '../services/librarianService'
-import { STATUS_ORDER, STATUS_COLOR, statusLabel } from '../lib/shelf'
+import { statusLabel } from '../lib/shelf'
 
 // CreditPerson, MediaCredits and Edition come from ../lib/mediaMap so the
 // server-rendered /b and /m pages can share them.
@@ -90,6 +93,8 @@ export default function MediaOnePage({
   const [reviewSaved, setReviewSaved] = useState(false)
   const [episodesOpen, setEpisodesOpen] = useState(true)
   const [editing, setEditing] = useState(false)
+  const [progressOpen, setProgressOpen] = useState(false)
+  const [finishOpen, setFinishOpen] = useState(false)
 
   const loadItem = useCallback(() => {
     if (!id) return
@@ -351,23 +356,15 @@ export default function MediaOnePage({
           {/* Status shelf control — signed in; otherwise a sign-in prompt. */}
           {canInteract ? (
             <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface)] p-3">
-              <p className="mb-2 text-[10px] uppercase tracking-widest text-[var(--text-muted)]">{t('status')}</p>
-              <div className="flex flex-col gap-1">
-                {STATUS_ORDER.map((s: ShelfStatus) => (
-                  <button
-                    key={s}
-                    onClick={() => patch({ status: s })}
-                    className={`flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition-colors ${
-                      status === s
-                        ? 'bg-[var(--surface-active)] font-medium text-[var(--text)]'
-                        : 'text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]'
-                    }`}
-                  >
-                    <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: STATUS_COLOR[s] }} />
-                    {statusLabel(item.type, s, t)}
-                  </button>
-                ))}
-              </div>
+              <ShelfStatusBar
+                item={item}
+                currentStatus={status}
+                onStatusChange={(s) => {
+                  if (s === 'done') { setFinishOpen(true); return }
+                  patch({ status: s })
+                }}
+                onEditProgress={status === 'active' ? () => setProgressOpen(true) : undefined}
+              />
             </div>
           ) : showSignIn ? (
             signInPrompt
@@ -699,6 +696,18 @@ export default function MediaOnePage({
         </div>
       </div>
 
+      <ProgressModal
+        isOpen={progressOpen}
+        item={item}
+        onClose={() => setProgressOpen(false)}
+        onFinish={() => { setProgressOpen(false); setFinishOpen(true) }}
+      />
+      <FinishModal
+        isOpen={finishOpen}
+        item={item}
+        onClose={() => setFinishOpen(false)}
+        onFinished={() => { setFinishOpen(false); loadItem() }}
+      />
       <MediaModal
         isOpen={editing}
         catalogOnly

@@ -39,7 +39,7 @@ html {
   background-color: var(--color-nonsdarkbg);
   color-scheme: dark;
   scrollbar-gutter: stable;
-  overflow-x: hidden;
+  overflow-x: clip;
 }
 
 body {
