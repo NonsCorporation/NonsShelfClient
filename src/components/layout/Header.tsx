@@ -44,6 +44,10 @@ export default function Header() {
 
   const [accountOpen, setAccountOpen] = useState(false)
   const [sheetOpen, setSheetOpen] = useState(false)
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false)
+  const [mobileQ, setMobileQ] = useState('')
+  const [mobileResults, setMobileResults] = useState<CatalogItem[]>([])
+  const mobileInputRef = useRef<HTMLInputElement>(null)
   const hidden = useHideOnScroll(accountOpen || sheetOpen)
 
   const display = user
@@ -90,13 +94,27 @@ export default function Header() {
   useEffect(() => {
     setAccountOpen(false)
     setSheetOpen(false)
+    setMobileSearchOpen(false)
   }, [path])
+
+  useEffect(() => {
+    if (!mobileSearchOpen) { setMobileQ(''); setMobileResults([]); return }
+    setTimeout(() => mobileInputRef.current?.focus(), 50)
+  }, [mobileSearchOpen])
+
+  useEffect(() => {
+    if (!mobileQ) { setMobileResults([]); return }
+    const t = setTimeout(() => {
+      catalogService.getCatalog(mobileQ).then((d) => setMobileResults(d.slice(0, 6)))
+    }, 280)
+    return () => clearTimeout(t)
+  }, [mobileQ])
 
   return (
     <>
-      {/* ── Top header ── */}
+      {/* ── Top header (desktop only) ── */}
       <header
-        className={`sticky top-0 z-40 border-b border-[var(--border-subtle)] bg-[color-mix(in_srgb,var(--container)_72%,transparent)] backdrop-blur-xl transition-transform duration-300 will-change-transform ${
+        className={`sticky top-0 z-40 hidden border-b border-[var(--border-subtle)] bg-[color-mix(in_srgb,var(--container)_72%,transparent)] backdrop-blur-xl transition-transform duration-300 will-change-transform lg:block ${
           hidden ? '-translate-y-full' : 'translate-y-0'
         }`}
       >
@@ -259,69 +277,112 @@ export default function Header() {
 
       {/* ── Mobile bottom nav (floating oval pill) ── */}
       <div className="pointer-events-none fixed bottom-6 left-0 right-0 z-50 flex justify-center lg:hidden">
-        <nav className="pointer-events-auto flex items-center gap-1 rounded-full border border-[var(--border-subtle)] bg-[color-mix(in_srgb,var(--container)_88%,transparent)] px-2 py-2 shadow-2xl backdrop-blur-xl">
-          {/* Home */}
-          <Link
-            to="/"
-            aria-label={t('home')}
-            className={`flex h-11 w-11 items-center justify-center rounded-full transition-colors ${
-              path === '/' ? 'bg-[var(--surface-active)] text-[var(--text)]' : 'text-[var(--text-muted)]'
-            }`}
-          >
-            <IoHomeOutline className="h-[22px] w-[22px]" />
-          </Link>
+        <nav className="pointer-events-auto flex items-center gap-0.5 rounded-full border border-[var(--border-subtle)] bg-[color-mix(in_srgb,var(--container)_88%,transparent)] px-3 py-2.5 shadow-2xl backdrop-blur-xl">
+          {[
+            { to: '/', icon: IoHomeOutline, label: t('home') || 'Home', active: path === '/' },
+            { to: '/library', icon: IoLibraryOutline, label: t('library') || 'Library', active: path === '/library' },
+            { to: '/discover', icon: IoCompassOutline, label: t('discover') || 'Discover', active: path === '/discover' },
+          ].map(({ to, icon: Icon, label, active }) => (
+            <Link
+              key={to}
+              to={to}
+              className={`flex flex-col items-center gap-0.5 rounded-2xl px-3.5 py-1.5 transition-colors ${
+                active ? 'text-[var(--text)]' : 'text-[var(--text-muted)]'
+              }`}
+            >
+              <Icon className="h-[22px] w-[22px]" />
+              <span className="text-[10px] font-medium leading-none">{label}</span>
+            </Link>
+          ))}
 
-          {/* Discover */}
-          <Link
-            to="/discover"
-            aria-label={t('discover')}
-            className={`flex h-11 w-11 items-center justify-center rounded-full transition-colors ${
-              path === '/discover' ? 'bg-[var(--surface-active)] text-[var(--text)]' : 'text-[var(--text-muted)]'
+          {/* Search */}
+          <button
+            onClick={() => setMobileSearchOpen(true)}
+            className={`flex flex-col items-center gap-0.5 rounded-2xl px-3.5 py-1.5 transition-colors ${
+              mobileSearchOpen ? 'text-[var(--text)]' : 'text-[var(--text-muted)]'
             }`}
           >
-            <IoCompassOutline className="h-[22px] w-[22px]" />
-          </Link>
-
-          {/* Library — center hero pill */}
-          <Link
-            to="/library"
-            className={`flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold transition-all ${
-              path === '/library'
-                ? 'bg-nonsprimary text-white shadow-lg shadow-nonsprimary/30'
-                : 'bg-[var(--surface)] text-[var(--text)] hover:bg-[var(--surface-hover)]'
-            }`}
-          >
-            <IoLibraryOutline className="h-[20px] w-[20px]" />
-            {t('library') || 'Shelf'}
-          </Link>
-
-          {/* Calendar */}
-          <Link
-            to="/calendar"
-            aria-label={t('calendar')}
-            className={`flex h-11 w-11 items-center justify-center rounded-full transition-colors ${
-              path === '/calendar' ? 'bg-[var(--surface-active)] text-[var(--text)]' : 'text-[var(--text-muted)]'
-            }`}
-          >
-            <IoCalendarOutline className="h-[22px] w-[22px]" />
-          </Link>
+            <IoSearch className="h-[22px] w-[22px]" />
+            <span className="text-[10px] font-medium leading-none">Search</span>
+          </button>
 
           {/* Profile — opens the sheet */}
           <button
             onClick={() => setSheetOpen(true)}
-            aria-label={t('viewProfile')}
-            className={`flex h-11 w-11 items-center justify-center rounded-full transition-colors ${
-              sheetOpen ? 'bg-[var(--surface-active)]' : 'hover:bg-[var(--surface)]'
+            className={`flex flex-col items-center gap-0.5 rounded-2xl px-3.5 py-1.5 transition-colors ${
+              sheetOpen ? 'text-[var(--text)]' : 'text-[var(--text-muted)]'
             }`}
           >
             {display ? (
               <Avatar display={display} />
             ) : (
-              <IoPersonOutline className="h-[22px] w-[22px] text-[var(--text-muted)]" />
+              <IoPersonOutline className="h-[22px] w-[22px]" />
             )}
+            <span className="text-[10px] font-medium leading-none">{t('profile') || 'Profile'}</span>
           </button>
         </nav>
       </div>
+
+      {/* ── Mobile search overlay ── */}
+      {mobileSearchOpen && (
+        <>
+          <div onClick={() => setMobileSearchOpen(false)} className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm lg:hidden" />
+          <div className="animate-slide-up fixed inset-x-0 bottom-0 z-[70] rounded-t-3xl border-t border-[var(--border-subtle)] bg-[var(--container)] lg:hidden">
+            <div className="flex justify-center pb-2 pt-3">
+              <div className="h-1 w-10 rounded-full bg-[var(--border)]" />
+            </div>
+            <div className="flex items-center gap-2 px-4 pb-3 pt-1">
+              <div className="relative flex-1">
+                <IoSearch className="pointer-events-none absolute left-3.5 top-1/2 h-[17px] w-[17px] -translate-y-1/2 text-[var(--text-muted)]" />
+                <input
+                  ref={mobileInputRef}
+                  value={mobileQ}
+                  onChange={(e) => setMobileQ(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && mobileQ) {
+                      setMobileSearchOpen(false)
+                      window.location.href = `/discover?q=${encodeURIComponent(mobileQ)}`
+                    }
+                  }}
+                  placeholder={t('globalSearch') || 'Search books, films…'}
+                  className="h-11 w-full rounded-full border border-[var(--border-subtle)] bg-[var(--input)] pl-11 pr-4 text-sm text-[var(--text)] placeholder:text-[var(--placeholder)] focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[var(--primary-ring)]"
+                />
+              </div>
+              <button
+                onClick={() => setMobileSearchOpen(false)}
+                className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-[var(--surface)] text-[var(--text-muted)]"
+              >
+                <IoClose className="h-5 w-5" />
+              </button>
+            </div>
+            {mobileResults.length > 0 && (
+              <div className="max-h-[55dvh] overflow-y-auto px-3 pb-3">
+                {mobileResults.map((item) => (
+                  <Link
+                    key={item.id}
+                    to={mediaPath(item)}
+                    onClick={() => setMobileSearchOpen(false)}
+                    className="flex items-center gap-3 rounded-xl p-2.5 transition-colors hover:bg-[var(--surface)]"
+                  >
+                    {item.coverUrl ? (
+                      <img src={item.coverUrl} alt="" className="h-12 w-8 flex-shrink-0 rounded object-cover" />
+                    ) : (
+                      <div className="h-12 w-8 flex-shrink-0 rounded bg-[var(--surface)]" />
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm font-semibold text-[var(--text)]">{item.title}</div>
+                      <div className="truncate text-xs text-[var(--text-muted)]">
+                        {item.type === 'book' ? item.author : item.director || item.author}
+                      </div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )}
+            <div className="pb-safe h-6" />
+          </div>
+        </>
+      )}
 
       {/* ── Profile / more sheet ── */}
       {sheetOpen && (
@@ -374,10 +435,10 @@ export default function Header() {
 
             <div className="h-px bg-[var(--border-subtle)]" />
 
-            {/* Extra nav links */}
+            {/* Nav links: calendar + any extras (librarians etc.) */}
             <nav className="p-3">
               {nav
-                .filter((item) => !['/', '/library', '/discover', '/calendar'].includes(item.to))
+                .filter((item) => !['/', '/library', '/discover'].includes(item.to))
                 .map((item) => {
                   const Icon = item.icon
                   const active = item.match(path)
@@ -396,36 +457,6 @@ export default function Header() {
                   )
                 })}
             </nav>
-
-            <div className="h-px bg-[var(--border-subtle)]" />
-
-            {/* Shelves */}
-            <div className="p-3">
-              <p className="px-4 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--text-muted)]">
-                {t('shelves')}
-              </p>
-              {shelves.map((s) => {
-                const active = onLibrary && activeShelf === s.key
-                const Icon = s.icon
-                return (
-                  <Link
-                    key={s.key}
-                    to={s.key === 'all' ? '/library' : `/library?shelf=${s.key}`}
-                    onClick={() => setSheetOpen(false)}
-                    className={`flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm transition-colors ${
-                      active ? 'bg-[var(--surface)] font-medium text-[var(--text)]' : 'text-[var(--text-muted)]'
-                    }`}
-                  >
-                    {s.dot ? (
-                      <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: s.dot }} />
-                    ) : (
-                      <Icon className="h-[18px] w-[18px]" />
-                    )}
-                    {s.label}
-                  </Link>
-                )
-              })}
-            </div>
 
             <div className="h-px bg-[var(--border-subtle)]" />
 
