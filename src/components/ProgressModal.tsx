@@ -105,7 +105,7 @@ export default function ProgressModal({ isOpen, item, onClose, onFinish }: Props
   }
 
   return (
-    <div onClick={onClose} className="fixed inset-0 z-[70] flex items-center justify-center bg-[var(--overlay)] p-4">
+    <div onClick={onClose} className="fixed inset-0 z-[70] flex items-center justify-center bg-[var(--overlay)] px-4 pb-28 pt-4 sm:p-4">
       <div
         onClick={(e) => e.stopPropagation()}
         className="flex max-h-[85vh] w-full max-w-2xl flex-col gap-4 rounded-2xl border border-[var(--border)] bg-[var(--container)] p-5"
@@ -113,7 +113,7 @@ export default function ProgressModal({ isOpen, item, onClose, onFinish }: Props
         <div className="flex items-start justify-between gap-3">
           <div>
             <h3 className="text-lg font-semibold leading-tight tracking-wide text-[var(--text)]">
-              {t('updateProgress') || 'Update progress'}
+              {t('updateProgress')}
             </h3>
             <p className="text-sm text-[var(--text-muted)]">{item.title}</p>
           </div>
@@ -128,7 +128,7 @@ export default function ProgressModal({ isOpen, item, onClose, onFinish }: Props
         {/* Book: current page + its own "Update progress" button */}
         {isBook && (
           <div className="flex flex-col gap-2.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] p-3.5">
-            <label className="text-sm font-medium text-[var(--text)]">{t('currentPage') || 'Current page'}</label>
+            <label className="text-sm font-medium text-[var(--text)]">{t('currentPage')}</label>
             <div className="flex items-center gap-2">
               <input
                 type="number"
@@ -139,7 +139,7 @@ export default function ProgressModal({ isOpen, item, onClose, onFinish }: Props
                   setPage(e.target.value)
                   setSaved(false)
                 }}
-                placeholder={total ? `0 – ${total}` : t('page') || 'Page'}
+                placeholder={total ? `0 – ${total}` : t('page')}
                 className="h-11 w-28 rounded-lg border border-[var(--border-subtle)] bg-[var(--input)] px-3 text-sm text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-ring)]"
               />
               {total > 0 && <span className="text-sm text-[var(--text-muted)]">/ {total}</span>}
@@ -149,7 +149,7 @@ export default function ProgressModal({ isOpen, item, onClose, onFinish }: Props
               disabled={saving || !page}
               className="h-10 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] px-4 text-sm font-medium text-[var(--text)] transition-colors hover:border-nonsprimary hover:text-nonsprimary disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {saving ? t('saving') || 'Saving…' : saved ? t('saved') || 'Saved ✓' : t('updateProgress') || 'Update progress'}
+              {saving ? t('saving') : saved ? t('saved') : t('updateProgress')}
             </button>
           </div>
         )}
@@ -203,7 +203,7 @@ export default function ProgressModal({ isOpen, item, onClose, onFinish }: Props
                                       desktop; tap/click opens the info card. */}
                                   <button
                                     onClick={(e) => showInfo(e, ep)}
-                                    title={t('episodeInfo') || 'Episode info'}
+                                    title={t('episodeInfo')}
                                     className={`absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-[var(--container)] text-[var(--text-muted)] shadow transition-opacity hover:text-nonsprimary ${
                                       info?.ep.id === ep.id
                                         ? 'text-nonsprimary opacity-100'
@@ -225,7 +225,7 @@ export default function ProgressModal({ isOpen, item, onClose, onFinish }: Props
             ) : (
               <div className="flex flex-col items-center gap-2 py-8 text-center text-sm text-[var(--text-muted)]">
                 <IoTvOutline className="h-6 w-6 text-[var(--placeholder)]" />
-                {episodes ? t('noEpisodes') || 'No episodes yet' : t('loading')}
+                {episodes ? t('noEpisodes') : t('loading')}
               </div>
             )}
           </div>
@@ -235,14 +235,14 @@ export default function ProgressModal({ isOpen, item, onClose, onFinish }: Props
             isn't mistaken for the update-progress button above. */}
         <div className="mt-1 flex flex-col gap-2 border-t border-[var(--divider)] pt-4">
           <p className="text-xs text-[var(--text-muted)]">
-            {isBook ? t('finishedReadingHint') || 'Done with it?' : t('finishedWatchingHint') || 'Done with it?'}
+            {isBook ? t('finishedReadingHint') : t('finishedWatchingHint')}
           </p>
           <button
             onClick={onFinish}
             className="flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-nonsprimary bg-[var(--primary-soft)] text-sm font-semibold text-nonsprimary transition-opacity hover:opacity-80"
           >
             <IoCheckmarkDoneOutline className="h-5 w-5" />
-            {t('imFinished') || "I'm finished"}
+            {t('imFinished')}
           </button>
         </div>
       </div>
