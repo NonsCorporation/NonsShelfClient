@@ -10,7 +10,7 @@ export default function Layout({ children }: LayoutProps) {
     <div className="app-ambient relative min-h-screen">
       <Header />
       <main className="relative z-10">
-        <div className="mx-auto max-w-6xl px-4 py-6 md:px-8 md:py-10">{children}</div>
+        <div className="mx-auto max-w-6xl px-4 py-6 pb-32 md:px-8 md:py-10 md:pb-10">{children}</div>
       </main>
     </div>
   )

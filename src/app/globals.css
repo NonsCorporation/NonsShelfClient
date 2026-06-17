@@ -130,3 +130,11 @@ html[data-theme="light"] .app-ambient::before {
 .animate-fade-up {
   animation: nons-fade-up 0.35s ease both;
 }
+
+@keyframes nons-slide-up {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+.animate-slide-up {
+  animation: nons-slide-up 0.3s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
