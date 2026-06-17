@@ -150,10 +150,10 @@ export default function CalendarPage() {
                 </div>
 
                 {/* view container */}
-                <div className="bg-[var(--container)] border border-[var(--border-subtle)] rounded-2xl p-4 md:p-6 overflow-hidden">
+                <div className="bg-[var(--container)] border border-[var(--border-subtle)] rounded-2xl p-4 md:p-6">
                     {viewMode === 'calendar' ? (
                         <>
-                            <div className="grid grid-cols-7 mb-4 text-center text-sm md:text-base font-medium text-[var(--text-muted)]">
+                            <div className="grid grid-cols-7 mb-3 text-center text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">
                                 <div>{t('mon')}</div>
                                 <div>{t('tue')}</div>
                                 <div>{t('wed')}</div>
@@ -162,35 +162,34 @@ export default function CalendarPage() {
                                 <div>{t('sat')}</div>
                                 <div className="text-nonslightred">{t('sun')}</div>
                             </div>
-                            
-                            <div className="grid grid-cols-7 gap-y-4 md:gap-y-6 gap-x-1 md:gap-x-2">
+
+                            <div className="grid grid-cols-7 gap-px bg-[var(--border-subtle)] rounded-xl overflow-hidden">
                                 {[...Array(startOffset)].map((_, i) => (
-                                    <div key={`empty-${i}`} />
+                                    <div key={`empty-${i}`} className="bg-[var(--container)] min-h-[90px] md:min-h-[120px]" />
                                 ))}
-                                
+
                                 {[...Array(daysInMonth)].map((_, i) => {
                                     const day = i + 1;
                                     const data = currentMonthItems[day];
                                     const isSunday = (day + startOffset - 1) % 7 === 6;
 
                                     return (
-                                        <div key={day} className="flex flex-col items-center min-h-[72px] md:min-h-[100px]">
-                                            <span className={`text-sm md:text-base mb-1.5 md:mb-2 ${isSunday ? 'text-nonslightred font-semibold' : 'text-[var(--text)]'}`}>
+                                        <div key={day} className="bg-[var(--container)] min-h-[90px] md:min-h-[120px] p-1.5 md:p-2 flex flex-col items-center gap-1.5">
+                                            <span className={`text-xs md:text-sm font-medium ${isSunday ? 'text-nonslightred' : 'text-[var(--text-muted)]'}`}>
                                                 {day}
                                             </span>
-                                            
+
                                             {data && (
-                                                <div className="flex flex-col items-center w-full">
-                                                    <div className="flex flex-wrap justify-center gap-[2px] md:gap-[4px] w-full px-0.5">
-                                                        {data.covers.map((url, idx) => (
-                                                            <img 
-                                                                key={idx} 
-                                                                src={url} 
-                                                                className={`object-cover h-auto aspect-[2/3] ${data.covers.length > 2 ? 'w-[40%] md:w-[45%]' : 'w-[48%] md:w-[60%]'} max-w-[40px] md:max-w-[55px] rounded-xs border border-[var(--border-subtle)]`} 
-                                                                alt="cover" 
-                                                            />
-                                                        ))}
-                                                    </div>
+                                                <div className="flex flex-wrap justify-center gap-[3px] w-full">
+                                                    {data.covers.map((url, idx) => (
+                                                        <img
+                                                            key={idx}
+                                                            src={url}
+                                                            className="object-cover aspect-[2/3] rounded-sm border border-[var(--border-subtle)]"
+                                                            style={{ width: data.covers.length > 2 ? '42%' : '58%' }}
+                                                            alt="cover"
+                                                        />
+                                                    ))}
                                                 </div>
                                             )}
                                         </div>

@@ -75,7 +75,7 @@ export default function FeedPage() {
               {t('hide')}
             </button>
           </div>
-          <div className="no-scrollbar -mx-1 flex gap-3 overflow-x-auto px-1 pb-1">
+          <div className="no-scrollbar -mx-4 flex gap-3 overflow-x-auto px-4 pb-1 md:-mx-8 md:px-8">
             {inProgress.map((it) => (
               <div key={it.id} className="relative w-72 flex-shrink-0">
                 <Link

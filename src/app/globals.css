@@ -43,7 +43,10 @@ html {
 }
 
 body {
-  overflow-x: hidden;
+  /* `clip` (not `hidden`) stops horizontal overflow without turning <body>
+     into a scroll container — `overflow-x: hidden` forces overflow-y to `auto`,
+     which would capture position:sticky and break the sticky header. */
+  overflow-x: clip;
 }
 
 /* Hide scrollbar utility */
