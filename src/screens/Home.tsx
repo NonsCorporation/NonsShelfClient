@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from 'react'
+import React, { useMemo, useState, useEffect } from 'react'
 import { useSearchParams } from '@/lib/router'
 import {
   IoOptionsOutline,
@@ -8,6 +8,11 @@ import {
   IoLibraryOutline,
   IoSearch,
   IoCloudUploadOutline,
+  IoLayersOutline,
+  IoBookmarkOutline,
+  IoTimeOutline,
+  IoCheckmarkDoneOutline,
+  IoHeartOutline,
 } from 'react-icons/io5'
 import Layout from '../components/layout/Layout.tsx'
 import MediaCard from '../components/MediaCard.tsx'
@@ -164,9 +169,45 @@ export default function Home() {
   return (
     <Layout>
       {/* Header */}
-      <div className="mb-6">
+      <div className="mb-4">
         <h1 className="text-xl font-bold tracking-tight text-[var(--text)]">{shelfTitle}</h1>
         <p className="mt-1 text-sm text-[var(--text-muted)]">{t('librarySubtitle')}</p>
+      </div>
+
+      {/* Shelf tabs — mobile only (desktop uses the sticky header bar) */}
+      <div className="mb-5 flex flex-wrap items-center gap-1.5 lg:hidden">
+        {([
+          { key: 'all',       label: t('allItems'),    dot: null,      icon: IoLayersOutline },
+          { key: 'wishlist',  label: t('shelfWishlist'), dot: '#6768ab', icon: IoBookmarkOutline },
+          { key: 'active',    label: t('shelfActive'),  dot: '#f5a623', icon: IoTimeOutline },
+          { key: 'done',      label: t('shelfDone'),    dot: '#3ec98a', icon: IoCheckmarkDoneOutline },
+          { key: 'favorites', label: t('favorites'),    dot: '#ff7a85', icon: IoHeartOutline },
+        ] as { key: ShelfKey; label: string; dot: string | null; icon: React.ComponentType<{ className?: string }> }[]).map((s) => {
+          const active = shelf === s.key
+          return (
+            <button
+              key={s.key}
+              onClick={() => {
+                const next = new URLSearchParams(params)
+                if (s.key === 'all') next.delete('shelf')
+                else next.set('shelf', s.key)
+                setParams(next, { replace: true })
+              }}
+              className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm transition-colors ${
+                active
+                  ? 'border-transparent bg-[var(--primary-soft)] font-medium text-[var(--text)]'
+                  : 'border-[var(--border-subtle)] text-[var(--text-muted)]'
+              }`}
+            >
+              {s.dot ? (
+                <span className="h-2 w-2 rounded-full flex-shrink-0" style={{ backgroundColor: s.dot }} />
+              ) : (
+                <s.icon className="h-3.5 w-3.5 flex-shrink-0" />
+              )}
+              {s.label}
+            </button>
+          )
+        })}
       </div>
 
       {/* Stats strip */}
