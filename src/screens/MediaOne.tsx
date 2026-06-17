@@ -32,6 +32,22 @@ import { useAuth } from '../contexts/AuthContext'
 import { isLibrarian } from '../services/librarianService'
 import { statusLabel } from '../lib/shelf'
 
+const MOCK_FRIEND_RATINGS = [
+  { handle: 'alex', name: 'Alex M.', rating: 8, color: '#6768ab', review: 'Absolutely loved it. The pacing was perfect and the ending hit hard. One of the best I\'ve read this year.' },
+  { handle: 'sara', name: 'Sara K.', rating: 9, color: '#f5a623', review: null },
+  { handle: 'dima', name: 'Dima V.', rating: 7, color: '#3ec98a', review: 'Good but a bit slow in the middle. Worth it for the final act.' },
+]
+const MOCK_COMMUNITY = { avg: '4.2', avgRaw: 8.4, count: 1_243 }
+const MOCK_COMMUNITY_REVIEWS = [
+  { handle: 'maria', name: 'Maria L.', rating: 9, color: '#6768ab', date: 'Jun 2026', text: 'An absolute masterpiece. The worldbuilding is unmatched and the prose flows beautifully — I finished it in two sittings.' },
+  { handle: 'james', name: 'James R.', rating: 8, color: '#f5a623', date: 'May 2026', text: 'Really enjoyed it. The character development is the highlight — every person feels fully realised and earned.' },
+  { handle: 'anna', name: 'Anna T.', rating: 7, color: '#3ec98a', date: 'May 2026', text: 'Solid, though it drags in the middle third. Push through — the final act is genuinely surprising.' },
+  { handle: 'leo', name: 'Leo B.', rating: 10, color: '#e05c5c', date: 'Apr 2026', text: 'Perfect in every way. I don\'t give 10s lightly but this absolutely earned it.' },
+  { handle: 'nina', name: 'Nina V.', rating: 6, color: '#4db8c8', date: 'Apr 2026', text: 'Nice but overhyped in my opinion. It\'s good, not great — some chapters felt padded.' },
+  { handle: 'omar', name: 'Omar H.', rating: 8, color: '#a067c8', date: 'Mar 2026', text: 'Took a few chapters to click, then I couldn\'t put it down. Beautiful prose throughout.' },
+]
+const COMM_PER_PAGE = 3
+
 // CreditPerson, MediaCredits and Edition come from ../lib/mediaMap so the
 // server-rendered /b and /m pages can share them.
 
@@ -91,8 +107,10 @@ export default function MediaOnePage({
   const [userReview, setUserReview] = useState(initialItem?.review ?? '')
   const [reviewSaving, setReviewSaving] = useState(false)
   const [reviewSaved, setReviewSaved] = useState(false)
-  const [episodesOpen, setEpisodesOpen] = useState(true)
+  const [episodesOpen, setEpisodesOpen] = useState(false)
+  const [commPage, setCommPage] = useState(0)
   const [editing, setEditing] = useState(false)
+  const [editingReview, setEditingReview] = useState(false)
   const [progressOpen, setProgressOpen] = useState(false)
   const [finishOpen, setFinishOpen] = useState(false)
 
@@ -473,6 +491,92 @@ export default function MediaOnePage({
             </div>
           )}
 
+          {/* Episodes (series), grouped by season, each toggleable as watched.
+              Collapsed by default — sits right below cast so it doesn't push
+              ratings/reviews off-screen on first load. */}
+          {isSeries && episodes && episodes.total > 0 && (
+            <div>
+              <button
+                onClick={() => setEpisodesOpen((v) => !v)}
+                className="mb-2.5 flex w-full items-center justify-between gap-3 text-left"
+              >
+                <span className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-[var(--text-muted)]">
+                  <IoChevronDown className={`h-3.5 w-3.5 transition-transform ${episodesOpen ? '' : '-rotate-90'}`} />
+                  {t('episodes')} ({episodes.total})
+                </span>
+                <span className="text-xs text-[var(--text-muted)]">
+                  {t('watchedOfTotal', { watched: episodes.watched_count, total: episodes.total })}
+                </span>
+              </button>
+              {episodesOpen && (
+              <div className="flex flex-col gap-5">
+                {episodes.seasons.map((s) => (
+                  <div key={s.season}>
+                    <h4 className="mb-2 text-sm font-semibold text-[var(--text)]">
+                      {t('season')} {s.season}
+                      <span className="ml-2 font-normal text-[var(--text-muted)]">
+                        {t('episodesCount', { count: s.episodes.length })}
+                      </span>
+                    </h4>
+                    <div className="flex flex-col gap-1.5">
+                      {s.episodes.map((ep) => {
+                        const watched = !!episodes.watched[ep.id]
+                        return (
+                          <div
+                            key={ep.id}
+                            className="flex items-start gap-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] p-2.5"
+                          >
+                            {ep.still_url ? (
+                              <img
+                                src={ep.still_url}
+                                alt=""
+                                loading="lazy"
+                                className="h-14 w-24 flex-shrink-0 rounded object-cover"
+                              />
+                            ) : (
+                              <div className="flex h-14 w-24 flex-shrink-0 items-center justify-center rounded bg-[var(--container-2)]">
+                                <IoTvOutline className="h-5 w-5 text-[var(--placeholder)]" />
+                              </div>
+                            )}
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm text-[var(--text)]">
+                                <span className="text-[var(--text-muted)]">{ep.number}. </span>
+                                {ep.title || `${t('season')} ${ep.season}`}
+                              </p>
+                              <p className="mt-0.5 flex flex-wrap gap-2 text-xs text-[var(--text-muted)]">
+                                {ep.air_date ? <span>{ep.air_date}</span> : null}
+                                {ep.runtime_min ? <span>· {ep.runtime_min} min</span> : null}
+                              </p>
+                              {ep.overview ? (
+                                <p className="mt-1 line-clamp-2 text-xs leading-5 text-[var(--text-muted)]">{ep.overview}</p>
+                              ) : null}
+                            </div>
+                            {canInteract && (
+                              <button
+                                onClick={() => toggleWatched(ep.id, !watched)}
+                                title={watched ? t('watched') : t('markWatched')}
+                                className={`flex-shrink-0 transition-colors ${
+                                  watched ? 'text-nonsprimary' : 'text-[var(--text-muted)] hover:text-[var(--text)]'
+                                }`}
+                              >
+                                {watched ? (
+                                  <IoCheckmarkCircle className="h-6 w-6" />
+                                ) : (
+                                  <IoCheckmarkCircleOutline className="h-6 w-6" />
+                                )}
+                              </button>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              )}
+            </div>
+          )}
+
           {/* Book metadata — all available catalog fields (ISBN, pages, …). */}
           {isBook && (() => {
             const rows: [string, ReactNode][] = []
@@ -577,119 +681,125 @@ export default function MediaOnePage({
             )
           })()}
 
-          {/* Rating & review — signed-in users only. */}
+          {/* ── My review ── */}
           {canInteract && (
-          <div className="flex flex-col gap-4 rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface)] p-5">
-            <div className="flex items-center justify-between">
-              <h3 className="text-[10px] uppercase tracking-widest text-[var(--text-muted)]">{t('yourReview')}</h3>
-              <span className="text-sm font-medium text-[var(--text)]">{displayRating}</span>
-            </div>
-            <StarsSelector initialValue={userRating} onChange={handleRatingChange} isEditable />
-            <textarea
-              value={userReview}
-              onChange={(e) => {
-                setUserReview(e.target.value)
-                setReviewSaved(false)
-              }}
-              rows={4}
-              placeholder={t('reviewPlaceholder', { type: isBook ? t('book').toLowerCase() : t('film').toLowerCase() })}
-              className="w-full resize-y rounded-lg border border-[var(--border-subtle)] bg-[var(--bg)] p-3 text-sm text-[var(--text)] placeholder:text-[var(--placeholder)] focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[var(--primary-ring)]"
-            />
-            <div className="flex items-center justify-end gap-3">
-              {reviewSaved && <span className="text-xs text-[var(--text-muted)]">{t('saved') || 'Saved'}</span>}
-              <button
-                onClick={saveReview}
-                disabled={reviewSaving || userReview === (item.review ?? '')}
-                className="rounded-lg bg-nonsprimary px-4 py-1.5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                {reviewSaving ? t('saving') || 'Saving…' : t('saveReview') || 'Save review'}
-              </button>
-            </div>
-          </div>
-          )}
+            <div className="flex flex-col gap-5">
+              <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface)] p-5">
+                <div className="mb-3 flex items-center justify-between">
+                  <h3 className="text-[10px] uppercase tracking-widest text-[var(--text-muted)]">{t('yourReview')}</h3>
+                  <button
+                    onClick={() => setEditingReview(true)}
+                    className="text-xs text-[var(--text-muted)] transition-colors hover:text-[var(--text)] flex items-center gap-1"
+                  >
+                    <IoCreateOutline className="h-3.5 w-3.5" />
+                    {t('edit') || 'Edit'}
+                  </button>
+                </div>
 
-          {/* Episodes (series), grouped by season, each toggleable as watched.
-              The whole list collapses behind the header. */}
-          {isSeries && episodes && episodes.total > 0 && (
-            <div>
-              <button
-                onClick={() => setEpisodesOpen((v) => !v)}
-                className="mb-2.5 flex w-full items-center justify-between gap-3 text-left"
-              >
-                <span className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-[var(--text-muted)]">
-                  <IoChevronDown className={`h-3.5 w-3.5 transition-transform ${episodesOpen ? '' : '-rotate-90'}`} />
-                  {t('episodes')} ({episodes.total})
-                </span>
-                <span className="text-xs text-[var(--text-muted)]">
-                  {t('watchedOfTotal', { watched: episodes.watched_count, total: episodes.total })}
-                </span>
-              </button>
-              {episodesOpen && (
-              <div className="flex flex-col gap-5">
-                {episodes.seasons.map((s) => (
-                  <div key={s.season}>
-                    <h4 className="mb-2 text-sm font-semibold text-[var(--text)]">
-                      {t('season')} {s.season}
-                      <span className="ml-2 font-normal text-[var(--text-muted)]">
-                        {t('episodesCount', { count: s.episodes.length })}
-                      </span>
-                    </h4>
-                    <div className="flex flex-col gap-1.5">
-                      {s.episodes.map((ep) => {
-                        const watched = !!episodes.watched[ep.id]
-                        return (
-                          <div
-                            key={ep.id}
-                            className="flex items-start gap-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] p-2.5"
-                          >
-                            {ep.still_url ? (
-                              <img
-                                src={ep.still_url}
-                                alt=""
-                                loading="lazy"
-                                className="h-14 w-24 flex-shrink-0 rounded object-cover"
-                              />
-                            ) : (
-                              <div className="flex h-14 w-24 flex-shrink-0 items-center justify-center rounded bg-[var(--container-2)]">
-                                <IoTvOutline className="h-5 w-5 text-[var(--placeholder)]" />
-                              </div>
-                            )}
-                            <div className="min-w-0 flex-1">
-                              <p className="text-sm text-[var(--text)]">
-                                <span className="text-[var(--text-muted)]">{ep.number}. </span>
-                                {ep.title || `${t('season')} ${ep.season}`}
-                              </p>
-                              <p className="mt-0.5 flex flex-wrap gap-2 text-xs text-[var(--text-muted)]">
-                                {ep.air_date ? <span>{ep.air_date}</span> : null}
-                                {ep.runtime_min ? <span>· {ep.runtime_min} min</span> : null}
-                              </p>
-                              {ep.overview ? (
-                                <p className="mt-1 line-clamp-2 text-xs leading-5 text-[var(--text-muted)]">{ep.overview}</p>
-                              ) : null}
-                            </div>
-                            {canInteract && (
-                              <button
-                                onClick={() => toggleWatched(ep.id, !watched)}
-                                title={watched ? t('watched') : t('markWatched')}
-                                className={`flex-shrink-0 transition-colors ${
-                                  watched ? 'text-nonsprimary' : 'text-[var(--text-muted)] hover:text-[var(--text)]'
-                                }`}
-                              >
-                                {watched ? (
-                                  <IoCheckmarkCircle className="h-6 w-6" />
-                                ) : (
-                                  <IoCheckmarkCircleOutline className="h-6 w-6" />
-                                )}
-                              </button>
-                            )}
-                          </div>
-                        )
-                      })}
+                <StarsSelector initialValue={userRating} onChange={handleRatingChange} isEditable />
+
+                {userReview ? (
+                  <p className="mt-3 text-sm leading-7 text-[var(--text-muted)]">{userReview}</p>
+                ) : (
+                  <p className="mt-3 text-sm italic text-[var(--placeholder)]">
+                    {t('reviewPlaceholder', { type: isBook ? t('book').toLowerCase() : t('film').toLowerCase() })}
+                  </p>
+                )}
+
+                {editingReview && (
+                  <div className="mt-4 flex flex-col gap-3 border-t border-[var(--border-subtle)] pt-4">
+                    <textarea
+                      value={userReview}
+                      onChange={(e) => { setUserReview(e.target.value); setReviewSaved(false) }}
+                      rows={4}
+                      autoFocus
+                      placeholder={t('reviewPlaceholder', { type: isBook ? t('book').toLowerCase() : t('film').toLowerCase() })}
+                      className="w-full resize-y rounded-lg border border-[var(--border-subtle)] bg-[var(--bg)] p-3 text-sm text-[var(--text)] placeholder:text-[var(--placeholder)] focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[var(--primary-ring)]"
+                    />
+                    <div className="flex items-center justify-end gap-3">
+                      {reviewSaved && <span className="text-xs text-[var(--text-muted)]">{t('saved') || 'Saved'}</span>}
+                      <button
+                        onClick={() => setEditingReview(false)}
+                        className="rounded-lg border border-[var(--border-subtle)] px-4 py-1.5 text-sm text-[var(--text-muted)] transition-colors hover:text-[var(--text)]"
+                      >
+                        {t('cancel')}
+                      </button>
+                      <button
+                        onClick={async () => { await saveReview(); setEditingReview(false) }}
+                        disabled={reviewSaving || userReview === (item.review ?? '')}
+                        className="rounded-lg bg-nonsprimary px-4 py-1.5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-40"
+                      >
+                        {reviewSaving ? t('saving') || 'Saving…' : t('saveReview') || 'Save'}
+                      </button>
                     </div>
                   </div>
-                ))}
+                )}
               </div>
-              )}
+
+              {/* ── Friends rating ── */}
+              <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface)] p-5">
+                <h3 className="mb-3 text-[10px] uppercase tracking-widest text-[var(--text-muted)]">Friends</h3>
+                {MOCK_FRIEND_RATINGS.length === 0 ? (
+                  <p className="text-sm text-[var(--placeholder)]">No friends have rated this yet.</p>
+                ) : (
+                  <div className="flex flex-col divide-y divide-[var(--border-subtle)]">
+                    {MOCK_FRIEND_RATINGS.map((f) => (
+                      <FriendRatingRow key={f.handle} f={f} />
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* ── Community rating ── */}
+              <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface)] p-5">
+                <h3 className="mb-4 text-[10px] uppercase tracking-widest text-[var(--text-muted)]">Community</h3>
+                <div className="mb-5 flex items-end gap-4">
+                  <span className="text-4xl font-bold text-[var(--text)]">{MOCK_COMMUNITY.avg}</span>
+                  <div className="pb-0.5">
+                    <StarsSelector initialValue={MOCK_COMMUNITY.avgRaw} isEditable={false} />
+                    <span className="mt-0.5 block text-xs text-[var(--text-muted)]">{MOCK_COMMUNITY.count.toLocaleString()} ratings</span>
+                  </div>
+                </div>
+                <div className="flex flex-col divide-y divide-[var(--border-subtle)]">
+                  {MOCK_COMMUNITY_REVIEWS.slice(commPage * COMM_PER_PAGE, (commPage + 1) * COMM_PER_PAGE).map((r) => (
+                    <div key={r.handle} className="py-3 first:pt-0 last:pb-0">
+                      <div className="flex items-center gap-3">
+                        <span
+                          className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-[11px] font-semibold text-white"
+                          style={{ backgroundColor: r.color }}
+                        >
+                          {r.name[0]}
+                        </span>
+                        <span className="min-w-0 flex-1 truncate text-sm text-[var(--text)]">{r.name}</span>
+                        <StarsSelector initialValue={r.rating} isEditable={false} />
+                        <span className="text-xs text-[var(--text-muted)]">{r.date}</span>
+                      </div>
+                      <p className="mt-2 pl-10 text-xs leading-6 text-[var(--text-muted)]">{r.text}</p>
+                    </div>
+                  ))}
+                </div>
+                {Math.ceil(MOCK_COMMUNITY_REVIEWS.length / COMM_PER_PAGE) > 1 && (
+                  <div className="mt-4 flex items-center justify-center gap-3">
+                    <button
+                      onClick={() => setCommPage((p) => Math.max(0, p - 1))}
+                      disabled={commPage === 0}
+                      className="flex h-7 w-7 items-center justify-center rounded-lg border border-[var(--border-subtle)] text-[var(--text-muted)] transition-colors hover:border-[var(--border)] hover:text-[var(--text)] disabled:opacity-30"
+                    >
+                      <IoChevronDown className="h-3.5 w-3.5 rotate-90" />
+                    </button>
+                    <span className="min-w-[3rem] text-center text-xs text-[var(--text-muted)]">
+                      {commPage + 1} / {Math.ceil(MOCK_COMMUNITY_REVIEWS.length / COMM_PER_PAGE)}
+                    </span>
+                    <button
+                      onClick={() => setCommPage((p) => Math.min(Math.ceil(MOCK_COMMUNITY_REVIEWS.length / COMM_PER_PAGE) - 1, p + 1))}
+                      disabled={(commPage + 1) * COMM_PER_PAGE >= MOCK_COMMUNITY_REVIEWS.length}
+                      className="flex h-7 w-7 items-center justify-center rounded-lg border border-[var(--border-subtle)] text-[var(--text-muted)] transition-colors hover:border-[var(--border)] hover:text-[var(--text)] disabled:opacity-30"
+                    >
+                      <IoChevronDown className="h-3.5 w-3.5 -rotate-90" />
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
@@ -721,5 +831,25 @@ export default function MediaOnePage({
         }}
       />
     </Layout>
+  )
+}
+
+function FriendRatingRow({ f }: { f: { handle: string; name: string; rating: number; color: string; review: string | null } }) {
+  return (
+    <div className="py-3 first:pt-0 last:pb-0">
+      <div className="flex items-center gap-3">
+        <span
+          className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-[11px] font-semibold text-white"
+          style={{ backgroundColor: f.color }}
+        >
+          {f.name[0]}
+        </span>
+        <span className="min-w-0 flex-1 truncate text-sm text-[var(--text)]">{f.name}</span>
+        <StarsSelector initialValue={f.rating} isEditable={false} />
+      </div>
+      {f.review && (
+        <p className="mt-2 pl-10 text-xs leading-6 text-[var(--text-muted)]">{f.review}</p>
+      )}
+    </div>
   )
 }
