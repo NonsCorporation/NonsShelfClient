@@ -5,13 +5,16 @@ type StarsSelectorProps = {
   initialValue?: number | null
   onChange?: (value: number) => void
   isEditable?: boolean
+  size?: 'sm' | 'md'
 }
 
 export default function StarsSelector({
   initialValue = null,
   onChange = () => {},
-  isEditable = false
+  isEditable = false,
+  size = 'md',
 }: StarsSelectorProps) {
+  const starCls = size === 'sm' ? 'w-5 h-5' : 'w-9 h-9'
   // manage local state for rating and hover
   const [rating, setRating] = useState(initialValue)
   const [hover, setHover] = useState<number | null>(null)
@@ -61,7 +64,7 @@ export default function StarsSelector({
         const isHalf = displayValue === leftValue
 
         return (
-          <div key={index} className="relative w-9 h-9">
+          <div key={index} className={`relative ${starCls}`}>
             {/* render the appropriate visual icon */}
             {isFull ? (
               <IoMdStar className="w-full h-full pointer-events-none" />

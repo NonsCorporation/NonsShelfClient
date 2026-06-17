@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, Fragment, type ReactNode, useRef } from 'react'
+import { useState, useEffect, useCallback, useMemo, Fragment, type ReactNode, useRef } from 'react'
 import { useParams, useNavigate, useSearchParams, Link } from '@/lib/router'
 import Layout from '../components/layout/Layout'
 import MediaModal from '../components/MediaModal'
@@ -38,15 +38,21 @@ const MOCK_FRIEND_RATINGS = [
   { handle: 'dima', name: 'Dima V.', rating: 7, color: '#3ec98a', review: 'Good but a bit slow in the middle. Worth it for the final act.' },
 ]
 const MOCK_COMMUNITY = { avg: '4.2', avgRaw: 8.4, count: 1_243 }
-const MOCK_COMMUNITY_REVIEWS = [
-  { handle: 'maria', name: 'Maria L.', rating: 9, color: '#6768ab', date: 'Jun 2026', text: 'An absolute masterpiece. The worldbuilding is unmatched and the prose flows beautifully — I finished it in two sittings.' },
-  { handle: 'james', name: 'James R.', rating: 8, color: '#f5a623', date: 'May 2026', text: 'Really enjoyed it. The character development is the highlight — every person feels fully realised and earned.' },
-  { handle: 'anna', name: 'Anna T.', rating: 7, color: '#3ec98a', date: 'May 2026', text: 'Solid, though it drags in the middle third. Push through — the final act is genuinely surprising.' },
-  { handle: 'leo', name: 'Leo B.', rating: 10, color: '#e05c5c', date: 'Apr 2026', text: 'Perfect in every way. I don\'t give 10s lightly but this absolutely earned it.' },
-  { handle: 'nina', name: 'Nina V.', rating: 6, color: '#4db8c8', date: 'Apr 2026', text: 'Nice but overhyped in my opinion. It\'s good, not great — some chapters felt padded.' },
-  { handle: 'omar', name: 'Omar H.', rating: 8, color: '#a067c8', date: 'Mar 2026', text: 'Took a few chapters to click, then I couldn\'t put it down. Beautiful prose throughout.' },
+const _MOCK_COMMUNITY_REVIEWS_BASE = [
+  { handle: 'maria',  name: 'Maria L.',  rating: 9,  sortDate: 1750204800, color: '#6768ab', date: 'Jun 2026', text: 'An absolute masterpiece. The worldbuilding is unmatched and the prose flows beautifully — I finished it in two sittings and immediately wanted to start again. There is a quality of stillness to the writing that I rarely encounter: every sentence earns its place, and the emotional beats land with precision that only comes from someone who has thought deeply about what story they actually want to tell. Easily in my top five of the decade.' },
+  { handle: 'james',  name: 'James R.',  rating: 8,  sortDate: 1748390400, color: '#f5a623', date: 'May 2026', text: 'Really enjoyed it. The character development is the highlight — every person feels fully realised and earned.' },
+  { handle: 'anna',   name: 'Anna T.',   rating: 7,  sortDate: 1748304000, color: '#3ec98a', date: 'May 2026', text: null },
+  { handle: 'leo',    name: 'Leo B.',    rating: 10, sortDate: 1746144000, color: '#e05c5c', date: 'Apr 2026', text: 'Perfect in every way. I don\'t give 10s lightly but this absolutely earned it.' },
+  { handle: 'nina',   name: 'Nina V.',   rating: 3,  sortDate: 1746057600, color: '#4db8c8', date: 'Apr 2026', text: 'Nice but overhyped. Some chapters felt padded and the pacing in the second act collapses entirely.' },
+  { handle: 'omar',   name: 'Omar H.',   rating: 6,  sortDate: 1743552000, color: '#a067c8', date: 'Mar 2026', text: null },
+  { handle: 'priya',  name: 'Priya S.',  rating: 2,  sortDate: 1741132800, color: '#d47e3e', date: 'Feb 2026', text: 'Genuinely did not understand the praise. Flat characters, meandering plot. DNF at 60%.' },
+  { handle: 'felix',  name: 'Felix M.',  rating: 9,  sortDate: 1738368000, color: '#5ab4a2', date: 'Jan 2026', text: null },
 ]
-const COMM_PER_PAGE = 3
+const MOCK_COMMUNITY_REVIEWS = [1, 2, 3, 4].flatMap((i) =>
+  _MOCK_COMMUNITY_REVIEWS_BASE.map((r) => ({ ...r, handle: `${r.handle}_${i}`, sortDate: r.sortDate - i * 86400 }))
+)
+type CommSort = 'newest' | 'oldest' | 'high' | 'low'
+const COMM_PER_PAGE = 10
 
 // CreditPerson, MediaCredits and Edition come from ../lib/mediaMap so the
 // server-rendered /b and /m pages can share them.
@@ -109,6 +115,9 @@ export default function MediaOnePage({
   const [reviewSaved, setReviewSaved] = useState(false)
   const [episodesOpen, setEpisodesOpen] = useState(false)
   const [commPage, setCommPage] = useState(0)
+  const [commSort, setCommSort] = useState<CommSort>('newest')
+  const [commWithReview, setCommWithReview] = useState(false)
+  const commSectionRef = useRef<HTMLDivElement>(null)
   const [editing, setEditing] = useState(false)
   const [editingReview, setEditingReview] = useState(false)
   const [progressOpen, setProgressOpen] = useState(false)
@@ -271,6 +280,29 @@ export default function MediaOnePage({
   const genres = Array.isArray(item.genre) ? item.genre : item.genre ? [item.genre] : []
   const displayRating = userRating !== null ? `${(userRating / 2).toFixed(1)}/5` : t('unrated')
 
+  const sortedReviews = useMemo(() => {
+    let list = [...MOCK_COMMUNITY_REVIEWS]
+    if (commWithReview) list = list.filter((r) => r.text != null)
+    if (commSort === 'newest') list.sort((a, b) => b.sortDate - a.sortDate)
+    else if (commSort === 'oldest') list.sort((a, b) => a.sortDate - b.sortDate)
+    else if (commSort === 'high') list = list.filter((r) => r.rating >= 8).sort((a, b) => b.rating - a.rating)
+    else if (commSort === 'low') list = list.filter((r) => r.rating <= 4).sort((a, b) => a.rating - b.rating)
+    return list
+  }, [commSort, commWithReview])
+
+  const totalCommPages = Math.ceil(sortedReviews.length / COMM_PER_PAGE)
+  const commPageItems = sortedReviews.slice(commPage * COMM_PER_PAGE, (commPage + 1) * COMM_PER_PAGE)
+
+  const goCommPage = (p: number) => {
+    setCommPage(p)
+    requestAnimationFrame(() => {
+      const el = commSectionRef.current
+      if (!el) return
+      const top = el.getBoundingClientRect().top + window.scrollY - 88
+      window.scrollTo({ top, behavior: 'smooth' })
+    })
+  }
+
   // A person rendered as a chip linking to their /p/<uuid> page.
   const personChip = (p: CreditPerson, sub?: string) => (
     <Link
@@ -332,7 +364,7 @@ export default function MediaOnePage({
 
       <div className="flex flex-col gap-8 md:flex-row md:gap-10">
         {/* ── Left: cover + actions ── */}
-        <div className="flex w-full flex-shrink-0 flex-col gap-3 md:w-64">
+        <div className="flex w-full flex-shrink-0 flex-col gap-3 md:w-64 md:sticky md:top-[88px] md:self-start">
           <div className="aspect-[2/3] overflow-hidden rounded-2xl border border-[var(--border-subtle)]">
             {coverUrl ? (
               <img src={coverUrl} alt={item.title} className="h-full w-full object-cover" />
@@ -751,53 +783,97 @@ export default function MediaOnePage({
               </div>
 
               {/* ── Community rating ── */}
-              <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface)] p-5">
-                <h3 className="mb-4 text-[10px] uppercase tracking-widest text-[var(--text-muted)]">Community</h3>
-                <div className="mb-5 flex items-end gap-4">
-                  <span className="text-4xl font-bold text-[var(--text)]">{MOCK_COMMUNITY.avg}</span>
-                  <div className="pb-0.5">
-                    <StarsSelector initialValue={MOCK_COMMUNITY.avgRaw} isEditable={false} />
+              <div ref={commSectionRef} style={{ scrollMarginTop: 88 }} className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface)] p-5">
+                {/* title + avg side by side; avg floats right below the title */}
+                <div className="mb-4 flex items-start justify-between gap-4">
+                  <div className="flex flex-col gap-3">
+                    <h3 className="text-[10px] uppercase tracking-widest text-[var(--text-muted)]">Community</h3>
+                    {/* sort chips + checkbox */}
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {(['newest', 'oldest', 'high', 'low'] as const).map((s) => (
+                        <button
+                          key={s}
+                          onClick={() => { setCommSort(s); setCommPage(0) }}
+                          className={`rounded-full px-3 py-1 text-xs transition-colors ${
+                            commSort === s
+                              ? 'bg-[var(--primary-soft)] text-nonsprimary'
+                              : 'border border-[var(--border-subtle)] text-[var(--text-muted)] hover:border-[var(--border)] hover:text-[var(--text)]'
+                          }`}
+                        >
+                          {s === 'newest' ? 'Newest' : s === 'oldest' ? 'Oldest' : s === 'high' ? 'High ★' : 'Low ★'}
+                        </button>
+                      ))}
+                      <label className="flex cursor-pointer items-center gap-1.5 text-xs text-[var(--text-muted)] transition-colors hover:text-[var(--text)]">
+                        <input
+                          type="checkbox"
+                          checked={commWithReview}
+                          onChange={(e) => { setCommWithReview(e.target.checked); setCommPage(0) }}
+                          className="h-3.5 w-3.5 rounded accent-nonsprimary"
+                        />
+                        With a review
+                      </label>
+                    </div>
+                  </div>
+                  <div className="flex-shrink-0 text-right">
+                    <span className="text-3xl font-bold leading-none text-[var(--text)]">{MOCK_COMMUNITY.avg}</span>
+                    <div className="mt-1 flex justify-end">
+                      <StarsSelector initialValue={MOCK_COMMUNITY.avgRaw} isEditable={false} size="sm" />
+                    </div>
                     <span className="mt-0.5 block text-xs text-[var(--text-muted)]">{MOCK_COMMUNITY.count.toLocaleString()} ratings</span>
                   </div>
                 </div>
-                <div className="flex flex-col divide-y divide-[var(--border-subtle)]">
-                  {MOCK_COMMUNITY_REVIEWS.slice(commPage * COMM_PER_PAGE, (commPage + 1) * COMM_PER_PAGE).map((r) => (
-                    <div key={r.handle} className="py-3 first:pt-0 last:pb-0">
-                      <div className="flex items-center gap-3">
-                        <span
-                          className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-[11px] font-semibold text-white"
-                          style={{ backgroundColor: r.color }}
-                        >
-                          {r.name[0]}
-                        </span>
-                        <span className="min-w-0 flex-1 truncate text-sm text-[var(--text)]">{r.name}</span>
-                        <StarsSelector initialValue={r.rating} isEditable={false} />
-                        <span className="text-xs text-[var(--text-muted)]">{r.date}</span>
+
+                {sortedReviews.length === 0 ? (
+                  <p className="py-4 text-center text-sm text-[var(--placeholder)]">No reviews match this filter.</p>
+                ) : (
+                  <>
+                    {/* top pagination */}
+                    {totalCommPages > 1 && (
+                      <div className="mb-4 flex items-center justify-center gap-1.5">
+                        <button onClick={() => goCommPage(commPage - 1)} disabled={commPage === 0} className="p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--border-subtle)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                        </button>
+                        <div className="relative flex h-9 w-9 -rotate-1 items-center justify-center rounded-br-lg rounded-tl-lg border border-[var(--border)] bg-[var(--container)] text-sm font-medium text-[var(--text)] shadow-md">
+                          <span className="rotate-1">{commPage + 1}</span>
+                        </div>
+                        <button onClick={() => goCommPage(commPage + 1)} disabled={commPage >= totalCommPages - 1} className="p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--border-subtle)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                        </button>
                       </div>
-                      <p className="mt-2 pl-10 text-xs leading-6 text-[var(--text-muted)]">{r.text}</p>
+                    )}
+
+                    {/* reviews list */}
+                    <div className="flex flex-col divide-y divide-[var(--border-subtle)]">
+                      {commPageItems.map((r) => (
+                        <div key={r.handle} className="py-3 first:pt-0 last:pb-0">
+                          <div className="flex items-center gap-3">
+                            <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-[11px] font-semibold text-white" style={{ backgroundColor: r.color }}>
+                              {r.name[0]}
+                            </span>
+                            <span className="min-w-0 flex-1 truncate text-sm text-[var(--text)]">{r.name}</span>
+                            <StarsSelector initialValue={r.rating} isEditable={false} size="sm" />
+                            <span className="text-xs text-[var(--text-muted)]">{r.date}</span>
+                          </div>
+                          <p className="mt-2 pl-10 text-xs leading-6 text-[var(--text-muted)]">{r.text}</p>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-                {Math.ceil(MOCK_COMMUNITY_REVIEWS.length / COMM_PER_PAGE) > 1 && (
-                  <div className="mt-4 flex items-center justify-center gap-3">
-                    <button
-                      onClick={() => setCommPage((p) => Math.max(0, p - 1))}
-                      disabled={commPage === 0}
-                      className="flex h-7 w-7 items-center justify-center rounded-lg border border-[var(--border-subtle)] text-[var(--text-muted)] transition-colors hover:border-[var(--border)] hover:text-[var(--text)] disabled:opacity-30"
-                    >
-                      <IoChevronDown className="h-3.5 w-3.5 rotate-90" />
-                    </button>
-                    <span className="min-w-[3rem] text-center text-xs text-[var(--text-muted)]">
-                      {commPage + 1} / {Math.ceil(MOCK_COMMUNITY_REVIEWS.length / COMM_PER_PAGE)}
-                    </span>
-                    <button
-                      onClick={() => setCommPage((p) => Math.min(Math.ceil(MOCK_COMMUNITY_REVIEWS.length / COMM_PER_PAGE) - 1, p + 1))}
-                      disabled={(commPage + 1) * COMM_PER_PAGE >= MOCK_COMMUNITY_REVIEWS.length}
-                      className="flex h-7 w-7 items-center justify-center rounded-lg border border-[var(--border-subtle)] text-[var(--text-muted)] transition-colors hover:border-[var(--border)] hover:text-[var(--text)] disabled:opacity-30"
-                    >
-                      <IoChevronDown className="h-3.5 w-3.5 -rotate-90" />
-                    </button>
-                  </div>
+
+                    {/* bottom pagination */}
+                    {totalCommPages > 1 && (
+                      <div className="mt-4 flex items-center justify-center gap-1.5">
+                        <button onClick={() => goCommPage(commPage - 1)} disabled={commPage === 0} className="p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--border-subtle)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                        </button>
+                        <div className="relative flex h-9 w-9 -rotate-1 items-center justify-center rounded-br-lg rounded-tl-lg border border-[var(--border)] bg-[var(--container)] text-sm font-medium text-[var(--text)] shadow-md">
+                          <span className="rotate-1">{commPage + 1}</span>
+                        </div>
+                        <button onClick={() => goCommPage(commPage + 1)} disabled={commPage >= totalCommPages - 1} className="p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--border-subtle)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                        </button>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             </div>
@@ -845,7 +921,7 @@ function FriendRatingRow({ f }: { f: { handle: string; name: string; rating: num
           {f.name[0]}
         </span>
         <span className="min-w-0 flex-1 truncate text-sm text-[var(--text)]">{f.name}</span>
-        <StarsSelector initialValue={f.rating} isEditable={false} />
+        <StarsSelector initialValue={f.rating} isEditable={false} size="sm" />
       </div>
       {f.review && (
         <p className="mt-2 pl-10 text-xs leading-6 text-[var(--text-muted)]">{f.review}</p>
