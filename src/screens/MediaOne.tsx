@@ -716,74 +716,79 @@ export default function MediaOnePage({
           {/* ── My review ── */}
           {canInteract && (
             <div className="flex flex-col gap-5">
-              <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface)] p-5">
-                <div className="mb-3 flex items-center justify-between">
-                  <h3 className="text-[10px] uppercase tracking-widest text-[var(--text-muted)]">{t('yourReview')}</h3>
-                  <button
-                    onClick={() => setEditingReview(true)}
-                    className="text-xs text-[var(--text-muted)] transition-colors hover:text-[var(--text)] flex items-center gap-1"
-                  >
-                    <IoCreateOutline className="h-3.5 w-3.5" />
-                    {t('edit') || 'Edit'}
-                  </button>
-                </div>
-
-                <StarsSelector initialValue={userRating} onChange={handleRatingChange} isEditable />
-
-                {userReview ? (
-                  <p className="mt-3 text-sm leading-7 text-[var(--text-muted)]">{userReview}</p>
-                ) : (
-                  <p className="mt-3 text-sm italic text-[var(--placeholder)]">
-                    {t('reviewPlaceholder', { type: isBook ? t('book').toLowerCase() : t('film').toLowerCase() })}
-                  </p>
-                )}
-
-                {editingReview && (
-                  <div className="mt-4 flex flex-col gap-3 border-t border-[var(--border-subtle)] pt-4">
-                    <textarea
-                      value={userReview}
-                      onChange={(e) => { setUserReview(e.target.value); setReviewSaved(false) }}
-                      rows={4}
-                      autoFocus
-                      placeholder={t('reviewPlaceholder', { type: isBook ? t('book').toLowerCase() : t('film').toLowerCase() })}
-                      className="w-full resize-y rounded-lg border border-[var(--border-subtle)] bg-[var(--bg)] p-3 text-sm text-[var(--text)] placeholder:text-[var(--placeholder)] focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[var(--primary-ring)]"
-                    />
-                    <div className="flex items-center justify-end gap-3">
-                      {reviewSaved && <span className="text-xs text-[var(--text-muted)]">{t('saved') || 'Saved'}</span>}
-                      <button
-                        onClick={() => setEditingReview(false)}
-                        className="rounded-lg border border-[var(--border-subtle)] px-4 py-1.5 text-sm text-[var(--text-muted)] transition-colors hover:text-[var(--text)]"
-                      >
-                        {t('cancel')}
-                      </button>
-                      <button
-                        onClick={async () => { await saveReview(); setEditingReview(false) }}
-                        disabled={reviewSaving || userReview === (item.review ?? '')}
-                        className="rounded-lg bg-nonsprimary px-4 py-1.5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-40"
-                      >
-                        {reviewSaving ? t('saving') || 'Saving…' : t('saveReview') || 'Save'}
-                      </button>
-                    </div>
+              <div className="-mx-4 md:mx-0 rounded-none md:rounded-2xl border-y md:border border-[var(--border-subtle)] bg-[var(--surface)] p-0 md:p-5">
+                <div className="px-4 py-4 md:p-0">
+                  <div className="mb-3 flex items-center justify-between">
+                    <h3 className="text-[10px] uppercase tracking-widest text-[var(--text-muted)]">{t('yourReview')}</h3>
+                    <button
+                      onClick={() => setEditingReview(true)}
+                      className="text-xs text-[var(--text-muted)] transition-colors hover:text-[var(--text)] flex items-center gap-1"
+                    >
+                      <IoCreateOutline className="h-3.5 w-3.5" />
+                      {t('edit') || 'Edit'}
+                    </button>
                   </div>
-                )}
+
+                  <StarsSelector initialValue={userRating} onChange={handleRatingChange} isEditable />
+
+                  {userReview ? (
+                    <p className="mt-3 text-sm leading-7 text-[var(--text-muted)]">{userReview}</p>
+                  ) : (
+                    <p className="mt-3 text-sm italic text-[var(--placeholder)]">
+                      {t('reviewPlaceholder', { type: isBook ? t('book').toLowerCase() : t('film').toLowerCase() })}
+                    </p>
+                  )}
+
+                  {editingReview && (
+                    <div className="mt-4 flex flex-col gap-3 border-t border-[var(--border-subtle)] pt-4">
+                      <textarea
+                        value={userReview}
+                        onChange={(e) => { setUserReview(e.target.value); setReviewSaved(false) }}
+                        rows={4}
+                        autoFocus
+                        placeholder={t('reviewPlaceholder', { type: isBook ? t('book').toLowerCase() : t('film').toLowerCase() })}
+                        className="w-full resize-y rounded-lg border border-[var(--border-subtle)] bg-[var(--bg)] p-3 text-sm text-[var(--text)] placeholder:text-[var(--placeholder)] focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[var(--primary-ring)]"
+                      />
+                      <div className="flex items-center justify-end gap-3">
+                        {reviewSaved && <span className="text-xs text-[var(--text-muted)]">{t('saved') || 'Saved'}</span>}
+                        <button
+                          onClick={() => setEditingReview(false)}
+                          className="rounded-lg border border-[var(--border-subtle)] px-4 py-1.5 text-sm text-[var(--text-muted)] transition-colors hover:text-[var(--text)]"
+                        >
+                          {t('cancel')}
+                        </button>
+                        <button
+                          onClick={async () => { await saveReview(); setEditingReview(false) }}
+                          disabled={reviewSaving || userReview === (item.review ?? '')}
+                          className="rounded-lg bg-nonsprimary px-4 py-1.5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-40"
+                        >
+                          {reviewSaving ? t('saving') || 'Saving…' : t('saveReview') || 'Save'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* ── Friends rating ── */}
-              <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface)] p-5">
-                <h3 className="mb-3 text-[10px] uppercase tracking-widest text-[var(--text-muted)]">Friends</h3>
-                {MOCK_FRIEND_RATINGS.length === 0 ? (
-                  <p className="text-sm text-[var(--placeholder)]">No friends have rated this yet.</p>
-                ) : (
-                  <div className="flex flex-col divide-y divide-[var(--border-subtle)]">
-                    {MOCK_FRIEND_RATINGS.map((f) => (
-                      <FriendRatingRow key={f.handle} f={f} />
-                    ))}
-                  </div>
-                )}
+              <div className="-mx-4 md:mx-0 rounded-none md:rounded-2xl border-y md:border border-[var(--border-subtle)] bg-[var(--surface)] p-0 md:p-5">
+                <div className="px-4 py-4 md:p-0">
+                  <h3 className="mb-3 text-[10px] uppercase tracking-widest text-[var(--text-muted)]">Friends</h3>
+                  {MOCK_FRIEND_RATINGS.length === 0 ? (
+                    <p className="text-sm text-[var(--placeholder)]">No friends have rated this yet.</p>
+                  ) : (
+                    <div className="flex flex-col divide-y divide-[var(--border-subtle)]">
+                      {MOCK_FRIEND_RATINGS.map((f) => (
+                        <FriendRatingRow key={f.handle} f={f} />
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* ── Community rating ── */}
-              <div ref={commSectionRef} style={{ scrollMarginTop: 88 }} className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface)] p-5">
+              <div ref={commSectionRef} style={{ scrollMarginTop: 88 }} className="-mx-4 md:mx-0 rounded-none md:rounded-2xl border-y md:border border-[var(--border-subtle)] bg-[var(--surface)] p-0 md:p-5">
+              <div className="px-4 py-4 md:p-0">
                 {/* title + avg side by side; avg floats right below the title */}
                 <div className="mb-4 flex items-start justify-between gap-4">
                   <div className="flex flex-col gap-3">
@@ -875,6 +880,7 @@ export default function MediaOnePage({
                     )}
                   </>
                 )}
+              </div>
               </div>
             </div>
           )}
