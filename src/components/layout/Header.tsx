@@ -277,7 +277,7 @@ export default function Header() {
 
       {/* ── Mobile bottom nav (floating oval pill) ── */}
       <div className="pointer-events-none fixed bottom-6 left-0 right-0 z-50 flex justify-center lg:hidden">
-        <nav className="pointer-events-auto flex items-center gap-0.5 rounded-full border border-[var(--border-subtle)] bg-[color-mix(in_srgb,var(--container)_88%,transparent)] px-3 py-2.5 shadow-2xl backdrop-blur-xl">
+        <nav className="pointer-events-auto flex items-center gap-0.5 rounded-full border border-[var(--border-subtle)] bg-[color-mix(in_srgb,var(--bg)_92%,transparent)] px-3 py-2.5 shadow-2xl backdrop-blur-xl">
           {[
             { to: '/', icon: IoHomeOutline, label: t('home') || 'Home', active: path === '/' },
             { to: '/library', icon: IoLibraryOutline, label: t('library') || 'Library', active: path === '/library' },
@@ -286,11 +286,13 @@ export default function Header() {
             <Link
               key={to}
               to={to}
-              className={`flex flex-col items-center gap-0.5 rounded-2xl px-3.5 py-1.5 transition-colors ${
+              className={`flex flex-col items-center gap-1 rounded-2xl px-3.5 py-1.5 transition-colors ${
                 active ? 'text-[var(--text)]' : 'text-[var(--text-muted)]'
               }`}
             >
-              <Icon className="h-[22px] w-[22px]" />
+              <span className="flex h-[22px] items-center justify-center">
+                <Icon className="h-[22px] w-[22px]" />
+              </span>
               <span className="text-[10px] font-medium leading-none">{label}</span>
             </Link>
           ))}
@@ -298,26 +300,30 @@ export default function Header() {
           {/* Search */}
           <button
             onClick={() => setMobileSearchOpen(true)}
-            className={`flex flex-col items-center gap-0.5 rounded-2xl px-3.5 py-1.5 transition-colors ${
+            className={`flex flex-col items-center gap-1 rounded-2xl px-3.5 py-1.5 transition-colors ${
               mobileSearchOpen ? 'text-[var(--text)]' : 'text-[var(--text-muted)]'
             }`}
           >
-            <IoSearch className="h-[22px] w-[22px]" />
+            <span className="flex h-[22px] items-center justify-center">
+              <IoSearch className="h-[22px] w-[22px]" />
+            </span>
             <span className="text-[10px] font-medium leading-none">Search</span>
           </button>
 
           {/* Profile — opens the sheet */}
           <button
             onClick={() => setSheetOpen(true)}
-            className={`flex flex-col items-center gap-0.5 rounded-2xl px-3.5 py-1.5 transition-colors ${
+            className={`flex flex-col items-center gap-1 rounded-2xl px-3.5 py-1.5 transition-colors ${
               sheetOpen ? 'text-[var(--text)]' : 'text-[var(--text-muted)]'
             }`}
           >
-            {display ? (
-              <Avatar display={display} />
-            ) : (
-              <IoPersonOutline className="h-[22px] w-[22px]" />
-            )}
+            <span className="flex h-[22px] items-center justify-center">
+              {display ? (
+                <Avatar display={display} />
+              ) : (
+                <IoPersonOutline className="h-[22px] w-[22px]" />
+              )}
+            </span>
             <span className="text-[10px] font-medium leading-none">{t('profile') || 'Profile'}</span>
           </button>
         </nav>

@@ -46,7 +46,7 @@ export default function ActivityCard({ a }: { a: Activity }) {
   const showStars = typeof a.rating === 'number' && a.rating > 0
 
   return (
-    <article className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--container)] p-4 sm:p-5">
+    <article className="-mx-4 rounded-none border-x-0 border-y border-[var(--border-subtle)] bg-[var(--container)] px-4 py-4 sm:mx-0 sm:rounded-2xl sm:border sm:p-5">
       {/* header: "<Name> <verb> <Title>" + stars, above the media card */}
       <div className="mb-3 flex items-center gap-2.5">
         <Link
