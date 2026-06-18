@@ -354,6 +354,7 @@ export const translations: Translations = {
   searchToBegin: { en: 'Start typing to search.', ru: 'Начните вводить для поиска.' },
   addBook: { en: 'Add book', ru: 'Добавить книгу' },
   edit: { en: 'Edit', ru: 'Изменить' },
+  open: { en: 'Open', ru: 'Открыть' },
   rename: { en: 'Rename', ru: 'Переименовать' },
   merge: { en: 'Merge', ru: 'Объединить' },
   creditsCount: { en: '{n} credits', ru: 'упоминаний: {n}' },

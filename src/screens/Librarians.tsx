@@ -20,10 +20,12 @@ import {
   IoTvOutline,
   IoPersonOutline,
   IoGitMergeOutline,
+  IoOpenOutline,
 } from 'react-icons/io5'
 import type { BulkJob } from '../services/librarianService'
 import PersonModal from '../components/PersonModal'
 import TypeBadge from '../components/TypeBadge'
+import { mediaPath } from '../lib/paths'
 
 type Tab = 'catalog' | 'authors'
 
@@ -192,13 +194,22 @@ function CatalogTab() {
                 </div>
               </div>
 
-              <button
-                onClick={() => openEdit(item.id)}
-                className="ml-4 flex h-10 flex-shrink-0 items-center justify-center gap-2 rounded-xl bg-[var(--surface)] px-4 text-sm font-semibold text-[var(--text)] transition-colors hover:bg-[var(--border-subtle)]"
-              >
-                <IoCreateOutline className="h-5 w-5" />
-                <span className="hidden sm:inline">{t('edit')}</span>
-              </button>
+              <div className="ml-4 flex flex-shrink-0 items-center gap-2">
+                <Link
+                  to={mediaPath(item)}
+                  className="flex h-10 items-center justify-center gap-2 rounded-xl bg-[var(--surface)] px-4 text-sm font-semibold text-[var(--text)] transition-colors hover:bg-[var(--border-subtle)]"
+                >
+                  <IoOpenOutline className="h-5 w-5" />
+                  <span className="hidden sm:inline">{t('open') || 'Open'}</span>
+                </Link>
+                <button
+                  onClick={() => openEdit(item.id)}
+                  className="flex h-10 items-center justify-center gap-2 rounded-xl bg-[var(--surface)] px-4 text-sm font-semibold text-[var(--text)] transition-colors hover:bg-[var(--border-subtle)]"
+                >
+                  <IoCreateOutline className="h-5 w-5" />
+                  <span className="hidden sm:inline">{t('edit')}</span>
+                </button>
+              </div>
             </div>
           ))}
         </div>
