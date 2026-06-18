@@ -9,6 +9,7 @@ import type { MediaItem } from '../types'
 import { useLanguage } from '../contexts/LanguageContext'
 import { IoStar, IoFlame, IoPeopleOutline } from 'react-icons/io5'
 import { mediaPath } from '../lib/paths'
+import TypeBadge from '../components/TypeBadge'
 
 const keyOf = (it: { type: string; title: string }) => `${it.type}:${it.title.trim().toLowerCase()}`
 
@@ -20,17 +21,25 @@ export default function DiscoverPage() {
   const [libKeys, setLibKeys] = useState<Set<string>>(new Set())
   const [added, setAdded] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
+  const [importing, setImporting] = useState(false)
 
-  // Search hits the backend (whole catalog, not just the user's library).
-  // Debounced so the top-bar input doesn't fire a request per keystroke.
   useEffect(() => {
     setLoading(true)
-    const timer = setTimeout(() => {
-      Promise.all([catalogService.getCatalog(q), libraryService.getItems()]).then(([cat, lib]) => {
+    setImporting(false)
+    const timer = setTimeout(async () => {
+      const [cat, lib] = await Promise.all([catalogService.getCatalog(q), libraryService.getItems()])
+      setLibKeys(new Set(lib.map(keyOf)))
+      if (cat.length > 0 || !q) {
         setCatalog(cat)
-        setLibKeys(new Set(lib.map(keyOf)))
         setLoading(false)
-      })
+        return
+      }
+      // Nothing in local catalog — auto-import books, movies and series in parallel.
+      setLoading(false)
+      setImporting(true)
+      const fill = await catalogService.searchFill(q, { limit: 5, series: true })
+      setImporting(false)
+      setCatalog(fill.items)
     }, q ? 300 : 0)
     return () => clearTimeout(timer)
   }, [q])
@@ -103,7 +112,12 @@ export default function DiscoverPage() {
         /* Search mode — flat results from the whole catalog */
         <div className="animate-fade-up">
           <h2 className="mb-3 text-base font-semibold text-[var(--text)]">{t('searchResults', { q })}</h2>
-          {catalog.length === 0 ? (
+          {importing ? (
+            <div className="flex flex-col items-center gap-3 py-16">
+              <div className="h-7 w-7 animate-spin rounded-full border-4 border-nonsprimary border-t-transparent" />
+              <p className="text-sm text-[var(--text-muted)]">Searching external sources…</p>
+            </div>
+          ) : catalog.length === 0 ? (
             <p className="py-16 text-center text-sm text-[var(--text-muted)]">{t('noResults')}</p>
           ) : (
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
@@ -125,11 +139,12 @@ export default function DiscoverPage() {
               <div className="flex flex-col gap-5 rounded-2xl border border-[var(--border-subtle)] bg-[var(--container)] p-4 sm:flex-row sm:p-5">
                 <Link
                   to={mediaPath(featured)}
-                  className="aspect-[2/3] w-32 flex-shrink-0 overflow-hidden rounded-xl border border-[var(--border-subtle)] bg-[var(--container-2)] transition-colors hover:border-[var(--border)] sm:w-44"
+                  className="relative aspect-[2/3] w-32 flex-shrink-0 overflow-hidden rounded-xl border border-[var(--border-subtle)] bg-[var(--container-2)] transition-colors hover:border-[var(--border)] sm:w-44"
                 >
                   {featured.coverUrl && (
                     <img src={featured.coverUrl} alt={featured.title} className="h-full w-full object-cover" />
                   )}
+                  <TypeBadge type={featured.type} />
                 </Link>
                 <div className="flex min-w-0 flex-1 flex-col">
                   <div className="flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-widest text-[var(--text-muted)]">

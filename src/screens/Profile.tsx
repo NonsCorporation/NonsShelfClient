@@ -8,6 +8,7 @@ import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
 import { currentUser, initials, colorFor } from '../lib/user'
 import { mediaPath } from '../lib/paths'
+import TypeBadge from '../components/TypeBadge'
 
 type ProfileView = {
   name: string
@@ -156,10 +157,11 @@ export default function ProfilePage() {
           <div className="grid grid-cols-3 gap-4 sm:grid-cols-4 md:grid-cols-6">
             {recent.map((it) => (
               <Link key={it.id} to={mediaPath(it)} className="group block" title={it.title}>
-                <div className="aspect-[2/3] overflow-hidden rounded-xl border border-[var(--border-subtle)] bg-[var(--container-2)] transition-colors group-hover:border-[var(--border)]">
+                <div className="relative aspect-[2/3] overflow-hidden rounded-xl border border-[var(--border-subtle)] bg-[var(--container-2)] transition-colors group-hover:border-[var(--border)]">
                   {it.coverUrl && (
                     <img src={it.coverUrl} alt={it.title} loading="lazy" className="h-full w-full object-cover" />
                   )}
+                  <TypeBadge type={it.type} />
                 </div>
               </Link>
             ))}

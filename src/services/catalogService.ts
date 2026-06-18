@@ -72,6 +72,9 @@ function mapMedia(m: BackendMedia): CatalogItem {
 export interface ICatalogService {
   /** Fetch the catalog; `q` searches the whole DB by title/author server-side. */
   getCatalog(q?: string): Promise<CatalogItem[]>
+  /** When `q` returns no local results, search externally and auto-import up to
+   *  `limit` books and films (and series if requested), then return the rows. */
+  searchFill(q: string, opts?: { limit?: number; series?: boolean }): Promise<{ items: CatalogItem[]; autoImported: boolean }>
 }
 
 // Talks to nons-library-server over the shared SSO session (authedFetch sends
@@ -91,6 +94,21 @@ class ApiCatalogService implements ICatalogService {
       this.fetchPage('/api/media?type=series&limit=100'),
     ])
     return [...books, ...movies, ...series]
+  }
+
+  async searchFill(q: string, opts?: { limit?: number; series?: boolean }): Promise<{ items: CatalogItem[]; autoImported: boolean }> {
+    if (!q.trim()) return { items: [], autoImported: false }
+    try {
+      const p = new URLSearchParams({ q: q.trim() })
+      if (opts?.limit) p.set('limit', String(opts.limit))
+      if (opts?.series) p.set('series', '1')
+      const res = await authedFetch(`/api/media/search-fill?${p}`)
+      if (!res.ok) return { items: [], autoImported: false }
+      const data: { items: BackendMedia[]; auto_imported: boolean } = await res.json()
+      return { items: (data.items ?? []).map(mapMedia), autoImported: data.auto_imported ?? false }
+    } catch {
+      return { items: [], autoImported: false }
+    }
   }
 
   private async fetchPage(url: string): Promise<CatalogItem[]> {

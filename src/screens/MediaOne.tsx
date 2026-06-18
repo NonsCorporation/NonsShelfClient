@@ -31,6 +31,7 @@ import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
 import { isLibrarian } from '../services/librarianService'
 import { statusLabel } from '../lib/shelf'
+import TypeBadge from '../components/TypeBadge'
 
 const MOCK_FRIEND_RATINGS = [
   { handle: 'alex', name: 'Alex M.', rating: 8, color: '#6768ab', review: 'Absolutely loved it. The pacing was perfect and the ending hit hard. One of the best I\'ve read this year.' },
@@ -365,7 +366,7 @@ export default function MediaOnePage({
       <div className="flex flex-col gap-8 md:flex-row md:gap-10">
         {/* ── Left: cover + actions ── */}
         <div className="flex w-full flex-shrink-0 flex-col gap-3 md:w-64 md:sticky md:top-[88px] md:self-start">
-          <div className="aspect-[2/3] overflow-hidden rounded-2xl border border-[var(--border-subtle)]">
+          <div className="relative aspect-[2/3] overflow-hidden rounded-2xl border border-[var(--border-subtle)]">
             {coverUrl ? (
               <img src={coverUrl} alt={item.title} className="h-full w-full object-cover" />
             ) : (
@@ -373,6 +374,7 @@ export default function MediaOnePage({
                 <Icon className="h-10 w-10 text-[var(--placeholder)]" />
               </div>
             )}
+            <TypeBadge type={item.type} position="top-2.5 right-2.5" />
           </div>
 
           {canInteract && (

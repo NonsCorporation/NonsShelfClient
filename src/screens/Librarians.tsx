@@ -23,6 +23,7 @@ import {
 } from 'react-icons/io5'
 import type { BulkJob } from '../services/librarianService'
 import PersonModal from '../components/PersonModal'
+import TypeBadge from '../components/TypeBadge'
 
 type Tab = 'catalog' | 'authors'
 
@@ -162,15 +163,18 @@ function CatalogTab() {
               className="flex items-center justify-between rounded-2xl border border-[var(--border-subtle)] bg-[var(--container)] p-4 transition-colors hover:border-[var(--border)] sm:p-5"
             >
               <div className="flex min-w-0 items-center gap-4 sm:gap-6">
-                {item.coverUrl ? (
-                  <img
-                    src={item.coverUrl}
-                    alt={item.title}
-                    className="h-20 w-14 flex-shrink-0 rounded-lg object-cover sm:h-24 sm:w-16"
-                  />
-                ) : (
-                  <div className="h-20 w-14 flex-shrink-0 rounded-lg bg-[var(--surface)] sm:h-24 sm:w-16" />
-                )}
+                <div className="relative aspect-[2/3] w-14 flex-shrink-0 sm:w-16">
+                  {item.coverUrl ? (
+                    <img
+                      src={item.coverUrl}
+                      alt={item.title}
+                      className="h-full w-full rounded-lg object-cover"
+                    />
+                  ) : (
+                    <div className="h-full w-full rounded-lg bg-[var(--surface)]" />
+                  )}
+                  <TypeBadge type={item.type} position="top-1 right-1" size="h-6 w-6" iconSize="h-3 w-3" />
+                </div>
                 <div className="flex min-w-0 flex-col">
                   <div className="mb-1 flex items-center gap-2 text-[10px] uppercase tracking-widest text-[var(--text-muted)] sm:text-[11px]">
                     <span>{item.type === 'book' ? t('book') : item.type === 'series' ? t('series') : t('film')}</span>

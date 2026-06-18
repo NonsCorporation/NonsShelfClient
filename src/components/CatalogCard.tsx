@@ -4,6 +4,7 @@ import type { CatalogItem } from '../services/catalogService'
 import { compactCount } from '../services/catalogService'
 import { useLanguage } from '../contexts/LanguageContext'
 import { mediaPath } from '../lib/paths'
+import TypeBadge from './TypeBadge'
 
 type CatalogCardProps = {
   item: CatalogItem
@@ -35,9 +36,7 @@ export default function CatalogCard({ item, inLibrary, onAdd, showReason }: Cata
             <IoStar className="h-3 w-3 text-nonsprimaryfocus" />
             {item.communityRating.toFixed(1)}
           </div>
-          <div className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/45 text-white/80">
-            <TypeIcon className="h-3.5 w-3.5" />
-          </div>
+          <TypeBadge type={item.type} position="right-2 top-2" />
         </div>
 
         <div className="mt-2.5 min-w-0">

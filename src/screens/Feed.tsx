@@ -17,6 +17,7 @@ import type { ShelfStatus } from '../types'
 import { mediaPath } from '../lib/paths'
 import { IoStar, IoEyeOffOutline, IoPeopleOutline, IoChevronBack, IoChevronForward } from 'react-icons/io5'
 import ShelfStatusBar from '../components/ShelfStatusBar'
+import TypeBadge from '../components/TypeBadge'
 
 export default function FeedPage() {
   const { t } = useLanguage()
@@ -236,13 +237,16 @@ function InProgressCard({
 
   return (
     <div className="w-72 flex-shrink-0">
-      <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--container)]">
+      <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--container)]">
         <Link to={mediaPath(item)} className="flex items-center gap-3 p-3">
-          {item.coverUrl ? (
-            <img src={item.coverUrl} alt={item.title} loading="lazy" className="h-[84px] w-14 flex-shrink-0 rounded-lg object-cover" />
-          ) : (
-            <div className="h-[84px] w-14 flex-shrink-0 rounded-lg bg-[var(--container-2)]" />
-          )}
+          <div className="relative aspect-[2/3] w-14 flex-shrink-0">
+            {item.coverUrl ? (
+              <img src={item.coverUrl} alt={item.title} loading="lazy" className="h-full w-full rounded-md object-cover" />
+            ) : (
+              <div className="h-full w-full rounded-md bg-[var(--container-2)]" />
+            )}
+            <TypeBadge type={item.type} position="top-1 right-1" size="h-6 w-6" iconSize="h-3 w-3" />
+          </div>
           <div className="min-w-0 flex-1">
             <h3 className="truncate text-sm font-semibold text-[var(--text)]">{item.title}</h3>
             <p className="truncate text-xs text-[var(--text-muted)]">{item.author}</p>

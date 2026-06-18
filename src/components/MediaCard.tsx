@@ -11,6 +11,7 @@ import type { MediaItem } from '../types'
 import { useLanguage } from '../contexts/LanguageContext'
 import { statusLabel, STATUS_COLOR } from '../lib/shelf'
 import { mediaPath } from '../lib/paths'
+import TypeBadge from './TypeBadge'
 
 type MediaCardProps = {
   item: MediaItem
@@ -116,31 +117,25 @@ export default function MediaCard({ item, view, onToggleFavorite }: MediaCardPro
         <Cover item={item} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
         <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
 
-        {/* Top row: status + favorite */}
-        <div className="absolute inset-x-2.5 top-2.5 flex items-start justify-between">
-          <span
-            className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-semibold text-white"
-            style={{ backgroundColor: `${STATUS_COLOR[status]}d0` }}
-          >
-            {statusLabel(item.type, status, t)}
-          </span>
-          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-black/40">
-            {favBtn}
-          </span>
-        </div>
+        {/* Status (top-left) + type (top-right) */}
+        <span
+          className="absolute left-2.5 top-2.5 inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-semibold text-white"
+          style={{ backgroundColor: `${STATUS_COLOR[status]}d0` }}
+        >
+          {statusLabel(item.type, status, t)}
+        </span>
+        <TypeBadge type={item.type} position="top-2.5 right-2.5" />
 
-        {/* Type icon */}
-        <div className="absolute bottom-2.5 right-2.5 flex h-7 w-7 items-center justify-center rounded-full bg-black/45 text-white/80">
-          <TypeIcon className="h-3.5 w-3.5" />
-        </div>
-
-        {/* Rating pill */}
+        {/* Rating (bottom-left) + favorite (bottom-right) */}
         {typeof item.rating === 'number' && item.rating > 0 && (
           <div className="absolute bottom-2.5 left-2.5 flex items-center gap-1 rounded-full bg-black/55 px-2 py-1 text-[11px] font-semibold text-white">
             <IoStar className="h-3 w-3 text-nonsprimaryfocus" />
             {(item.rating / 2).toFixed(1)}
           </div>
         )}
+        <span className="absolute bottom-2.5 right-2.5 flex h-7 w-7 items-center justify-center rounded-full bg-black/40">
+          {favBtn}
+        </span>
       </div>
 
       <div className="relative flex flex-1 flex-col gap-1 p-3">

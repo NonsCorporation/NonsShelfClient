@@ -31,6 +31,7 @@ import { redirectToNonsLogin } from '../../lib/api'
 import { userPath, mediaPath } from '../../lib/paths'
 import { isLibrarian } from '../../services/librarianService'
 import { catalogService, type CatalogItem } from '../../services/catalogService'
+import TypeBadge from '../TypeBadge'
 
 type ShelfKey = 'all' | 'wishlist' | 'active' | 'done' | 'favorites'
 type NavItem = { to: string; label: string; icon: IconType; match: (p: string) => boolean }
@@ -47,6 +48,7 @@ export default function Header() {
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false)
   const [mobileQ, setMobileQ] = useState('')
   const [mobileResults, setMobileResults] = useState<CatalogItem[]>([])
+  const [mobileImporting, setMobileImporting] = useState(false)
   const mobileInputRef = useRef<HTMLInputElement>(null)
   const hidden = useHideOnScroll(accountOpen || sheetOpen)
 
@@ -103,11 +105,16 @@ export default function Header() {
   }, [mobileSearchOpen])
 
   useEffect(() => {
-    if (!mobileQ) { setMobileResults([]); return }
-    const t = setTimeout(() => {
-      catalogService.getCatalog(mobileQ).then((d) => setMobileResults(d.slice(0, 6)))
+    if (!mobileQ) { setMobileResults([]); setMobileImporting(false); return }
+    const timer = setTimeout(async () => {
+      const data = await catalogService.getCatalog(mobileQ).catch(() => [] as CatalogItem[])
+      if (data.length > 0) { setMobileResults(data.slice(0, 6)); return }
+      setMobileImporting(true)
+      const fill = await catalogService.searchFill(mobileQ, { limit: 2 })
+      setMobileImporting(false)
+      setMobileResults(fill.items.slice(0, 6))
     }, 280)
-    return () => clearTimeout(t)
+    return () => clearTimeout(timer)
   }, [mobileQ])
 
   return (
@@ -363,7 +370,12 @@ export default function Header() {
                 <IoClose className="h-5 w-5" />
               </button>
             </div>
-            {mobileResults.length > 0 && (
+            {mobileImporting && (
+              <div className="px-5 pb-3 text-sm text-[var(--text-muted)]">
+                Searching external sources…
+              </div>
+            )}
+            {!mobileImporting && mobileResults.length > 0 && (
               <div className="max-h-[55dvh] overflow-y-auto px-3 pb-3">
                 {mobileResults.map((item) => (
                   <Link
@@ -372,11 +384,14 @@ export default function Header() {
                     onClick={() => setMobileSearchOpen(false)}
                     className="flex items-center gap-3 rounded-xl p-2.5 transition-colors hover:bg-[var(--surface)]"
                   >
-                    {item.coverUrl ? (
-                      <img src={item.coverUrl} alt="" className="h-12 w-8 flex-shrink-0 rounded object-cover" />
-                    ) : (
-                      <div className="h-12 w-8 flex-shrink-0 rounded bg-[var(--surface)]" />
-                    )}
+                    <div className="relative aspect-[2/3] w-8 flex-shrink-0">
+                      {item.coverUrl ? (
+                        <img src={item.coverUrl} alt="" className="h-full w-full rounded object-cover" />
+                      ) : (
+                        <div className="h-full w-full rounded bg-[var(--surface)]" />
+                      )}
+                      <TypeBadge type={item.type} position="-top-1 -right-1" size="h-5 w-5" iconSize="h-2.5 w-2.5" />
+                    </div>
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-sm font-semibold text-[var(--text)]">{item.title}</div>
                       <div className="truncate text-xs text-[var(--text-muted)]">
@@ -560,6 +575,7 @@ function HeaderSearch() {
   const [open, setOpen] = useState(false)
   const [results, setResults] = useState<CatalogItem[]>([])
   const [loading, setLoading] = useState(false)
+  const [importing, setImporting] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -571,16 +587,23 @@ function HeaderSearch() {
 
   useEffect(() => {
     if (!value || !open) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setResults([])
+      setImporting(false)
       return
     }
     setLoading(true)
-    const timer = setTimeout(() => {
-      catalogService.getCatalog(value).then((data) => {
+    const timer = setTimeout(async () => {
+      const data = await catalogService.getCatalog(value).catch(() => [] as CatalogItem[])
+      if (data.length > 0) {
         setResults(data.slice(0, 5))
         setLoading(false)
-      })
+        return
+      }
+      setImporting(true)
+      const fill = await catalogService.searchFill(value, { limit: 2 })
+      setImporting(false)
+      setResults(fill.items.slice(0, 5))
+      setLoading(false)
     }, 300)
     return () => clearTimeout(timer)
   }, [value, open])
@@ -638,10 +661,12 @@ function HeaderSearch() {
       )}
 
       {open && value && (
-        <div className="animate-fade-up absolute right-0 z-50 mt-2 w-[min(22rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-[var(--border-subtle)] bg-[color-mix(in_srgb,var(--container)_94%,transparent)] shadow-2xl backdrop-blur-xl">
+        <div className="animate-fade-up absolute right-0 top-full z-50 mt-2 w-[min(22rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-[var(--border-subtle)] bg-[color-mix(in_srgb,var(--container)_94%,transparent)] shadow-2xl backdrop-blur-xl">
           <div className="max-h-[60vh] overflow-y-auto p-2">
-            {loading ? (
-              <div className="p-4 text-center text-sm text-[var(--text-muted)]">{t('loading')}</div>
+            {loading || importing ? (
+              <div className="p-4 text-center text-sm text-[var(--text-muted)]">
+                {importing ? 'Searching external sources…' : t('loading')}
+              </div>
             ) : results.length > 0 ? (
               results.map((item) => (
                 <Link
@@ -650,11 +675,14 @@ function HeaderSearch() {
                   onClick={() => setOpen(false)}
                   className="flex items-center gap-3 rounded-xl p-2 transition-colors hover:bg-[var(--surface)]"
                 >
-                  {item.coverUrl ? (
-                    <img src={item.coverUrl} alt="" className="h-12 w-8 rounded object-cover" />
-                  ) : (
-                    <div className="h-12 w-8 rounded bg-[var(--surface)]" />
-                  )}
+                  <div className="relative aspect-[2/3] w-8 flex-shrink-0">
+                    {item.coverUrl ? (
+                      <img src={item.coverUrl} alt="" className="h-full w-full rounded object-cover" />
+                    ) : (
+                      <div className="h-full w-full rounded bg-[var(--surface)]" />
+                    )}
+                    <TypeBadge type={item.type} position="-top-1 -right-1" size="h-5 w-5" iconSize="h-2.5 w-2.5" />
+                  </div>
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-sm font-semibold text-[var(--text)]">{item.title}</div>
                     <div className="truncate text-xs text-[var(--text-muted)]">

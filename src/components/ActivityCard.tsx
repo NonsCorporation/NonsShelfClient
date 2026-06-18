@@ -6,6 +6,7 @@ import { initials } from '../lib/user'
 import { mediaPath, userPath } from '../lib/paths'
 import { IoHeart, IoHeartOutline, IoChatbubbleOutline } from 'react-icons/io5'
 import { IoMdStar, IoMdStarHalf, IoMdStarOutline } from 'react-icons/io'
+import TypeBadge from './TypeBadge'
 
 const VERB_KEY: Record<ActivityType, string> = {
   rated: 'verbRated',
@@ -81,17 +82,18 @@ export default function ActivityCard({ a }: { a: Activity }) {
 
       {/* body: cover + details */}
       <div className="flex gap-4">
-        <Link to={to} className="flex-shrink-0">
+        <Link to={to} className="relative block aspect-[2/3] w-[88px] flex-shrink-0">
           {a.coverUrl ? (
             <img
               src={a.coverUrl}
               alt={a.mediaTitle}
               loading="lazy"
-              className="h-32 w-[88px] rounded-md border border-[var(--border-subtle)] object-cover"
+              className="h-full w-full rounded-md border border-[var(--border-subtle)] object-cover"
             />
           ) : (
-            <div className="h-32 w-[88px] rounded-md border border-[var(--border-subtle)] bg-[var(--container-2)]" />
+            <div className="h-full w-full rounded-md border border-[var(--border-subtle)] bg-[var(--container-2)]" />
           )}
+          <TypeBadge type={a.mediaType} position="top-1.5 right-1.5" size="h-6 w-6" iconSize="h-3 w-3" />
         </Link>
 
         <div className="min-w-0 flex-1">
