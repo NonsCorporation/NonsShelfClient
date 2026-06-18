@@ -174,18 +174,20 @@ export default function MediaOnePage({
     }
   }, [id, ssr])
 
-  // Editions (books) for the metadata section. SSR pages already have them.
+  // Editions (books) for the metadata section. Always refetched on the client —
+  // even on SSR pages, where `initialEditions` is only the first paint — so newly
+  // imported editions show up without waiting for a fresh server render.
   useEffect(() => {
-    if (!id || ssr) return
+    if (!id) return
     let cancelled = false
     authedFetch(`/api/media/${id}/editions`)
       .then((r) => (r.ok ? r.json() : null))
-      .then((d) => !cancelled && setEditions(d?.editions ?? []))
+      .then((d) => !cancelled && d && setEditions(d.editions ?? []))
       .catch(() => {})
     return () => {
       cancelled = true
     }
-  }, [id, ssr])
+  }, [id])
 
   // Episodes (series), grouped by season with the user's watched flags. Only
   // fetched once we know the item is a series.
