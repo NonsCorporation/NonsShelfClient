@@ -56,6 +56,7 @@ const MOCK_COMMUNITY_REVIEWS = [1, 2, 3, 4].flatMap((i) =>
 )
 type CommSort = 'newest' | 'oldest' | 'high' | 'low'
 const COMM_PER_PAGE = 10
+const EDITIONS_PER_PAGE = 12
 
 // CreditPerson, MediaCredits and Edition come from ../lib/mediaMap so the
 // server-rendered /b and /m pages can share them.
@@ -108,6 +109,8 @@ export default function MediaOnePage({
   const [loading, setLoading] = useState(!initialItem)
   const [credits, setCredits] = useState<MediaCredits | null>(initialCredits)
   const [editions, setEditions] = useState<Edition[]>(initialEditions)
+  const [editionsTotal, setEditionsTotal] = useState(initialEditions.length)
+  const [editionsLoadingMore, setEditionsLoadingMore] = useState(false)
   const [episodes, setEpisodes] = useState<EpisodesResponse | null>(null)
   const [editionId, setEditionId] = useState<number | null>(initialItem?.editionId ?? null)
   const [isbnFind, setIsbnFind] = useState('')
@@ -178,20 +181,46 @@ export default function MediaOnePage({
     }
   }, [id, ssr])
 
-  // Editions (books) for the metadata section. Always refetched on the client —
-  // even on SSR pages, where `initialEditions` is only the first paint — so newly
-  // imported editions show up without waiting for a fresh server render.
+  // Editions (books) for the metadata section, loaded a page at a time. Always
+  // refetches the first page on the client — even on SSR pages, where
+  // `initialEditions` is only the first paint — so newly imported editions show
+  // up without waiting for a fresh server render. More are pulled on demand via
+  // the "load more" control.
   useEffect(() => {
     if (!id) return
     let cancelled = false
-    authedFetch(`/api/media/${id}/editions`)
+    authedFetch(`/api/media/${id}/editions?page=0&limit=${EDITIONS_PER_PAGE}`)
       .then((r) => (r.ok ? r.json() : null))
-      .then((d) => !cancelled && d && setEditions(d.editions ?? []))
+      .then((d) => {
+        if (cancelled || !d) return
+        setEditions(d.editions ?? [])
+        setEditionsTotal(d.total ?? (d.editions?.length ?? 0))
+      })
       .catch(() => {})
     return () => {
       cancelled = true
     }
   }, [id])
+
+  // Append the next page of editions to the carousel.
+  const loadMoreEditions = useCallback(() => {
+    if (!id || editionsLoadingMore) return
+    const page = Math.floor(editions.length / EDITIONS_PER_PAGE)
+    setEditionsLoadingMore(true)
+    authedFetch(`/api/media/${id}/editions?page=${page}&limit=${EDITIONS_PER_PAGE}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!d) return
+        setEditions((prev) => {
+          // Dedupe by id in case pages overlap (e.g. a new edition shifted paging).
+          const seen = new Set(prev.map((e) => e.id))
+          return [...prev, ...((d.editions ?? []) as Edition[]).filter((e) => !seen.has(e.id))]
+        })
+        setEditionsTotal(d.total ?? editionsTotal)
+      })
+      .catch(() => {})
+      .finally(() => setEditionsLoadingMore(false))
+  }, [id, editions.length, editionsLoadingMore, editionsTotal])
 
   // Episodes (series), grouped by season with the user's watched flags. Only
   // fetched once we know the item is a series.
@@ -663,11 +692,14 @@ export default function MediaOnePage({
             const shown = find
               ? editions.filter((e) => (e.isbn13 || '').includes(find) || (e.isbn10 || '').includes(find))
               : editions
+            // More to load only matters in the unfiltered view (the ISBN find
+            // searches the editions already loaded).
+            const hasMore = !find && editions.length < editionsTotal
             return (
               <div>
                 <div className="mb-2.5 flex items-center justify-between gap-3">
                   <h3 className="text-[10px] uppercase tracking-widest text-[var(--text-muted)]">
-                    {t('editions') || 'Editions'} ({editions.length})
+                    {t('editions') || 'Editions'} ({editionsTotal})
                   </h3>
                   <input
                     value={isbnFind}
@@ -748,6 +780,19 @@ export default function MediaOnePage({
                       </div>
                     )
                   })}
+                    {hasMore && (
+                      <div className="flex w-40 flex-shrink-0 items-center justify-center">
+                        <button
+                          type="button"
+                          onClick={loadMoreEditions}
+                          disabled={editionsLoadingMore}
+                          className="flex aspect-[2/3] w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-[var(--border-subtle)] bg-[var(--surface)] text-sm font-medium text-[var(--text-muted)] transition-colors hover:border-nonsprimary hover:text-nonsprimary disabled:opacity-50"
+                        >
+                          <IoChevronForward className="h-5 w-5" />
+                          {editionsLoadingMore ? (t('loading') || 'Loading…') : (t('loadMore') || 'Load more')}
+                        </button>
+                      </div>
+                    )}
                     {shown.length === 0 && <p className="text-xs text-[var(--text-muted)]">{t('noResults')}</p>}
                   </div>
                 </div>

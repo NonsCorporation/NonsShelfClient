@@ -449,6 +449,7 @@ export const translations: Translations = {
   selectThisEdition: { en: 'Select this', ru: 'Выбрать' },
   selectedEdition: { en: 'Selected', ru: 'Выбрано' },
   findByIsbn: { en: 'Find by ISBN…', ru: 'Поиск по ISBN…' },
+  loadMore: { en: 'Load more', ru: 'Показать ещё' },
   rusify: { en: 'Rusify title', ru: 'В кириллицу' },
   rusifyAll: { en: 'Rusify romanized titles', ru: 'Перевести в кириллицу' },
   autoFindEditions: { en: 'Auto-find editions', ru: 'Найти издания' },
