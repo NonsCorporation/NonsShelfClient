@@ -512,7 +512,9 @@ export default function MediaOnePage({
 
           <div>
             <h3 className="mb-2 text-[10px] uppercase tracking-widest text-[var(--text-muted)]">{t('synopsis')}</h3>
-            <p className="text-sm leading-7 text-[var(--text-muted)]">{item.description || t('noDescription')}</p>
+            <p className="text-sm leading-7 text-[var(--text-muted)]">
+              {selectedEdition?.description || item.description || t('noDescription')}
+            </p>
           </div>
 
           {genres.length > 0 && (

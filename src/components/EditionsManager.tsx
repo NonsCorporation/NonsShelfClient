@@ -16,9 +16,10 @@ type EditionForm = {
   pages: string
   isbn13: string
   cover_url: string
+  description: string
 }
 
-const empty: EditionForm = { title: '', publisher: '', language: '', published_year: '', pages: '', isbn13: '', cover_url: '' }
+const empty: EditionForm = { title: '', publisher: '', language: '', published_year: '', pages: '', isbn13: '', cover_url: '', description: '' }
 
 function toForm(e: Edition): EditionForm {
   return {
@@ -29,6 +30,7 @@ function toForm(e: Edition): EditionForm {
     pages: e.pages ? String(e.pages) : '',
     isbn13: e.isbn13 ?? e.isbn10 ?? '',
     cover_url: e.cover_url ?? '',
+    description: e.description ?? '',
   }
 }
 
@@ -43,6 +45,7 @@ function fromForm(f: EditionForm): Partial<Edition> {
     isbn13: isbn.length === 13 ? isbn : undefined,
     isbn10: isbn.length === 10 ? isbn : undefined,
     cover_url: f.cover_url || undefined,
+    description: f.description.trim() || undefined,
   }
 }
 
@@ -256,6 +259,7 @@ function EditionRowForm({
       const ed = await librarianService.lookupEdition(isbn)
       if (ed) {
         setForm((s) => ({
+          ...s,
           title: ed.title || s.title,
           publisher: ed.publisher || s.publisher,
           language: ed.language || s.language,
@@ -303,6 +307,13 @@ function EditionRowForm({
         <input className={input} type="number" placeholder={t('pages')} value={form.pages} onChange={(e) => setForm((s) => ({ ...s, pages: e.target.value }))} />
       </div>
       <input className={input} placeholder={t('coverUrl')} value={form.cover_url} onChange={(e) => setForm((s) => ({ ...s, cover_url: e.target.value }))} />
+      <textarea
+        className={`${input} h-auto resize-y py-2`}
+        rows={3}
+        placeholder={t('editionDescription')}
+        value={form.description}
+        onChange={(e) => setForm((s) => ({ ...s, description: e.target.value }))}
+      />
       <div className="flex items-center gap-2">
         <button onClick={submit} disabled={busy} className="inline-flex w-fit items-center gap-2 rounded-lg bg-nonsprimary px-4 py-2 text-sm font-semibold text-white hover:bg-nonsprimaryfocus disabled:opacity-50">
           <IoCheckmark className="h-4 w-4" />

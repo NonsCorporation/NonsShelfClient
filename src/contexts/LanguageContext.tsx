@@ -382,6 +382,7 @@ export const translations: Translations = {
   noEditionsYet: { en: 'No editions linked yet.', ru: 'Издания ещё не привязаны.' },
   addEdition: { en: 'Add edition', ru: 'Добавить издание' },
   editionTitle: { en: 'Edition title', ru: 'Название издания' },
+  editionDescription: { en: 'Synopsis override (optional) — leave blank to use the work’s', ru: 'Своё описание (необязательно) — оставьте пустым для общего' },
   publisher: { en: 'Publisher', ru: 'Издательство' },
   language: { en: 'Language', ru: 'Язык' },
   publishedYear: { en: 'Published year', ru: 'Год издания' },

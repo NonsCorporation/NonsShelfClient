@@ -57,6 +57,8 @@ export interface Edition {
   published_year?: number
   pages?: number
   cover_url?: string
+  /** Optional per-edition synopsis override; falls back to the work's. */
+  description?: string
 }
 
 // An episode of a series. Mirrors media_model.Episode's JSON.
