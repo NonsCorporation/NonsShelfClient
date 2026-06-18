@@ -1,14 +1,12 @@
-<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
-  <!-- Nons Shelf — a staggered stack of books (after shelf.nu's bar stack),
-       drawn in the nons geometric family: rounded forms + the brand dot,
-       white on a black circle like the nons mark. -->
-  <circle cx="256" cy="256" r="256" fill="#000000"/>
-  <g fill="#ffffff">
-    <!-- the nons dot -->
-    <circle cx="318" cy="140" r="42"/>
-    <!-- stacked books -->
-    <rect x="154" y="210" width="180" height="42" rx="21"/>
-    <rect x="216" y="272" width="146" height="42" rx="21"/>
-    <rect x="162" y="334" width="172" height="42" rx="21"/>
+<svg width="340" height="340" viewBox="86 89 340 340" fill="#ffffff" xmlns="http://www.w3.org/2000/svg">
+  <!-- Nons Shelf — background-free white mark for in-app use (header, login).
+       The dark-disc version lives in shelf.svg for the favicon. The two
+       nons-client pillars flank a centre "!": a tall bar with the brand circle
+       as its dot. -->
+  <g transform="translate(89.6, 89.6) scale(0.65)">
+    <path d="m 281.77771,168.55891 a 58.151039,58.151039 47.226629 0 1 55.84784,60.36644 v 137.13181 h -55.84784 z" transform="matrix(2.446384,0,0,2.4904064,-337.33813,-404.93892)"/>
+    <path d="m 281.77771,168.55891 a 58.151039,58.151039 47.226629 0 1 55.84784,60.36644 v 137.13181 h -55.84784 z" transform="matrix(-2.446384,0,0,2.4904064,837.74641,-411.14917)"/>
   </g>
+  <rect x="211" y="112" width="90" height="200" rx="16"/>
+  <circle cx="256" cy="376" r="42"/>
 </svg>

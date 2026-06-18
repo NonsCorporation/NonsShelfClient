@@ -2,6 +2,7 @@ import { IoStar, IoKeyOutline } from 'react-icons/io5'
 import { useLanguage } from '../contexts/LanguageContext'
 import { redirectToNonsLogin } from '../lib/api'
 import { compactCount } from '../services/catalogService'
+import ShelfLogo from '../components/ShelfLogo'
 
 // Signed-out landing page for the library. Visually its own thing — a dim
 // "screening room" with slowly drifting shelves of covers — rather than a copy
@@ -97,7 +98,7 @@ export default function Login() {
       >
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4 md:px-8">
           <div className="flex items-center gap-2.5">
-            <img src="/shelf.svg" alt="Nons Shelf" className="h-6 w-6" />
+            <ShelfLogo className="h-7 w-7 text-white" />
             <span className="text-base font-semibold tracking-tight">Nons Shelf</span>
           </div>
           <button

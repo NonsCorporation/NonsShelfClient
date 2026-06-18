@@ -32,6 +32,7 @@ import { userPath, mediaPath } from '../../lib/paths'
 import { isLibrarian } from '../../services/librarianService'
 import { catalogService, type CatalogItem } from '../../services/catalogService'
 import TypeBadge from '../TypeBadge'
+import ShelfLogo from '../ShelfLogo'
 
 type ShelfKey = 'all' | 'wishlist' | 'active' | 'done' | 'favorites'
 type NavItem = { to: string; label: string; icon: IconType; match: (p: string) => boolean }
@@ -128,7 +129,7 @@ export default function Header() {
         <div className="mx-auto flex h-16 max-w-6xl items-center gap-3 px-4 md:px-8">
           {/* Brand */}
           <Link to="/" className="group flex items-center gap-2.5">
-            <img src="/logo.png" alt="" className="h-6 w-6" />
+            <ShelfLogo className="h-6 w-6 text-white" />
             <span className="hidden text-[15px] font-semibold tracking-tight text-[var(--text)] sm:block">
               Nons Shelf
             </span>
