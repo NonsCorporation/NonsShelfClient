@@ -445,6 +445,8 @@ export const translations: Translations = {
   bulkFailed: { en: 'failed', ru: 'ошибок' },
   bulkDoneLabel: { en: 'Done', ru: 'Готово' },
   selectEditionHint: { en: 'Tap an edition to view it (and mark the one you’re reading).', ru: 'Нажмите на издание, чтобы открыть его (и отметить читаемое).' },
+  selectThisEdition: { en: 'Select this', ru: 'Выбрать' },
+  selectedEdition: { en: 'Selected', ru: 'Выбрано' },
   findByIsbn: { en: 'Find by ISBN…', ru: 'Поиск по ISBN…' },
   rusify: { en: 'Rusify title', ru: 'В кириллицу' },
   rusifyAll: { en: 'Rusify romanized titles', ru: 'Перевести в кириллицу' },

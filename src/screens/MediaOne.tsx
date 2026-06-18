@@ -26,6 +26,8 @@ import {
   IoCheckmarkCircleOutline,
   IoCreateOutline,
   IoChevronDown,
+  IoChevronBack,
+  IoChevronForward,
 } from 'react-icons/io5'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
@@ -119,6 +121,8 @@ export default function MediaOnePage({
   const [commSort, setCommSort] = useState<CommSort>('newest')
   const [commWithReview, setCommWithReview] = useState(false)
   const commSectionRef = useRef<HTMLDivElement>(null)
+  const editionsRef = useRef<HTMLDivElement>(null)
+  const scrollEditions = (dir: number) => editionsRef.current?.scrollBy({ left: dir * 340, behavior: 'smooth' })
   const [editing, setEditing] = useState(false)
   const [editingReview, setEditingReview] = useState(false)
   const [progressOpen, setProgressOpen] = useState(false)
@@ -426,7 +430,7 @@ export default function MediaOnePage({
         </div>
 
         {/* ── Right: info ── */}
-        <div className="flex flex-1 flex-col gap-6">
+        <div className="flex min-w-0 flex-1 flex-col gap-6">
           <div>
             <div className="mb-2 flex flex-wrap items-center gap-2 text-xs uppercase tracking-widest text-[var(--text-muted)]">
               <Icon className="h-3.5 w-3.5" />
@@ -673,23 +677,41 @@ export default function MediaOnePage({
                   />
                 </div>
                 <p className="mb-2 text-xs text-[var(--text-muted)]">{t('selectEditionHint')}</p>
-                <div className="flex flex-col gap-2">
+                <div className="relative">
+                  <button
+                    type="button"
+                    aria-label="Scroll left"
+                    onClick={() => scrollEditions(-1)}
+                    className="absolute -left-3 top-[38%] z-10 hidden h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--border-subtle)] bg-[var(--container)] text-[var(--text)] shadow-md transition-colors hover:bg-[var(--surface-hover)] sm:flex"
+                  >
+                    <IoChevronBack className="h-5 w-5" />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Scroll right"
+                    onClick={() => scrollEditions(1)}
+                    className="absolute -right-3 top-[38%] z-10 hidden h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--border-subtle)] bg-[var(--container)] text-[var(--text)] shadow-md transition-colors hover:bg-[var(--surface-hover)] sm:flex"
+                  >
+                    <IoChevronForward className="h-5 w-5" />
+                  </button>
+                  <div ref={editionsRef} className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-3">
                   {shown.map((e) => {
                     const selected = selectedEdition?.id === e.id
                     return (
-                      <button
+                      <div
                         key={e.id}
-                        onClick={() => chooseEdition(e)}
-                        className={`flex items-center gap-3 rounded-xl border p-2.5 text-left transition-colors hover:border-nonsprimary ${
+                        className={`flex w-40 flex-shrink-0 flex-col overflow-hidden rounded-xl border transition-colors ${
                           selected ? 'border-nonsprimary bg-[var(--primary-soft)]' : 'border-[var(--border-subtle)] bg-[var(--surface)]'
                         }`}
                       >
-                        <div className="h-14 w-10 flex-shrink-0 overflow-hidden rounded bg-[var(--container-2)]">
-                          {e.cover_url ? <img src={e.cover_url} alt="" loading="lazy" className="h-full w-full object-cover" /> : null}
-                        </div>
-                        <div className="min-w-0 flex-1 text-sm">
-                          <p className="truncate text-[var(--text)]">{e.title || item.title}</p>
-                          <p className="truncate text-xs text-[var(--text-muted)]">
+                        <button onClick={() => chooseEdition(e)} className="block" title={e.title || item.title}>
+                          <div className="aspect-[2/3] w-full overflow-hidden bg-[var(--container-2)]">
+                            {e.cover_url ? <img src={e.cover_url} alt="" loading="lazy" className="h-full w-full object-cover" /> : null}
+                          </div>
+                        </button>
+                        <div className="flex flex-1 flex-col p-2.5">
+                          <p className="truncate text-sm text-[var(--text)]">{e.title || item.title}</p>
+                          <p className="mt-0.5 min-h-[1rem] truncate text-xs text-[var(--text-muted)]">
                             {[
                               e.publisher,
                               e.published_year || undefined,
@@ -697,21 +719,37 @@ export default function MediaOnePage({
                               e.pages ? t('pagesCount', { count: e.pages }) : undefined,
                             ]
                               .filter(Boolean)
-                              .join(' · ')}
+                              .join(' · ') || ' '}
                           </p>
-                          {(e.isbn13 || e.isbn10) && (
-                            <p className="text-xs text-[var(--text-muted)]">ISBN {e.isbn13 || e.isbn10}</p>
-                          )}
+                          <p className="mt-0.5 min-h-[0.95rem] truncate text-[11px] text-[var(--text-muted)]">
+                            {e.isbn13 || e.isbn10 ? `ISBN ${e.isbn13 || e.isbn10}` : ' '}
+                          </p>
+                          <button
+                            onClick={() => chooseEdition(e)}
+                            className={`mt-2.5 inline-flex h-8 items-center justify-center gap-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                              selected
+                                ? 'bg-nonsprimary text-white hover:bg-nonsprimaryfocus'
+                                : 'border border-nonsprimary/40 text-nonsprimaryfocus hover:bg-[var(--primary-soft)]'
+                            }`}
+                          >
+                            {selected ? (
+                              <>
+                                <IoCheckmarkCircle className="h-4 w-4" />
+                                {t('selectedEdition') || 'Selected'}
+                              </>
+                            ) : (
+                              <>
+                                <IoCheckmarkCircleOutline className="h-4 w-4" />
+                                {t('selectThisEdition') || 'Select this'}
+                              </>
+                            )}
+                          </button>
                         </div>
-                        {selected ? (
-                          <IoCheckmarkCircle className="h-5 w-5 flex-shrink-0 text-nonsprimary" />
-                        ) : (
-                          <IoCheckmarkCircleOutline className="h-5 w-5 flex-shrink-0 text-[var(--text-muted)]" />
-                        )}
-                      </button>
+                      </div>
                     )
                   })}
-                  {shown.length === 0 && <p className="text-xs text-[var(--text-muted)]">{t('noResults')}</p>}
+                    {shown.length === 0 && <p className="text-xs text-[var(--text-muted)]">{t('noResults')}</p>}
+                  </div>
                 </div>
               </div>
             )
