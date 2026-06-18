@@ -601,7 +601,7 @@ function HeaderSearch() {
         return
       }
       setImporting(true)
-      const fill = await catalogService.searchFill(value, { limit: 2 })
+      const fill = await catalogService.searchFill(value, { limit: 10, series : true })
       setImporting(false)
       setResults(fill.items.slice(0, 5))
       setLoading(false)
