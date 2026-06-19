@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo, Fragment, type ReactNode, useRef } from 'react'
+import { useState, useEffect, useCallback, Fragment, type ReactNode, useRef } from 'react'
 import { useParams, useNavigate, useSearchParams, Link } from '@/lib/router'
 import Layout from '../components/layout/Layout'
 import MediaModal from '../components/MediaModal'
@@ -10,6 +10,8 @@ import ShelfStatusBar from '../components/ShelfStatusBar'
 import StarsSelector from '../StarsSelector'
 import { libraryService } from '../services/libraryService'
 import { librarianService } from '../services/librarianService'
+import { getReviews, type ReviewsPage } from '../services/reviewService'
+import { userPath } from '../lib/paths'
 import { authedFetch, redirectToNonsLogin } from '../lib/api'
 import type { MediaItem, ShelfStatus } from '../types'
 import type { CreditPerson, MediaCredits, Edition } from '../lib/mediaMap'
@@ -40,21 +42,20 @@ const MOCK_FRIEND_RATINGS = [
   { handle: 'sara', name: 'Sara K.', rating: 9, color: '#f5a623', review: null },
   { handle: 'dima', name: 'Dima V.', rating: 7, color: '#3ec98a', review: 'Good but a bit slow in the middle. Worth it for the final act.' },
 ]
-const MOCK_COMMUNITY = { avg: '4.2', avgRaw: 8.4, count: 1_243 }
-const _MOCK_COMMUNITY_REVIEWS_BASE = [
-  { handle: 'maria',  name: 'Maria L.',  rating: 9,  sortDate: 1750204800, color: '#6768ab', date: 'Jun 2026', text: 'An absolute masterpiece. The worldbuilding is unmatched and the prose flows beautifully — I finished it in two sittings and immediately wanted to start again. There is a quality of stillness to the writing that I rarely encounter: every sentence earns its place, and the emotional beats land with precision that only comes from someone who has thought deeply about what story they actually want to tell. Easily in my top five of the decade.' },
-  { handle: 'james',  name: 'James R.',  rating: 8,  sortDate: 1748390400, color: '#f5a623', date: 'May 2026', text: 'Really enjoyed it. The character development is the highlight — every person feels fully realised and earned.' },
-  { handle: 'anna',   name: 'Anna T.',   rating: 7,  sortDate: 1748304000, color: '#3ec98a', date: 'May 2026', text: null },
-  { handle: 'leo',    name: 'Leo B.',    rating: 10, sortDate: 1746144000, color: '#e05c5c', date: 'Apr 2026', text: 'Perfect in every way. I don\'t give 10s lightly but this absolutely earned it.' },
-  { handle: 'nina',   name: 'Nina V.',   rating: 3,  sortDate: 1746057600, color: '#4db8c8', date: 'Apr 2026', text: 'Nice but overhyped. Some chapters felt padded and the pacing in the second act collapses entirely.' },
-  { handle: 'omar',   name: 'Omar H.',   rating: 6,  sortDate: 1743552000, color: '#a067c8', date: 'Mar 2026', text: null },
-  { handle: 'priya',  name: 'Priya S.',  rating: 2,  sortDate: 1741132800, color: '#d47e3e', date: 'Feb 2026', text: 'Genuinely did not understand the praise. Flat characters, meandering plot. DNF at 60%.' },
-  { handle: 'felix',  name: 'Felix M.',  rating: 9,  sortDate: 1738368000, color: '#5ab4a2', date: 'Jan 2026', text: null },
-]
-const MOCK_COMMUNITY_REVIEWS = [1, 2, 3, 4].flatMap((i) =>
-  _MOCK_COMMUNITY_REVIEWS_BASE.map((r) => ({ ...r, handle: `${r.handle}_${i}`, sortDate: r.sortDate - i * 86400 }))
-)
 type CommSort = 'newest' | 'oldest' | 'high' | 'low'
+
+// Deterministic avatar colour for a reviewer without a profile picture.
+const REVIEW_PALETTE = ['#6768ab', '#c2557a', '#3e8e7e', '#b8843b', '#5b6cc0', '#8a5bc0', '#c05b5b', '#3e8ec0']
+function reviewColor(key: string): string {
+  let h = 0
+  for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) | 0
+  return REVIEW_PALETTE[Math.abs(h) % REVIEW_PALETTE.length]
+}
+// Compact "Mon YYYY" label for a review's date (unix seconds).
+function reviewDate(unixSeconds: number): string {
+  if (!unixSeconds) return ''
+  return new Date(unixSeconds * 1000).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })
+}
 const COMM_PER_PAGE = 10
 const EDITIONS_PER_PAGE = 12
 
@@ -123,6 +124,8 @@ export default function MediaOnePage({
   const [commPage, setCommPage] = useState(0)
   const [commSort, setCommSort] = useState<CommSort>('newest')
   const [commWithReview, setCommWithReview] = useState(false)
+  const [reviewsPage, setReviewsPage] = useState<ReviewsPage>({ items: [], total: 0, average: 0, count: 0 })
+  const [reviewsLoading, setReviewsLoading] = useState(false)
   const commSectionRef = useRef<HTMLDivElement>(null)
   const editionsRef = useRef<HTMLDivElement>(null)
   const scrollEditions = (dir: number) => editionsRef.current?.scrollBy({ left: dir * 340, behavior: 'smooth' })
@@ -203,6 +206,23 @@ export default function MediaOnePage({
       cancelled = true
     }
   }, [id])
+
+  // Community ratings & reviews — server-computed (aggregate score + a sorted,
+  // filtered, paginated page of reviewers). Refetches when the work changes or
+  // the sort/filter/page controls change. Keyed by the numeric catalog id so an
+  // unrelated `item` overlay (e.g. the user's own rating) doesn't refetch.
+  const mediaNumId = item?.id
+  useEffect(() => {
+    if (!mediaNumId) return
+    let cancelled = false
+    setReviewsLoading(true)
+    getReviews(mediaNumId, { sort: commSort, withReview: commWithReview, page: commPage, perPage: COMM_PER_PAGE })
+      .then((p) => { if (!cancelled) setReviewsPage(p) })
+      .finally(() => { if (!cancelled) setReviewsLoading(false) })
+    return () => {
+      cancelled = true
+    }
+  }, [mediaNumId, commSort, commWithReview, commPage])
 
   // Append the next page of editions to the carousel.
   const loadMoreEditions = useCallback(() => {
@@ -320,18 +340,8 @@ export default function MediaOnePage({
   const genres = Array.isArray(item.genre) ? item.genre : item.genre ? [item.genre] : []
   const displayRating = userRating !== null ? `${(userRating / 2).toFixed(1)}/5` : t('unrated')
 
-  const sortedReviews = useMemo(() => {
-    let list = [...MOCK_COMMUNITY_REVIEWS]
-    if (commWithReview) list = list.filter((r) => r.text != null)
-    if (commSort === 'newest') list.sort((a, b) => b.sortDate - a.sortDate)
-    else if (commSort === 'oldest') list.sort((a, b) => a.sortDate - b.sortDate)
-    else if (commSort === 'high') list = list.filter((r) => r.rating >= 8).sort((a, b) => b.rating - a.rating)
-    else if (commSort === 'low') list = list.filter((r) => r.rating <= 4).sort((a, b) => a.rating - b.rating)
-    return list
-  }, [commSort, commWithReview])
-
-  const totalCommPages = Math.ceil(sortedReviews.length / COMM_PER_PAGE)
-  const commPageItems = sortedReviews.slice(commPage * COMM_PER_PAGE, (commPage + 1) * COMM_PER_PAGE)
+  const totalCommPages = Math.max(1, Math.ceil(reviewsPage.total / COMM_PER_PAGE))
+  const commPageItems = reviewsPage.items
 
   const goCommPage = (p: number) => {
     setCommPage(p)
@@ -919,16 +929,22 @@ export default function MediaOnePage({
                     </div>
                   </div>
                   <div className="flex-shrink-0 text-right">
-                    <span className="text-3xl font-bold leading-none text-[var(--text)]">{MOCK_COMMUNITY.avg}</span>
+                    <span className="text-3xl font-bold leading-none text-[var(--text)]">
+                      {reviewsPage.count > 0 ? (reviewsPage.average / 2).toFixed(1) : '—'}
+                    </span>
                     <div className="mt-1 flex justify-end">
-                      <StarsSelector initialValue={MOCK_COMMUNITY.avgRaw} isEditable={false} size="sm" />
+                      <StarsSelector initialValue={reviewsPage.average} isEditable={false} size="sm" />
                     </div>
-                    <span className="mt-0.5 block text-xs text-[var(--text-muted)]">{MOCK_COMMUNITY.count.toLocaleString()} ratings</span>
+                    <span className="mt-0.5 block text-xs text-[var(--text-muted)]">{t('ratingsCountLabel', { n: reviewsPage.count.toLocaleString() })}</span>
                   </div>
                 </div>
 
-                {sortedReviews.length === 0 ? (
-                  <p className="py-4 text-center text-sm text-[var(--placeholder)]">No reviews match this filter.</p>
+                {reviewsLoading && commPageItems.length === 0 ? (
+                  <p className="py-4 text-center text-sm text-[var(--text-muted)]">{t('loading')}</p>
+                ) : reviewsPage.total === 0 ? (
+                  <p className="py-4 text-center text-sm text-[var(--placeholder)]">
+                    {commWithReview ? 'No written reviews yet.' : 'No ratings yet.'}
+                  </p>
                 ) : (
                   <>
                     {/* top pagination */}
@@ -948,19 +964,30 @@ export default function MediaOnePage({
 
                     {/* reviews list */}
                     <div className="flex flex-col divide-y divide-[var(--border-subtle)]">
-                      {commPageItems.map((r) => (
-                        <div key={r.handle} className="py-3 first:pt-0 last:pb-0">
-                          <div className="flex items-center gap-3">
-                            <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-[11px] font-semibold text-white" style={{ backgroundColor: r.color }}>
-                              {r.name[0]}
-                            </span>
-                            <span className="min-w-0 flex-1 truncate text-sm text-[var(--text)]">{r.name}</span>
-                            <StarsSelector initialValue={r.rating} isEditable={false} size="sm" />
-                            <span className="text-xs text-[var(--text-muted)]">{r.date}</span>
+                      {commPageItems.map((r) => {
+                        const display = r.name || r.username || 'User'
+                        return (
+                          <div key={r.userId} className="py-3 first:pt-0 last:pb-0">
+                            <div className="flex items-center gap-3">
+                              {r.avatarUrl ? (
+                                <img src={r.avatarUrl} alt="" loading="lazy" className="h-7 w-7 flex-shrink-0 rounded-full object-cover" />
+                              ) : (
+                                <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-[11px] font-semibold text-white" style={{ backgroundColor: reviewColor(r.username || String(r.userId)) }}>
+                                  {display[0]?.toUpperCase()}
+                                </span>
+                              )}
+                              {r.username ? (
+                                <Link to={userPath(r.username)} className="min-w-0 flex-1 truncate text-sm text-[var(--text)] hover:text-nonsprimary">{display}</Link>
+                              ) : (
+                                <span className="min-w-0 flex-1 truncate text-sm text-[var(--text)]">{display}</span>
+                              )}
+                              {r.value > 0 && <StarsSelector initialValue={r.value} isEditable={false} size="sm" />}
+                              <span className="text-xs text-[var(--text-muted)]">{reviewDate(r.updatedAt)}</span>
+                            </div>
+                            {r.review && <p className="mt-2 pl-10 text-xs leading-6 text-[var(--text-muted)]">{r.review}</p>}
                           </div>
-                          <p className="mt-2 pl-10 text-xs leading-6 text-[var(--text-muted)]">{r.text}</p>
-                        </div>
-                      ))}
+                        )
+                      })}
                     </div>
 
                     {/* bottom pagination */}
