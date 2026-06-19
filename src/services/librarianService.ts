@@ -216,6 +216,18 @@ export const librarianService = {
     )
   },
 
+  // Reassign an edition from one book work to another (e.g. it was filed under
+  // the wrong book). `targetMediaId` is the destination book's numeric id.
+  async moveEdition(mediaId: string, editionId: number, targetMediaId: number): Promise<void> {
+    await jsonOrThrow(
+      await authedFetch(`/api/media/${mediaId}/editions/${editionId}/move`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ target_media_id: targetMediaId }),
+      }),
+    )
+  },
+
   // Look up edition fields for an ISBN (Google Books + OpenLibrary, server-side).
   async lookupEdition(isbn: string): Promise<Partial<Edition> | null> {
     const res = await authedFetch(`/api/books/isbn?isbn=${encodeURIComponent(isbn)}`)

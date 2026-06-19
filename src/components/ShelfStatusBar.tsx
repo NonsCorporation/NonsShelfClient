@@ -11,7 +11,8 @@ const MOCK_COLLECTIONS = ['Recommended', 'Best of 2024', 'Must Read', 'To Share'
 
 type Props = {
   item: MediaItem
-  currentStatus: ShelfStatus
+  /** The shelf status, or null when the item isn't on the user's shelf yet. */
+  currentStatus: ShelfStatus | null
   onStatusChange: (status: ShelfStatus) => void
   /** When provided, shows the edit-progress icon button. Only relevant when active. */
   onEditProgress?: () => void
@@ -27,7 +28,13 @@ export default function ShelfStatusBar({ item, currentStatus, onStatusChange, on
     { key: 'done',     label: isBook ? 'Already read' : 'Already watched' },
   ]
 
-  const currentLabel = statusOptions.find((o) => o.key === currentStatus)?.label ?? statusLabel(item.type, currentStatus, t)
+  // Not on the shelf yet: show a neutral "Add to shelf" affordance instead of a
+  // status that looks pre-selected. Picking any option adds it to the shelf.
+  const onShelf = currentStatus !== null
+  const accent = onShelf ? STATUS_COLOR[currentStatus] : 'var(--text-muted)'
+  const currentLabel = onShelf
+    ? statusOptions.find((o) => o.key === currentStatus)?.label ?? statusLabel(item.type, currentStatus, t)
+    : t('addToShelf')
 
   const [collections, setCollections] = useState<string[]>([])
   const [anchor, setAnchor] = useState<{ top: number; left: number; width: number } | null>(null)
@@ -70,9 +77,10 @@ export default function ShelfStatusBar({ item, currentStatus, onStatusChange, on
           ref={btnRef}
           data-shelf-popover
           onClick={handleToggle}
-          style={{ borderLeftColor: STATUS_COLOR[currentStatus], color: STATUS_COLOR[currentStatus] }}
+          style={{ borderLeftColor: accent, color: accent }}
           className="flex min-w-0 flex-1 items-center gap-1.5 rounded-r-lg border-l-[3px] px-2.5 py-1.5 text-xs font-medium transition-opacity hover:opacity-70"
         >
+          {!onShelf && <IoAdd className="h-3.5 w-3.5 flex-shrink-0" />}
           <span className="truncate">{currentLabel}</span>
           <IoChevronDown className={`ml-auto h-3.5 w-3.5 flex-shrink-0 transition-transform duration-200 ${anchor ? 'rotate-180' : ''}`} />
         </button>
@@ -98,7 +106,7 @@ export default function ShelfStatusBar({ item, currentStatus, onStatusChange, on
             <div className="flex flex-wrap gap-1.5">
               {statusOptions.map((opt) => {
                 const color = STATUS_COLOR[opt.key]
-                const isCurrent = opt.key === currentStatus
+                const isCurrent = onShelf && opt.key === currentStatus
                 return (
                   <button
                     key={opt.key}

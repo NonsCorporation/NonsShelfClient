@@ -249,6 +249,7 @@ export const translations: Translations = {
   popularSeries: { en: 'Popular series', ru: 'Популярные сериалы' },
   recommendedForYou: { en: 'Recommended for you', ru: 'Рекомендуем вам' },
   addToLibrary: { en: 'Add', ru: 'Добавить' },
+  addToShelf: { en: 'Add to shelf', ru: 'Добавить на полку' },
   inLibrary: { en: 'In library', ru: 'В библиотеке' },
   ratingsCountLabel: { en: '{n} ratings', ru: 'оценок: {n}' },
   membersReading: { en: '{n} reading now', ru: 'читают сейчас: {n}' },
@@ -393,6 +394,15 @@ export const translations: Translations = {
     ru: 'Найдите другую запись того же произведения. Она станет изданием этой записи и будет удалена.',
   },
   mergeHere: { en: 'Merge into this entry', ru: 'Объединить с этой записью' },
+  moveEditionTitle: { en: 'Move to another book', ru: 'Перенести в другую книгу' },
+  moveEditionHint: {
+    en: 'Find the book this edition belongs to, or create a new one.',
+    ru: 'Найдите книгу, которой принадлежит это издание, или создайте новую.',
+  },
+  moveHere: { en: 'Move here', ru: 'Перенести сюда' },
+  moveBookPlaceholder: { en: 'Search books by title…', ru: 'Поиск книг по названию…' },
+  createBook: { en: 'Create book “{title}”', ru: 'Создать книгу «{title}»' },
+  moving: { en: 'Moving…', ru: 'Перенос…' },
   linkedAuthor: { en: 'Linked author', ru: 'Связанный автор' },
   linkAuthorTitle: { en: 'Link the author', ru: 'Связать автора' },
   linkAuthorHint: {

@@ -1,8 +1,10 @@
 import { useEffect, useState, useCallback } from 'react'
-import { IoTrashOutline, IoCreateOutline, IoAdd, IoCheckmark, IoClose, IoLanguageOutline, IoCloudDownloadOutline, IoSparklesOutline } from 'react-icons/io5'
+import { IoTrashOutline, IoCreateOutline, IoAdd, IoCheckmark, IoClose, IoLanguageOutline, IoCloudDownloadOutline, IoSparklesOutline, IoSwapHorizontalOutline, IoSearch } from 'react-icons/io5'
 import { authedFetch } from '../lib/api'
 import { librarianService } from '../services/librarianService'
 import type { Edition } from '../services/librarianService'
+import { catalogService } from '../services/catalogService'
+import type { CatalogItem } from '../services/catalogService'
 import { useLanguage } from '../contexts/LanguageContext'
 
 // True when the text contains any Cyrillic letter (already "rusified").
@@ -56,6 +58,7 @@ export default function EditionsManager({ mediaId, fallbackTitle }: { mediaId: s
   const [editions, setEditions] = useState<Edition[]>([])
   const [loading, setLoading] = useState(true)
   const [editingId, setEditingId] = useState<number | null>(null)
+  const [movingId, setMovingId] = useState<number | null>(null)
   const [adding, setAdding] = useState(false)
   const [error, setError] = useState('')
   const [finding, setFinding] = useState(false)
@@ -99,6 +102,14 @@ export default function EditionsManager({ mediaId, fallbackTitle }: { mediaId: s
   const handleDelete = (id: number) =>
     wrap(async () => {
       await librarianService.deleteEdition(mediaId, id)
+      setEditions((eds) => eds.filter((e) => e.id !== id))
+    })
+
+  const handleMove = (id: number, targetMediaId: number) =>
+    wrap(async () => {
+      await librarianService.moveEdition(mediaId, id, targetMediaId)
+      setMovingId(null)
+      // The edition now belongs to another work, so drop it from this list.
       setEditions((eds) => eds.filter((e) => e.id !== id))
     })
 
@@ -172,6 +183,14 @@ export default function EditionsManager({ mediaId, fallbackTitle }: { mediaId: s
               onSubmit={(f) => handleUpdate(e.id, f)}
               onCancel={() => setEditingId(null)}
             />
+          ) : movingId === e.id ? (
+            <MoveEditionPicker
+              key={e.id}
+              currentMediaId={mediaId}
+              editionTitle={e.title || fallbackTitle}
+              onMove={(targetId) => handleMove(e.id, targetId)}
+              onCancel={() => setMovingId(null)}
+            />
           ) : (
             <div key={e.id} className="flex items-center gap-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] p-2.5">
               <div className="h-14 w-10 flex-shrink-0 overflow-hidden rounded bg-[var(--container-2)]">
@@ -196,6 +215,9 @@ export default function EditionsManager({ mediaId, fallbackTitle }: { mediaId: s
                   <IoLanguageOutline className="h-4 w-4" />
                 </button>
               )}
+              <button onClick={() => setMovingId(e.id)} title={t('moveEditionTitle')} className="flex-shrink-0 rounded-lg p-2 text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]">
+                <IoSwapHorizontalOutline className="h-4 w-4" />
+              </button>
               <button onClick={() => setEditingId(e.id)} title={t('edit')} className="flex-shrink-0 rounded-lg p-2 text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]">
                 <IoCreateOutline className="h-4 w-4" />
               </button>
@@ -324,6 +346,110 @@ function EditionRowForm({
           {t('cancel')}
         </button>
       </div>
+    </div>
+  )
+}
+
+// Picker for moving an edition onto a different book work: search the catalog
+// for the destination book, or create a new one from the typed title when it
+// isn't there yet.
+function MoveEditionPicker({
+  currentMediaId,
+  editionTitle,
+  onMove,
+  onCancel,
+}: {
+  currentMediaId: string
+  editionTitle?: string
+  onMove: (targetMediaId: number) => void | Promise<void>
+  onCancel: () => void
+}) {
+  const { t } = useLanguage()
+  const [q, setQ] = useState('')
+  const [results, setResults] = useState<CatalogItem[]>([])
+  const [loading, setLoading] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const input =
+    'h-10 w-full rounded-lg border border-[var(--border-subtle)] bg-[var(--input)] pl-9 pr-3 text-sm text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-ring)]'
+
+  // Debounced catalog search, books only and never the work we're moving from.
+  useEffect(() => {
+    if (!q.trim()) {
+      setResults([])
+      return
+    }
+    setLoading(true)
+    const timer = setTimeout(async () => {
+      const data = await catalogService.getCatalog(q).catch(() => [] as CatalogItem[])
+      setResults(data.filter((c) => c.type === 'book' && c.id !== currentMediaId).slice(0, 8))
+      setLoading(false)
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [q, currentMediaId])
+
+  const run = async (fn: () => Promise<number>) => {
+    setBusy(true)
+    try {
+      await onMove(await fn())
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const moveTo = (item: CatalogItem) => run(async () => Number(item.id))
+  const createAndMove = () =>
+    run(() => librarianService.createMedia({ type: 'book', title: q.trim() }))
+
+  return (
+    <div className="flex flex-col gap-2 rounded-xl border border-dashed border-nonsprimary/40 bg-[var(--surface)] p-3">
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-medium text-[var(--text)]">{t('moveEditionTitle')}</p>
+        <button onClick={onCancel} className="rounded-lg p-1 text-[var(--text-muted)] hover:text-[var(--text)]">
+          <IoClose className="h-4 w-4" />
+        </button>
+      </div>
+      <p className="text-xs text-[var(--text-muted)]">{t('moveEditionHint')}</p>
+      {editionTitle && <p className="truncate text-xs text-[var(--text-muted)]">“{editionTitle}”</p>}
+
+      <div className="relative">
+        <IoSearch className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" />
+        <input autoFocus className={input} placeholder={t('moveBookPlaceholder')} value={q} onChange={(e) => setQ(e.target.value)} />
+      </div>
+
+      {loading ? (
+        <p className="py-2 text-sm text-[var(--text-muted)]">{t('loading')}</p>
+      ) : (
+        <div className="flex flex-col gap-1.5">
+          {results.map((c) => (
+            <button
+              key={c.id}
+              onClick={() => moveTo(c)}
+              disabled={busy}
+              className="flex items-center gap-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--container)] p-2 text-left transition-colors hover:border-nonsprimary disabled:opacity-50"
+            >
+              <div className="h-12 w-8 flex-shrink-0 overflow-hidden rounded bg-[var(--container-2)]">
+                {c.coverUrl ? <img src={c.coverUrl} alt="" loading="lazy" className="h-full w-full object-cover" /> : null}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm text-[var(--text)]">{c.title}</p>
+                <p className="truncate text-xs text-[var(--text-muted)]">{[c.author, c.year].filter(Boolean).join(' · ')}</p>
+              </div>
+              <span className="flex-shrink-0 text-xs font-medium text-nonsprimary">{busy ? t('moving') : t('moveHere')}</span>
+            </button>
+          ))}
+
+          {q.trim() && (
+            <button
+              onClick={createAndMove}
+              disabled={busy}
+              className="inline-flex w-fit items-center gap-2 rounded-lg bg-nonsprimary px-3 py-2 text-sm font-semibold text-white hover:bg-nonsprimaryfocus disabled:opacity-50"
+            >
+              <IoAdd className="h-4 w-4" />
+              {busy ? t('creating') : t('createBook', { title: q.trim() })}
+            </button>
+          )}
+        </div>
+      )}
     </div>
   )
 }

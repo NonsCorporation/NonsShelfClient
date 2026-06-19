@@ -312,7 +312,9 @@ export default function MediaOnePage({
   const isSeries = item.type === 'series'
   const Icon = isBook ? IoBookOutline : isSeries ? IoTvOutline : IoFilmOutline
   const typeLabel = isBook ? t('book') : isSeries ? t('series') : t('film')
-  const status = item.status ?? 'wishlist'
+  // null when the item isn't on the user's shelf yet, so the control shows
+  // "Add to shelf" rather than a pre-selected status.
+  const status = item.status ?? null
   const genres = Array.isArray(item.genre) ? item.genre : item.genre ? [item.genre] : []
   const displayRating = userRating !== null ? `${(userRating / 2).toFixed(1)}/5` : t('unrated')
 
