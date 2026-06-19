@@ -504,6 +504,12 @@ export default function MediaOnePage({
                     </Link>
                   </span>
                 ))
+              ) : item.makerUuid ? (
+                // No per-role credits loaded, but the row carries its primary
+                // maker's uuid (denormalized) — link the byline to their page.
+                <Link to={`/p/${item.makerUuid}`} className="font-medium text-[var(--text)] hover:text-nonsprimary">
+                  {isBook ? item.author : item.director || item.author}
+                </Link>
               ) : (
                 <span className="font-medium text-[var(--text)]">{isBook ? item.author : item.director || item.author}</span>
               )}
