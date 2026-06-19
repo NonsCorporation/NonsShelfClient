@@ -288,6 +288,15 @@ export const librarianService = {
     )
   },
 
+  // Remove an entire season's episodes at once (e.g. TMDB's season 0 specials).
+  // Returns how many episodes were deleted.
+  async deleteSeason(mediaId: string, season: number): Promise<number> {
+    const data = (await jsonOrThrow(
+      await authedFetch(`/api/media/${mediaId}/seasons/${season}`, { method: 'DELETE' }),
+    )) as { deleted: number }
+    return data.deleted
+  },
+
   // ── TMDB import (movies & series) ──
   // Search TMDB by title via the server proxy (the API key stays server-side).
   async tmdbSearch(type: 'movie' | 'series', q: string): Promise<TmdbCandidate[]> {

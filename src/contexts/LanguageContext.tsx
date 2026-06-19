@@ -438,6 +438,12 @@ export const translations: Translations = {
   episodesTitle: { en: 'Episodes', ru: 'Эпизоды' },
   episodesHint: { en: 'Add, edit, or remove the episodes of this series.', ru: 'Добавляйте, редактируйте или удаляйте эпизоды этого сериала.' },
   noEpisodesYet: { en: 'No episodes yet.', ru: 'Эпизодов пока нет.' },
+  deleteSeason: { en: 'Delete season', ru: 'Удалить сезон' },
+  specials: { en: 'Specials', ru: 'Спецвыпуски' },
+  confirmDeleteSeason: {
+    en: 'Delete all {count} episodes of season {season}? This can’t be undone.',
+    ru: 'Удалить все эпизоды ({count}) сезона {season}? Это нельзя отменить.',
+  },
   addEpisode: { en: 'Add episode', ru: 'Добавить эпизод' },
   episodeNumber: { en: 'Episode #', ru: 'Эпизод №' },
   episodeTitle: { en: 'Episode title', ru: 'Название эпизода' },

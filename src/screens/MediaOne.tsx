@@ -167,19 +167,21 @@ export default function MediaOnePage({
     }
   }, [ssr, isAuthenticated, initialItem, loadItem])
 
-  // Cast & crew with stable person uuids, for linking to /p/<uuid>. On SSR pages
-  // these came from the server already.
+  // Cast & crew with stable person uuids, for linking to /p/<uuid>. Always
+  // refetch on the client — even on SSR pages, whose `initialCredits` are cached
+  // (revalidate 3600), so a freshly imported/linked maker shows up (and the
+  // byline becomes clickable) right after a reload instead of an hour later.
   useEffect(() => {
-    if (!id || ssr) return
+    if (!id) return
     let cancelled = false
     authedFetch(`/api/media/${id}/credits`)
       .then((r) => (r.ok ? r.json() : null))
-      .then((c) => !cancelled && setCredits(c))
+      .then((c) => !cancelled && c && setCredits(c))
       .catch(() => {})
     return () => {
       cancelled = true
     }
-  }, [id, ssr])
+  }, [id])
 
   // Editions (books) for the metadata section, loaded a page at a time. Always
   // refetches the first page on the client — even on SSR pages, where

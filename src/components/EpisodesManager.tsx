@@ -73,6 +73,13 @@ export default function EpisodesManager({ mediaId }: { mediaId: string }) {
       setEpisodes((prev) => prev.filter((e) => e.id !== id))
     })()
 
+  const handleDeleteSeason = (season: number, count: number) =>
+    wrap(async () => {
+      if (!window.confirm(t('confirmDeleteSeason', { season, count }))) return
+      await librarianService.deleteSeason(mediaId, season)
+      setEpisodes((prev) => prev.filter((e) => e.season !== season))
+    })()
+
   if (loading) return <p className="text-sm text-[var(--text-muted)]">{t('loading')}</p>
 
   return (
@@ -84,10 +91,20 @@ export default function EpisodesManager({ mediaId }: { mediaId: string }) {
       ) : (
         seasons.map(({ season, eps }) => (
           <div key={season}>
-            <h4 className="mb-2 text-sm font-semibold text-[var(--text)]">
-              {t('season')} {season}
-              <span className="ml-2 font-normal text-[var(--text-muted)]">({eps.length})</span>
-            </h4>
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <h4 className="text-sm font-semibold text-[var(--text)]">
+                {season === 0 ? t('specials') : `${t('season')} ${season}`}
+                <span className="ml-2 font-normal text-[var(--text-muted)]">({eps.length})</span>
+              </h4>
+              <button
+                onClick={() => handleDeleteSeason(season, eps.length)}
+                title={t('deleteSeason')}
+                className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-medium text-[var(--text-muted)] transition-colors hover:bg-red-500/10 hover:text-red-500"
+              >
+                <IoTrashOutline className="h-3.5 w-3.5" />
+                {t('deleteSeason')}
+              </button>
+            </div>
             <div className="flex flex-col gap-1.5">
               {eps.map((ep) =>
                 editingId === ep.id ? (
