@@ -38,7 +38,7 @@ export default function ShelfStatusBar({ item, currentStatus, onStatusChange, on
 
   const [collections, setCollections] = useState<string[]>([])
   const [anchor, setAnchor] = useState<{ top: number; left: number; width: number } | null>(null)
-  const btnRef = useRef<HTMLButtonElement>(null)
+  const btnRef = useRef<HTMLDivElement>(null)
 
   const handleToggle = () => {
     if (anchor) { setAnchor(null); return }
@@ -73,17 +73,31 @@ export default function ShelfStatusBar({ item, currentStatus, onStatusChange, on
   return (
     <>
       <div className="flex items-center gap-1">
-        <button
+        <div
           ref={btnRef}
-          data-shelf-popover
-          onClick={handleToggle}
           style={{ borderLeftColor: accent, color: accent }}
-          className="flex min-w-0 flex-1 items-center gap-1.5 rounded-r-lg border-l-[3px] px-2.5 py-1.5 text-xs font-medium transition-opacity hover:opacity-70"
+          className="flex min-w-0 flex-1 items-center rounded-r-lg border-l-[3px]"
         >
-          {!onShelf && <IoAdd className="h-3.5 w-3.5 flex-shrink-0" />}
-          <span className="truncate">{currentLabel}</span>
-          <IoChevronDown className={`ml-auto h-3.5 w-3.5 flex-shrink-0 transition-transform duration-200 ${anchor ? 'rotate-180' : ''}`} />
-        </button>
+          {/* Main area: when unshelved, one click shelves it as "Want to…";
+              when already on a shelf it just opens the status menu. */}
+          <button
+            data-shelf-popover
+            onClick={onShelf ? handleToggle : () => onStatusChange('wishlist')}
+            className="flex min-w-0 flex-1 items-center gap-1.5 py-1.5 pl-2.5 text-xs font-medium transition-opacity hover:opacity-70"
+          >
+            {!onShelf && <IoAdd className="h-3.5 w-3.5 flex-shrink-0" />}
+            <span className="truncate">{currentLabel}</span>
+          </button>
+          {/* Chevron always opens the menu to pick a specific status. */}
+          <button
+            data-shelf-popover
+            onClick={handleToggle}
+            aria-label={t('status') || 'Status'}
+            className="flex flex-shrink-0 items-center py-1.5 pl-1 pr-2.5 transition-opacity hover:opacity-70"
+          >
+            <IoChevronDown className={`h-3.5 w-3.5 transition-transform duration-200 ${anchor ? 'rotate-180' : ''}`} />
+          </button>
+        </div>
 
         {onEditProgress && (
           <button
