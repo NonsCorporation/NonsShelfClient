@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, useCallback } from 'react'
 import type { ReactNode } from 'react'
-import { authedFetch, nonsFetch } from '../lib/api'
+import { authedFetch, nonsFetch, setOnSessionExpired } from '../lib/api'
 
 // Shape of nons-library-server's /api/me response.
 export interface LibraryUser {
@@ -24,19 +24,12 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
-// Fetch the current user via the shared nons SSO cookie. On 401 we ask
-// nons-server (the identity provider) to refresh the access token once, then
-// retry. Never throws — network/CORS failures resolve to null so the app never
-// hangs.
+// Fetch the current user via the shared nons SSO cookie. authedFetch already
+// renews an expired session and retries on 401, so this just reads the result.
+// Never throws — network/CORS failures resolve to null so the app never hangs.
 async function fetchMe(): Promise<LibraryUser | null> {
   try {
-    let res = await authedFetch('/api/me')
-    if (res.status === 401) {
-      const refresh = await nonsFetch('/api/auth/refresh', { method: 'POST' })
-      if (refresh.ok) {
-        res = await authedFetch('/api/me')
-      }
-    }
+    const res = await authedFetch('/api/me')
     if (!res.ok) return null
     return (await res.json()) as LibraryUser
   } catch (err) {
@@ -50,6 +43,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    // When a token refresh ultimately fails, the SSO session is gone — drop the
+    // user so RequireAuth falls back to the login screen, no page reload needed.
+    setOnSessionExpired(() => setUser(null))
+
     let cancelled = false
     fetchMe()
       .then((u) => {
@@ -60,6 +57,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       })
     return () => {
       cancelled = true
+      setOnSessionExpired(null)
     }
   }, [])
 

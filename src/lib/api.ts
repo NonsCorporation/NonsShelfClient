@@ -18,14 +18,75 @@ export const NONS_API_URL = process.env.NEXT_PUBLIC_NONS_API_URL || 'http://loca
 // user lands back in the library after signing in.
 export const NONS_LOGIN_URL = process.env.NEXT_PUBLIC_NONS_LOGIN_URL || 'http://localhost:3000'
 
-// authedFetch always sends the shared session cookie.
-export function authedFetch(input: string, init: RequestInit = {}): Promise<Response> {
-  return fetch(`${LIBRARY_API_URL}${input}`, { ...init, credentials: 'include' })
+// ── Transparent session refresh ─────────────────────────────────────────────
+// The access_token cookie is short-lived (15 min) and gets deleted by the
+// browser when it expires, so mid-session requests start coming back 401. To
+// avoid the "looks logged out until you reload the page" bug, every authed
+// request that 401s renews the shared session once (via the identity provider's
+// refresh endpoint) and retries — exactly the recovery fetchMe used to do on
+// mount, but now on EVERY request so it works without a page reload.
+
+// Single in-flight refresh shared by all callers: a burst of parallel 401s
+// (e.g. the shelf/favorites/ratings fan-out) triggers exactly one refresh.
+let refreshInFlight: Promise<boolean> | null = null
+
+// Invoked when a refresh ultimately fails — the SSO session is gone for good.
+// AuthContext registers this to drop the user so the app falls back to the
+// login screen instead of silently failing requests.
+let onSessionExpired: (() => void) | null = null
+
+export function setOnSessionExpired(handler: (() => void) | null): void {
+  onSessionExpired = handler
 }
 
-// nonsFetch calls the identity provider (nons-server) with credentials.
+// refreshSession asks the identity provider (nons-server) for a fresh
+// access_token cookie using the refresh_token cookie. Concurrent callers share
+// one request; resolves true on success.
+function refreshSession(): Promise<boolean> {
+  if (!refreshInFlight) {
+    refreshInFlight = fetch(`${NONS_API_URL}/api/auth/refresh`, {
+      method: 'POST',
+      credentials: 'include',
+    })
+      .then((res) => res.ok)
+      .catch(() => false)
+      .finally(() => {
+        refreshInFlight = null
+      })
+  }
+  return refreshInFlight
+}
+
+// withAuth runs a credentialed request and transparently recovers from an
+// expired access token: on the first 401 it refreshes the shared session once
+// and retries. A failed refresh (or a 401 that survives the retry) means the
+// session is truly gone, so we notify onSessionExpired and surface the 401.
+async function withAuth(url: string, init: RequestInit): Promise<Response> {
+  const opts: RequestInit = { ...init, credentials: 'include' }
+
+  const res = await fetch(url, opts)
+  if (res.status !== 401) return res
+
+  if (!(await refreshSession())) {
+    onSessionExpired?.()
+    return res
+  }
+
+  const retry = await fetch(url, opts)
+  if (retry.status === 401) onSessionExpired?.()
+  return retry
+}
+
+// authedFetch calls this app's backend (nons-library-server) with the shared
+// session cookie, renewing the session on expiry.
+export function authedFetch(input: string, init: RequestInit = {}): Promise<Response> {
+  return withAuth(`${LIBRARY_API_URL}${input}`, init)
+}
+
+// nonsFetch calls the identity provider (nons-server) with credentials, with the
+// same transparent session renewal.
 export function nonsFetch(input: string, init: RequestInit = {}): Promise<Response> {
-  return fetch(`${NONS_API_URL}${input}`, { ...init, credentials: 'include' })
+  return withAuth(`${NONS_API_URL}${input}`, init)
 }
 
 // redirectToNonsLogin sends the browser to the nons login page, returning to
