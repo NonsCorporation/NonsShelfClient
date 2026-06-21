@@ -22,9 +22,10 @@ export const SHELF_META: Record<ShelfStatus, { key: string; dot: string }> = {
 // BackendMedia, Signals and the toItem mapper live in ../lib/mediaMap so the
 // Next.js server can reuse them for the public /b and /m pages.
 
-type ShelfEntry = { media_id: number; status: ShelfStatus; edition_id?: number; created_at: number; media?: BackendMedia }
+type EditionRef = { id: number; title?: string; cover_url?: string }
+type ShelfEntry = { media_id: number; status: ShelfStatus; edition_id?: number; created_at: number; media?: BackendMedia; edition?: EditionRef }
 type FavoriteEntry = { media_id: number; media?: BackendMedia }
-type RatingEntry = { media_id: number; value: number; media?: BackendMedia }
+type RatingEntry = { media_id: number; value: number; review?: string; media?: BackendMedia }
 
 /** Parse a leading integer out of a duration string like "180 min" -> 180. */
 function parseDuration(d?: string): number {
@@ -126,7 +127,7 @@ class ApiLibraryService implements ILibraryService {
     ])
 
     const favSet = new Set(favs.map((f) => f.media_id))
-    const ratMap = new Map(ratings.map((r) => [r.media_id, r.value]))
+    const ratMap = new Map(ratings.map((r) => [r.media_id, r] as const))
 
     return shelf
       .filter((e) => e.media)
@@ -134,9 +135,12 @@ class ApiLibraryService implements ILibraryService {
         toItem(e.media!, {
           status: e.status,
           favorite: favSet.has(e.media_id),
-          rating: ratMap.get(e.media_id),
+          rating: ratMap.get(e.media_id)?.value,
+          review: ratMap.get(e.media_id)?.review,
           createdAt: e.created_at,
           editionId: e.edition_id,
+          editionTitle: e.edition?.title,
+          editionCover: e.edition?.cover_url,
         }),
       )
   }
@@ -152,14 +156,17 @@ class ApiLibraryService implements ILibraryService {
       items<ShelfEntry>(shelfRes),
       items<RatingEntry>(ratRes),
     ])
-    const ratMap = new Map(ratings.map((r) => [r.media_id, r.value]))
+    const ratMap = new Map(ratings.map((r) => [r.media_id, r] as const))
     return shelf
       .filter((e) => e.media)
       .map((e) =>
         toItem(e.media!, {
           status: e.status,
-          rating: ratMap.get(e.media_id),
+          rating: ratMap.get(e.media_id)?.value,
+          review: ratMap.get(e.media_id)?.review,
           createdAt: e.created_at,
+          editionTitle: e.edition?.title,
+          editionCover: e.edition?.cover_url,
         }),
       )
   }

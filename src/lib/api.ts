@@ -89,6 +89,14 @@ export function nonsFetch(input: string, init: RequestInit = {}): Promise<Respon
   return withAuth(`${NONS_API_URL}${input}`, init)
 }
 
+// nonsProfileUrl builds a link to a user's profile on the main nons platform
+// (the social app the shelf rides on). Defaults to <main-app>/u/<username>; set
+// NEXT_PUBLIC_NONS_PROFILE_BASE if the platform serves profiles elsewhere.
+export function nonsProfileUrl(username: string): string {
+  const base = (process.env.NEXT_PUBLIC_NONS_PROFILE_BASE || `${NONS_LOGIN_URL}/u`).replace(/\/+$/, '')
+  return `${base}/${encodeURIComponent(username)}`
+}
+
 // redirectToNonsLogin sends the browser to the nons login page, returning to
 // the current library URL after a successful sign-in.
 export function redirectToNonsLogin(): void {

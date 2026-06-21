@@ -264,6 +264,8 @@ export const translations: Translations = {
   searchingExternal: { en: 'Searching external sources…', ru: 'Поиск во внешних источниках…' },
   searchLoadMore: { en: 'Load more', ru: 'Загрузить ещё' },
   filterAll: { en: 'All', ru: 'Все' },
+  sortRelevance: { en: 'Relevance', ru: 'Релевантность' },
+  sortPopular: { en: 'Popular', ru: 'Популярные' },
   searchLibrary: { en: 'Search your library…', ru: 'Поиск в библиотеке…' },
   viewProfile: { en: 'View profile', ru: 'Открыть профиль' },
   logout: { en: 'Log out', ru: 'Выйти' },
@@ -324,6 +326,47 @@ export const translations: Translations = {
     ru: 'Рекомендации приходят от моего круга в nons, а не от алгоритма.',
   },
   profileSubtitle: { en: 'Your shelf at a glance', ru: 'Ваша полка с высоты птичьего полёта' },
+  profileSubtitleOther: { en: 'Their shelf at a glance', ru: 'Полка пользователя с высоты птичьего полёта' },
+  viewNonsProfile: { en: 'nons profile', ru: 'Профиль nons' },
+  // "In progress" is the cross-media term for currently reading OR watching.
+  inProgressTitle: { en: 'In progress', ru: 'В процессе' },
+  reviewsTitle: { en: 'Reviews', ru: 'Рецензии' },
+  ratingsReviewsTitle: { en: 'Ratings & reviews', ru: 'Оценки и рецензии' },
+  noReviewsYet: { en: 'No reviews yet.', ru: 'Пока нет рецензий.' },
+  noRatingsReviews: { en: 'No ratings or reviews yet.', ru: 'Пока нет оценок и рецензий.' },
+  nothingInProgress: { en: 'Nothing in progress right now.', ru: 'Сейчас ничего нет в процессе.' },
+  // Settings (own profile only)
+  settingsTitle: { en: 'Settings', ru: 'Настройки' },
+  settingsImport: { en: 'Import library', ru: 'Импорт библиотеки' },
+  settingsImportHint: { en: 'Bring your books over from Goodreads or Book Diary Pro.', ru: 'Перенесите книги из Goodreads или Book Diary Pro.' },
+  settingsShowInProgress: { en: 'Show “In progress” on Library', ru: 'Показывать «В процессе» в библиотеке' },
+
+  // Settings modal sections
+  settingsPrivacy: { en: 'Privacy', ru: 'Приватность' },
+  settingsPrivacyHint: {
+    en: 'Choose who can see each part of your profile. Applies across nons.',
+    ru: 'Выберите, кто видит каждую часть вашего профиля. Действует во всём nons.',
+  },
+  settingsPreferences: { en: 'Preferences', ru: 'Предпочтения' },
+  settingsAccount: { en: 'Account', ru: 'Аккаунт' },
+
+  // Privacy facets
+  privacyShelf: { en: 'My shelf', ru: 'Моя полка' },
+  privacyShelfHint: { en: 'The books, films and series in your library.', ru: 'Книги, фильмы и сериалы в вашей библиотеке.' },
+  privacyRatings: { en: 'Ratings & reviews', ru: 'Оценки и рецензии' },
+  privacyRatingsHint: { en: 'Your star ratings and written reviews.', ru: 'Ваши оценки и написанные рецензии.' },
+  privacyFavorites: { en: 'Favorites', ru: 'Избранное' },
+  privacyFavoritesHint: { en: 'The items you’ve marked as favorite.', ru: 'Элементы, отмеченные как избранные.' },
+  privacyActivity: { en: 'Activity & in-progress', ru: 'Активность и в процессе' },
+  privacyActivityHint: { en: 'What you’re reading or watching right now.', ru: 'Что вы читаете или смотрите прямо сейчас.' },
+
+  // Visibility options
+  visibilityNobody: { en: 'Only me', ru: 'Только я' },
+  visibilityFriends: { en: 'Friends', ru: 'Друзья' },
+  visibilityEveryone: { en: 'Everyone', ru: 'Все' },
+  visibilityNobodyHint: { en: 'Private to you.', ru: 'Видно только вам.' },
+  visibilityFriendsHint: { en: 'People you follow on nons.', ru: 'Те, на кого вы подписаны в nons.' },
+  visibilityEveryoneHint: { en: 'Anyone with the link.', ru: 'Любой, у кого есть ссылка.' },
 
   // Controls
   sortBy: { en: 'Sort', ru: 'Сортировка' },

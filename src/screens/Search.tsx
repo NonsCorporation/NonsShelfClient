@@ -33,6 +33,7 @@ export default function SearchPage() {
   const [loading, setLoading] = useState(true)
   const [importing, setImporting] = useState(false)
   const [filter, setFilter] = useState<Filter>('all')
+  const [sort, setSort] = useState<'relevance' | 'popular'>('relevance')
   const [page, setPage] = useState(0)
   const [loadingMore, setLoadingMore] = useState(false)
   const [exhausted, setExhausted] = useState(false)
@@ -122,10 +123,12 @@ export default function SearchPage() {
     for (const it of catalog) c[it.type] += 1
     return c
   }, [catalog])
-  const shown = useMemo(
-    () => (filter === 'all' ? catalog : catalog.filter((it) => it.type === filter)),
-    [catalog, filter],
-  )
+  const shown = useMemo(() => {
+    const list = filter === 'all' ? catalog : catalog.filter((it) => it.type === filter)
+    if (sort !== 'popular') return list
+    // Stable sort by shelf-count (popularity) desc; keeps relevance order among ties.
+    return [...list].sort((a, b) => b.popularity - a.popularity)
+  }, [catalog, filter, sort])
 
   const tabs: { key: Filter; label: string; count: number }[] = [
     { key: 'all', label: t('filterAll'), count: catalog.length },
@@ -163,22 +166,39 @@ export default function SearchPage() {
         <p className="py-16 text-center text-sm text-[var(--text-muted)]">{t('noResults')}</p>
       ) : (
         <>
-          {/* Type filter */}
-          <div className="mb-5 inline-flex flex-wrap gap-1 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] p-1">
-            {tabs.map((tab) => (
-              <button
-                key={tab.key}
-                onClick={() => setFilter(tab.key)}
-                className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
-                  filter === tab.key
-                    ? 'bg-[var(--surface-active)] text-[var(--text)]'
-                    : 'text-[var(--text-muted)] hover:bg-[var(--surface-hover)]'
-                }`}
-              >
-                {tab.label}
-                <span className="ml-1.5 text-xs text-[var(--text-muted)]">{tab.count}</span>
-              </button>
-            ))}
+          {/* Type filter + sort */}
+          <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+            <div className="inline-flex flex-wrap gap-1 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] p-1">
+              {tabs.map((tab) => (
+                <button
+                  key={tab.key}
+                  onClick={() => setFilter(tab.key)}
+                  className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+                    filter === tab.key
+                      ? 'bg-[var(--surface-active)] text-[var(--text)]'
+                      : 'text-[var(--text-muted)] hover:bg-[var(--surface-hover)]'
+                  }`}
+                >
+                  {tab.label}
+                  <span className="ml-1.5 text-xs text-[var(--text-muted)]">{tab.count}</span>
+                </button>
+              ))}
+            </div>
+            <div className="inline-flex gap-1 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] p-1">
+              {(['relevance', 'popular'] as const).map((s) => (
+                <button
+                  key={s}
+                  onClick={() => setSort(s)}
+                  className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+                    sort === s
+                      ? 'bg-[var(--surface-active)] text-[var(--text)]'
+                      : 'text-[var(--text-muted)] hover:bg-[var(--surface-hover)]'
+                  }`}
+                >
+                  {s === 'relevance' ? t('sortRelevance') : t('sortPopular')}
+                </button>
+              ))}
+            </div>
           </div>
 
           {shown.length === 0 ? (

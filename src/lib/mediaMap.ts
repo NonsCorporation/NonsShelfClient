@@ -36,6 +36,10 @@ export type Signals = {
   review?: string
   createdAt?: number
   editionId?: number
+  /** The chosen edition's own title/cover, when one is selected — these
+   *  override the work's in list views so the user sees the printing they read. */
+  editionTitle?: string
+  editionCover?: string
 }
 
 export function toMediaItem(m: BackendMedia, s: Signals = {}): MediaItem {
@@ -43,7 +47,9 @@ export function toMediaItem(m: BackendMedia, s: Signals = {}): MediaItem {
     id: String(m.id),
     uuid: m.uuid || undefined,
     type: m.type,
-    title: m.title,
+    // A selected edition's title/cover override the work's so the shelf and
+    // library lists show the exact printing the user picked.
+    title: s.editionTitle || m.title,
     author: m.author || m.director,
     director: m.director || undefined,
     makerUuid: m.maker_uuid || undefined,
@@ -51,7 +57,7 @@ export function toMediaItem(m: BackendMedia, s: Signals = {}): MediaItem {
     workId: m.work_id || undefined,
     originalLanguage: m.details?.original_language || undefined,
     titleEn: m.original_title || m.details?.title_en || undefined,
-    coverUrl: m.cover_url || undefined,
+    coverUrl: s.editionCover || m.cover_url || undefined,
     year: m.year || undefined,
     genre: m.genres ? m.genres.split(',').map((g) => g.trim()).filter(Boolean) : undefined,
     description: m.description || undefined,

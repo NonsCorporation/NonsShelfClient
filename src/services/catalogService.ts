@@ -24,6 +24,8 @@ export type CatalogItem = {
   activeNow: number
   /** Higher = more trending this week. */
   trendScore: number
+  /** How many members have this item on a shelf — the popularity signal. */
+  popularity: number
   /** Short, social reason this is recommended to the user. */
   recommendedBecause?: string
 }
@@ -45,6 +47,7 @@ type BackendMedia = {
   created_by: number
   created_at: number
   updated_at: number
+  popularity?: number
 }
 
 // mapMedia adapts a backend row to the CatalogItem the UI renders. The social
@@ -66,6 +69,7 @@ function mapMedia(m: BackendMedia): CatalogItem {
     ratingsCount: 0,
     activeNow: 0,
     trendScore: 0,
+    popularity: m.popularity ?? 0,
   }
 }
 
