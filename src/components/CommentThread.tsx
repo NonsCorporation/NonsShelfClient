@@ -10,7 +10,9 @@ import { userPath } from '../lib/paths'
 import { getComments, addComment, deleteComment, type FeedComment } from '../services/commentService'
 
 // Stop indenting past this depth so deep reply chains don't march off-screen.
-const MAX_DEPTH = 4
+// 3 → top-level plus two nested indents = three visual levels; deeper replies
+// keep threading but render flush at the third level.
+const MAX_DEPTH = 3
 
 function timeAgo(at: number): string {
   const s = Math.max(1, Math.floor(Date.now() / 1000 - at))
@@ -42,13 +44,21 @@ export default function CommentThread({ postId, onCountChange }: { postId: numbe
       if (cancelled) return
       setComments(rows)
       setLoading(false)
-      onCountChange?.(rows.length)
     })
     return () => {
       cancelled = true
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [postId])
+
+  // Report the comment count to the parent from an effect, never from inside a
+  // setState updater (that runs during render and would setState the parent
+  // mid-render). Holds until the first load completes so the card's count
+  // doesn't flicker through 0.
+  useEffect(() => {
+    if (!loading) onCountChange?.(comments.length)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [comments.length, loading])
 
   const childrenOf = useMemo(() => {
     const map = new Map<number | null, FeedComment[]>()
@@ -66,11 +76,7 @@ export default function CommentThread({ postId, onCountChange }: { postId: numbe
     setPosting(true)
     try {
       const created = await addComment(postId, trimmed, parentId)
-      setComments((prev) => {
-        const next = [...prev, created]
-        onCountChange?.(next.length)
-        return next
-      })
+      setComments((prev) => [...prev, created])
       if (parentId) setReplyTo(null)
       else setBody('')
     } finally {
@@ -91,11 +97,7 @@ export default function CommentThread({ postId, onCountChange }: { postId: numbe
       }
     }
     await deleteComment(id)
-    setComments((prev) => {
-      const next = prev.filter((c) => !toRemove.has(c.id))
-      onCountChange?.(next.length)
-      return next
-    })
+    setComments((prev) => prev.filter((c) => !toRemove.has(c.id)))
   }
 
   const topLevel = childrenOf.get(null) ?? []
@@ -198,10 +200,14 @@ function CommentNode({
   const replies = childrenOf.get(comment.id) ?? []
   const replying = replyTo === comment.id
   const isOwn = meId != null && comment.author.id === meId
-  const indent = depth > 0 && depth < MAX_DEPTH
+  // Replies are always allowed, but indentation stops deepening past MAX_DEPTH
+  // levels: a reply to an already-maxed comment renders flush at the same level
+  // as its parent (so threads can't march off-screen). Indent the *replies*
+  // container only while the child level is still within the cap.
+  const childIndent = depth + 1 < MAX_DEPTH
 
   return (
-    <div className={indent ? 'border-l border-[var(--border-subtle)] pl-3' : ''}>
+    <div>
       <div className="flex items-start gap-2.5">
         <Avatar name={comment.author.name} username={comment.author.username} avatar={comment.author.avatar_url} small />
         <div className="min-w-0 flex-1">
@@ -259,27 +265,31 @@ function CommentNode({
               </div>
             </div>
           )}
-
-          {replies.length > 0 && (
-            <div className="mt-3 flex flex-col gap-3">
-              {replies.map((r) => (
-                <CommentNode
-                  key={r.id}
-                  comment={r}
-                  childrenOf={childrenOf}
-                  depth={depth + 1}
-                  replyTo={replyTo}
-                  setReplyTo={setReplyTo}
-                  onReply={onReply}
-                  onDelete={onDelete}
-                  posting={posting}
-                  meId={meId}
-                />
-              ))}
-            </div>
-          )}
         </div>
       </div>
+
+      {/* Replies are a sibling of the comment row (not nested inside its avatar
+          column) so indentation is controlled here and capped: within the depth
+          limit they indent under a thread line; past it they render flush, at
+          the same level as the comment they reply to. */}
+      {replies.length > 0 && (
+        <div className={`mt-3 flex flex-col gap-3 ${childIndent ? 'ml-3.5 border-l border-[var(--border-subtle)] pl-3' : ''}`}>
+          {replies.map((r) => (
+            <CommentNode
+              key={r.id}
+              comment={r}
+              childrenOf={childrenOf}
+              depth={depth + 1}
+              replyTo={replyTo}
+              setReplyTo={setReplyTo}
+              onReply={onReply}
+              onDelete={onDelete}
+              posting={posting}
+              meId={meId}
+            />
+          ))}
+        </div>
+      )}
     </div>
   )
 }

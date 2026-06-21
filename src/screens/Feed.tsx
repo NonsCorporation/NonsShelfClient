@@ -102,6 +102,7 @@ export default function FeedPage() {
                 a={a}
                 commentCount={commentCounts[String(a.postId)] ?? 0}
                 onDeleted={(postId) => setActivity((prev) => prev.filter((x) => x.postId !== postId))}
+                onCountChange={(postId, n) => setCommentCounts((m) => ({ ...m, [String(postId)]: n }))}
               />
             ))}
           </div>

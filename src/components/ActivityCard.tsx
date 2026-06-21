@@ -43,12 +43,23 @@ function Stars({ rating }: { rating: number }) {
 // Goodreads-style update card: "<Name> <verb> <Title>" + stars in the header,
 // the review (when present) above a cover + details block, and a Like · Comment
 // footer. Reusable across the feed and any place that shows activity.
-export default function ActivityCard({ a, commentCount = 0, onDeleted }: { a: Activity; commentCount?: number; onDeleted?: (postId: number) => void }) {
+export default function ActivityCard({
+  a,
+  commentCount = 0,
+  onDeleted,
+  onCountChange,
+}: {
+  a: Activity
+  commentCount?: number
+  onDeleted?: (postId: number) => void
+  /** Live count updates from the open thread, lifted to the parent so the badge
+   *  reflects the batched count immediately (not only after opening comments). */
+  onCountChange?: (postId: number, n: number) => void
+}) {
   const { t } = useLanguage()
   const { user } = useAuth()
   const [liked, setLiked] = useState(false)
   const [showComments, setShowComments] = useState(false)
-  const [count, setCount] = useState(commentCount)
   const to = mediaPath({ type: a.mediaType, uuid: a.mediaUuid, id: String(a.mediaId) })
   const typeLabel = a.mediaType === 'book' ? t('book') : a.mediaType === 'series' ? t('series') : t('film')
   const showStars = typeof a.rating === 'number' && a.rating > 0
@@ -157,7 +168,7 @@ export default function ActivityCard({ a, commentCount = 0, onDeleted }: { a: Ac
           }`}
         >
           <IoChatbubbleOutline className="h-4 w-4" />
-          {count > 0 ? count : t('comment')}
+          {commentCount > 0 ? commentCount : t('comment')}
         </button>
         {canDelete && (
           <button
@@ -170,7 +181,7 @@ export default function ActivityCard({ a, commentCount = 0, onDeleted }: { a: Ac
         )}
       </div>
 
-      {showComments && <CommentThread postId={a.postId} onCountChange={setCount} />}
+      {showComments && <CommentThread postId={a.postId} onCountChange={(n) => onCountChange?.(a.postId, n)} />}
     </article>
   )
 }
