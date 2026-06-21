@@ -84,6 +84,14 @@ export interface ReadDates {
   finished_at: number
 }
 
+// One logged reading-progress update for a book (page/percent on a given day).
+export interface ProgressEntry {
+  page: number
+  progress_pct: number
+  note?: string
+  event_date: number
+}
+
 // What the "ending" (finish) modal collects.
 export interface FinishOptions {
   rating?: number | null
@@ -112,6 +120,8 @@ export interface ILibraryService {
   setReadDates(mediaId: string, dates: ReadDates): Promise<void>
   /** Append a reading/watching progress event (book page or percent). */
   logProgress(mediaId: string, p: ProgressUpdate): Promise<void>
+  /** The user's logged reading-progress updates for a book, newest first. */
+  getProgress(mediaId: string): Promise<ProgressEntry[]>
   /** Mark/unmark a series episode as watched. */
   setEpisodeWatched(episodeId: number, watched: boolean): Promise<void>
   /** Finish an item: shelf → done, save rating/review, log a (backdatable) finished event. */
@@ -283,6 +293,14 @@ class ApiLibraryService implements ILibraryService {
         event_date: p.eventDate ?? 0,
       }),
     })
+  }
+
+  // The user's logged reading-progress updates for a book (newest first).
+  async getProgress(mediaId: string): Promise<ProgressEntry[]> {
+    const res = await authedFetch(`/api/activity/progress?media_id=${Number(mediaId)}`)
+    if (!res.ok) return []
+    const data = await res.json()
+    return (data.items ?? []) as ProgressEntry[]
   }
 
   // Mark/unmark a single series episode as watched.

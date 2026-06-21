@@ -8,6 +8,7 @@ import ProgressModal from '../components/ProgressModal'
 import FinishModal from '../components/FinishModal'
 import ShelfStatusBar from '../components/ShelfStatusBar'
 import ReadingDates from '../components/ReadingDates'
+import ReadingProgress from '../components/ReadingProgress'
 import StarsSelector from '../StarsSelector'
 import { libraryService } from '../services/libraryService'
 import { librarianService } from '../services/librarianService'
@@ -134,6 +135,8 @@ export default function MediaOnePage({
   const [editingReview, setEditingReview] = useState(false)
   const [progressOpen, setProgressOpen] = useState(false)
   const [finishOpen, setFinishOpen] = useState(false)
+  // Bumped when the progress modal closes, so the reading-progress log refetches.
+  const [progressRefresh, setProgressRefresh] = useState(0)
 
   const loadItem = useCallback(() => {
     if (!id) return
@@ -478,6 +481,8 @@ export default function MediaOnePage({
               {status !== null && (
                 <ReadingDates key={`${item.startedAt ?? ''}|${item.finishedAt ?? ''}`} item={item} onSaved={loadItem} />
               )}
+              {/* Per-book reading-progress log (renders only once there's history). */}
+              {status !== null && isBook && <ReadingProgress item={item} refreshKey={progressRefresh} />}
             </div>
           ) : showSignIn ? (
             signInPrompt
@@ -1029,7 +1034,7 @@ export default function MediaOnePage({
       <ProgressModal
         isOpen={progressOpen}
         item={item}
-        onClose={() => setProgressOpen(false)}
+        onClose={() => { setProgressOpen(false); setProgressRefresh((n) => n + 1) }}
         onFinish={() => { setProgressOpen(false); setFinishOpen(true) }}
       />
       <FinishModal

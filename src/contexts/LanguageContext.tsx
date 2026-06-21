@@ -535,6 +535,9 @@ export const translations: Translations = {
   rating: { en: 'Rating', ru: 'Оценка' },
 
   // Reading / watching dates (editable relationship on the media page)
+  readingProgress: { en: 'Reading progress', ru: 'Прогресс чтения' },
+  pageOfTotal: { en: 'Page {page} of {total}', ru: 'Страница {page} из {total}' },
+  pageN: { en: 'Page {page}', ru: 'Страница {page}' },
   readingDates: { en: 'Reading dates', ru: 'Даты чтения' },
   watchingDates: { en: 'Watching dates', ru: 'Даты просмотра' },
   dateStarted: { en: 'Started reading', ru: 'Начал(а) читать' },
