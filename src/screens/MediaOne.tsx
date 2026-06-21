@@ -7,6 +7,7 @@ import MediaModal from '../components/MediaModal'
 import ProgressModal from '../components/ProgressModal'
 import FinishModal from '../components/FinishModal'
 import ShelfStatusBar from '../components/ShelfStatusBar'
+import ReadingDates from '../components/ReadingDates'
 import StarsSelector from '../StarsSelector'
 import { libraryService } from '../services/libraryService'
 import { librarianService } from '../services/librarianService'
@@ -160,7 +161,11 @@ export default function MediaOnePage({
     let cancelled = false
     libraryService.getSignals(initialItem.id).then((sig) => {
       if (cancelled) return
-      setItem((prev) => (prev ? { ...prev, ...sig } : prev))
+      // Signals carry unix seconds; MediaItem holds ISO strings for dates.
+      const toIso = (s?: number) => (s ? new Date(s * 1000).toISOString() : undefined)
+      setItem((prev) =>
+        prev ? { ...prev, ...sig, startedAt: toIso(sig.startedAt), finishedAt: toIso(sig.finishedAt) } : prev,
+      )
       setUserRating(sig.rating ?? null)
       setUserReview(sig.review ?? '')
       setEditionId(sig.editionId ?? null)
@@ -456,16 +461,23 @@ export default function MediaOnePage({
 
           {/* Status shelf control — signed in; otherwise a sign-in prompt. */}
           {canInteract ? (
-            <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface)] p-3">
-              <ShelfStatusBar
-                item={item}
-                currentStatus={status}
-                onStatusChange={(s) => {
-                  if (s === 'done') { setFinishOpen(true); return }
-                  patch({ status: s })
-                }}
-                onEditProgress={status === 'active' ? () => setProgressOpen(true) : undefined}
-              />
+            <div className="flex flex-col gap-3">
+              <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface)] p-3">
+                <ShelfStatusBar
+                  item={item}
+                  currentStatus={status}
+                  onStatusChange={(s) => {
+                    if (s === 'done') { setFinishOpen(true); return }
+                    patch({ status: s })
+                  }}
+                  onEditProgress={status === 'active' ? () => setProgressOpen(true) : undefined}
+                />
+              </div>
+              {/* Editable reading/watching period — once the item is on the shelf.
+                  Keyed on the loaded dates so it re-initialises when signals arrive. */}
+              {status !== null && (
+                <ReadingDates key={`${item.startedAt ?? ''}|${item.finishedAt ?? ''}`} item={item} onSaved={loadItem} />
+              )}
             </div>
           ) : showSignIn ? (
             signInPrompt

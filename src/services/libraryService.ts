@@ -78,6 +78,12 @@ export interface ProgressUpdate {
   eventDate?: number
 }
 
+// The user's editable reading period for an item (unix seconds; 0 = unset).
+export interface ReadDates {
+  started_at: number
+  finished_at: number
+}
+
 // What the "ending" (finish) modal collects.
 export interface FinishOptions {
   rating?: number | null
@@ -100,6 +106,10 @@ export interface ILibraryService {
   setEdition(mediaId: string, editionId: number): Promise<void>
   /** Save (or clear) the user's free-text review. */
   setReview(mediaId: string, review: string): Promise<void>
+  /** The user's started/finished reading dates for an item (unix seconds; 0 = unset). */
+  getReadDates(mediaId: string): Promise<ReadDates>
+  /** Update the user's started/finished reading dates (0 clears a date). */
+  setReadDates(mediaId: string, dates: ReadDates): Promise<void>
   /** Append a reading/watching progress event (book page or percent). */
   logProgress(mediaId: string, p: ProgressUpdate): Promise<void>
   /** Mark/unmark a series episode as watched. */
@@ -181,10 +191,11 @@ class ApiLibraryService implements ILibraryService {
     const media: BackendMedia = await mediaRes.json()
     const mediaId = media.id
 
-    const [ratRes, favRes, shelfRes] = await Promise.all([
+    const [ratRes, favRes, shelfRes, dates] = await Promise.all([
       authedFetch(`/api/media/${mediaId}/rating`),
       authedFetch(`/api/media/${mediaId}/favorite`),
       authedFetch('/api/shelf'),
+      this.getReadDates(String(mediaId)),
     ])
     const summary = ratRes.ok ? await ratRes.json() : {}
     const rating = summary.own as number | undefined
@@ -199,6 +210,8 @@ class ApiLibraryService implements ILibraryService {
       review,
       createdAt: entry?.created_at,
       editionId: entry?.edition_id,
+      startedAt: dates.started_at || undefined,
+      finishedAt: dates.finished_at || undefined,
     })
   }
 
@@ -207,10 +220,11 @@ class ApiLibraryService implements ILibraryService {
   // public catalog data (the server already rendered that).
   async getSignals(mediaId: string): Promise<Signals> {
     const numId = Number(mediaId)
-    const [ratRes, favRes, shelfRes] = await Promise.all([
+    const [ratRes, favRes, shelfRes, dates] = await Promise.all([
       authedFetch(`/api/media/${numId}/rating`),
       authedFetch(`/api/media/${numId}/favorite`),
       authedFetch('/api/shelf'),
+      this.getReadDates(mediaId),
     ])
     const summary = ratRes.ok ? await ratRes.json() : {}
     const favorite = favRes.ok ? Boolean((await favRes.json()).liked) : false
@@ -222,7 +236,28 @@ class ApiLibraryService implements ILibraryService {
       review: summary.own_review as string | undefined,
       editionId: entry?.edition_id,
       createdAt: entry?.created_at,
+      startedAt: dates.started_at || undefined,
+      finishedAt: dates.finished_at || undefined,
     }
+  }
+
+  // The user's started/finished reading dates (unix seconds; 0 = unset). Backed
+  // by the started/finished rows in the activity log, so they line up with the
+  // calendar's reading spans.
+  async getReadDates(mediaId: string): Promise<ReadDates> {
+    const res = await authedFetch(`/api/activity/read-dates?media_id=${Number(mediaId)}`)
+    if (!res.ok) return { started_at: 0, finished_at: 0 }
+    const d = await res.json()
+    return { started_at: d.started_at ?? 0, finished_at: d.finished_at ?? 0 }
+  }
+
+  // Update the user's reading period for an item (0 clears a date).
+  async setReadDates(mediaId: string, dates: ReadDates): Promise<void> {
+    await authedFetch('/api/activity/read-dates', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ media_id: Number(mediaId), started_at: dates.started_at, finished_at: dates.finished_at }),
+    })
   }
 
   // Save (or clear) the user's free-text review for a media item.

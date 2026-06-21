@@ -40,6 +40,9 @@ export type Signals = {
    *  override the work's in list views so the user sees the printing they read. */
   editionTitle?: string
   editionCover?: string
+  /** The user's reading period (unix seconds; 0/undefined = unset). */
+  startedAt?: number
+  finishedAt?: number
 }
 
 export function toMediaItem(m: BackendMedia, s: Signals = {}): MediaItem {
@@ -69,6 +72,8 @@ export function toMediaItem(m: BackendMedia, s: Signals = {}): MediaItem {
     review: s.review || undefined,
     editionId: s.editionId || undefined,
     dateAdded: s.createdAt ? new Date(s.createdAt * 1000).toISOString() : undefined,
+    startedAt: s.startedAt ? new Date(s.startedAt * 1000).toISOString() : undefined,
+    finishedAt: s.finishedAt ? new Date(s.finishedAt * 1000).toISOString() : undefined,
   }
 }
 

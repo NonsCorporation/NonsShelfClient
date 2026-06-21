@@ -533,6 +533,18 @@ export const translations: Translations = {
   autoFindCredits: { en: 'Auto-find cast & crew (TMDB)', ru: 'Найти актёров и команду (TMDB)' },
   by: { en: 'by', ru: 'от' },
   rating: { en: 'Rating', ru: 'Оценка' },
+
+  // Reading / watching dates (editable relationship on the media page)
+  readingDates: { en: 'Reading dates', ru: 'Даты чтения' },
+  watchingDates: { en: 'Watching dates', ru: 'Даты просмотра' },
+  dateStarted: { en: 'Started reading', ru: 'Начал(а) читать' },
+  dateFinished: { en: 'Finished reading', ru: 'Закончил(а) читать' },
+  dateStartedWatching: { en: 'Started watching', ru: 'Начал(а) смотреть' },
+  dateFinishedWatching: { en: 'Finished watching', ru: 'Закончил(а) смотреть' },
+  dateRead: { en: 'Date read', ru: 'Дата прочтения' },
+  dateWatched: { en: 'Date watched', ru: 'Дата просмотра' },
+  postToNons: { en: 'Post to Nons', ru: 'Опубликовать в Nons' },
+  post: { en: 'Post', ru: 'Опубликовать' },
   continueReading: { en: ' …more', ru: ' …подробнее' },
   like: { en: 'Like', ru: 'Нравится' },
   comment: { en: 'Comment', ru: 'Комментировать' },

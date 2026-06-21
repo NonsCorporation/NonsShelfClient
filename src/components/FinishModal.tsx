@@ -36,14 +36,15 @@ export default function FinishModal({ isOpen, item, onClose, onFinished }: Props
     if (!isOpen || !item) return
     setRating(item.rating ?? null)
     setReview('')
-    setStarted(toDateInput(item.dateAdded))
-    setFinished(today())
+    setStarted(toDateInput(item.startedAt ?? item.dateAdded))
+    setFinished(toDateInput(item.finishedAt) || today())
     let cancelled = false
     libraryService.getItem(item.id).then((full) => {
       if (cancelled || !full) return
       setRating(full.rating ?? null)
       setReview(full.review ?? '')
-      if (full.dateAdded) setStarted(toDateInput(full.dateAdded))
+      setStarted(toDateInput(full.startedAt ?? full.dateAdded))
+      if (full.finishedAt) setFinished(toDateInput(full.finishedAt))
     })
     return () => {
       cancelled = true
@@ -60,6 +61,12 @@ export default function FinishModal({ isOpen, item, onClose, onFinished }: Props
     try {
       const finishedAt = finished ? Math.floor(new Date(finished).getTime() / 1000) : undefined
       await libraryService.finish(item.id, { rating, review, finishedAt })
+      // Persist the chosen started/finished dates as the authoritative reading
+      // period (so they match what shows on the media page and the calendar).
+      await libraryService.setReadDates(item.id, {
+        started_at: started ? Math.floor(new Date(started).getTime() / 1000) : 0,
+        finished_at: finishedAt ?? 0,
+      })
       onFinished()
     } finally {
       setBusy(false)

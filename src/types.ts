@@ -33,6 +33,10 @@ export type MediaItem = {
   originalLanguage?: string
   titleEn?: string // original/English title when the catalog title is localized
   dateAdded?: string
+  /** The user's own reading period for this item (ISO strings; editable on the
+   *  media page). Backed by the started/finished activity rows. */
+  startedAt?: string
+  finishedAt?: string
   status?: ShelfStatus
   favorite?: boolean
   /** The book edition (printing) the user is reading, when chosen. 0/undefined = none. */
