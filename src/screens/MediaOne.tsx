@@ -390,6 +390,9 @@ export default function MediaOnePage({
   const selectedEdition =
     editions.find((e) => e.uuid && e.uuid === params.get('e')) ?? editions.find((e) => e.id === editionId) ?? null
   const coverUrl = selectedEdition?.cover_url || item.coverUrl
+  // Page count to measure reading progress against: the selected edition's, when
+  // it has one (the printing you're actually reading), else the work's.
+  const totalPages = selectedEdition?.pages || item.pages || 0
 
   // Interactive controls (shelf, rating, review, favorite, edit) are for signed-in
   // users. Anonymous visitors and crawlers still get the full public content; we
@@ -482,7 +485,7 @@ export default function MediaOnePage({
                 <ReadingDates key={`${item.startedAt ?? ''}|${item.finishedAt ?? ''}`} item={item} onSaved={loadItem} />
               )}
               {/* Per-book reading-progress log (renders only once there's history). */}
-              {status !== null && isBook && <ReadingProgress item={item} refreshKey={progressRefresh} />}
+              {status !== null && isBook && <ReadingProgress item={item} total={totalPages} refreshKey={progressRefresh} />}
             </div>
           ) : showSignIn ? (
             signInPrompt
@@ -1034,6 +1037,7 @@ export default function MediaOnePage({
       <ProgressModal
         isOpen={progressOpen}
         item={item}
+        total={totalPages}
         onClose={() => { setProgressOpen(false); setProgressRefresh((n) => n + 1) }}
         onFinish={() => { setProgressOpen(false); setFinishOpen(true) }}
       />

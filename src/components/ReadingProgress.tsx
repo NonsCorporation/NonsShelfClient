@@ -25,10 +25,19 @@ function pctFor(e: ProgressEntry, total: number): number {
 // Per-book reading-progress log: a current-progress bar plus the dated history
 // of page updates ("14.06.2026 · 30 pages (30%)"). Renders nothing until there
 // is at least one logged update, so it never shows as an empty card.
-export default function ReadingProgress({ item, refreshKey = 0 }: { item: MediaItem; refreshKey?: number }) {
+export default function ReadingProgress({
+  item,
+  total: totalProp,
+  refreshKey = 0,
+}: {
+  item: MediaItem
+  /** Page count to measure against — the selected edition's, when set. */
+  total?: number
+  refreshKey?: number
+}) {
   const { t } = useLanguage()
   const [entries, setEntries] = useState<ProgressEntry[] | null>(null)
-  const total = item.pages || 0
+  const total = totalProp || item.pages || 0
 
   useEffect(() => {
     let cancelled = false

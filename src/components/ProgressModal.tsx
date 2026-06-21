@@ -9,6 +9,8 @@ import { useLanguage } from '../contexts/LanguageContext'
 type Props = {
   isOpen: boolean
   item: MediaItem | null
+  /** Total pages to measure against — the selected edition's, when set. */
+  total?: number
   onClose: () => void
   // Called when the user hits "Finished" — the parent swaps in the ending modal.
   onFinish: () => void
@@ -34,7 +36,7 @@ interface EpisodesResponse {
 // "Update progress" modal: where am I in this book/series? Books track the
 // current page; series tick off watched episodes. The "Finished" button hands
 // off to the ending (rate/review/dates) modal.
-export default function ProgressModal({ isOpen, item, onClose, onFinish }: Props) {
+export default function ProgressModal({ isOpen, item, total: totalProp, onClose, onFinish }: Props) {
   const { t } = useLanguage()
   const isBook = item?.type === 'book'
 
@@ -69,7 +71,7 @@ export default function ProgressModal({ isOpen, item, onClose, onFinish }: Props
 
   if (!isOpen || !item) return null
 
-  const total = item.pages || 0
+  const total = totalProp || item.pages || 0
 
   const savePage = async () => {
     const p = parseInt(page, 10)
