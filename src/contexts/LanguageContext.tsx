@@ -216,6 +216,21 @@ export const translations: Translations = {
   read: { en: 'Read', ru: 'Прочитано' },
   watched: { en: 'Watched', ru: 'Просмотрено' },
 
+  // Statistics page
+  statistics: { en: 'Statistics', ru: 'Статистика' },
+  statsPages: { en: 'Pages read', ru: 'Страниц прочитано' },
+  statsFinishedByMonth: { en: 'Finished by month', ru: 'Завершено по месяцам' },
+  statsYearTotal: { en: '{n} finished in {year}', ru: 'завершено в {year}: {n}' },
+  statsPerMonthAvg: { en: '{n} / month avg', ru: 'в среднем {n} / мес' },
+  statsRatings: { en: 'Ratings breakdown', ru: 'Распределение оценок' },
+  statsNoData: { en: 'Not enough data yet.', ru: 'Пока недостаточно данных.' },
+  statsOutOf: { en: '{n} of {total}', ru: '{n} из {total}' },
+  statsAverages: { en: 'Averages', ru: 'Средние значения' },
+  statsAvgPerMonthYear: { en: 'per month in {year}', ru: 'в месяц в {year}' },
+  statsAvgPerYear: { en: 'per year (avg)', ru: 'в год (среднее)' },
+  statsAvgRatingAll: { en: 'avg rating', ru: 'средняя оценка' },
+  statsRatedShare: { en: 'of library rated', ru: 'оценено из библиотеки' },
+
   // Stats
   statTotal: { en: 'Total', ru: 'Всего' },
   statBooks: { en: 'Books', ru: 'Книги' },

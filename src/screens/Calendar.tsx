@@ -11,12 +11,15 @@ import {
 import { useLanguage } from '../contexts/LanguageContext.tsx';
 import { libraryService } from '../services/libraryService.ts';
 import type { MediaItem } from '../types.ts';
+import Statistics from './Statistics.tsx';
 
 export default function CalendarPage() {
     const { t } = useLanguage();
     const [currentDate, setCurrentDate] = useState(new Date());
     const [items, setItems] = useState<MediaItem[]>([]);
-    
+
+    // Top-level page tab: the existing calendar, or the statistics dashboard.
+    const [tab, setTab] = useState<'calendar' | 'stats'>('calendar');
     // tracks the active view style
     const [viewMode, setViewMode] = useState<'calendar' | 'github'>('calendar');
 
@@ -106,6 +109,24 @@ export default function CalendarPage() {
 
     return (
         <Layout>
+                {/* Page tabs: Calendar | Statistics */}
+                <div className="mb-6 flex gap-1 border-b border-[var(--border-subtle)]">
+                    {([['calendar', t('calendar')], ['stats', t('statistics')]] as const).map(([key, label]) => (
+                        <button
+                            key={key}
+                            onClick={() => setTab(key)}
+                            className={`-mb-px border-b-2 px-4 py-2.5 text-sm font-medium transition-colors ${
+                                tab === key
+                                    ? 'border-nonsprimary text-[var(--text)]'
+                                    : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text)]'
+                            }`}
+                        >
+                            {label}
+                        </button>
+                    ))}
+                </div>
+
+                {tab === 'stats' ? <Statistics /> : (<>
                 {/* header actions & title */}
                 <div className="flex justify-between items-center mb-6 border-b border-[var(--border-subtle)] pb-4">
                     <div className="flex items-center gap-4">
@@ -218,6 +239,7 @@ export default function CalendarPage() {
                         </div>
                     )}
                 </div>
+                </>)}
         </Layout>
     );
 }
