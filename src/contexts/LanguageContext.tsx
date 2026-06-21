@@ -253,7 +253,12 @@ export const translations: Translations = {
   verbReviewed: { en: 'reviewed', ru: 'оставил(а) отзыв на' },
   verbProgress: { en: 'made progress on', ru: 'продвинулся(ась) в' },
   removeFromFeed: { en: 'Remove from feed', ru: 'Убрать из ленты' },
+  removeFromFeedConfirm: {
+    en: 'Remove this post from the feed? It stays in your activity history and calendar — only the feed post and its comments are deleted.',
+    ru: 'Убрать эту запись из ленты? Она останется в истории активности и календаре — удаляются только запись в ленте и её комментарии.',
+  },
   shareToFeed: { en: 'Share to feed', ru: 'Поделиться в ленте' },
+  deleting: { en: 'Deleting…', ru: 'Удаление…' },
 
   // Discover / social
   discover: { en: 'Discover', ru: 'Интересное' },

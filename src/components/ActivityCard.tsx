@@ -10,6 +10,8 @@ import { IoHeart, IoHeartOutline, IoChatbubbleOutline, IoTrashOutline } from 're
 import { IoMdStar, IoMdStarHalf, IoMdStarOutline } from 'react-icons/io'
 import TypeBadge from './TypeBadge'
 import CommentThread from './CommentThread'
+import DropdownMenu from './DropdownMenu'
+import ConfirmModal from './ConfirmModal'
 
 const VERB_KEY: Record<ActivityType, string> = {
   rated: 'verbRated',
@@ -60,18 +62,22 @@ export default function ActivityCard({
   const { user } = useAuth()
   const [liked, setLiked] = useState(false)
   const [showComments, setShowComments] = useState(false)
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const to = mediaPath({ type: a.mediaType, uuid: a.mediaUuid, id: String(a.mediaId) })
   const typeLabel = a.mediaType === 'book' ? t('book') : a.mediaType === 'series' ? t('series') : t('film')
   const showStars = typeof a.rating === 'number' && a.rating > 0
   // The post owner (or an admin) may remove it from the feed; the server enforces.
   const canDelete = !!user && (user.id === a.userId || user.role === 'admin')
 
-  const remove = async () => {
-    onDeleted?.(a.postId) // optimistic — drop the card immediately
+  const confirmDelete = async () => {
+    setDeleting(true)
     try {
       await deletePost(a.postId)
+      setConfirmingDelete(false)
+      onDeleted?.(a.postId)
     } catch {
-      /* best-effort; a reload will resync */
+      setDeleting(false) // keep the dialog open so the user can retry
     }
   }
 
@@ -102,6 +108,19 @@ export default function ActivityCard({
           )}
         </div>
         <span className="flex-shrink-0 text-xs text-[var(--text-muted)]">{a.timeAgo}</span>
+        {canDelete && (
+          <DropdownMenu
+            className="flex-shrink-0"
+            items={[
+              {
+                label: t('removeFromFeed'),
+                icon: <IoTrashOutline className="h-4 w-4" />,
+                danger: true,
+                onClick: () => setConfirmingDelete(true),
+              },
+            ]}
+          />
+        )}
       </div>
 
       {/* review text, above the media card when present */}
@@ -170,18 +189,22 @@ export default function ActivityCard({
           <IoChatbubbleOutline className="h-4 w-4" />
           {commentCount > 0 ? commentCount : t('comment')}
         </button>
-        {canDelete && (
-          <button
-            onClick={remove}
-            title={t('removeFromFeed')}
-            className="ml-auto inline-flex items-center gap-1.5 font-medium text-[var(--text-muted)] transition-colors hover:text-red-500"
-          >
-            <IoTrashOutline className="h-4 w-4" />
-          </button>
-        )}
       </div>
 
       {showComments && <CommentThread postId={a.postId} onCountChange={(n) => onCountChange?.(a.postId, n)} />}
+
+      {confirmingDelete && (
+        <ConfirmModal
+          title={t('removeFromFeed')}
+          message={t('removeFromFeedConfirm')}
+          confirmText={deleting ? t('deleting') : t('delete')}
+          cancelText={t('cancel')}
+          variant="danger"
+          busy={deleting}
+          onConfirm={confirmDelete}
+          onCancel={() => setConfirmingDelete(false)}
+        />
+      )}
     </article>
   )
 }
