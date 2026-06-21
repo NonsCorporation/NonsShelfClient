@@ -29,6 +29,7 @@ export default function FinishModal({ isOpen, item, onClose, onFinished }: Props
   const [review, setReview] = useState('')
   const [started, setStarted] = useState('')
   const [finished, setFinished] = useState(today())
+  const [share, setShare] = useState(true)
   const [busy, setBusy] = useState(false)
 
   // Pull the user's current rating/review + the started date when opening.
@@ -60,7 +61,7 @@ export default function FinishModal({ isOpen, item, onClose, onFinished }: Props
     setBusy(true)
     try {
       const finishedAt = finished ? Math.floor(new Date(finished).getTime() / 1000) : undefined
-      await libraryService.finish(item.id, { rating, review, finishedAt })
+      await libraryService.finish(item.id, { rating, review, finishedAt, share })
       // Persist the chosen started/finished dates as the authoritative reading
       // period (so they match what shows on the media page and the calendar).
       await libraryService.setReadDates(item.id, {
@@ -129,9 +130,14 @@ export default function FinishModal({ isOpen, item, onClose, onFinished }: Props
           </label>
         </div>
 
-        <label className="flex cursor-not-allowed items-center gap-2 text-sm text-[var(--text-muted)]">
-          <input type="checkbox" disabled className="h-4 w-4 rounded border-[var(--border-subtle)]" />
-          {t('postToNons') || 'Post to Nons'}
+        <label className="flex cursor-pointer items-center gap-2 text-sm text-[var(--text)]">
+          <input
+            type="checkbox"
+            checked={share}
+            onChange={(e) => setShare(e.target.checked)}
+            className="h-4 w-4 rounded border-[var(--border-subtle)]"
+          />
+          {t('shareToFeed')}
         </label>
 
         <div className="flex justify-end gap-3">

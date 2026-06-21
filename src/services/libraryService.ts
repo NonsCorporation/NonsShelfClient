@@ -76,6 +76,8 @@ export interface ProgressUpdate {
   pct?: number
   note?: string
   eventDate?: number
+  /** Post this update to the feed (default true). */
+  share?: boolean
 }
 
 // The user's editable reading period for an item (unix seconds; 0 = unset).
@@ -97,6 +99,8 @@ export interface FinishOptions {
   rating?: number | null
   review?: string
   finishedAt?: number // unix seconds
+  /** Post the finish (and its rating/review) to the feed (default true). */
+  share?: boolean
 }
 
 export interface ILibraryService {
@@ -112,8 +116,8 @@ export interface ILibraryService {
   updateItem(id: string, updates: Partial<MediaItem>): Promise<MediaItem>
   /** Choose the book edition (printing) the user is reading; 0 clears it. */
   setEdition(mediaId: string, editionId: number): Promise<void>
-  /** Save (or clear) the user's free-text review. */
-  setReview(mediaId: string, review: string): Promise<void>
+  /** Save (or clear) the user's free-text review. Posts to the feed unless share is false. */
+  setReview(mediaId: string, review: string, share?: boolean): Promise<void>
   /** The user's started/finished reading dates for an item (unix seconds; 0 = unset). */
   getReadDates(mediaId: string): Promise<ReadDates>
   /** Update the user's started/finished reading dates (0 clears a date). */
@@ -271,11 +275,11 @@ class ApiLibraryService implements ILibraryService {
   }
 
   // Save (or clear) the user's free-text review for a media item.
-  async setReview(mediaId: string, review: string): Promise<void> {
+  async setReview(mediaId: string, review: string, share = true): Promise<void> {
     await authedFetch(`/api/media/${Number(mediaId)}/review`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ review }),
+      body: JSON.stringify({ review, share }),
     })
   }
 
@@ -291,6 +295,7 @@ class ApiLibraryService implements ILibraryService {
         progress_pct: p.pct ?? 0,
         note: p.note ?? '',
         event_date: p.eventDate ?? 0,
+        share: p.share ?? true,
       }),
     })
   }
@@ -312,15 +317,18 @@ class ApiLibraryService implements ILibraryService {
   // log a finished event (backdated to finishedAt) so the calendar is accurate.
   async finish(mediaId: string, opts: FinishOptions): Promise<void> {
     const id = Number(mediaId)
+    const share = opts.share ?? true
     await authedFetch(`/api/shelf/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: 'done' }),
+      body: JSON.stringify({ status: 'done', share }),
     })
-    if (typeof opts.rating === 'number' && opts.rating > 0) await this.setRating(id, opts.rating)
-    if (opts.review !== undefined) await this.setReview(mediaId, opts.review)
+    if (typeof opts.rating === 'number' && opts.rating > 0) await this.setRating(id, opts.rating, share)
+    if (opts.review !== undefined && opts.review !== '') await this.setReview(mediaId, opts.review, share)
     if (opts.finishedAt) {
-      await this.logProgress(mediaId, { pct: 100, eventDate: opts.finishedAt, note: 'finished' })
+      // This progress row only carries the finished date — never its own post
+      // (the shelf "finished" event above already represents the finish).
+      await this.logProgress(mediaId, { pct: 100, eventDate: opts.finishedAt, note: 'finished', share: false })
     }
   }
 
@@ -440,11 +448,11 @@ class ApiLibraryService implements ILibraryService {
     return authedFetch(`/api/media/${mediaId}/favorite`, { method: on ? 'PUT' : 'DELETE' })
   }
 
-  private setRating(mediaId: number, value: number) {
+  private setRating(mediaId: number, value: number, share = true) {
     return authedFetch(`/api/media/${mediaId}/rating`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ value }),
+      body: JSON.stringify({ value, share }),
     })
   }
 }

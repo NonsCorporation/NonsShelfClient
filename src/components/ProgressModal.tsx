@@ -41,6 +41,7 @@ export default function ProgressModal({ isOpen, item, total: totalProp, onClose,
   const isBook = item?.type === 'book'
 
   const [page, setPage] = useState('')
+  const [share, setShare] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [episodes, setEpisodes] = useState<EpisodesResponse | null>(null)
@@ -80,7 +81,7 @@ export default function ProgressModal({ isOpen, item, total: totalProp, onClose,
     setSaved(false)
     try {
       const pct = total > 0 ? Math.min(100, Math.round((p / total) * 100)) : 0
-      await libraryService.logProgress(item.id, { page: p, pct })
+      await libraryService.logProgress(item.id, { page: p, pct, share })
       setSaved(true)
     } finally {
       setSaving(false)
@@ -153,6 +154,15 @@ export default function ProgressModal({ isOpen, item, total: totalProp, onClose,
             >
               {saving ? t('saving') : saved ? t('saved') : t('updateProgress')}
             </button>
+            <label className="flex cursor-pointer items-center gap-2 text-xs text-[var(--text-muted)]">
+              <input
+                type="checkbox"
+                checked={share}
+                onChange={(e) => setShare(e.target.checked)}
+                className="h-3.5 w-3.5 rounded border-[var(--border-subtle)]"
+              />
+              {t('shareToFeed')}
+            </label>
           </div>
         )}
 

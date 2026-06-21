@@ -251,6 +251,9 @@ export const translations: Translations = {
   verbStarted: { en: 'started', ru: 'начал(а)' },
   verbAdded: { en: 'added', ru: 'добавил(а)' },
   verbReviewed: { en: 'reviewed', ru: 'оставил(а) отзыв на' },
+  verbProgress: { en: 'made progress on', ru: 'продвинулся(ась) в' },
+  removeFromFeed: { en: 'Remove from feed', ru: 'Убрать из ленты' },
+  shareToFeed: { en: 'Share to feed', ru: 'Поделиться в ленте' },
 
   // Discover / social
   discover: { en: 'Discover', ru: 'Интересное' },
@@ -567,6 +570,9 @@ export const translations: Translations = {
   like: { en: 'Like', ru: 'Нравится' },
   comment: { en: 'Comment', ru: 'Комментировать' },
   writeComment: { en: 'Write a comment…', ru: 'Написать комментарий…' },
+  writeReply: { en: 'Write a reply…', ru: 'Написать ответ…' },
+  reply: { en: 'Reply', ru: 'Ответить' },
+  noCommentsYet: { en: 'No comments yet. Start the conversation.', ru: 'Пока нет комментариев. Начните обсуждение.' },
   autofill: { en: 'Autofill', ru: 'Заполнить' },
   looking: { en: 'Looking…', ru: 'Поиск…' },
   importBookPlaceholder: { en: 'Title, author, or ISBN…', ru: 'Название, автор или ISBN…' },

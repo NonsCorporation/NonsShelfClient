@@ -1,10 +1,14 @@
 import { authedFetch, nonsFetch } from '../lib/api'
 import type { MediaType } from '../types'
 
-export type ActivityType = 'rated' | 'finished' | 'started' | 'added' | 'reviewed'
+export type ActivityType = 'rated' | 'finished' | 'started' | 'added' | 'reviewed' | 'progress'
 
 export type Activity = {
   id: string
+  /** The stored feed post's id — what comments attach to and deletion targets. */
+  postId: number
+  /** The subject's nons user id — who performed the action (the comment target). */
+  userId: number
   user: { name: string; handle: string; color: string; uuid?: string }
   type: ActivityType
   mediaId: number
@@ -39,7 +43,8 @@ type Friendship = {
 // nons-library-server GET /api/activity
 type ActivityEvent = {
   user_id: number
-  type: 'added' | 'started' | 'finished' | 'rated' | 'reviewed'
+  post_id: number
+  type: ActivityType
   value?: number
   note?: string // reviewed: the review text
   at: number // unix seconds
@@ -109,7 +114,9 @@ class ApiActivityService implements IActivityService {
     return events
       .filter((e) => e.media && friends.has(e.user_id))
       .map((e) => ({
-        id: `${e.user_id}-${e.media!.id}-${e.type}-${e.at}`,
+        id: `p-${e.post_id}`,
+        postId: e.post_id,
+        userId: e.user_id,
         user: friends.get(e.user_id)!,
         type: e.type,
         mediaId: e.media!.id,

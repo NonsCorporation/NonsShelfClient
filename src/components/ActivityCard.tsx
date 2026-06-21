@@ -1,12 +1,15 @@
 import { useState } from 'react'
 import { Link } from '@/lib/router'
 import type { Activity, ActivityType } from '../services/activityService'
+import { deletePost } from '../services/commentService'
+import { useAuth } from '../contexts/AuthContext'
 import { useLanguage } from '../contexts/LanguageContext'
 import { initials } from '../lib/user'
 import { mediaPath, userPath } from '../lib/paths'
-import { IoHeart, IoHeartOutline, IoChatbubbleOutline } from 'react-icons/io5'
+import { IoHeart, IoHeartOutline, IoChatbubbleOutline, IoTrashOutline } from 'react-icons/io5'
 import { IoMdStar, IoMdStarHalf, IoMdStarOutline } from 'react-icons/io'
 import TypeBadge from './TypeBadge'
+import CommentThread from './CommentThread'
 
 const VERB_KEY: Record<ActivityType, string> = {
   rated: 'verbRated',
@@ -14,6 +17,7 @@ const VERB_KEY: Record<ActivityType, string> = {
   started: 'verbStarted',
   added: 'verbAdded',
   reviewed: 'verbReviewed',
+  progress: 'verbProgress',
 }
 
 // Five-star display from a 0–10 rating, with half-star steps (matches StarsSelector).
@@ -39,12 +43,26 @@ function Stars({ rating }: { rating: number }) {
 // Goodreads-style update card: "<Name> <verb> <Title>" + stars in the header,
 // the review (when present) above a cover + details block, and a Like · Comment
 // footer. Reusable across the feed and any place that shows activity.
-export default function ActivityCard({ a }: { a: Activity }) {
+export default function ActivityCard({ a, commentCount = 0, onDeleted }: { a: Activity; commentCount?: number; onDeleted?: (postId: number) => void }) {
   const { t } = useLanguage()
+  const { user } = useAuth()
   const [liked, setLiked] = useState(false)
+  const [showComments, setShowComments] = useState(false)
+  const [count, setCount] = useState(commentCount)
   const to = mediaPath({ type: a.mediaType, uuid: a.mediaUuid, id: String(a.mediaId) })
   const typeLabel = a.mediaType === 'book' ? t('book') : a.mediaType === 'series' ? t('series') : t('film')
   const showStars = typeof a.rating === 'number' && a.rating > 0
+  // The post owner (or an admin) may remove it from the feed; the server enforces.
+  const canDelete = !!user && (user.id === a.userId || user.role === 'admin')
+
+  const remove = async () => {
+    onDeleted?.(a.postId) // optimistic — drop the card immediately
+    try {
+      await deletePost(a.postId)
+    } catch {
+      /* best-effort; a reload will resync */
+    }
+  }
 
   return (
     <article className="-mx-4 rounded-none border-x-0 border-y border-[var(--border-subtle)] bg-[var(--container)] px-4 py-4 sm:mx-0 sm:rounded-2xl sm:border sm:p-5">
@@ -132,15 +150,27 @@ export default function ActivityCard({ a }: { a: Activity }) {
           {liked ? <IoHeart className="h-4 w-4" /> : <IoHeartOutline className="h-4 w-4" />}
           {t('like')}
         </button>
-        <span className="inline-flex items-center gap-1.5 font-medium text-[var(--text-muted)]">
+        <button
+          onClick={() => setShowComments((v) => !v)}
+          className={`inline-flex items-center gap-1.5 font-medium transition-colors ${
+            showComments ? 'text-nonsprimary' : 'text-[var(--text-muted)] hover:text-[var(--text)]'
+          }`}
+        >
           <IoChatbubbleOutline className="h-4 w-4" />
-          {t('comment')}
-        </span>
+          {count > 0 ? count : t('comment')}
+        </button>
+        {canDelete && (
+          <button
+            onClick={remove}
+            title={t('removeFromFeed')}
+            className="ml-auto inline-flex items-center gap-1.5 font-medium text-[var(--text-muted)] transition-colors hover:text-red-500"
+          >
+            <IoTrashOutline className="h-4 w-4" />
+          </button>
+        )}
       </div>
-      <input
-        placeholder={t('writeComment')}
-        className="mt-2 h-10 w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--input)] px-3 text-sm text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-ring)]"
-      />
+
+      {showComments && <CommentThread postId={a.postId} onCountChange={setCount} />}
     </article>
   )
 }

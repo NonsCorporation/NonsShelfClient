@@ -8,6 +8,7 @@ import FinishModal from '../components/FinishModal'
 import { libraryService } from '../services/libraryService'
 import { activityService } from '../services/activityService'
 import type { Activity } from '../services/activityService'
+import { getCommentCounts } from '../services/commentService'
 import type { MediaItem } from '../types'
 import { useLanguage } from '../contexts/LanguageContext'
 import { usePreferences } from '../contexts/PreferencesContext'
@@ -25,6 +26,7 @@ export default function FeedPage() {
   const { showInProgress, setShowInProgress } = usePreferences()
   const [items, setItems] = useState<MediaItem[]>([])
   const [activity, setActivity] = useState<Activity[]>([])
+  const [commentCounts, setCommentCounts] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState(true)
   const [finishItem, setFinishItem] = useState<MediaItem | null>(null)
 
@@ -35,6 +37,10 @@ export default function FeedPage() {
       setItems(lib)
       setActivity(act)
       setLoading(false)
+      // One batched call for all cards' comment counts (keyed by post id).
+      getCommentCounts(act.map((a) => a.postId))
+        .then(setCommentCounts)
+        .catch(() => {})
     })
   }, [user])
 
@@ -91,7 +97,12 @@ export default function FeedPage() {
         ) : (
           <div className="animate-fade-up flex flex-col gap-4">
             {activity.map((a) => (
-              <ActivityCard key={a.id} a={a} />
+              <ActivityCard
+                key={a.id}
+                a={a}
+                commentCount={commentCounts[String(a.postId)] ?? 0}
+                onDeleted={(postId) => setActivity((prev) => prev.filter((x) => x.postId !== postId))}
+              />
             ))}
           </div>
         )}
