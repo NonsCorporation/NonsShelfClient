@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useSearchParams } from '@/lib/router'
+import { Link } from '@/lib/router'
 import Layout from '../components/layout/Layout'
 import CatalogCard from '../components/CatalogCard'
 import { catalogService, compactCount } from '../services/catalogService'
@@ -15,34 +15,20 @@ const keyOf = (it: { type: string; title: string }) => `${it.type}:${it.title.tr
 
 export default function DiscoverPage() {
   const { t } = useLanguage()
-  const [params] = useSearchParams()
-  const q = params.get('q')?.trim() ?? ''
   const [catalog, setCatalog] = useState<CatalogItem[]>([])
   const [libKeys, setLibKeys] = useState<Set<string>>(new Set())
   const [added, setAdded] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
-  const [importing, setImporting] = useState(false)
 
   useEffect(() => {
     setLoading(true)
-    setImporting(false)
-    const timer = setTimeout(async () => {
-      const [cat, lib] = await Promise.all([catalogService.getCatalog(q), libraryService.getItems()])
+    void (async () => {
+      const [cat, lib] = await Promise.all([catalogService.getCatalog(), libraryService.getItems()])
       setLibKeys(new Set(lib.map(keyOf)))
-      if (cat.length > 0 || !q) {
-        setCatalog(cat)
-        setLoading(false)
-        return
-      }
-      // Nothing in local catalog — auto-import books, movies and series in parallel.
+      setCatalog(cat)
       setLoading(false)
-      setImporting(true)
-      const fill = await catalogService.searchFill(q, { limit: 5, series: true })
-      setImporting(false)
-      setCatalog(fill.items)
-    }, q ? 300 : 0)
-    return () => clearTimeout(timer)
-  }, [q])
+    })()
+  }, [])
 
   const inLibrary = (it: CatalogItem) => libKeys.has(keyOf(it)) || added.has(keyOf(it))
 
@@ -107,25 +93,6 @@ export default function DiscoverPage() {
           {Array.from({ length: 6 }).map((_, i) => (
             <div key={i} className="aspect-[2/3] animate-pulse rounded-xl bg-[var(--surface)]" />
           ))}
-        </div>
-      ) : q ? (
-        /* Search mode — flat results from the whole catalog */
-        <div className="animate-fade-up">
-          <h2 className="mb-3 text-base font-semibold text-[var(--text)]">{t('searchResults', { q })}</h2>
-          {importing ? (
-            <div className="flex flex-col items-center gap-3 py-16">
-              <div className="h-7 w-7 animate-spin rounded-full border-4 border-nonsprimary border-t-transparent" />
-              <p className="text-sm text-[var(--text-muted)]">Searching external sources…</p>
-            </div>
-          ) : catalog.length === 0 ? (
-            <p className="py-16 text-center text-sm text-[var(--text-muted)]">{t('noResults')}</p>
-          ) : (
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-              {catalog.map((it) => (
-                <CatalogCard key={it.id} item={it} inLibrary={inLibrary(it)} onAdd={() => handleAdd(it)} />
-              ))}
-            </div>
-          )}
         </div>
       ) : (
         <div className="animate-fade-up">

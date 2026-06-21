@@ -258,6 +258,12 @@ export const translations: Translations = {
   // Search / global
   globalSearch: { en: 'Search books & films…', ru: 'Поиск книг и фильмов…' },
   searchResults: { en: 'Results for "{q}"', ru: 'Результаты по запросу «{q}»' },
+  search: { en: 'Search', ru: 'Поиск' },
+  searchSubtitle: { en: 'Books, films and series across the catalog.', ru: 'Книги, фильмы и сериалы по всему каталогу.' },
+  searchPrompt: { en: 'Type in the search bar to find books, films and series.', ru: 'Введите запрос в строке поиска, чтобы найти книги, фильмы и сериалы.' },
+  searchingExternal: { en: 'Searching external sources…', ru: 'Поиск во внешних источниках…' },
+  searchLoadMore: { en: 'Load more', ru: 'Загрузить ещё' },
+  filterAll: { en: 'All', ru: 'Все' },
   searchLibrary: { en: 'Search your library…', ru: 'Поиск в библиотеке…' },
   viewProfile: { en: 'View profile', ru: 'Открыть профиль' },
   logout: { en: 'Log out', ru: 'Выйти' },
@@ -394,6 +400,17 @@ export const translations: Translations = {
     ru: 'Найдите другую запись того же произведения. Она станет изданием этой записи и будет удалена.',
   },
   mergeHere: { en: 'Merge into this entry', ru: 'Объединить с этой записью' },
+  mergeIntoTitle: { en: 'Merge this into another entry', ru: 'Объединить эту запись с другой' },
+  mergeIntoHint: {
+    en: 'Search for the entry to keep. This one’s editions and signals move to it, and this entry is removed.',
+    ru: 'Найдите запись, которую нужно оставить. Издания и данные этой записи перейдут к ней, а эта запись будет удалена.',
+  },
+  mergeIntoEntry: { en: 'Merge into this', ru: 'Объединить с этой' },
+  confirmMergeInto: {
+    en: 'Merge “{title}” into the selected entry? This entry will be removed and can’t be restored.',
+    ru: 'Объединить «{title}» с выбранной записью? Эта запись будет удалена без возможности восстановления.',
+  },
+  mergeIntoDone: { en: 'Merged.', ru: 'Объединено.' },
   moveEditionTitle: { en: 'Move to another book', ru: 'Перенести в другую книгу' },
   moveEditionHint: {
     en: 'Find the book this edition belongs to, or create a new one.',

@@ -357,7 +357,7 @@ export default function Header() {
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && mobileQ) {
                       setMobileSearchOpen(false)
-                      window.location.href = `/discover?q=${encodeURIComponent(mobileQ)}`
+                      window.location.href = `/search?q=${encodeURIComponent(mobileQ)}`
                     }
                   }}
                   placeholder={t('globalSearch') || 'Search books, films…'}
@@ -631,7 +631,7 @@ function HeaderSearch() {
     const next = new URLSearchParams()
     if (value) next.set('q', value)
     const search = next.toString()
-    navigate({ pathname: '/discover', search: search ? `?${search}` : '' }, { replace: true })
+    navigate({ pathname: '/search', search: search ? `?${search}` : '' })
   }
 
   return (

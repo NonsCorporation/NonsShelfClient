@@ -1,13 +1,17 @@
 import { useState, useEffect } from 'react'
-import { IoClose, IoBookOutline, IoFilmOutline, IoTvOutline } from 'react-icons/io5'
+import { IoClose, IoBookOutline, IoFilmOutline, IoTvOutline, IoSearch, IoGitMergeOutline } from 'react-icons/io5'
+import { useNavigate } from '@/lib/router'
 import type { MediaItem, MediaType, ShelfStatus } from '../types.ts'
 import { useLanguage } from '../contexts/LanguageContext.tsx'
 import { STATUS_ORDER, STATUS_COLOR, statusLabel } from '../lib/shelf'
+import { mediaPath } from '../lib/paths'
 import EditionsManager from './EditionsManager'
 import EpisodesManager from './EpisodesManager'
 import CreditsManager from './CreditsManager'
 import PersonPicker from './PersonPicker'
 import { librarianService } from '../services/librarianService'
+import { catalogService } from '../services/catalogService'
+import type { CatalogItem } from '../services/catalogService'
 
 type MediaModalProps = {
   isOpen: boolean
@@ -25,7 +29,8 @@ type MediaModalProps = {
 
 export default function MediaModal({ isOpen, initialData, initialType, catalogOnly, withEditions, onClose, onSave, onDelete }: MediaModalProps) {
   const { t } = useLanguage()
-  
+  const navigate = useNavigate()
+
   // Decide if we are editing or creating
   const isEditing = !!initialData?.id
   // Series rows aren't created from this form (they're seeded), but an existing
@@ -240,6 +245,24 @@ export default function MediaModal({ isOpen, initialData, initialType, catalogOn
               <EpisodesManager mediaId={initialData.id} />
             </div>
           )}
+
+          {/* Merge THIS entry into another one (this entry disappears). Books and
+              movies only — series merge would leave episodes/watches orphaned. */}
+          {withEditions && isEditing && initialData?.id && type !== 'series' && (
+            <div className="flex flex-col gap-2 border-t border-[var(--divider)] pt-4">
+              <span className="text-sm font-medium text-[var(--text)]">{t('mergeIntoTitle')}</span>
+              <p className="text-xs text-[var(--text-muted)]">{t('mergeIntoHint')}</p>
+              <MergeIntoSection
+                mediaId={initialData.id}
+                type={type}
+                fallbackTitle={form.title}
+                onMerged={(keep) => {
+                  onClose()
+                  navigate(mediaPath({ type: keep.type, uuid: keep.uuid, id: keep.id }))
+                }}
+              />
+            </div>
+          )}
         </div>
 
         <div className="px-5 py-4 border-t border-[var(--divider)] bg-[var(--surface)] flex justify-end gap-3 flex-shrink-0">
@@ -256,6 +279,102 @@ export default function MediaModal({ isOpen, initialData, initialType, catalogOn
           </button>
         </div>
       </div>
+    </div>
+  )
+}
+
+// Search the catalog for another entry of the same type and fold THIS entry into
+// it: the picked entry survives, this one's editions/credits/signals move to it,
+// and this row is deleted (backend POST /media/:keep/merge). On success the parent
+// closes the modal and navigates to the survivor.
+function MergeIntoSection({
+  mediaId,
+  type,
+  fallbackTitle,
+  onMerged,
+}: {
+  mediaId: string
+  type: MediaType
+  fallbackTitle: string
+  onMerged: (keep: CatalogItem) => void
+}) {
+  const { t } = useLanguage()
+  const [q, setQ] = useState('')
+  const [results, setResults] = useState<CatalogItem[]>([])
+  const [loading, setLoading] = useState(false)
+  const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    // All setState happens inside the debounce callback (never synchronously in
+    // the effect body), so this doesn't trigger cascading renders.
+    const term = q.trim()
+    const timer = setTimeout(() => {
+      if (!term) {
+        setResults([])
+        return
+      }
+      setLoading(true)
+      catalogService
+        .getCatalog(term)
+        .then((data) => setResults(data.filter((m) => m.type === type && m.id !== mediaId)))
+        .catch(() => setResults([]))
+        .finally(() => setLoading(false))
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [q, type, mediaId])
+
+  const pick = async (keep: CatalogItem) => {
+    if (busy) return
+    if (!window.confirm(t('confirmMergeInto', { title: fallbackTitle }))) return
+    setBusy(true)
+    try {
+      await librarianService.mergeMedia(keep.id, { id: mediaId })
+      onMerged(keep)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div>
+      <div className="relative">
+        <IoSearch className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" />
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder={t('searchCatalogPlaceholder')}
+          className="h-11 w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--input)] pl-10 pr-3 text-sm text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-ring)]"
+        />
+      </div>
+      {loading && <p className="mt-2 text-xs text-[var(--text-muted)]">…</p>}
+      {results.length > 0 && (
+        <div className="mt-2 flex flex-col gap-1.5">
+          {results.map((m) => (
+            <div key={m.id} className="flex items-center justify-between gap-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] px-3 py-2">
+              <div className="flex min-w-0 items-center gap-2.5">
+                <div className="h-10 w-7 flex-shrink-0 overflow-hidden rounded bg-[var(--container-2)]">
+                  {m.coverUrl ? <img src={m.coverUrl} alt="" className="h-full w-full object-cover" /> : null}
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate text-sm text-[var(--text)]">{m.title}</p>
+                  <p className="truncate text-xs text-[var(--text-muted)]">
+                    {(type === 'book' ? m.author : m.director || m.author) || ''}
+                    {m.year ? ` · ${m.year}` : ''}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => pick(m)}
+                disabled={busy}
+                className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-lg bg-nonsprimary px-3 py-1.5 text-xs font-semibold text-white hover:bg-nonsprimaryfocus disabled:opacity-50"
+              >
+                <IoGitMergeOutline className="h-3.5 w-3.5" />
+                {t('mergeIntoEntry')}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

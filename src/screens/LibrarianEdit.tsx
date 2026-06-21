@@ -130,6 +130,16 @@ export default function LibrarianEditPage() {
     fetchEditions(id).then(setEditions)
   }
 
+  // The inverse of handleMergeDuplicate: fold THIS entry into another (the
+  // survivor). This entry's editions/credits/signals move to `keep` and this row
+  // is deleted, so afterwards we jump to the survivor's editor.
+  const handleMergeInto = async (keep: CatalogItem) => {
+    if (!window.confirm(t('confirmMergeInto', { title: item!.title }))) return
+    await librarianService.mergeMedia(keep.id, { id })
+    flash(t('mergeIntoDone'))
+    navigate(`/librarian/edit/${keep.uuid ?? keep.id}`)
+  }
+
   const handleDelete = async () => {
     if (!window.confirm(t('confirmDeleteEntry'))) return
     await librarianService.deleteMedia(id)
@@ -254,6 +264,11 @@ export default function LibrarianEditPage() {
         {/* Merge a duplicate entry into this one */}
         <Section title={t('mergeDuplicateTitle')} hint={t('mergeDuplicateHint')}>
           <MediaAutocomplete type={item.type} excludeId={item.id} onPick={handleMergeDuplicate} actionLabel={t('mergeHere')} />
+        </Section>
+
+        {/* Merge THIS entry into another one (this entry disappears) */}
+        <Section title={t('mergeIntoTitle')} hint={t('mergeIntoHint')}>
+          <MediaAutocomplete type={item.type} excludeId={item.id} onPick={handleMergeInto} actionLabel={t('mergeIntoEntry')} />
         </Section>
 
         {/* Danger zone */}
