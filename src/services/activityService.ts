@@ -49,6 +49,10 @@ type ActivityEvent = {
   note?: string // reviewed: the review text
   at: number // unix seconds
   media?: { id: number; uuid?: string; type: MediaType; title: string; author?: string; year?: number; description?: string; cover_url: string }
+  // The subject user's chosen edition (when set) — overrides the work's cover/
+  // title so the feed matches their library/reading list.
+  edition_title?: string
+  edition_cover?: string
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -121,12 +125,14 @@ class ApiActivityService implements IActivityService {
         type: e.type,
         mediaId: e.media!.id,
         mediaUuid: e.media!.uuid || undefined,
-        mediaTitle: e.media!.title,
+        // A selected edition's title/cover override the work's, matching the
+        // shelf/library (see toItem in lib/mediaMap).
+        mediaTitle: e.edition_title || e.media!.title,
         mediaType: e.media!.type,
         mediaAuthor: e.media!.author || undefined,
         mediaYear: e.media!.year || undefined,
         mediaDescription: e.media!.description || undefined,
-        coverUrl: e.media!.cover_url || undefined,
+        coverUrl: e.edition_cover || e.media!.cover_url || undefined,
         rating: e.value || undefined,
         text: e.note || undefined,
         timeAgo: timeAgo(e.at),
