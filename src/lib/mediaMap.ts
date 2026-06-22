@@ -40,6 +40,9 @@ export type Signals = {
    *  override the work's in list views so the user sees the printing they read. */
   editionTitle?: string
   editionCover?: string
+  /** The chosen edition's page count, when set — used as the reading-progress
+   *  total (the printing's pages), falling back to the work's. */
+  editionPages?: number
   /** The user's reading period (unix seconds; 0/undefined = unset). */
   startedAt?: number
   finishedAt?: number
@@ -64,7 +67,7 @@ export function toMediaItem(m: BackendMedia, s: Signals = {}): MediaItem {
     year: m.year || undefined,
     genre: m.genres ? m.genres.split(',').map((g) => g.trim()).filter(Boolean) : undefined,
     description: m.description || undefined,
-    pages: m.pages || undefined,
+    pages: s.editionPages || m.pages || undefined,
     duration: m.duration_min ? `${m.duration_min} min` : undefined,
     status: s.status,
     favorite: s.favorite,
