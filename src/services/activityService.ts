@@ -23,6 +23,9 @@ export type Activity = {
   rating?: number
   /** Short review snippet for `reviewed` activities. */
   text?: string
+  /** `progress` activities: how far through (percent and/or page). */
+  progressPct?: number
+  page?: number
   /** Relative time, e.g. "2h", "1d". */
   timeAgo: string
 }
@@ -47,6 +50,8 @@ type ActivityEvent = {
   type: ActivityType
   value?: number
   note?: string // reviewed: the review text
+  progress_pct?: number // progress: 0..100
+  page?: number // progress: current page (books)
   at: number // unix seconds
   media?: { id: number; uuid?: string; type: MediaType; title: string; author?: string; year?: number; description?: string; cover_url: string }
   // The subject user's chosen edition (when set) — overrides the work's cover/
@@ -135,6 +140,8 @@ class ApiActivityService implements IActivityService {
         coverUrl: e.edition_cover || e.media!.cover_url || undefined,
         rating: e.value || undefined,
         text: e.note || undefined,
+        progressPct: e.progress_pct || undefined,
+        page: e.page || undefined,
         timeAgo: timeAgo(e.at),
       }))
   }

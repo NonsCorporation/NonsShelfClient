@@ -67,6 +67,11 @@ export default function ActivityCard({
   const to = mediaPath({ type: a.mediaType, uuid: a.mediaUuid, id: String(a.mediaId) })
   const typeLabel = a.mediaType === 'book' ? t('book') : a.mediaType === 'series' ? t('series') : t('film')
   const showStars = typeof a.rating === 'number' && a.rating > 0
+  // For progress events: "page 30 · 45%" (whichever parts are present).
+  const progressText =
+    a.type === 'progress'
+      ? [a.page ? t('pageN', { page: a.page }) : '', a.progressPct ? `${a.progressPct}%` : ''].filter(Boolean).join(' · ')
+      : ''
   // The post owner (or an admin) may remove it from the feed; the server enforces.
   const canDelete = !!user && (user.id === a.userId || user.role === 'admin')
 
@@ -104,6 +109,11 @@ export default function ActivityCard({
           {showStars && (
             <span className="ml-0.5 inline-flex">
               <Stars rating={a.rating!} />
+            </span>
+          )}
+          {progressText && (
+            <span className="ml-0.5 inline-flex items-center rounded-full bg-[var(--primary-soft)] px-2 py-0.5 text-xs font-medium text-[var(--text)]">
+              {progressText}
             </span>
           )}
         </div>
