@@ -9,6 +9,7 @@ import FinishModal from '../components/FinishModal'
 import ShelfStatusBar from '../components/ShelfStatusBar'
 import ReadingDates from '../components/ReadingDates'
 import ReadingProgress from '../components/ReadingProgress'
+import MediaHistory from '../components/MediaHistory'
 import StarsSelector from '../StarsSelector'
 import { libraryService } from '../services/libraryService'
 import { librarianService } from '../services/librarianService'
@@ -486,6 +487,9 @@ export default function MediaOnePage({
               )}
               {/* Per-book reading-progress log (renders only once there's history). */}
               {status !== null && isBook && <ReadingProgress item={item} total={totalPages} refreshKey={progressRefresh} />}
+              {/* Full interaction timeline — added/started/progress/finished/rated/
+                  reviewed, for every media type (renders only once there's history). */}
+              {status !== null && <MediaHistory item={item} refreshKey={progressRefresh} />}
             </div>
           ) : showSignIn ? (
             signInPrompt
@@ -619,6 +623,24 @@ export default function MediaOnePage({
                   {t('watchedOfTotal', { watched: episodes.watched_count, total: episodes.total })}
                 </span>
               </button>
+
+              {/* Overall watch-progress bar — the series analogue of a book's
+                  reading-progress bar (parallel "how far am I" affordance). */}
+              {(() => {
+                const pct = episodes.total > 0 ? Math.round((episodes.watched_count / episodes.total) * 100) : 0
+                return (
+                  <div className="mb-3">
+                    <div className="mb-1 flex items-baseline justify-between gap-2 text-[11px]">
+                      <span className="font-medium uppercase tracking-widest text-[var(--text-muted)]">{t('watchProgress')}</span>
+                      <span className="font-semibold text-nonsprimary">{pct}%</span>
+                    </div>
+                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--container-2)]">
+                      <div className="h-full rounded-full bg-nonsprimary transition-all" style={{ width: `${Math.max(pct, 2)}%` }} />
+                    </div>
+                  </div>
+                )
+              })()}
+
               {episodesOpen && (
               <div className="flex flex-col gap-5">
                 {episodes.seasons.map((s) => (

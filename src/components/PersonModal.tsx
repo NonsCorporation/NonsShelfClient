@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
-import { IoClose, IoPersonOutline, IoCloudDownloadOutline } from 'react-icons/io5'
+import { createPortal } from 'react-dom'
+import { IoClose, IoPersonOutline, IoCloudDownloadOutline, IoCheckmark } from 'react-icons/io5'
 import { librarianService } from '../services/librarianService'
-import type { PersonSummary } from '../services/librarianService'
+import type { PersonSummary, TmdbPersonSuggestion } from '../services/librarianService'
 import { useLanguage } from '../contexts/LanguageContext'
 
 type Props = {
@@ -20,6 +21,8 @@ export default function PersonModal({ isOpen, person, initialName, onClose, onSa
   const [form, setForm] = useState({ name: '', bio: '', birthDate: '', photoUrl: '', aliases: '' })
   const [busy, setBusy] = useState(false)
   const [importing, setImporting] = useState(false)
+  const [suggestion, setSuggestion] = useState<TmdbPersonSuggestion | null>(null)
+  const [applying, setApplying] = useState(false)
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -80,15 +83,29 @@ export default function PersonModal({ isOpen, person, initialName, onClose, onSa
     }
   }
 
-  // Pull bio/photo/birth date + name variants from TMDB into the form (needs a
-  // stored TMDB id — set when the person was imported as cast/crew). The user can
-  // still tweak the fields before saving.
+  // Find a TMDB candidate (by stored id, or by name when none is stored) and show
+  // it for confirmation before anything is written.
   const importFromTMDB = async () => {
     if (!person?.uuid) return
     setImporting(true)
     setError('')
     try {
-      await librarianService.enrichPersonFromTMDB(person.uuid)
+      setSuggestion(await librarianService.suggestPersonFromTMDB(person.uuid))
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setImporting(false)
+    }
+  }
+
+  // Apply the confirmed suggestion: import its record, then reload the form so
+  // the librarian can still tweak fields before saving.
+  const acceptSuggestion = async () => {
+    if (!person?.uuid || !suggestion) return
+    setApplying(true)
+    setError('')
+    try {
+      await librarianService.enrichPersonFromTMDB(person.uuid, suggestion.tmdb_id)
       const { person: p, aliases } = await librarianService.getPerson(person.uuid)
       setForm({
         name: p.name ?? '',
@@ -97,10 +114,11 @@ export default function PersonModal({ isOpen, person, initialName, onClose, onSa
         photoUrl: p.photo_url ?? '',
         aliases: aliases.join(', '),
       })
+      setSuggestion(null)
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
     } finally {
-      setImporting(false)
+      setApplying(false)
     }
   }
 
@@ -185,6 +203,85 @@ export default function PersonModal({ isOpen, person, initialName, onClose, onSa
           </button>
         </div>
       </div>
+
+      {suggestion && (
+        <TmdbSuggestionModal
+          suggestion={suggestion}
+          busy={applying}
+          onAccept={acceptSuggestion}
+          onDecline={() => setSuggestion(null)}
+        />
+      )}
     </div>
+  )
+}
+
+// Confirmation popup for a TMDB person match: shows the photo + name + bio so the
+// librarian can accept (import) or decline. Portaled to <body> so its fixed
+// overlay isn't trapped by any transformed ancestor.
+function TmdbSuggestionModal({
+  suggestion,
+  busy,
+  onAccept,
+  onDecline,
+}: {
+  suggestion: TmdbPersonSuggestion
+  busy: boolean
+  onAccept: () => void
+  onDecline: () => void
+}) {
+  const { t } = useLanguage()
+  if (typeof document === 'undefined') return null
+
+  return createPortal(
+    <div onClick={onDecline} className="fixed inset-0 z-[90] flex items-center justify-center bg-[var(--overlay)] p-4 backdrop-blur-sm">
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="animate-fade-up flex w-full max-w-md flex-col gap-4 rounded-2xl border border-[var(--border)] bg-[var(--container)] p-5"
+      >
+        <h3 className="text-lg font-semibold tracking-wide text-[var(--text)]">{t('tmdbSuggestTitle')}</h3>
+
+        <div className="flex gap-3">
+          {suggestion.photo_url ? (
+            <img src={suggestion.photo_url} alt="" className="h-24 w-24 flex-shrink-0 rounded-xl object-cover" />
+          ) : (
+            <span className="flex h-24 w-24 flex-shrink-0 items-center justify-center rounded-xl bg-[var(--surface)]">
+              <IoPersonOutline className="h-9 w-9 text-[var(--placeholder)]" />
+            </span>
+          )}
+          <div className="min-w-0 flex-1">
+            <p className="font-semibold text-[var(--text)]">{suggestion.name}</p>
+            {suggestion.birthday && <p className="mt-0.5 text-xs text-[var(--text-muted)]">{suggestion.birthday}</p>}
+          </div>
+        </div>
+
+        {suggestion.biography && (
+          <p className="max-h-40 overflow-y-auto whitespace-pre-wrap text-sm leading-6 text-[var(--text-muted)]">
+            {suggestion.biography}
+          </p>
+        )}
+
+        <p className="text-xs text-[var(--text-muted)]">{t('tmdbSuggestHint')}</p>
+
+        <div className="flex justify-end gap-3">
+          <button
+            onClick={onDecline}
+            disabled={busy}
+            className="h-10 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] px-4 text-sm text-[var(--text-muted)] hover:text-[var(--text)] disabled:opacity-50"
+          >
+            {t('decline')}
+          </button>
+          <button
+            onClick={onAccept}
+            disabled={busy}
+            className="inline-flex h-10 items-center gap-1.5 rounded-lg bg-nonsprimary px-6 text-sm font-medium text-white hover:bg-nonsprimaryfocus disabled:opacity-50"
+          >
+            <IoCheckmark className="h-4 w-4" />
+            {busy ? t('importing') : t('accept')}
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body,
   )
 }

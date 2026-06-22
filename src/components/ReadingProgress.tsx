@@ -6,12 +6,26 @@ import { libraryService, type ProgressEntry } from '../services/libraryService'
 import type { MediaItem } from '../types'
 import { useLanguage } from '../contexts/LanguageContext'
 
-// unix seconds → "DD.MM.YYYY"
-function formatDMY(unixSeconds: number): string {
-  const d = new Date(unixSeconds * 1000)
-  if (isNaN(d.getTime())) return ''
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()}`
+// ISO string → short localized date for the started→finished span.
+function formatISO(iso?: string): string {
+  if (!iso) return ''
+  const d = new Date(iso)
+  return isNaN(d.getTime()) ? '' : d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+}
+
+const DAY_MS = 86_400_000
+
+// Reading span + pace from the editable start/finish dates and the current page.
+// End is the finish date, else now (still reading). Kept out of the render body
+// so the Date.now() reference isn't flagged as an impure render call.
+function readingStats(item: MediaItem, currentPage: number, total: number): { span: string; days: number; pace: number } {
+  const span = [formatISO(item.startedAt), formatISO(item.finishedAt)].filter(Boolean).join(' → ')
+  const startMs = item.startedAt ? new Date(item.startedAt).getTime() : NaN
+  const endMs = item.finishedAt ? new Date(item.finishedAt).getTime() : Date.now()
+  const days = Number.isNaN(startMs) ? 0 : Math.max(1, Math.round((endMs - startMs) / DAY_MS))
+  const pagesRead = item.finishedAt && total > 0 ? total : currentPage
+  const pace = days > 0 && pagesRead > 0 ? Math.round(pagesRead / days) : 0
+  return { span, days, pace }
 }
 
 // The percent for an entry — the stored value, or derived from page/total when
@@ -55,11 +69,18 @@ export default function ReadingProgress({
   const latest = entries[0]
   const latestPct = pctFor(latest, total)
 
+  const { span, days, pace } = readingStats(item, latest.page, total)
+
   return (
     <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface)] p-3">
-      <div className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-widest text-[var(--text-muted)]">
-        <IoStatsChartOutline className="h-3.5 w-3.5" />
-        {t('readingProgress')}
+      <div className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] font-semibold uppercase tracking-widest text-[var(--text-muted)]">
+        <span className="flex items-center gap-2">
+          <IoStatsChartOutline className="h-3.5 w-3.5" />
+          {t('readingProgress')}
+        </span>
+        {span && <span className="font-normal normal-case tracking-normal">· {span}</span>}
+        {days > 0 && <span className="font-normal normal-case tracking-normal">· {t('daysReading', { days })}</span>}
+        {pace > 0 && <span className="font-normal normal-case tracking-normal">· {t('readingPace', { pace })}</span>}
       </div>
 
       {/* Current position — a bar + "page X of Y · Z%" */}
@@ -79,21 +100,8 @@ export default function ReadingProgress({
         </div>
       </div>
 
-      {/* Dated history of updates — scrolls if it gets long. */}
-      <ul className="-mr-1 flex max-h-44 flex-col gap-1.5 overflow-y-auto pr-1">
-        {entries.map((e, i) => {
-          const pct = pctFor(e, total)
-          return (
-            <li key={`${e.event_date}-${i}`} className="flex items-center justify-between gap-2 text-xs">
-              <span className="text-[var(--text-muted)]">{formatDMY(e.event_date)}</span>
-              <span className="flex items-center gap-1.5 text-right">
-                {e.page > 0 && <span className="font-medium text-[var(--text)]">{t('pagesCount', { count: e.page })}</span>}
-                {pct > 0 && <span className="text-[var(--text-muted)]">({pct}%)</span>}
-              </span>
-            </li>
-          )
-        })}
-      </ul>
+      {/* The dated per-update list now lives in the unified MediaHistory timeline
+          below, so this card stays a focused "where am I now" summary. */}
     </div>
   )
 }

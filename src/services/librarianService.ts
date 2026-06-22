@@ -22,6 +22,16 @@ export interface PersonSummary {
   credit_count: number
 }
 
+// A TMDB person match previewed before import (GET /api/people/:uuid/tmdb/suggest).
+export interface TmdbPersonSuggestion {
+  tmdb_id: number
+  name: string
+  biography: string
+  photo_url: string
+  birthday: string // YYYY-MM-DD
+  also_known_as: string[]
+}
+
 // Editable fields for a person (create/update).
 export interface PersonInput {
   name: string
@@ -375,11 +385,24 @@ export const librarianService = {
     ) as Promise<PersonSummary>
   },
 
-  // Pull a person's bio/photo/birth date + name variants from TMDB (needs a
-  // stored TMDB id, set when they were imported as cast/crew).
-  async enrichPersonFromTMDB(uuid: string): Promise<PersonSummary> {
+  // Preview a TMDB match for a person (by stored id, or a name search when none
+  // is stored) without applying it — the UI confirms before importing.
+  async suggestPersonFromTMDB(uuid: string): Promise<TmdbPersonSuggestion> {
     return jsonOrThrow(
-      await authedFetch(`/api/people/${uuid}/tmdb`, { method: 'POST' }),
+      await authedFetch(`/api/people/${uuid}/tmdb/suggest`),
+    ) as Promise<TmdbPersonSuggestion>
+  },
+
+  // Pull a person's bio/photo/birth date + name variants from TMDB. Pass the
+  // accepted suggestion's tmdbId to import that record (and store the id);
+  // omit it to use the person's already-stored id.
+  async enrichPersonFromTMDB(uuid: string, tmdbId?: number): Promise<PersonSummary> {
+    return jsonOrThrow(
+      await authedFetch(`/api/people/${uuid}/tmdb`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(tmdbId ? { tmdb_id: tmdbId } : {}),
+      }),
     ) as Promise<PersonSummary>
   },
 

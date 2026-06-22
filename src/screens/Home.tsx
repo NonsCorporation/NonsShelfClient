@@ -13,22 +13,36 @@ import {
   IoTimeOutline,
   IoCheckmarkDoneOutline,
   IoHeartOutline,
+  IoStar,
+  IoChatbubbleOutline,
 } from 'react-icons/io5'
 import Layout from '../components/layout/Layout.tsx'
 import MediaCard from '../components/MediaCard.tsx'
 import MediaModal from '../components/MediaModal.tsx'
 import ImportModal from '../components/ImportModal.tsx'
+import MediaDetailModal from '../components/MediaDetailModal.tsx'
 import { libraryService } from '../services/libraryService.ts'
+import { fetchPublicProfile } from '../services/userService.ts'
 import type { MediaItem } from '../types.ts'
 import { useLanguage } from '../contexts/LanguageContext.tsx'
+import { useAuth } from '../contexts/AuthContext.tsx'
 
 type ShelfKey = 'all' | 'wishlist' | 'active' | 'done' | 'favorites'
-type SortKey = 'added' | 'rating' | 'title' | 'year'
+type SortKey = 'added' | 'rating' | 'title' | 'year' | 'reviewed'
 
 export default function Home() {
   const { t } = useLanguage()
+  const { user: authUser, loading: authLoading } = useAuth()
   const [params, setParams] = useSearchParams()
   const shelf = (params.get('shelf') as ShelfKey) || 'all'
+
+  // ?user=<username> opens another user's library read-only (the "open full
+  // library" button on a profile links here). Viewing your own username — or no
+  // param — is your normal, editable library.
+  const userParam = params.get('user')?.trim() || ''
+  const readOnly = !!userParam && !!authUser && userParam !== authUser.username && userParam !== authUser.uuid
+  const [ownerName, setOwnerName] = useState('')
+  const [notFound, setNotFound] = useState(false)
 
   // Local search — filters the user's own library client-side. The global
   // top-bar search goes to Discover and searches the whole catalog instead.
@@ -45,21 +59,60 @@ export default function Home() {
   const [showSortMenu, setShowSortMenu] = useState(false)
   const [genreFilter, setGenreFilter] = useState('')
   const [yearFilter, setYearFilter] = useState('')
+  const [authorFilter, setAuthorFilter] = useState('')
   const [directorFilter, setDirectorFilter] = useState('')
   const [actorFilter, setActorFilter] = useState('')
+  const [hasRating, setHasRating] = useState(false)
+  const [hasReview, setHasReview] = useState(false)
+  const [addedFrom, setAddedFrom] = useState('')
+  const [addedTo, setAddedTo] = useState('')
+  // Comparison vs the viewer's own shelf, only when browsing another user's library.
+  const [compareFilter, setCompareFilter] = useState<'all' | 'shared' | 'onlyTheirs'>('all')
+  const [myByMediaId, setMyByMediaId] = useState<Map<string, { status?: MediaItem['status']; rating?: number }>>(new Map())
 
   const [showForm, setShowForm] = useState<null | 'book' | 'movie'>(null)
   const [showImport, setShowImport] = useState(false)
+  const [detailItem, setDetailItem] = useState<MediaItem | null>(null)
 
   useEffect(() => {
-    libraryService.getItems().then((data) => {
-      setItems(data)
-      setLoading(false)
-    })
-  }, [])
+    if (authLoading) return // wait so self-vs-other is decided correctly
+    let cancelled = false
+    setLoading(true)
+    setNotFound(false)
+
+    async function load() {
+      if (readOnly) {
+        const p = await fetchPublicProfile(userParam)
+        if (cancelled) return
+        if (!p) {
+          setNotFound(true)
+          setLoading(false)
+          return
+        }
+        setOwnerName(p.name || p.username)
+        // Their library + my own library (for the per-item shelf comparison).
+        const [theirs, mine] = await Promise.all([libraryService.getUserItems(p.id), libraryService.getItems()])
+        if (cancelled) return
+        setMyByMediaId(new Map(mine.map((m) => [m.id, { status: m.status, rating: m.rating }])))
+        setItems(theirs)
+      } else {
+        setOwnerName('')
+        setMyByMediaId(new Map())
+        const its = await libraryService.getItems()
+        if (cancelled) return
+        setItems(its)
+      }
+      if (!cancelled) setLoading(false)
+    }
+    load()
+    return () => {
+      cancelled = true
+    }
+  }, [authLoading, readOnly, userParam])
 
   // Open the add modal when arrived here via the global "Add" action (?add=book|movie).
   useEffect(() => {
+    if (readOnly) return
     const add = params.get('add')
     if (add === 'book' || add === 'movie') {
       setShowForm(add)
@@ -101,11 +154,30 @@ export default function Home() {
         if (!g.includes(gF)) return false
       }
 
-      if (typeFilter === 'movie') {
+      // Per-type unique filters: author for books, director/actor for screen media.
+      if (it.type === 'book') {
+        const auF = authorFilter.trim().toLowerCase()
+        if (auF && !it.author.toLowerCase().includes(auF)) return false
+      } else {
         const dF = directorFilter.trim().toLowerCase()
         if (dF && (!it.director || !it.director.toLowerCase().includes(dF))) return false
         const aF = actorFilter.trim().toLowerCase()
         if (aF && (!it.actors || !it.actors.some((a) => a.toLowerCase().includes(aF)))) return false
+      }
+
+      // Rating / review presence.
+      if (hasRating && !(typeof it.rating === 'number' && it.rating > 0)) return false
+      if (hasReview && !it.review?.trim()) return false
+
+      // Date added range (it.dateAdded is an ISO string; compare by date prefix).
+      if (addedFrom && (it.dateAdded ?? '').slice(0, 10) < addedFrom) return false
+      if (addedTo && (it.dateAdded ?? '').slice(0, 10) > addedTo) return false
+
+      // Comparison vs the viewer's own shelf (read-only other-user libraries).
+      if (readOnly && compareFilter !== 'all') {
+        const mine = myByMediaId.has(it.id)
+        if (compareFilter === 'shared' && !mine) return false
+        if (compareFilter === 'onlyTheirs' && mine) return false
       }
       return true
     })
@@ -121,13 +193,28 @@ export default function Home() {
       case 'year':
         sorted.sort((a, b) => (b.year ?? 0) - (a.year ?? 0))
         break
+      case 'reviewed': {
+        // Reviewed items first, then by most recently added.
+        const has = (it: MediaItem) => (it.review?.trim() ? 1 : 0)
+        sorted.sort((a, b) => has(b) - has(a) || (b.dateAdded ?? '').localeCompare(a.dateAdded ?? ''))
+        break
+      }
       default:
         sorted.sort((a, b) => (b.dateAdded ?? '').localeCompare(a.dateAdded ?? ''))
     }
     return sorted
-  }, [items, shelf, typeFilter, query, yearFilter, genreFilter, directorFilter, actorFilter, sort])
+  }, [
+    items, shelf, typeFilter, query, yearFilter, genreFilter, authorFilter, directorFilter, actorFilter, sort,
+    hasRating, hasReview, addedFrom, addedTo, readOnly, compareFilter, myByMediaId,
+  ])
 
-  const hasAdvanced = !!(genreFilter || yearFilter || directorFilter || actorFilter)
+  const hasAdvanced = !!(
+    genreFilter || yearFilter || authorFilter || directorFilter || actorFilter ||
+    hasRating || hasReview || addedFrom || addedTo
+  )
+
+  const filterInput =
+    'h-9 rounded-lg border border-[var(--border-subtle)] bg-[var(--input)] px-3 text-sm text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-ring)]'
 
   async function handleSave(data: Partial<MediaItem>) {
     const newItem = await libraryService.addItem(data as Omit<MediaItem, 'id'>)
@@ -154,6 +241,7 @@ export default function Home() {
   const sortLabels: Record<SortKey, string> = {
     added: t('sortAdded'),
     rating: t('sortRating'),
+    reviewed: t('sortReviewed'),
     title: t('sortTitle'),
     year: t('sortYear'),
   }
@@ -166,11 +254,21 @@ export default function Home() {
     { label: t('statFinished'), value: stats.done },
   ]
 
+  if (notFound) {
+    return (
+      <Layout>
+        <div className="py-24 text-center text-[var(--text-muted)]">{t('userNotFound')}</div>
+      </Layout>
+    )
+  }
+
   return (
     <Layout>
       {/* Header */}
       <div className="mb-4">
-        <h1 className="text-xl font-bold tracking-tight text-[var(--text)]">{shelfTitle}</h1>
+        <h1 className="text-xl font-bold tracking-tight text-[var(--text)]">
+          {readOnly && ownerName ? t('libraryOf', { name: ownerName }) : shelfTitle}
+        </h1>
         <p className="mt-1 text-sm text-[var(--text-muted)]">{t('librarySubtitle')}</p>
       </div>
 
@@ -181,7 +279,8 @@ export default function Home() {
           { key: 'wishlist',  label: t('shelfWishlist'), dot: '#6768ab', icon: IoBookmarkOutline },
           { key: 'active',    label: t('shelfActive'),  dot: '#f5a623', icon: IoTimeOutline },
           { key: 'done',      label: t('shelfDone'),    dot: '#3ec98a', icon: IoCheckmarkDoneOutline },
-          { key: 'favorites', label: t('favorites'),    dot: '#ff7a85', icon: IoHeartOutline },
+          // Favorites are private — only on your own library.
+          ...(readOnly ? [] : [{ key: 'favorites', label: t('favorites'), dot: '#ff7a85', icon: IoHeartOutline }]),
         ] as { key: ShelfKey; label: string; dot: string | null; icon: React.ComponentType<{ className?: string }> }[]).map((s) => {
           const active = shelf === s.key
           return (
@@ -253,6 +352,32 @@ export default function Home() {
           ))}
         </div>
 
+        {/* Quick filters: only rated / only reviewed (combine for "reviews with a rating") */}
+        <button
+          onClick={() => setHasRating((v) => !v)}
+          title={t('hasRating')}
+          className={`flex h-10 items-center gap-1.5 rounded-xl border px-3 text-xs font-medium transition-colors ${
+            hasRating
+              ? 'border-transparent bg-[var(--primary-soft)] text-[var(--text)]'
+              : 'border-[var(--border-subtle)] bg-[var(--surface)] text-[var(--text-muted)] hover:text-[var(--text)]'
+          }`}
+        >
+          <IoStar className="h-3.5 w-3.5" />
+          <span className="hidden sm:inline">{t('hasRating')}</span>
+        </button>
+        <button
+          onClick={() => setHasReview((v) => !v)}
+          title={t('hasReview')}
+          className={`flex h-10 items-center gap-1.5 rounded-xl border px-3 text-xs font-medium transition-colors ${
+            hasReview
+              ? 'border-transparent bg-[var(--primary-soft)] text-[var(--text)]'
+              : 'border-[var(--border-subtle)] bg-[var(--surface)] text-[var(--text-muted)] hover:text-[var(--text)]'
+          }`}
+        >
+          <IoChatbubbleOutline className="h-3.5 w-3.5" />
+          <span className="hidden sm:inline">{t('hasReview')}</span>
+        </button>
+
         {/* Sort */}
         <div className="relative">
           <button
@@ -310,47 +435,95 @@ export default function Home() {
           {showFilterMenu && (
             <>
               <div className="fixed inset-0 z-30" onClick={() => setShowFilterMenu(false)} />
-              <div className="absolute right-0 top-full z-40 mt-2 flex w-64 flex-col gap-3 rounded-xl border border-[var(--border)] bg-[var(--container-2)] p-3">
+              <div className="absolute right-0 top-full z-40 mt-2 flex max-h-[70vh] w-72 flex-col gap-3 overflow-y-auto rounded-xl border border-[var(--border)] bg-[var(--container-2)] p-3">
                 {hasAdvanced && (
                   <button
                     onClick={() => {
                       setGenreFilter('')
                       setYearFilter('')
+                      setAuthorFilter('')
                       setDirectorFilter('')
                       setActorFilter('')
+                      setHasRating(false)
+                      setHasReview(false)
+                      setAddedFrom('')
+                      setAddedTo('')
                     }}
                     className="self-end text-xs text-nonsprimaryfocus hover:underline"
                   >
                     {t('clearFilters')}
                   </button>
                 )}
+
                 <input
                   value={genreFilter}
                   onChange={(e) => setGenreFilter(e.target.value)}
                   placeholder={t('genre')}
-                  className="h-9 rounded-lg border border-[var(--border-subtle)] bg-[var(--input)] px-3 text-sm text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-ring)]"
+                  className={filterInput}
                 />
                 <input
                   value={yearFilter}
                   onChange={(e) => setYearFilter(e.target.value)}
                   placeholder={t('year')}
-                  className="h-9 rounded-lg border border-[var(--border-subtle)] bg-[var(--input)] px-3 text-sm text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-ring)]"
+                  className={filterInput}
                 />
-                {typeFilter === 'movie' && (
+                {/* Per-type: author for books, director/actor for screen media. */}
+                {(typeFilter === 'book' || typeFilter === 'all') && (
+                  <input
+                    value={authorFilter}
+                    onChange={(e) => setAuthorFilter(e.target.value)}
+                    placeholder={t('author')}
+                    className={filterInput}
+                  />
+                )}
+                {(typeFilter === 'movie' || typeFilter === 'series' || typeFilter === 'all') && (
                   <>
                     <input
                       value={directorFilter}
                       onChange={(e) => setDirectorFilter(e.target.value)}
                       placeholder={t('director')}
-                      className="h-9 rounded-lg border border-[var(--border-subtle)] bg-[var(--input)] px-3 text-sm text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-ring)]"
+                      className={filterInput}
                     />
                     <input
                       value={actorFilter}
                       onChange={(e) => setActorFilter(e.target.value)}
                       placeholder={t('actor')}
-                      className="h-9 rounded-lg border border-[var(--border-subtle)] bg-[var(--input)] px-3 text-sm text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-ring)]"
+                      className={filterInput}
                     />
                   </>
+                )}
+
+                {/* Date added range */}
+                <label className="flex items-center justify-between gap-2 text-xs text-[var(--text-muted)]">
+                  {t('addedAfter')}
+                  <input type="date" value={addedFrom} onChange={(e) => setAddedFrom(e.target.value)} className={`${filterInput} w-36`} />
+                </label>
+                <label className="flex items-center justify-between gap-2 text-xs text-[var(--text-muted)]">
+                  {t('addedBefore')}
+                  <input type="date" value={addedTo} onChange={(e) => setAddedTo(e.target.value)} className={`${filterInput} w-36`} />
+                </label>
+
+                {/* Comparison vs your shelf — only when browsing another user's library */}
+                {readOnly && (
+                  <div className="flex rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] p-1">
+                    {([
+                      { key: 'all', label: t('compareAll') },
+                      { key: 'shared', label: t('compareShared') },
+                      { key: 'onlyTheirs', label: t('compareOnlyTheirs') },
+                    ] as const).map((c) => (
+                      <button
+                        key={c.key}
+                        onClick={() => setCompareFilter(c.key)}
+                        className={`flex-1 rounded-md px-2 py-1.5 text-[11px] font-medium transition-colors ${
+                          compareFilter === c.key
+                            ? 'bg-[var(--surface-active)] text-[var(--text)]'
+                            : 'text-[var(--text-muted)] hover:text-[var(--text)]'
+                        }`}
+                      >
+                        {c.label}
+                      </button>
+                    ))}
+                  </div>
                 )}
               </div>
             </>
@@ -379,15 +552,17 @@ export default function Home() {
           </button>
         </div>
 
-        {/* Import (Goodreads CSV, etc.) */}
-        <button
-          onClick={() => setShowImport(true)}
-          title={t('importLibrary') || 'Import'}
-          className="flex h-10 items-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] px-3 text-sm text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
-        >
-          <IoCloudUploadOutline className="h-4 w-4" />
-          <span className="hidden sm:inline">{t('import') || 'Import'}</span>
-        </button>
+        {/* Import (Goodreads CSV, etc.) — own library only */}
+        {!readOnly && (
+          <button
+            onClick={() => setShowImport(true)}
+            title={t('importLibrary') || 'Import'}
+            className="flex h-10 items-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] px-3 text-sm text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
+          >
+            <IoCloudUploadOutline className="h-4 w-4" />
+            <span className="hidden sm:inline">{t('import') || 'Import'}</span>
+          </button>
+        )}
 
         <div className="ml-auto hidden text-sm text-[var(--text-muted)] md:block">
           {t('showing', { n: filtered.length, total: items.length })}
@@ -405,6 +580,7 @@ export default function Home() {
         onClose={() => setShowImport(false)}
         onImported={() => libraryService.getItems().then(setItems)}
       />
+      <MediaDetailModal item={detailItem} onClose={() => setDetailItem(null)} />
 
       {/* Content */}
       {loading ? (
@@ -424,13 +600,34 @@ export default function Home() {
       ) : view === 'grid' ? (
         <div className="grid animate-fade-up grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
           {filtered.map((it) => (
-            <MediaCard key={it.id} item={it} view="grid" onToggleFavorite={() => toggleFavorite(it)} />
+            <MediaCard
+              key={it.id}
+              item={it}
+              view="grid"
+              onToggleFavorite={readOnly ? undefined : () => toggleFavorite(it)}
+              onOpenDetail={setDetailItem}
+              onFilterStatus={(s) => {
+                const next = new URLSearchParams(params)
+                next.set('shelf', s)
+                setParams(next, { replace: true })
+              }}
+              onFilterType={setTypeFilter}
+            />
           ))}
         </div>
       ) : (
         <div className="flex animate-fade-up flex-col gap-2">
           {filtered.map((it) => (
-            <MediaCard key={it.id} item={it} view="list" onToggleFavorite={() => toggleFavorite(it)} />
+            <MediaCard
+              key={it.id}
+              item={it}
+              view="list"
+              onToggleFavorite={readOnly ? undefined : () => toggleFavorite(it)}
+              showReview
+              onOpenDetail={setDetailItem}
+              compareName={readOnly ? ownerName : undefined}
+              myEntry={readOnly ? myByMediaId.get(it.id) : undefined}
+            />
           ))}
         </div>
       )}

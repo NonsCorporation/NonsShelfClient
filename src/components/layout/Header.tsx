@@ -65,6 +65,10 @@ export default function Header() {
   const path = location.pathname
   const onLibrary = path === '/library'
   const activeShelf = (params.get('shelf') as ShelfKey) || 'all'
+  // When viewing another user's library (?user=), keep that param on the shelf
+  // links and drop the private "favorites" shelf.
+  const libraryUser = params.get('user')?.trim() || ''
+  const userQuery = libraryUser ? `user=${encodeURIComponent(libraryUser)}` : ''
 
   const nav: NavItem[] = [
     { to: '/', label: t('home'), icon: IoHomeOutline, match: (p) => p === '/' },
@@ -243,13 +247,19 @@ export default function Header() {
         {onLibrary && (
           <div className="border-t border-[var(--border-subtle)]">
             <div className="no-scrollbar mx-auto flex max-w-6xl items-center gap-1.5 overflow-x-auto px-4 py-2.5 md:px-8">
-              {shelves.map((s) => {
+              {shelves
+                .filter((s) => !(libraryUser && s.key === 'favorites'))
+                .map((s) => {
                 const active = activeShelf === s.key
                 const Icon = s.icon
+                const to =
+                  s.key === 'all'
+                    ? `/library${userQuery ? `?${userQuery}` : ''}`
+                    : `/library?shelf=${s.key}${userQuery ? `&${userQuery}` : ''}`
                 return (
                   <div key={s.key} className="flex shrink-0 items-center">
                     <Link
-                      to={s.key === 'all' ? '/library' : `/library?shelf=${s.key}`}
+                      to={to}
                       className={`flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-sm transition-colors ${
                         active
                           ? 'border-transparent bg-[var(--primary-soft)] font-medium text-[var(--text)]'

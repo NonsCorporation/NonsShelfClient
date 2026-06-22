@@ -94,6 +94,17 @@ export interface ProgressEntry {
   event_date: number
 }
 
+// One entry in a media item's interaction timeline (GET /api/activity/history).
+export type HistoryKind = 'added' | 'started' | 'progress' | 'finished' | 'rated' | 'reviewed'
+export interface HistoryEvent {
+  type: HistoryKind
+  value?: number // rated: 1..10
+  progress_pct?: number
+  page?: number
+  note?: string // reviewed text / progress note
+  at: number // unix seconds
+}
+
 // What the "ending" (finish) modal collects.
 export interface FinishOptions {
   rating?: number | null
@@ -126,6 +137,8 @@ export interface ILibraryService {
   logProgress(mediaId: string, p: ProgressUpdate): Promise<void>
   /** The user's logged reading-progress updates for a book, newest first. */
   getProgress(mediaId: string): Promise<ProgressEntry[]>
+  /** The user's full interaction timeline for a media item, newest first. */
+  getHistory(mediaId: string): Promise<HistoryEvent[]>
   /** Mark/unmark a series episode as watched. */
   setEpisodeWatched(episodeId: number, watched: boolean): Promise<void>
   /** Finish an item: shelf → done, save rating/review, log a (backdatable) finished event. */
@@ -306,6 +319,14 @@ class ApiLibraryService implements ILibraryService {
     if (!res.ok) return []
     const data = await res.json()
     return (data.items ?? []) as ProgressEntry[]
+  }
+
+  // The user's full interaction timeline for a media item (newest first).
+  async getHistory(mediaId: string): Promise<HistoryEvent[]> {
+    const res = await authedFetch(`/api/activity/history?media_id=${Number(mediaId)}`)
+    if (!res.ok) return []
+    const data = await res.json()
+    return (data.items ?? []) as HistoryEvent[]
   }
 
   // Mark/unmark a single series episode as watched.
