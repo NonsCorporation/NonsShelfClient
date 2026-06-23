@@ -5,7 +5,6 @@ import {
   IoEarthOutline,
   IoLibraryOutline,
   IoStarOutline,
-  IoHeartOutline,
   IoPulseOutline,
   IoCloudUploadOutline,
   IoLogOutOutline,
@@ -40,11 +39,10 @@ const VIS_OPTIONS: { key: Visibility; labelKey: string; hintKey: string; icon: I
 ]
 
 // Per-facet copy + icon for the privacy rows.
-const FACET_META: Record<PrivacyFacet, { labelKey: string; hintKey: string; icon: IconType }> = {
-  shelf: { labelKey: 'privacyShelf', hintKey: 'privacyShelfHint', icon: IoLibraryOutline },
-  ratings: { labelKey: 'privacyRatings', hintKey: 'privacyRatingsHint', icon: IoStarOutline },
-  favorites: { labelKey: 'privacyFavorites', hintKey: 'privacyFavoritesHint', icon: IoHeartOutline },
-  activity: { labelKey: 'privacyActivity', hintKey: 'privacyActivityHint', icon: IoPulseOutline },
+const FACET_META: Record<PrivacyFacet, { labelKey: string; icon: IconType }> = {
+  shelf: { labelKey: 'privacyShelf', icon: IoLibraryOutline },
+  ratings: { labelKey: 'privacyRatings', icon: IoStarOutline },
+  activity: { labelKey: 'privacyActivity', icon: IoPulseOutline },
 }
 
 export default function SettingsModal({ isOpen, onClose, onOpenImport }: Props) {
@@ -93,12 +91,9 @@ export default function SettingsModal({ isOpen, onClose, onOpenImport }: Props) 
                 const Icon = meta.icon
                 return (
                   <div key={facet}>
-                    <div className="mb-1.5 flex items-start gap-2.5">
-                      <Icon className="mt-0.5 h-[18px] w-[18px] flex-shrink-0 text-[var(--text-muted)]" />
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-[var(--text)]">{t(meta.labelKey)}</p>
-                        <p className="text-xs text-[var(--text-muted)]">{t(meta.hintKey)}</p>
-                      </div>
+                    <div className="mb-1.5 flex items-center gap-2.5">
+                      <Icon className="h-[18px] w-[18px] flex-shrink-0 text-[var(--text-muted)]" />
+                      <p className="text-sm font-medium text-[var(--text)]">{t(meta.labelKey)}</p>
                     </div>
                     <VisibilitySelect value={privacy[facet]} onChange={(v) => setVisibility(facet, v)} />
                   </div>

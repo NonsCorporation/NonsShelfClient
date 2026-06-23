@@ -1,48 +1,34 @@
-import { createContext, useContext, useState } from 'react'
+import { createContext, useContext, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
+import { getPrivacy, savePrivacy } from '../services/privacyService'
 
 const STORAGE_KEY = 'nons_show_inprogress'
-const PRIVACY_KEY = 'nons_privacy'
 
 // Who may see a given facet of your profile. Mirrors the nons platform's own
 // audience model so it reads familiarly: nobody / friends only / everyone.
 export type Visibility = 'nobody' | 'friends' | 'everyone'
 
-// The independently-controllable slices of your profile.
-export type PrivacyFacet = 'shelf' | 'ratings' | 'favorites' | 'activity'
+// The independently-controllable slices of your profile. (Favorites are never
+// exposed on other users' profiles, so there's no toggle for them.)
+export type PrivacyFacet = 'shelf' | 'ratings' | 'activity'
 
 export type Privacy = Record<PrivacyFacet, Visibility>
 
-export const PRIVACY_FACETS: PrivacyFacet[] = ['shelf', 'ratings', 'favorites', 'activity']
+export const PRIVACY_FACETS: PrivacyFacet[] = ['shelf', 'ratings', 'activity']
 
-// Sensible defaults: your shelf and ratings are public (the point of a shared
-// shelf), what you're up to is friends-only, and favorites stay private — which
-// matches today's behaviour, where favorites are never exposed on other users'
-// profiles.
+// Defaults until the server's settings load: shelf and ratings public (the point
+// of a shared shelf), what you're up to is friends-only.
 const DEFAULT_PRIVACY: Privacy = {
   shelf: 'everyone',
   ratings: 'everyone',
   activity: 'friends',
-  favorites: 'nobody',
-}
-
-function loadPrivacy(): Privacy {
-  if (typeof window === 'undefined') return DEFAULT_PRIVACY
-  try {
-    const raw = localStorage.getItem(PRIVACY_KEY)
-    if (!raw) return DEFAULT_PRIVACY
-    // Merge over defaults so a newly-added facet is never left undefined.
-    return { ...DEFAULT_PRIVACY, ...(JSON.parse(raw) as Partial<Privacy>) }
-  } catch {
-    return DEFAULT_PRIVACY
-  }
 }
 
 interface PreferencesContextType {
   /** Whether the "In progress" section is shown on the Library page. */
   showInProgress: boolean
   setShowInProgress: (value: boolean) => void
-  /** Per-facet profile visibility (persisted locally for now). */
+  /** Per-facet profile visibility (persisted server-side; defaults until loaded). */
   privacy: Privacy
   setVisibility: (facet: PrivacyFacet, value: Visibility) => void
 }
@@ -55,7 +41,19 @@ export const PreferencesProvider = ({ children }: { children: ReactNode }) => {
     // is no localStorage). Defaults to shown.
     typeof window === 'undefined' ? true : localStorage.getItem(STORAGE_KEY) !== 'false',
   )
-  const [privacy, setPrivacy] = useState<Privacy>(loadPrivacy)
+  const [privacy, setPrivacy] = useState<Privacy>(DEFAULT_PRIVACY)
+
+  // Load the signed-in user's saved visibility from the server; anonymous /
+  // unreachable just keeps the defaults.
+  useEffect(() => {
+    let cancelled = false
+    getPrivacy().then((p) => {
+      if (p && !cancelled) setPrivacy(p)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const setShowInProgress = (value: boolean) => {
     setShowInProgressState(value)
@@ -65,7 +63,7 @@ export const PreferencesProvider = ({ children }: { children: ReactNode }) => {
   const setVisibility = (facet: PrivacyFacet, value: Visibility) => {
     setPrivacy((prev) => {
       const next = { ...prev, [facet]: value }
-      if (typeof window !== 'undefined') localStorage.setItem(PRIVACY_KEY, JSON.stringify(next))
+      void savePrivacy(next) // optimistic; persist server-side
       return next
     })
   }
