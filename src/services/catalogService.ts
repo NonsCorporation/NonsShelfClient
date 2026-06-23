@@ -30,6 +30,15 @@ export type CatalogItem = {
   recommendedBecause?: string
 }
 
+// A notable person for the Discover "notable names" row (GET /api/people/popular).
+export type PersonHit = {
+  uuid: string
+  name: string
+  photoUrl?: string
+  /** How many catalog titles they're credited on. */
+  creditCount: number
+}
+
 // Shape of a media row as returned by nons-library-server’s GET /api/media.
 type BackendMedia = {
   id: number
@@ -76,6 +85,12 @@ function mapMedia(m: BackendMedia): CatalogItem {
 export interface ICatalogService {
   /** Fetch the catalog; `q` searches the whole DB by title/author server-side. */
   getCatalog(q?: string): Promise<CatalogItem[]>
+  /** Most-shelved items (optionally one media type), for Discover's popular rows. */
+  popular(type: MediaType | undefined, limit: number): Promise<CatalogItem[]>
+  /** Most recently added catalog items (optionally one media type). */
+  recent(type: MediaType | undefined, limit: number): Promise<CatalogItem[]>
+  /** Most-credited people (authors/actors/directors), for the notable-names row. */
+  notablePeople(limit: number): Promise<PersonHit[]>
   /** Search externally and auto-import up to `limit` books and films (and series
    *  if requested), then return the rows. By default this only imports when `q`
    *  has no local results; pass `force` to import even when locals exist (the
@@ -115,6 +130,38 @@ class ApiCatalogService implements ICatalogService {
       return { items: (data.items ?? []).map(mapMedia), autoImported: data.auto_imported ?? false }
     } catch {
       return { items: [], autoImported: false }
+    }
+  }
+
+  // Builds a /api/media URL with optional type/sort. type omitted ⇒ all types.
+  private mediaUrl(opts: { type?: MediaType; sort?: string; limit: number }): string {
+    const p = new URLSearchParams({ limit: String(opts.limit) })
+    if (opts.type) p.set('type', opts.type)
+    if (opts.sort) p.set('sort', opts.sort)
+    return `/api/media?${p}`
+  }
+
+  popular(type: MediaType | undefined, limit: number): Promise<CatalogItem[]> {
+    return this.fetchPage(this.mediaUrl({ type, sort: 'popular', limit }))
+  }
+
+  recent(type: MediaType | undefined, limit: number): Promise<CatalogItem[]> {
+    return this.fetchPage(this.mediaUrl({ type, limit }))
+  }
+
+  async notablePeople(limit: number): Promise<PersonHit[]> {
+    try {
+      const res = await authedFetch(`/api/people/popular?limit=${limit}`)
+      if (!res.ok) return []
+      const data: { items?: { uuid: string; name: string; photo_url?: string; credit_count?: number }[] } = await res.json()
+      return (data.items ?? []).map((p) => ({
+        uuid: p.uuid,
+        name: p.name,
+        photoUrl: p.photo_url || undefined,
+        creditCount: p.credit_count ?? 0,
+      }))
+    } catch {
+      return []
     }
   }
 

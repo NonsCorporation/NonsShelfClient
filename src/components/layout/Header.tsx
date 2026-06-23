@@ -12,6 +12,7 @@ import {
   IoBookmarkOutline,
   IoTimeOutline,
   IoCheckmarkDoneOutline,
+  IoCloseCircleOutline,
   IoEyeOutline,
   IoEyeOffOutline,
   IoSearch,
@@ -34,7 +35,7 @@ import { catalogService, type CatalogItem } from '../../services/catalogService'
 import TypeBadge from '../TypeBadge'
 import ShelfLogo from '../ShelfLogo'
 
-type ShelfKey = 'all' | 'wishlist' | 'active' | 'done' | 'favorites'
+type ShelfKey = 'all' | 'wishlist' | 'active' | 'done' | 'dnf' | 'favorites'
 type NavItem = { to: string; label: string; icon: IconType; match: (p: string) => boolean }
 
 export default function Header() {
@@ -85,6 +86,7 @@ export default function Header() {
     { key: 'wishlist', label: t('shelfWishlist'), icon: IoBookmarkOutline, dot: '#6768ab' },
     { key: 'active', label: t('shelfActive'), icon: IoTimeOutline, dot: '#f5a623' },
     { key: 'done', label: t('shelfDone'), icon: IoCheckmarkDoneOutline, dot: '#3ec98a' },
+    { key: 'dnf', label: t('shelfDNF'), icon: IoCloseCircleOutline, dot: '#647da3' },
     { key: 'favorites', label: t('favorites'), icon: IoHeartOutline, dot: '#ff7a85' },
   ]
 

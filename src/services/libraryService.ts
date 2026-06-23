@@ -16,6 +16,7 @@ export const SHELF_META: Record<ShelfStatus, { key: string; dot: string }> = {
   wishlist: { key: 'shelfWishlist', dot: '#6768ab' },
   active: { key: 'shelfActive', dot: '#f5a623' },
   done: { key: 'shelfDone', dot: '#3ec98a' },
+  dnf: { key: 'shelfDNF', dot: '#647da3' },
 }
 
 // ── Backend wire types ──────────────────────────────────────────────────────
@@ -109,7 +110,7 @@ export interface CalendarData {
 }
 
 // One entry in a media item's interaction timeline (GET /api/activity/history).
-export type HistoryKind = 'added' | 'started' | 'progress' | 'finished' | 'rated' | 'reviewed'
+export type HistoryKind = 'added' | 'started' | 'progress' | 'finished' | 'dnf' | 'rated' | 'reviewed'
 export interface HistoryEvent {
   type: HistoryKind
   value?: number // rated: 1..10

@@ -120,6 +120,7 @@ export default function ProfilePage() {
       wishlist: items.filter((it) => it.status === 'wishlist').length,
       active: items.filter((it) => it.status === 'active').length,
       done: items.filter((it) => it.status === 'done').length,
+      dnf: items.filter((it) => it.status === 'dnf').length,
     }),
     [items],
   )
@@ -160,6 +161,7 @@ export default function ProfilePage() {
     { key: 'wishlist', label: t('shelfWishlist'), count: counts.wishlist },
     { key: 'active', label: t('shelfActive'), count: counts.active },
     { key: 'done', label: t('shelfDone'), count: counts.done },
+    { key: 'dnf', label: t('shelfDNF'), count: counts.dnf },
   ]
 
   return (

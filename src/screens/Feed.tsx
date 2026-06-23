@@ -68,6 +68,9 @@ export default function FeedPage() {
           onHide={() => setShowInProgress(false)}
           onFinish={openFinish}
           onEditProgress={openProgress}
+          onStatusChanged={(id, status) =>
+            setItems((prev) => prev.map((it) => (it.id === id ? { ...it, status } : it)))
+          }
           t={t}
         />
       )}
@@ -134,12 +137,14 @@ function InProgressSection({
   onHide,
   onFinish,
   onEditProgress,
+  onStatusChanged,
   t,
 }: {
   items: MediaItem[]
   onHide: () => void
   onFinish: (it: MediaItem) => void
   onEditProgress: (it: MediaItem) => void
+  onStatusChanged: (id: string, status: ShelfStatus) => void
   t: (key: string) => string
 }) {
   const rowRef = useRef<HTMLDivElement>(null)
@@ -221,6 +226,7 @@ function InProgressSection({
               expanded={expandedId === it.id}
               onFinish={() => onFinish(it)}
               onEditProgress={() => onEditProgress(it)}
+              onStatusChanged={onStatusChanged}
               t={t}
             />
           ))}
@@ -234,16 +240,21 @@ function InProgressCard({
   item,
   onFinish,
   onEditProgress,
+  onStatusChanged,
   t,
 }: {
   item: MediaItem
   expanded: boolean
   onFinish: () => void
   onEditProgress: () => void
+  onStatusChanged: (id: string, status: ShelfStatus) => void
   t: (key: string) => string
 }) {
   const handleStatusChange = (key: ShelfStatus) => {
     if (key === 'done') { onFinish(); return }
+    // Reflect the change immediately (e.g. → "did not finish" drops it out of the
+    // in-progress row), then persist.
+    onStatusChanged(item.id, key)
     libraryService.updateItem(item.id, { status: key }).catch(() => {})
   }
 

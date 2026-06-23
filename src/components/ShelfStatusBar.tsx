@@ -26,6 +26,7 @@ export default function ShelfStatusBar({ item, currentStatus, onStatusChange, on
     { key: 'wishlist', label: isBook ? 'Want to read' : 'Want to watch' },
     { key: 'active',   label: isBook ? 'Reading' : 'Watching' },
     { key: 'done',     label: isBook ? 'Already read' : 'Already watched' },
+    { key: 'dnf',      label: 'Did not finish' },
   ]
 
   // Not on the shelf yet: show a neutral "Add to shelf" affordance instead of a

@@ -20,6 +20,7 @@ const VERB_KEY: Record<ActivityType, string> = {
   added: 'verbAdded',
   reviewed: 'verbReviewed',
   progress: 'verbProgress',
+  dnf: 'verbDnf',
 }
 
 // Five-star display from a 0–10 rating, with half-star steps (matches StarsSelector).

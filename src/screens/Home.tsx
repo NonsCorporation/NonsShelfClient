@@ -12,6 +12,7 @@ import {
   IoBookmarkOutline,
   IoTimeOutline,
   IoCheckmarkDoneOutline,
+  IoCloseCircleOutline,
   IoHeartOutline,
   IoStar,
   IoChatbubbleOutline,
@@ -27,7 +28,7 @@ import type { MediaItem } from '../types.ts'
 import { useLanguage } from '../contexts/LanguageContext.tsx'
 import { useAuth } from '../contexts/AuthContext.tsx'
 
-type ShelfKey = 'all' | 'wishlist' | 'active' | 'done' | 'favorites'
+type ShelfKey = 'all' | 'wishlist' | 'active' | 'done' | 'dnf' | 'favorites'
 type SortKey = 'added' | 'rating' | 'title' | 'year' | 'reviewed'
 
 export default function Home() {
@@ -279,6 +280,7 @@ export default function Home() {
           { key: 'wishlist',  label: t('shelfWishlist'), dot: '#6768ab', icon: IoBookmarkOutline },
           { key: 'active',    label: t('shelfActive'),  dot: '#f5a623', icon: IoTimeOutline },
           { key: 'done',      label: t('shelfDone'),    dot: '#3ec98a', icon: IoCheckmarkDoneOutline },
+          { key: 'dnf',       label: t('shelfDNF'),     dot: '#647da3', icon: IoCloseCircleOutline },
           // Favorites are private — only on your own library.
           ...(readOnly ? [] : [{ key: 'favorites', label: t('favorites'), dot: '#ff7a85', icon: IoHeartOutline }]),
         ] as { key: ShelfKey; label: string; dot: string | null; icon: React.ComponentType<{ className?: string }> }[]).map((s) => {

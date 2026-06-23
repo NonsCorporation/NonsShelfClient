@@ -115,6 +115,10 @@ export default function MediaOnePage({
   const [editions, setEditions] = useState<Edition[]>(initialEditions)
   const [editionsTotal, setEditionsTotal] = useState(initialEditions.length)
   const [editionsLoadingMore, setEditionsLoadingMore] = useState(false)
+  // Highest editions page fetched so far — tracked explicitly so "load more"
+  // advances reliably (deriving it from editions.length breaks once dedupe
+  // leaves a non-page-multiple count).
+  const editionsPageRef = useRef(0)
   const [episodes, setEpisodes] = useState<EpisodesResponse | null>(null)
   const [editionId, setEditionId] = useState<number | null>(initialItem?.editionId ?? null)
   const [isbnFind, setIsbnFind] = useState('')
@@ -209,6 +213,7 @@ export default function MediaOnePage({
         if (cancelled || !d) return
         setEditions(d.editions ?? [])
         setEditionsTotal(d.total ?? (d.editions?.length ?? 0))
+        editionsPageRef.current = 0 // reset paging for this work
       })
       .catch(() => {})
     return () => {
@@ -236,12 +241,13 @@ export default function MediaOnePage({
   // Append the next page of editions to the carousel.
   const loadMoreEditions = useCallback(() => {
     if (!id || editionsLoadingMore) return
-    const page = Math.floor(editions.length / EDITIONS_PER_PAGE)
+    const page = editionsPageRef.current + 1
     setEditionsLoadingMore(true)
     authedFetch(`/api/media/${id}/editions?page=${page}&limit=${EDITIONS_PER_PAGE}`)
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
         if (!d) return
+        editionsPageRef.current = page
         setEditions((prev) => {
           // Dedupe by id in case pages overlap (e.g. a new edition shifted paging).
           const seen = new Set(prev.map((e) => e.id))
@@ -251,7 +257,7 @@ export default function MediaOnePage({
       })
       .catch(() => {})
       .finally(() => setEditionsLoadingMore(false))
-  }, [id, editions.length, editionsLoadingMore, editionsTotal])
+  }, [id, editionsLoadingMore, editionsTotal])
 
   // Episodes (series), grouped by season with the user's watched flags. Only
   // fetched once we know the item is a series.

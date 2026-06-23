@@ -7,6 +7,7 @@ import {
   IoBookmarkOutline,
   IoPlayOutline,
   IoCheckmarkDoneOutline,
+  IoCloseCircleOutline,
   IoStar,
   IoChatbubbleOutline,
   IoStatsChartOutline,
@@ -26,6 +27,7 @@ const ICON: Record<HistoryKind, IconType> = {
   started: IoPlayOutline,
   progress: IoStatsChartOutline,
   finished: IoCheckmarkDoneOutline,
+  dnf: IoCloseCircleOutline,
   rated: IoStar,
   reviewed: IoChatbubbleOutline,
 }
@@ -58,6 +60,8 @@ export default function MediaHistory({ item, refreshKey = 0 }: { item: MediaItem
         return { label: t('histStarted') }
       case 'finished':
         return { label: t('histFinished') }
+      case 'dnf':
+        return { label: t('didNotFinish') }
       case 'rated':
         return { label: t('histRated', { rating: ((e.value ?? 0) / 2).toFixed(1) }) }
       case 'reviewed':

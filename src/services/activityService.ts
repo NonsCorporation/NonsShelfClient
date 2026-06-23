@@ -1,7 +1,7 @@
 import { authedFetch, nonsFetch } from '../lib/api'
 import type { MediaType } from '../types'
 
-export type ActivityType = 'rated' | 'finished' | 'started' | 'added' | 'reviewed' | 'progress'
+export type ActivityType = 'rated' | 'finished' | 'started' | 'added' | 'reviewed' | 'progress' | 'dnf'
 
 export type Activity = {
   id: string

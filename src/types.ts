@@ -4,7 +4,8 @@ export type MediaType = 'book' | 'movie' | 'series'
 //   wishlist -> Want to Read / Want to Watch
 //   active   -> Currently Reading / Watching
 //   done     -> Read / Watched
-export type ShelfStatus = 'wishlist' | 'active' | 'done'
+//   dnf      -> Did Not Finish (abandoned mid-read)
+export type ShelfStatus = 'wishlist' | 'active' | 'done' | 'dnf'
 
 export type MediaItem = {
   id: string
