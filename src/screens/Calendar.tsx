@@ -50,6 +50,9 @@ export default function CalendarPage() {
     // a book read over several days shows across those days (ongoing → to today).
     const currentMonthItems = useMemo(() => {
         const grouped: Record<number, { cover?: string; title: string }[]> = {};
+        // A book can have overlapping spans (e.g. a re-read), so track which media
+        // ids are already placed on a given day and show each at most once per day.
+        const seenPerDay: Record<number, Set<number>> = {};
         const monthStart = new Date(currentYear, currentMonth, 1).getTime();
         const monthEnd = new Date(currentYear, currentMonth + 1, 0, 23, 59, 59).getTime();
         const todayEnd = new Date();
@@ -57,6 +60,7 @@ export default function CalendarPage() {
 
         spans.forEach((s) => {
             if (!s.media) return;
+            const id = s.media.id;
             const book = { cover: s.media.cover_url || undefined, title: s.media.title || '' };
             const startMs = s.started_at * 1000;
             const endMs = (s.finished_at ? s.finished_at * 1000 : todayEnd.getTime());
@@ -66,6 +70,9 @@ export default function CalendarPage() {
             if (from > to) return;
             for (let t = new Date(from).setHours(0, 0, 0, 0); t <= to; t += DAY_MS) {
                 const day = new Date(t).getDate();
+                const seen = (seenPerDay[day] ??= new Set());
+                if (seen.has(id)) continue;
+                seen.add(id);
                 (grouped[day] ??= []).push(book);
             }
         });
