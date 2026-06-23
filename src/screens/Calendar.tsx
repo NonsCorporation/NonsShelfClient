@@ -198,6 +198,14 @@ export default function CalendarPage() {
                     <p className="text-sm text-[var(--text-muted)]">{t('calendarSubtitle')}</p>
 
                     <div className="flex items-center gap-1 self-start sm:self-auto">
+                        {!isThisMonth && (
+                            <button
+                                onClick={() => setCurrentDate(new Date())}
+                                className="mr-1.5 rounded-lg border border-[var(--border-subtle)] px-2.5 py-1 text-xs font-medium text-[var(--text-muted)] transition-colors hover:border-nonsprimary hover:text-nonsprimary"
+                            >
+                                {t('today')}
+                            </button>
+                        )}
                         <button
                             onClick={prevMonth}
                             aria-label={t('prev') || 'Previous'}
@@ -215,14 +223,6 @@ export default function CalendarPage() {
                         >
                             <IoChevronForward className="h-4 w-4" />
                         </button>
-                        {!isThisMonth && (
-                            <button
-                                onClick={() => setCurrentDate(new Date())}
-                                className="ml-1.5 rounded-lg border border-[var(--border-subtle)] px-2.5 py-1 text-xs font-medium text-[var(--text-muted)] transition-colors hover:border-nonsprimary hover:text-nonsprimary"
-                            >
-                                {t('today')}
-                            </button>
-                        )}
                     </div>
                 </div>
 
