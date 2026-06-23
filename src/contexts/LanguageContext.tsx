@@ -285,6 +285,22 @@ export const translations: Translations = {
   },
   shareToFeed: { en: 'Share to feed', ru: 'Поделиться в ленте' },
   deleting: { en: 'Deleting…', ru: 'Удаление…' },
+  continue: { en: 'Continue', ru: 'Продолжить' },
+  deleteLibrary: { en: 'Delete my library', ru: 'Удалить мою библиотеку' },
+  deleteLibraryHint: {
+    en: 'Remove every book/film, shelf, rating, review and activity. Cannot be undone.',
+    ru: 'Удалить все книги/фильмы, полки, оценки, отзывы и активность. Отменить нельзя.',
+  },
+  deleteLibraryConfirm1: {
+    en: 'This permanently deletes your entire library — shelves, ratings, reviews, reading progress and activity. The shared catalog is not affected. This cannot be undone.',
+    ru: 'Это навсегда удалит всю вашу библиотеку — полки, оценки, отзывы, прогресс чтения и активность. Общий каталог не затрагивается. Отменить нельзя.',
+  },
+  deleteLibraryFinalTitle: { en: 'Are you absolutely sure?', ru: 'Вы точно уверены?' },
+  deleteLibraryConfirm2: {
+    en: 'Last chance — there is no recovery. Delete everything in your library?',
+    ru: 'Последний шанс — восстановить будет нельзя. Удалить всё в вашей библиотеке?',
+  },
+  deleteLibraryConfirmAction: { en: 'Delete everything', ru: 'Удалить всё' },
 
   // Discover / social
   discover: { en: 'Discover', ru: 'Интересное' },

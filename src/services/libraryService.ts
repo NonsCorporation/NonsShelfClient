@@ -94,6 +94,20 @@ export interface ProgressEntry {
   event_date: number
 }
 
+// A reading span from GET /api/calendar — a book/film being read/watched from
+// started_at to finished_at (unix seconds). finished_at 0/absent + ongoing=true
+// means still in progress.
+export interface ReadingSpan {
+  media?: { id: number; uuid?: string; title: string; type: MediaType; cover_url: string }
+  started_at: number
+  finished_at?: number
+  ongoing: boolean
+}
+
+export interface CalendarData {
+  reading: ReadingSpan[]
+}
+
 // One entry in a media item's interaction timeline (GET /api/activity/history).
 export type HistoryKind = 'added' | 'started' | 'progress' | 'finished' | 'rated' | 'reviewed'
 export interface HistoryEvent {
@@ -139,11 +153,15 @@ export interface ILibraryService {
   getProgress(mediaId: string): Promise<ProgressEntry[]>
   /** The user's full interaction timeline for a media item, newest first. */
   getHistory(mediaId: string): Promise<HistoryEvent[]>
+  /** Reading/watching spans over [from, to] (unix seconds) for the calendar. */
+  getCalendar(from: number, to: number): Promise<CalendarData>
   /** Mark/unmark a series episode as watched. */
   setEpisodeWatched(episodeId: number, watched: boolean): Promise<void>
   /** Finish an item: shelf → done, save rating/review, log a (backdatable) finished event. */
   finish(mediaId: string, opts: FinishOptions): Promise<void>
   deleteItem(id: string): Promise<void>
+  /** Permanently delete the whole personal library (shelf, ratings, favorites, activity, feed posts). */
+  wipeLibrary(): Promise<void>
   importGoodreads(file: File): Promise<ImportSummary>
   importBookDiary(file: File): Promise<ImportSummary>
 }
@@ -331,6 +349,15 @@ class ApiLibraryService implements ILibraryService {
     return (data.items ?? []) as HistoryEvent[]
   }
 
+  // Reading/watching spans over [from, to] (unix seconds) — started→finished
+  // pairs from the activity log, for drawing multi-day spans on the calendar.
+  async getCalendar(from: number, to: number): Promise<CalendarData> {
+    const res = await authedFetch(`/api/calendar?from=${from}&to=${to}`)
+    if (!res.ok) return { reading: [] }
+    const data = await res.json()
+    return { reading: (data.reading ?? []) as ReadingSpan[] }
+  }
+
   // Mark/unmark a single series episode as watched.
   async setEpisodeWatched(episodeId: number, watched: boolean): Promise<void> {
     await authedFetch(`/api/episodes/${episodeId}/watch`, { method: watched ? 'PUT' : 'DELETE' })
@@ -457,6 +484,13 @@ class ApiLibraryService implements ILibraryService {
       throw new Error(msg)
     }
     return res.json() as Promise<ImportSummary>
+  }
+
+  // Permanently delete the user's entire personal library. The shared catalog
+  // (media/editions/people) is untouched server-side.
+  async wipeLibrary(): Promise<void> {
+    const res = await authedFetch('/api/library', { method: 'DELETE' })
+    if (!res.ok) throw new Error('Failed to delete library')
   }
 
   importGoodreads(file: File): Promise<ImportSummary> {

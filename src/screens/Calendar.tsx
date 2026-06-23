@@ -11,12 +11,16 @@ import {
 import { useLanguage } from '../contexts/LanguageContext.tsx';
 import { libraryService } from '../services/libraryService.ts';
 import type { MediaItem } from '../types.ts';
+import type { ReadingSpan } from '../services/libraryService.ts';
 import Statistics from './Statistics.tsx';
+
+const DAY_MS = 86_400_000;
 
 export default function CalendarPage() {
     const { t } = useLanguage();
     const [currentDate, setCurrentDate] = useState(new Date());
     const [items, setItems] = useState<MediaItem[]>([]);
+    const [spans, setSpans] = useState<ReadingSpan[]>([]);
 
     // Top-level page tab: the existing calendar, or the statistics dashboard.
     const [tab, setTab] = useState<'calendar' | 'stats'>('calendar');
@@ -30,27 +34,44 @@ export default function CalendarPage() {
     const currentYear = currentDate.getFullYear();
     const currentMonth = currentDate.getMonth();
 
-    // group items by day for the current month
+    // Reading/watching spans for the visible year, from the activity log. Fetched
+    // a year at a time so month navigation within the year needs no refetch.
+    useEffect(() => {
+        const from = Math.floor(new Date(currentYear, 0, 1).getTime() / 1000);
+        const to = Math.floor(new Date(currentYear, 11, 31, 23, 59, 59).getTime() / 1000);
+        let cancelled = false;
+        libraryService.getCalendar(from, to).then((d) => {
+            if (!cancelled) setSpans(d.reading);
+        });
+        return () => { cancelled = true; };
+    }, [currentYear]);
+
+    // Place each reading span on every day it covers within the current month, so
+    // a book read over several days shows across those days (ongoing → to today).
     const currentMonthItems = useMemo(() => {
-        const grouped: Record<number, { covers: string[]; rating: number }> = {};
-        
-        items.forEach(item => {
-            if (!item.dateAdded) return;
-            const date = new Date(item.dateAdded);
-            if (date.getFullYear() === currentYear && date.getMonth() === currentMonth) {
-                const day = date.getDate();
-                if (!grouped[day]) {
-                    grouped[day] = { covers: [], rating: 0 };
-                }
-                if (item.coverUrl) {
-                    grouped[day].covers.push(item.coverUrl);
-                }
-                grouped[day].rating = item.rating || grouped[day].rating;
+        const grouped: Record<number, { cover?: string; title: string }[]> = {};
+        const monthStart = new Date(currentYear, currentMonth, 1).getTime();
+        const monthEnd = new Date(currentYear, currentMonth + 1, 0, 23, 59, 59).getTime();
+        const todayEnd = new Date();
+        todayEnd.setHours(23, 59, 59, 0);
+
+        spans.forEach((s) => {
+            if (!s.media) return;
+            const book = { cover: s.media.cover_url || undefined, title: s.media.title || '' };
+            const startMs = s.started_at * 1000;
+            const endMs = (s.finished_at ? s.finished_at * 1000 : todayEnd.getTime());
+            // Clamp the span to the current month before walking its days.
+            const from = Math.max(startMs, monthStart);
+            const to = Math.min(endMs, monthEnd);
+            if (from > to) return;
+            for (let t = new Date(from).setHours(0, 0, 0, 0); t <= to; t += DAY_MS) {
+                const day = new Date(t).getDate();
+                (grouped[day] ??= []).push(book);
             }
         });
-        
+
         return grouped;
-    }, [items, currentYear, currentMonth]);
+    }, [spans, currentYear, currentMonth]);
 
     // calculate daily totals for the entire year
     const yearlyActivity = useMemo(() => {
@@ -202,15 +223,28 @@ export default function CalendarPage() {
 
                                             {data && (
                                                 <div className="flex flex-wrap justify-center gap-[3px] w-full">
-                                                    {data.covers.map((url, idx) => (
-                                                        <img
-                                                            key={idx}
-                                                            src={url}
-                                                            className="object-cover aspect-[2/3] rounded-sm border border-[var(--border-subtle)]"
-                                                            style={{ width: data.covers.length > 2 ? '42%' : '58%' }}
-                                                            alt="cover"
-                                                        />
-                                                    ))}
+                                                    {data.map((book, idx) => {
+                                                        const width = data.length > 2 ? '42%' : '58%';
+                                                        return book.cover ? (
+                                                            <img
+                                                                key={idx}
+                                                                src={book.cover}
+                                                                title={book.title}
+                                                                className="object-cover aspect-[2/3] rounded-sm border border-[var(--border-subtle)]"
+                                                                style={{ width }}
+                                                                alt={book.title}
+                                                            />
+                                                        ) : (
+                                                            <div
+                                                                key={idx}
+                                                                title={book.title}
+                                                                className="flex aspect-[2/3] items-center justify-center overflow-hidden rounded-sm border border-[var(--border-subtle)] bg-[var(--container-2)] p-0.5 text-center text-[7px] md:text-[8px] leading-tight text-[var(--text-muted)]"
+                                                                style={{ width }}
+                                                            >
+                                                                <span className="line-clamp-3">{book.title}</span>
+                                                            </div>
+                                                        );
+                                                    })}
                                                 </div>
                                             )}
                                         </div>

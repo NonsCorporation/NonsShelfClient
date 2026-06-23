@@ -9,7 +9,9 @@ import {
   IoPulseOutline,
   IoCloudUploadOutline,
   IoLogOutOutline,
+  IoTrashOutline,
 } from 'react-icons/io5'
+import { useState } from 'react'
 import type { IconType } from 'react-icons'
 import { useLanguage, type Language } from '../contexts/LanguageContext'
 import {
@@ -19,6 +21,8 @@ import {
   type Visibility,
 } from '../contexts/PreferencesContext'
 import { useAuth } from '../contexts/AuthContext'
+import { libraryService } from '../services/libraryService'
+import ConfirmModal from './ConfirmModal'
 
 type Props = {
   isOpen: boolean
@@ -47,6 +51,21 @@ export default function SettingsModal({ isOpen, onClose, onOpenImport }: Props) 
   const { t, language, setLanguage } = useLanguage()
   const { showInProgress, setShowInProgress, privacy, setVisibility } = usePreferences()
   const { logout } = useAuth()
+  // Two-step delete: 0 = idle, 1 = first confirm, 2 = final confirm.
+  const [wipeStep, setWipeStep] = useState(0)
+  const [wiping, setWiping] = useState(false)
+
+  const wipeLibrary = async () => {
+    setWiping(true)
+    try {
+      await libraryService.wipeLibrary()
+      // Hard reload so every cached view reflects the now-empty library.
+      window.location.href = '/library'
+    } catch {
+      setWiping(false)
+      setWipeStep(0)
+    }
+  }
 
   if (!isOpen) return null
 
@@ -147,10 +166,46 @@ export default function SettingsModal({ isOpen, onClose, onOpenImport }: Props) 
                 <IoLogOutOutline className="h-[18px] w-[18px]" />
                 {t('logout')}
               </button>
+
+              <button
+                onClick={() => setWipeStep(1)}
+                className="flex items-center gap-3 rounded-xl border border-red-500/30 px-4 py-3 text-left text-sm transition-colors hover:bg-red-500/10"
+              >
+                <IoTrashOutline className="h-[18px] w-[18px] text-red-500" />
+                <span>
+                  <span className="block font-medium text-red-500">{t('deleteLibrary')}</span>
+                  <span className="text-xs text-[var(--text-muted)]">{t('deleteLibraryHint')}</span>
+                </span>
+              </button>
             </div>
           </section>
         </div>
       </div>
+
+      {/* Two-step confirmation — deleting a whole library is irreversible. */}
+      {wipeStep === 1 && (
+        <ConfirmModal
+          title={t('deleteLibrary')}
+          message={t('deleteLibraryConfirm1')}
+          confirmText={t('continue')}
+          cancelText={t('cancel')}
+          variant="danger"
+          onConfirm={() => setWipeStep(2)}
+          onCancel={() => setWipeStep(0)}
+        />
+      )}
+      {wipeStep === 2 && (
+        <ConfirmModal
+          title={t('deleteLibraryFinalTitle')}
+          message={t('deleteLibraryConfirm2')}
+          confirmText={wiping ? t('deleting') : t('deleteLibraryConfirmAction')}
+          cancelText={t('cancel')}
+          variant="danger"
+          busy={wiping}
+          onConfirm={wipeLibrary}
+          onCancel={() => setWipeStep(0)}
+        />
+      )}
     </div>
   )
 }
