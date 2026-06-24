@@ -29,6 +29,7 @@ export interface EditionInput {
   pages?: number
   language?: string
   cover_url?: string
+  description?: string
 }
 
 type ServerBook = {
@@ -53,6 +54,7 @@ type ServerEdition = {
   published_year?: number
   pages?: number
   cover_url?: string
+  description?: string
 }
 
 function mapBook(b: ServerBook): BookCandidate {
@@ -104,6 +106,7 @@ export async function fetchWorkEditions(workId: string, title?: string, author?:
       pages: e.pages || undefined,
       language: e.language || undefined,
       cover_url: e.cover_url || undefined,
+      description: e.description || undefined,
     }))
   } catch {
     return []
@@ -128,5 +131,6 @@ export function bookCandidateToItem(c: BookCandidate): Partial<MediaItem> {
 export function sourceLabel(source: string): string {
   if (source === 'googlebooks') return 'Google Books'
   if (source === 'openlibrary') return 'OpenLibrary'
+  if (source === 'fantlab') return 'ФантЛаб'
   return ''
 }
