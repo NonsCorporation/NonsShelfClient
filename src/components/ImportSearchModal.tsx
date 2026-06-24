@@ -45,16 +45,20 @@ export default function ImportSearchModal({ isOpen, onClose, onImported }: Props
     }
   }, [isOpen])
 
-  // Debounced search whenever the query or source changes.
+  // Debounced search whenever the query or source changes. The delay is long
+  // enough for the user to finish typing (book searches hit multiple external
+  // APIs and are slow); loading only shows after the delay fires so there's no
+  // spinner while the user is still typing.
   useEffect(() => {
     if (!isOpen) return
     if (!q.trim()) {
       setRows([])
+      setLoading(false)
       return
     }
-    setLoading(true)
     setError('')
     const timer = setTimeout(async () => {
+      setLoading(true)
       try {
         const next = kind === 'book' ? await searchBooksRows(q) : await searchTmdbRows(kind, q)
         setRows(next)
@@ -64,7 +68,7 @@ export default function ImportSearchModal({ isOpen, onClose, onImported }: Props
       } finally {
         setLoading(false)
       }
-    }, 350)
+    }, 3000)
     return () => clearTimeout(timer)
   }, [q, kind, isOpen])
 
