@@ -40,6 +40,7 @@ export default function Header() {
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false)
   const [mobileQ, setMobileQ] = useState('')
   const [mobileResults, setMobileResults] = useState<CatalogItem[]>([])
+  const [mobileLoading, setMobileLoading] = useState(false)
   const [mobileImporting, setMobileImporting] = useState(false)
   const mobileInputRef = useRef<HTMLInputElement>(null)
   const hidden = useHideOnScroll(accountOpen || sheetOpen)
@@ -87,15 +88,17 @@ export default function Header() {
   }, [mobileSearchOpen])
 
   useEffect(() => {
-    if (!mobileQ) { setMobileResults([]); setMobileImporting(false); return }
+    if (!mobileQ) { setMobileResults([]); setMobileLoading(false); setMobileImporting(false); return }
+    setMobileLoading(true)
     const timer = setTimeout(async () => {
       const data = await catalogService.getCatalog(mobileQ).catch(() => [] as CatalogItem[])
-      if (data.length > 0) { setMobileResults(data.slice(0, 6)); return }
+      if (data.length > 0) { setMobileResults(data.slice(0, 6)); setMobileLoading(false); return }
       setMobileImporting(true)
-      const fill = await catalogService.searchFill(mobileQ, { limit: 2 })
+      const fill = await catalogService.searchFill(mobileQ, { limit: 10, series: true })
       setMobileImporting(false)
       setMobileResults(fill.items.slice(0, 6))
-    }, 280)
+      setMobileLoading(false)
+    }, 300)
     return () => clearTimeout(timer)
   }, [mobileQ])
 
@@ -306,12 +309,17 @@ export default function Header() {
                 <IoClose className="h-5 w-5" />
               </button>
             </div>
-            {mobileImporting && (
-              <div className="px-5 pb-3 text-sm text-[var(--text-muted)]">
-                Searching external sources…
+            {mobileLoading && !mobileImporting && (
+              <div className="px-3 pb-3">
+                <HeaderSkeletons />
               </div>
             )}
-            {!mobileImporting && mobileResults.length > 0 && (
+            {mobileImporting && (
+              <div className="flex justify-center py-3">
+                <InfinityLoader size={80} hint={t('searchingExternal')} />
+              </div>
+            )}
+            {!mobileLoading && !mobileImporting && mobileResults.length > 0 && (
               <div className="max-h-[55dvh] overflow-y-auto px-3 pb-3">
                 {mobileResults.map((item) => (
                   <Link
