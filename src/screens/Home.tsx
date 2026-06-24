@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState, useEffect } from 'react'
+import React, { useMemo, useRef, useState, useEffect, useCallback } from 'react'
 import { useSearchParams } from '@/lib/router'
 import {
   IoOptionsOutline,
@@ -22,11 +22,13 @@ import {
   IoAdd,
   IoClose,
   IoCheckmark,
+  IoDownloadOutline,
 } from 'react-icons/io5'
 import Layout from '../components/layout/Layout.tsx'
 import MediaCard from '../components/MediaCard.tsx'
 import MediaModal from '../components/MediaModal.tsx'
 import ImportModal from '../components/ImportModal.tsx'
+import ExportModal from '../components/ExportModal.tsx'
 import MediaDetailModal from '../components/MediaDetailModal.tsx'
 import { libraryService } from '../services/libraryService.ts'
 import { fetchPublicProfile } from '../services/userService.ts'
@@ -73,6 +75,7 @@ export default function Home() {
   const [sort, setSort] = useState<SortKey>('added')
   const [view, setView] = useState<'grid' | 'list'>('grid')
 
+  const [showExport, setShowExport] = useState(false)
   const [showFilterMenu, setShowFilterMenu] = useState(false)
   const [showSortMenu, setShowSortMenu] = useState(false)
   const [genreFilter, setGenreFilter] = useState('')
@@ -450,6 +453,7 @@ export default function Home() {
             )}
           </div>
         )}
+
       </aside>
 
       {/* ── Main content ── */}
@@ -734,14 +738,24 @@ export default function Home() {
 
         {/* Import (Goodreads CSV, etc.) — own library only */}
         {!readOnly && (
-          <button
-            onClick={() => setShowImport(true)}
-            title={t('importLibrary') || 'Import'}
-            className="flex h-10 items-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] px-3 text-sm text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
-          >
-            <IoCloudUploadOutline className="h-4 w-4" />
-            <span className="hidden sm:inline">{t('import') || 'Import'}</span>
-          </button>
+          <>
+            <button
+              onClick={() => setShowImport(true)}
+              title={t('importLibrary') || 'Import'}
+              className="flex h-10 items-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] px-3 text-sm text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
+            >
+              <IoCloudUploadOutline className="h-4 w-4" />
+              <span className="hidden sm:inline">{t('import') || 'Import'}</span>
+            </button>
+            <button
+              onClick={() => setShowExport(true)}
+              title={t('exportLibrary')}
+              className="flex h-10 items-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] px-3 text-sm text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
+            >
+              <IoDownloadOutline className="h-4 w-4" />
+              <span className="hidden sm:inline">{t('exportLabel')}</span>
+            </button>
+          </>
         )}
 
         <div className="ml-auto hidden text-sm text-[var(--text-muted)] md:block">
@@ -761,6 +775,9 @@ export default function Home() {
         onImported={() => libraryService.getItems().then(setItems)}
       />
       <MediaDetailModal item={detailItem} onClose={() => setDetailItem(null)} />
+      {showExport && (
+        <ExportModal collections={collections} onClose={() => setShowExport(false)} />
+      )}
 
       {/* Content */}
       {loading ? (
