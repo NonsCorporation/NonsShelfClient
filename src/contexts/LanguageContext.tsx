@@ -404,6 +404,73 @@ export const translations: Translations = {
     en: 'Recommendations come from my circle on nons, not from an algorithm.',
     ru: 'Рекомендации приходят от моего круга в nons, а не от алгоритма.',
   },
+
+  // Signed-out landing — feature grid
+  landingGrid1Title: { en: 'Books and films together', ru: 'Книги и фильмы вместе' },
+  landingGrid1Text: {
+    en: 'No more switching between Goodreads and Letterboxd. One place for everything you read and watch.',
+    ru: 'Больше не нужно переключаться между Goodreads и Letterboxd. Всё, что вы читаете и смотрите, — в одном месте.',
+  },
+  landingGrid2Title: { en: 'What your friends are into', ru: 'Чем увлечены друзья' },
+  landingGrid2Text: {
+    en: "Your nons friends' shelves and ratings in a single feed — not an algorithm picking for you.",
+    ru: 'Полки и оценки ваших друзей в nons — единой лентой, а не алгоритм, решающий за вас.',
+  },
+  landingGrid3Title: { en: 'Shelves that stay honest', ru: 'Честные полки' },
+  landingGrid3Text: {
+    en: 'Want to, reading now, finished, gave up on. You always know where everything stands.',
+    ru: 'В планах, читаю сейчас, завершено, бросил. Вы всегда знаете, на чём остановились.',
+  },
+  landingGrid4Title: { en: 'Find something next', ru: 'Найдите, что дальше' },
+  landingGrid4Text: {
+    en: "Browse the full catalog or see what's moving through your network right now.",
+    ru: 'Просматривайте весь каталог или смотрите, что сейчас популярно в вашем кругу.',
+  },
+
+  // Signed-out landing — numbered section labels
+  landingSec1: { en: 'What you get', ru: 'Что вы получаете' },
+  landingSec2: { en: 'How it works', ru: 'Как это работает' },
+  landingSec3: { en: "Why it's different", ru: 'Чем мы отличаемся' },
+  landingSec4: { en: 'Loved this week', ru: 'Понравилось на этой неделе' },
+
+  // Signed-out landing — how it works (3 steps)
+  landingStep1Title: { en: 'Find it', ru: 'Найдите' },
+  landingStep1Text: {
+    en: 'Search any book, film or series. The catalog is shared and draws on Open Library, TMDB and Google Books.',
+    ru: 'Найдите любую книгу, фильм или сериал. Общий каталог собран из Open Library, TMDB и Google Books.',
+  },
+  landingStep2Title: { en: 'Shelf it', ru: 'Поставьте на полку' },
+  landingStep2Text: {
+    en: 'Put it on a shelf — want to, in progress, finished. Rate it and jot down a few lines if you feel like it.',
+    ru: 'Поставьте на полку — в планах, в процессе, завершено. Оцените и набросайте пару строк, если хочется.',
+  },
+  landingStep3Title: { en: 'Share it', ru: 'Поделитесь' },
+  landingStep3Text: {
+    en: 'Your shelves and ratings reach the nons friends you choose — and theirs show up for you.',
+    ru: 'Ваши полки и оценки видят выбранные вами друзья в nons — а их полки видите вы.',
+  },
+
+  // Signed-out landing — comparison table
+  landingCompareHeadOther: { en: 'Everywhere else', ru: 'Везде ещё' },
+  landingCompareHeadUs: { en: 'Nons Shelf', ru: 'Nons Shelf' },
+  landingCmpLabel1: { en: 'Books & films', ru: 'Книги и фильмы' },
+  landingCmpThem1: { en: 'Two apps — Goodreads and Letterboxd', ru: 'Два приложения — Goodreads и Letterboxd' },
+  landingCmpUs1: { en: 'One shelf for both', ru: 'Одна полка для обоих' },
+  landingCmpLabel2: { en: 'Recommendations', ru: 'Рекомендации' },
+  landingCmpThem2: { en: 'An engagement algorithm', ru: 'Алгоритм вовлечения' },
+  landingCmpUs2: { en: 'The people you follow', ru: 'Люди, на которых вы подписаны' },
+  landingCmpLabel3: { en: 'Your account', ru: 'Аккаунт' },
+  landingCmpThem3: { en: 'Yet another sign-up', ru: 'Очередная регистрация' },
+  landingCmpUs3: { en: 'Your existing nons account', ru: 'Ваш аккаунт nons' },
+  landingCmpLabel4: { en: 'Your data', ru: 'Ваши данные' },
+  landingCmpThem4: { en: 'Fuel for ad profiles', ru: 'Топливо для рекламных профилей' },
+  landingCmpUs4: { en: 'Yours — no ads, no tracking', ru: 'Ваши — без рекламы и слежки' },
+
+  // Signed-out landing — sources note
+  landingSourcesNote: {
+    en: 'Covers and details come from Open Library, TMDB and Google Books — open, trusted catalogs.',
+    ru: 'Обложки и данные — из Open Library, TMDB и Google Books, открытых и проверенных каталогов.',
+  },
   profileSubtitle: { en: 'Your shelf at a glance', ru: 'Ваша полка с высоты птичьего полёта' },
   profileSubtitleOther: { en: 'Their shelf at a glance', ru: 'Полка пользователя с высоты птичьего полёта' },
   viewNonsProfile: { en: 'nons profile', ru: 'Профиль nons' },
