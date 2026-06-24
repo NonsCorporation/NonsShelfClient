@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useParams, useNavigate, Link } from '@/lib/router'
 import Layout from '../components/layout/Layout'
+import { DetailPageSkeleton } from '../components/Skeletons'
 import PersonModal from '../components/PersonModal'
 import { authedFetch } from '../lib/api'
 import { isLibrarian } from '../services/librarianService'
@@ -62,7 +63,7 @@ export default function PersonPage() {
   if (loading) {
     return (
       <Layout>
-        <div className="py-24 text-center text-[var(--text-muted)]">{t('loading')}</div>
+        <DetailPageSkeleton />
       </Layout>
     )
   }

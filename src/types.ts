@@ -1,5 +1,12 @@
 export type MediaType = 'book' | 'movie' | 'series'
 
+export type Collection = {
+  id: number
+  name: string
+  count: number
+  created_at: number
+}
+
 // Shelf status — the Goodreads/IMDb "what am I doing with this" axis.
 //   wishlist -> Want to Read / Want to Watch
 //   active   -> Currently Reading / Watching
@@ -42,4 +49,6 @@ export type MediaItem = {
   favorite?: boolean
   /** The book edition (printing) the user is reading, when chosen. 0/undefined = none. */
   editionId?: number
+  /** IDs of the user's custom collections that contain this item. */
+  collectionIds?: number[]
 }

@@ -7,14 +7,6 @@ import {
   IoLibraryOutline,
   IoCompassOutline,
   IoCalendarOutline,
-  IoHeartOutline,
-  IoLayersOutline,
-  IoBookmarkOutline,
-  IoTimeOutline,
-  IoCheckmarkDoneOutline,
-  IoCloseCircleOutline,
-  IoEyeOutline,
-  IoEyeOffOutline,
   IoSearch,
   IoClose,
   IoChevronDown,
@@ -25,7 +17,6 @@ import {
 import type { IconType } from 'react-icons'
 import { FaCrown } from 'react-icons/fa6'
 import { useLanguage } from '../../contexts/LanguageContext'
-import { usePreferences } from '../../contexts/PreferencesContext'
 import { useAuth } from '../../contexts/AuthContext'
 import { initials, colorFor } from '../../lib/user'
 import { redirectToNonsLogin } from '../../lib/api'
@@ -35,14 +26,12 @@ import { catalogService, type CatalogItem } from '../../services/catalogService'
 import TypeBadge from '../TypeBadge'
 import ShelfLogo from '../ShelfLogo'
 
-type ShelfKey = 'all' | 'wishlist' | 'active' | 'done' | 'dnf' | 'favorites'
 type NavItem = { to: string; label: string; icon: IconType; match: (p: string) => boolean }
 
 export default function Header() {
   const location = useLocation()
   const [params] = useSearchParams()
   const { language, setLanguage, t } = useLanguage()
-  const { showInProgress, setShowInProgress } = usePreferences()
   const { user, logout, isAuthenticated, loading } = useAuth()
 
   const [accountOpen, setAccountOpen] = useState(false)
@@ -64,12 +53,6 @@ export default function Header() {
     : null
 
   const path = location.pathname
-  const onLibrary = path === '/library'
-  const activeShelf = (params.get('shelf') as ShelfKey) || 'all'
-  // When viewing another user's library (?user=), keep that param on the shelf
-  // links and drop the private "favorites" shelf.
-  const libraryUser = params.get('user')?.trim() || ''
-  const userQuery = libraryUser ? `user=${encodeURIComponent(libraryUser)}` : ''
 
   const nav: NavItem[] = [
     { to: '/', label: t('home'), icon: IoHomeOutline, match: (p) => p === '/' },
@@ -80,15 +63,6 @@ export default function Header() {
   if (isLibrarian(user?.role)) {
     nav.push({ to: '/librarians', label: t('librarians'), icon: FaCrown, match: (p) => p.startsWith('/librarian') })
   }
-
-  const shelves: { key: ShelfKey; label: string; icon: IconType; dot?: string }[] = [
-    { key: 'all', label: t('allItems'), icon: IoLayersOutline },
-    { key: 'wishlist', label: t('shelfWishlist'), icon: IoBookmarkOutline, dot: '#6768ab' },
-    { key: 'active', label: t('shelfActive'), icon: IoTimeOutline, dot: '#f5a623' },
-    { key: 'done', label: t('shelfDone'), icon: IoCheckmarkDoneOutline, dot: '#3ec98a' },
-    { key: 'dnf', label: t('shelfDNF'), icon: IoCloseCircleOutline, dot: '#647da3' },
-    { key: 'favorites', label: t('favorites'), icon: IoHeartOutline, dot: '#ff7a85' },
-  ]
 
   const accountRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -245,54 +219,6 @@ export default function Header() {
           </div>
         </div>
 
-        {/* Contextual shelf bar — Library page only */}
-        {onLibrary && (
-          <div className="border-t border-[var(--border-subtle)]">
-            <div className="no-scrollbar mx-auto flex max-w-6xl items-center gap-1.5 overflow-x-auto px-4 py-2.5 md:px-8">
-              {shelves
-                .filter((s) => !(libraryUser && s.key === 'favorites'))
-                .map((s) => {
-                const active = activeShelf === s.key
-                const Icon = s.icon
-                const to =
-                  s.key === 'all'
-                    ? `/library${userQuery ? `?${userQuery}` : ''}`
-                    : `/library?shelf=${s.key}${userQuery ? `&${userQuery}` : ''}`
-                return (
-                  <div key={s.key} className="flex shrink-0 items-center">
-                    <Link
-                      to={to}
-                      className={`flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-sm transition-colors ${
-                        active
-                          ? 'border-transparent bg-[var(--primary-soft)] font-medium text-[var(--text)]'
-                          : 'border-[var(--border-subtle)] text-[var(--text-muted)] hover:border-[var(--border)] hover:text-[var(--text)]'
-                      }`}
-                    >
-                      {s.dot ? (
-                        <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: s.dot }} />
-                      ) : (
-                        <Icon className="h-4 w-4" />
-                      )}
-                      {s.label}
-                    </Link>
-                    {s.key === 'active' && (
-                      <button
-                        onClick={() => setShowInProgress(!showInProgress)}
-                        title={showInProgress ? t('hide') : t('show')}
-                        aria-label={showInProgress ? t('hide') : t('show')}
-                        className={`ml-1 flex h-7 w-7 items-center justify-center rounded-full transition-colors hover:bg-[var(--surface)] ${
-                          showInProgress ? 'text-[var(--text-muted)] hover:text-[var(--text)]' : 'text-nonsprimary'
-                        }`}
-                      >
-                        {showInProgress ? <IoEyeOutline className="h-4 w-4" /> : <IoEyeOffOutline className="h-4 w-4" />}
-                      </button>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        )}
       </header>
 
       {/* ── Bottom gradient scrim ── */}

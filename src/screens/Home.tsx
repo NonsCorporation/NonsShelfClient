@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react'
+import React, { useMemo, useRef, useState, useEffect } from 'react'
 import { useSearchParams } from '@/lib/router'
 import {
   IoOptionsOutline,
@@ -16,6 +16,12 @@ import {
   IoHeartOutline,
   IoStar,
   IoChatbubbleOutline,
+  IoFolderOutline,
+  IoPencilOutline,
+  IoTrashOutline,
+  IoAdd,
+  IoClose,
+  IoCheckmark,
 } from 'react-icons/io5'
 import Layout from '../components/layout/Layout.tsx'
 import MediaCard from '../components/MediaCard.tsx'
@@ -27,6 +33,7 @@ import { fetchPublicProfile } from '../services/userService.ts'
 import type { MediaItem } from '../types.ts'
 import { useLanguage } from '../contexts/LanguageContext.tsx'
 import { useAuth } from '../contexts/AuthContext.tsx'
+import { useCollections } from '../contexts/CollectionContext.tsx'
 
 type ShelfKey = 'all' | 'wishlist' | 'active' | 'done' | 'dnf' | 'favorites'
 type SortKey = 'added' | 'rating' | 'title' | 'year' | 'reviewed'
@@ -34,8 +41,18 @@ type SortKey = 'added' | 'rating' | 'title' | 'year' | 'reviewed'
 export default function Home() {
   const { t } = useLanguage()
   const { user: authUser, loading: authLoading } = useAuth()
+  const { collections, createCollection, renameCollection, deleteCollection } = useCollections()
   const [params, setParams] = useSearchParams()
   const shelf = (params.get('shelf') as ShelfKey) || 'all'
+  const collectionFilter = params.get('collection') ? Number(params.get('collection')) : null
+
+  // Sidebar collection management state.
+  const [editingColId, setEditingColId] = useState<number | null>(null)
+  const [editingName, setEditingName] = useState('')
+  const [creatingCol, setCreatingCol] = useState(false)
+  const [newColName, setNewColName] = useState('')
+  const newColInputRef = useRef<HTMLInputElement>(null)
+  const editInputRef = useRef<HTMLInputElement>(null)
 
   // ?user=<username> opens another user's library read-only (the "open full
   // library" button on a profile links here). Viewing your own username — or no
@@ -140,6 +157,7 @@ export default function Home() {
     const list = items.filter((it) => {
       if (shelf === 'favorites' && !it.favorite) return false
       if (shelf !== 'all' && shelf !== 'favorites' && (it.status ?? 'wishlist') !== shelf) return false
+      if (collectionFilter !== null && !it.collectionIds?.includes(collectionFilter)) return false
       if (typeFilter !== 'all' && it.type !== typeFilter) return false
 
       const q = query.trim().toLowerCase()
@@ -205,8 +223,8 @@ export default function Home() {
     }
     return sorted
   }, [
-    items, shelf, typeFilter, query, yearFilter, genreFilter, authorFilter, directorFilter, actorFilter, sort,
-    hasRating, hasReview, addedFrom, addedTo, readOnly, compareFilter, myByMediaId,
+    items, shelf, collectionFilter, typeFilter, query, yearFilter, genreFilter, authorFilter, directorFilter,
+    actorFilter, sort, hasRating, hasReview, addedFrom, addedTo, readOnly, compareFilter, myByMediaId,
   ])
 
   const hasAdvanced = !!(
@@ -255,6 +273,37 @@ export default function Home() {
     { label: t('statFinished'), value: stats.done },
   ]
 
+  // Sidebar collection helpers
+  const startEdit = (id: number, name: string) => {
+    setEditingColId(id)
+    setEditingName(name)
+    setTimeout(() => editInputRef.current?.focus(), 30)
+  }
+  const commitEdit = async () => {
+    if (editingColId == null) return
+    const name = editingName.trim()
+    if (name) await renameCollection(editingColId, name)
+    setEditingColId(null)
+  }
+  const commitCreate = async () => {
+    const name = newColName.trim()
+    if (name) await createCollection(name)
+    setNewColName('')
+    setCreatingCol(false)
+  }
+  const setShelfParam = (key: ShelfKey) => {
+    const next = new URLSearchParams(params)
+    if (key === 'all') next.delete('shelf')
+    else next.set('shelf', key)
+    setParams(next, { replace: true })
+  }
+  const setCollectionParam = (id: number | null) => {
+    const next = new URLSearchParams(params)
+    if (id == null) next.delete('collection')
+    else next.set('collection', String(id))
+    setParams(next, { replace: true })
+  }
+
   if (notFound) {
     return (
       <Layout>
@@ -263,8 +312,149 @@ export default function Home() {
     )
   }
 
+  const shelfNav = [
+    { key: 'all' as ShelfKey,      label: t('allItems'),      dot: null,      icon: IoLayersOutline },
+    { key: 'wishlist' as ShelfKey, label: t('shelfWishlist'), dot: '#6768ab', icon: IoBookmarkOutline },
+    { key: 'active' as ShelfKey,   label: t('shelfActive'),   dot: '#f5a623', icon: IoTimeOutline },
+    { key: 'done' as ShelfKey,     label: t('shelfDone'),     dot: '#3ec98a', icon: IoCheckmarkDoneOutline },
+    { key: 'dnf' as ShelfKey,      label: t('shelfDNF'),      dot: '#647da3', icon: IoCloseCircleOutline },
+    ...(!readOnly ? [{ key: 'favorites' as ShelfKey, label: t('favorites'), dot: '#ff7a85', icon: IoHeartOutline }] : []),
+  ]
+
   return (
     <Layout>
+      <div className="flex gap-6">
+
+      {/* ── Desktop sidebar ── */}
+      <aside className="hidden lg:flex w-52 flex-shrink-0 flex-col gap-0.5 self-start sticky top-24">
+        {/* Shelf status nav */}
+        <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-[var(--text-muted)]">
+          {t('library')}
+        </p>
+        {shelfNav.map((s) => {
+          const active = shelf === s.key && collectionFilter === null
+          const Icon = s.icon
+          return (
+            <button
+              key={s.key}
+              onClick={() => { setCollectionParam(null); setShelfParam(s.key) }}
+              className={`flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-sm transition-colors ${
+                active
+                  ? 'bg-[var(--surface-active)] font-medium text-[var(--text)]'
+                  : 'text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]'
+              }`}
+            >
+              {s.dot ? (
+                <span className="h-2 w-2 flex-shrink-0 rounded-full" style={{ backgroundColor: s.dot }} />
+              ) : (
+                <Icon className="h-3.5 w-3.5 flex-shrink-0" />
+              )}
+              {s.label}
+            </button>
+          )
+        })}
+
+        {/* Collections */}
+        {!readOnly && (
+          <div className="mt-4">
+            <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-[var(--text-muted)]">
+              {t('collections') || 'Collections'}
+            </p>
+
+            {collections.map((col) => {
+              const active = collectionFilter === col.id
+              return (
+                <div key={col.id} className="group relative flex items-center">
+                  {editingColId === col.id ? (
+                    <div className="flex flex-1 items-center gap-1 pr-1">
+                      <input
+                        ref={editInputRef}
+                        value={editingName}
+                        onChange={(e) => setEditingName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') commitEdit()
+                          if (e.key === 'Escape') setEditingColId(null)
+                        }}
+                        onBlur={commitEdit}
+                        className="h-7 min-w-0 flex-1 rounded-md border border-[var(--primary-ring)] bg-[var(--input)] px-2 text-xs text-[var(--text)] focus:outline-none"
+                      />
+                      <button onClick={commitEdit} className="flex-shrink-0 text-nonsprimary hover:opacity-70">
+                        <IoCheckmark className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => setCollectionParam(active ? null : col.id)}
+                        className={`flex min-w-0 flex-1 items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm transition-colors ${
+                          active
+                            ? 'bg-[var(--surface-active)] font-medium text-[var(--text)]'
+                            : 'text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]'
+                        }`}
+                      >
+                        <IoFolderOutline className="h-3.5 w-3.5 flex-shrink-0" />
+                        <span className="min-w-0 truncate">{col.name}</span>
+                        <span className="ml-auto flex-shrink-0 text-[11px] text-[var(--text-muted)]">{col.count}</span>
+                      </button>
+                      <div className="absolute right-0 hidden items-center gap-0.5 bg-[var(--bg)] pl-1 group-hover:flex">
+                        <button
+                          onClick={() => startEdit(col.id, col.name)}
+                          title="Rename"
+                          className="flex h-6 w-6 items-center justify-center rounded text-[var(--text-muted)] hover:bg-[var(--surface)] hover:text-[var(--text)]"
+                        >
+                          <IoPencilOutline className="h-3 w-3" />
+                        </button>
+                        <button
+                          onClick={() => deleteCollection(col.id)}
+                          title="Delete"
+                          className="flex h-6 w-6 items-center justify-center rounded text-[var(--text-muted)] hover:bg-red-500/10 hover:text-red-400"
+                        >
+                          <IoTrashOutline className="h-3 w-3" />
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )
+            })}
+
+            {creatingCol ? (
+              <div className="mt-1 flex items-center gap-1">
+                <input
+                  ref={newColInputRef}
+                  value={newColName}
+                  onChange={(e) => setNewColName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') commitCreate()
+                    if (e.key === 'Escape') { setCreatingCol(false); setNewColName('') }
+                  }}
+                  onBlur={() => { if (!newColName.trim()) setCreatingCol(false) }}
+                  placeholder={t('collectionName') || 'Name…'}
+                  className="h-7 min-w-0 flex-1 rounded-md border border-[var(--primary-ring)] bg-[var(--input)] px-2 text-xs text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none"
+                />
+                <button onClick={commitCreate} className="flex-shrink-0 text-nonsprimary hover:opacity-70">
+                  <IoCheckmark className="h-3.5 w-3.5" />
+                </button>
+                <button onClick={() => { setCreatingCol(false); setNewColName('') }} className="flex-shrink-0 text-[var(--text-muted)] hover:opacity-70">
+                  <IoClose className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => { setCreatingCol(true); setTimeout(() => newColInputRef.current?.focus(), 30) }}
+                className="mt-1 flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-[var(--text-muted)] hover:text-[var(--text)]"
+              >
+                <IoAdd className="h-3.5 w-3.5" />
+                {t('newCollection') || 'New collection'}
+              </button>
+            )}
+          </div>
+        )}
+      </aside>
+
+      {/* ── Main content ── */}
+      <div className="min-w-0 flex-1">
+
       {/* Header */}
       <div className="mb-4">
         <h1 className="text-xl font-bold tracking-tight text-[var(--text)]">
@@ -273,27 +463,15 @@ export default function Home() {
         <p className="mt-1 text-sm text-[var(--text-muted)]">{t('librarySubtitle')}</p>
       </div>
 
-      {/* Shelf tabs — mobile only (desktop uses the sticky header bar) */}
+      {/* Shelf tabs — mobile only */}
       <div className="mb-5 flex flex-wrap items-center gap-1.5 lg:hidden">
-        {([
-          { key: 'all',       label: t('allItems'),    dot: null,      icon: IoLayersOutline },
-          { key: 'wishlist',  label: t('shelfWishlist'), dot: '#6768ab', icon: IoBookmarkOutline },
-          { key: 'active',    label: t('shelfActive'),  dot: '#f5a623', icon: IoTimeOutline },
-          { key: 'done',      label: t('shelfDone'),    dot: '#3ec98a', icon: IoCheckmarkDoneOutline },
-          { key: 'dnf',       label: t('shelfDNF'),     dot: '#647da3', icon: IoCloseCircleOutline },
-          // Favorites are private — only on your own library.
-          ...(readOnly ? [] : [{ key: 'favorites', label: t('favorites'), dot: '#ff7a85', icon: IoHeartOutline }]),
-        ] as { key: ShelfKey; label: string; dot: string | null; icon: React.ComponentType<{ className?: string }> }[]).map((s) => {
-          const active = shelf === s.key
+        {shelfNav.map((s) => {
+          const active = shelf === s.key && collectionFilter === null
+          const Icon = s.icon
           return (
             <button
               key={s.key}
-              onClick={() => {
-                const next = new URLSearchParams(params)
-                if (s.key === 'all') next.delete('shelf')
-                else next.set('shelf', s.key)
-                setParams(next, { replace: true })
-              }}
+              onClick={() => { setCollectionParam(null); setShelfParam(s.key) }}
               className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm transition-colors ${
                 active
                   ? 'border-transparent bg-[var(--primary-soft)] font-medium text-[var(--text)]'
@@ -303,7 +481,7 @@ export default function Home() {
               {s.dot ? (
                 <span className="h-2 w-2 rounded-full flex-shrink-0" style={{ backgroundColor: s.dot }} />
               ) : (
-                <s.icon className="h-3.5 w-3.5 flex-shrink-0" />
+                <Icon className="h-3.5 w-3.5 flex-shrink-0" />
               )}
               {s.label}
             </button>
@@ -633,6 +811,8 @@ export default function Home() {
           ))}
         </div>
       )}
+      </div>{/* end main content */}
+      </div>{/* end 2-col flex */}
     </Layout>
   )
 }

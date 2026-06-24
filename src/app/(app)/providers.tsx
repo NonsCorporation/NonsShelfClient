@@ -5,6 +5,7 @@ import type { ReactNode } from 'react'
 import { AuthProvider } from '@/contexts/AuthContext'
 import { LanguageProvider } from '@/contexts/LanguageContext'
 import { PreferencesProvider } from '@/contexts/PreferencesContext'
+import { CollectionProvider } from '@/contexts/CollectionContext'
 import RequireAuth from '@/components/RequireAuth'
 
 // Mirrors the old src/main.tsx provider tree, with RequireAuth gating every
@@ -22,11 +23,15 @@ export default function Providers({ children }: { children: ReactNode }) {
 
   return (
     <AuthProvider>
-      <LanguageProvider>
-        <PreferencesProvider>
-          <RequireAuth>{children}</RequireAuth>
-        </PreferencesProvider>
-      </LanguageProvider>
+      <CollectionProvider>
+        <LanguageProvider>
+          <PreferencesProvider>
+            <RequireAuth>
+              {children}
+            </RequireAuth>
+          </PreferencesProvider>
+        </LanguageProvider>
+      </CollectionProvider>
     </AuthProvider>
   )
 }

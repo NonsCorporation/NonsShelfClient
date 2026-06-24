@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, Fragment, type ReactNode, useRef } from 'react'
 import { useParams, useNavigate, useSearchParams, Link } from '@/lib/router'
 import Layout from '../components/layout/Layout'
+import { DetailPageSkeleton } from '../components/Skeletons'
 import MediaModal from '../components/MediaModal'
 import ProgressModal from '../components/ProgressModal'
 import FinishModal from '../components/FinishModal'
@@ -333,7 +334,7 @@ export default function MediaOnePage({
   if (loading) {
     return (
       <Layout>
-        <div className="py-24 text-center text-[var(--text-muted)]">{t('loading')}</div>
+        <DetailPageSkeleton />
       </Layout>
     )
   }

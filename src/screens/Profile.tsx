@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Link, useParams } from '@/lib/router'
 import Layout from '../components/layout/Layout'
+import { ProfileSkeleton } from '../components/Skeletons'
 import ImportModal from '../components/ImportModal'
 import SettingsModal from '../components/SettingsModal'
 import { libraryService } from '../services/libraryService'
@@ -137,7 +138,7 @@ export default function ProfilePage() {
   if (loading) {
     return (
       <Layout>
-        <div className="py-24 text-center text-[var(--text-muted)]">{t('loading')}</div>
+        <ProfileSkeleton />
       </Layout>
     )
   }

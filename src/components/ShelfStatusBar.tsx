@@ -2,24 +2,23 @@
 
 import { createPortal } from 'react-dom'
 import { useEffect, useRef, useState } from 'react'
-import { IoChevronDown, IoCheckmark, IoAdd, IoTrendingUpOutline } from 'react-icons/io5'
+import { IoChevronDown, IoCheckmark, IoAdd, IoTrendingUpOutline, IoClose } from 'react-icons/io5'
 import type { MediaItem, ShelfStatus } from '../types'
 import { STATUS_COLOR, statusLabel } from '../lib/shelf'
 import { useLanguage } from '../contexts/LanguageContext'
-
-const MOCK_COLLECTIONS = ['Recommended', 'Best of 2024', 'Must Read', 'To Share', 'Rewatched']
+import { useCollections } from '../contexts/CollectionContext'
+import { collectionService } from '../services/collectionService'
 
 type Props = {
   item: MediaItem
-  /** The shelf status, or null when the item isn't on the user's shelf yet. */
   currentStatus: ShelfStatus | null
   onStatusChange: (status: ShelfStatus) => void
-  /** When provided, shows the edit-progress icon button. Only relevant when active. */
   onEditProgress?: () => void
 }
 
 export default function ShelfStatusBar({ item, currentStatus, onStatusChange, onEditProgress }: Props) {
   const { t } = useLanguage()
+  const { collections, createCollection, refresh } = useCollections()
   const isBook = item.type === 'book'
 
   const statusOptions: { key: ShelfStatus; label: string }[] = [
@@ -29,24 +28,41 @@ export default function ShelfStatusBar({ item, currentStatus, onStatusChange, on
     { key: 'dnf',      label: 'Did not finish' },
   ]
 
-  // Not on the shelf yet: show a neutral "Add to shelf" affordance instead of a
-  // status that looks pre-selected. Picking any option adds it to the shelf.
   const onShelf = currentStatus !== null
   const accent = onShelf ? STATUS_COLOR[currentStatus] : 'var(--text-muted)'
   const currentLabel = onShelf
     ? statusOptions.find((o) => o.key === currentStatus)?.label ?? statusLabel(item.type, currentStatus, t)
     : t('addToShelf')
 
-  const [collections, setCollections] = useState<string[]>([])
+  // Which of the user's collections contain this item.
+  const [itemCollectionIds, setItemCollectionIds] = useState<number[]>(item.collectionIds ?? [])
+  const [colLoading, setColLoading] = useState(false)
   const [anchor, setAnchor] = useState<{ top: number; left: number; width: number } | null>(null)
   const btnRef = useRef<HTMLDivElement>(null)
+
+  // New-collection inline form state.
+  const [creatingNew, setCreatingNew] = useState(false)
+  const [newName, setNewName] = useState('')
+  const newInputRef = useRef<HTMLInputElement>(null)
+
+  // When the item's collectionIds prop changes (e.g. after a parent reload),
+  // sync local state.
+  useEffect(() => {
+    setItemCollectionIds(item.collectionIds ?? [])
+  }, [item.collectionIds])
 
   const handleToggle = () => {
     if (anchor) { setAnchor(null); return }
     const r = btnRef.current?.getBoundingClientRect()
     if (!r) return
     const extraWidth = onEditProgress ? 36 : 0
-    setAnchor({ top: r.bottom + 6, left: r.left, width: Math.max(r.width + extraWidth, 240) })
+    setAnchor({ top: r.bottom + 6, left: r.left, width: Math.max(r.width + extraWidth, 260) })
+    // Lazily fetch which collections this item is in (in case it changed elsewhere).
+    setColLoading(true)
+    collectionService.getItemCollections(item.id).then((ids) => {
+      setItemCollectionIds(ids)
+      setColLoading(false)
+    }).catch(() => setColLoading(false))
   }
 
   useEffect(() => {
@@ -63,13 +79,36 @@ export default function ShelfStatusBar({ item, currentStatus, onStatusChange, on
     }
   }, [anchor])
 
+  useEffect(() => {
+    if (creatingNew) setTimeout(() => newInputRef.current?.focus(), 30)
+  }, [creatingNew])
+
   const handleStatus = (key: ShelfStatus) => {
     onStatusChange(key)
     setAnchor(null)
   }
 
-  const toggleCollection = (name: string) =>
-    setCollections((prev) => prev.includes(name) ? prev.filter((c) => c !== name) : [...prev, name])
+  const toggleCollection = async (id: number) => {
+    const next = itemCollectionIds.includes(id)
+      ? itemCollectionIds.filter((c) => c !== id)
+      : [...itemCollectionIds, id]
+    setItemCollectionIds(next)
+    await collectionService.setItemCollections(item.id, next)
+    // Update the count in the sidebar.
+    refresh()
+  }
+
+  const handleCreateNew = async () => {
+    const name = newName.trim()
+    if (!name) return
+    const col = await createCollection(name)
+    setNewName('')
+    setCreatingNew(false)
+    // Auto-add this item to the new collection.
+    const next = [...itemCollectionIds, col.id]
+    setItemCollectionIds(next)
+    await collectionService.setItemCollections(item.id, next)
+  }
 
   return (
     <>
@@ -79,8 +118,6 @@ export default function ShelfStatusBar({ item, currentStatus, onStatusChange, on
           style={{ borderLeftColor: accent, color: accent }}
           className="flex min-w-0 flex-1 items-center rounded-r-lg border-l-[3px]"
         >
-          {/* Main area: when unshelved, one click shelves it as "Want to…";
-              when already on a shelf it just opens the status menu. */}
           <button
             data-shelf-popover
             onClick={onShelf ? handleToggle : () => onStatusChange('wishlist')}
@@ -89,7 +126,6 @@ export default function ShelfStatusBar({ item, currentStatus, onStatusChange, on
             {!onShelf && <IoAdd className="h-3.5 w-3.5 flex-shrink-0" />}
             <span className="truncate">{currentLabel}</span>
           </button>
-          {/* Chevron always opens the menu to pick a specific status. */}
           <button
             data-shelf-popover
             onClick={handleToggle}
@@ -118,6 +154,7 @@ export default function ShelfStatusBar({ item, currentStatus, onStatusChange, on
           className="animate-fade-up overflow-hidden rounded-2xl border border-[var(--border)] bg-[color-mix(in_srgb,var(--container)_96%,transparent)] shadow-2xl backdrop-blur-xl"
         >
           <div className="p-3">
+            {/* Shelf status */}
             <div className="flex flex-wrap gap-1.5">
               {statusOptions.map((opt) => {
                 const color = STATUS_COLOR[opt.key]
@@ -136,27 +173,79 @@ export default function ShelfStatusBar({ item, currentStatus, onStatusChange, on
               })}
             </div>
 
-            <div className="mt-3">
-              <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-[var(--text-muted)]">Collections</p>
-              <div className="flex flex-wrap gap-1.5">
-                {MOCK_COLLECTIONS.map((name) => {
-                  const on = collections.includes(name)
-                  return (
-                    <button
-                      key={name}
-                      onClick={() => toggleCollection(name)}
-                      className={`flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs transition-colors ${
-                        on
-                          ? 'border-transparent bg-nonsprimary/20 text-nonsprimary'
-                          : 'border-[var(--border-subtle)] text-[var(--text-muted)] hover:border-[var(--border)] hover:text-[var(--text)]'
-                      }`}
-                    >
-                      {on ? <IoCheckmark className="h-3 w-3" /> : <IoAdd className="h-3 w-3" />}
-                      {name}
-                    </button>
-                  )
-                })}
-              </div>
+            {/* Collections */}
+            <div className="mt-3 border-t border-[var(--border-subtle)] pt-3">
+              <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-[var(--text-muted)]">
+                {t('collections') || 'Collections'}
+              </p>
+
+              {colLoading ? (
+                <div className="flex flex-wrap gap-1.5">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="h-7 w-20 animate-pulse rounded-full bg-[var(--surface)]" />
+                  ))}
+                </div>
+              ) : collections.length === 0 && !creatingNew ? (
+                <p className="text-xs text-[var(--text-muted)]">{t('noCollections') || 'No collections yet'}</p>
+              ) : (
+                <div className="flex flex-wrap gap-1.5">
+                  {collections.map((col) => {
+                    const on = itemCollectionIds.includes(col.id)
+                    return (
+                      <button
+                        key={col.id}
+                        onClick={() => toggleCollection(col.id)}
+                        className={`flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs transition-colors ${
+                          on
+                            ? 'border-transparent bg-nonsprimary/20 text-nonsprimary'
+                            : 'border-[var(--border-subtle)] text-[var(--text-muted)] hover:border-[var(--border)] hover:text-[var(--text)]'
+                        }`}
+                      >
+                        {on ? <IoCheckmark className="h-3 w-3" /> : <IoAdd className="h-3 w-3" />}
+                        {col.name}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+
+              {/* Inline create form */}
+              {creatingNew ? (
+                <div className="mt-2 flex items-center gap-1.5">
+                  <input
+                    ref={newInputRef}
+                    value={newName}
+                    onChange={(e) => setNewName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleCreateNew()
+                      if (e.key === 'Escape') { setCreatingNew(false); setNewName('') }
+                    }}
+                    placeholder={t('collectionName') || 'Collection name'}
+                    className="h-7 min-w-0 flex-1 rounded-lg border border-[var(--border)] bg-[var(--input)] px-2.5 text-xs text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-1 focus:ring-[var(--primary-ring)]"
+                  />
+                  <button
+                    onClick={handleCreateNew}
+                    disabled={!newName.trim()}
+                    className="flex h-7 items-center rounded-lg bg-nonsprimary px-2.5 text-xs font-medium text-white disabled:opacity-40"
+                  >
+                    {t('createCollection') || 'Create'}
+                  </button>
+                  <button
+                    onClick={() => { setCreatingNew(false); setNewName('') }}
+                    className="flex h-7 w-7 items-center justify-center rounded-lg text-[var(--text-muted)] hover:bg-[var(--surface)]"
+                  >
+                    <IoClose className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setCreatingNew(true)}
+                  className="mt-2 flex items-center gap-1 text-[11px] text-[var(--text-muted)] hover:text-[var(--text)]"
+                >
+                  <IoAdd className="h-3.5 w-3.5" />
+                  {t('newCollection') || 'New collection'}
+                </button>
+              )}
             </div>
           </div>
         </div>,
