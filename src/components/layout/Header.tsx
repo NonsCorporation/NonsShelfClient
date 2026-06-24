@@ -16,7 +16,7 @@ import {
 } from 'react-icons/io5'
 import type { IconType } from 'react-icons'
 import { FaCrown } from 'react-icons/fa6'
-import { useLanguage } from '../../contexts/LanguageContext'
+import { useLanguage, type Language } from '../../contexts/LanguageContext'
 import { useAuth } from '../../contexts/AuthContext'
 import { initials, colorFor } from '../../lib/user'
 import { redirectToNonsLogin } from '../../lib/api'
@@ -177,22 +177,18 @@ export default function Header() {
 
                     <div className="p-2">
                       <p className="px-2 pb-1.5 pt-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
-                        {t('language') || 'Language'}
+                        {t('language')}
                       </p>
-                      <div className="flex gap-1 px-1 pb-1">
-                        {(['en', 'ru'] as const).map((lng) => (
-                          <button
-                            key={lng}
-                            onClick={() => setLanguage(lng)}
-                            className={`flex-1 rounded-lg px-3 py-1.5 text-xs font-medium uppercase transition-colors ${
-                              language === lng
-                                ? 'bg-[var(--surface-active)] text-[var(--text)]'
-                                : 'text-[var(--text-muted)] hover:bg-[var(--surface)] hover:text-[var(--text)]'
-                            }`}
-                          >
-                            {lng}
-                          </button>
-                        ))}
+                      <div className="px-2 pb-2">
+                        <select
+                          value={language}
+                          onChange={(e) => setLanguage(e.target.value as Language)}
+                          className="w-full rounded-md border border-[var(--border)] bg-[var(--border-subtle)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-nonsprimary focus:border-transparent"
+                        >
+                          <option value="en">🇺🇸 English</option>
+                          <option value="ru">🇷🇺 Русский</option>
+                          <option value="ro">🇷🇴 Română</option>
+                        </select>
                       </div>
                     </div>
 
@@ -425,21 +421,15 @@ export default function Header() {
 
             {/* Language + logout */}
             <div className="p-4">
-              <div className="flex rounded-xl border border-[var(--border-subtle)] p-1">
-                {(['en', 'ru'] as const).map((lng) => (
-                  <button
-                    key={lng}
-                    onClick={() => setLanguage(lng)}
-                    className={`flex-1 rounded-lg px-3 py-2 text-xs font-medium uppercase transition-colors ${
-                      language === lng
-                        ? 'bg-[var(--surface)] text-[var(--text)]'
-                        : 'text-[var(--text-muted)] hover:text-[var(--text)]'
-                    }`}
-                  >
-                    {lng}
-                  </button>
-                ))}
-              </div>
+              <select
+                value={language}
+                onChange={(e) => setLanguage(e.target.value as Language)}
+                className="w-full rounded-md border border-[var(--border)] bg-[var(--border-subtle)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-nonsprimary focus:border-transparent"
+              >
+                <option value="en">🇺🇸 English</option>
+                <option value="ru">🇷🇺 Русский</option>
+                <option value="ro">🇷🇴 Română</option>
+              </select>
             </div>
 
             {isAuthenticated ? (

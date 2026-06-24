@@ -107,23 +107,17 @@ export default function SettingsModal({ isOpen, onClose, onOpenImport }: Props) 
             <SectionHeader title={t('settingsPreferences')} />
             <div className="flex flex-col gap-3">
               {/* Language */}
-              <div className="flex items-center justify-between gap-3">
+              <div className="flex flex-col gap-1.5">
                 <span className="text-sm text-[var(--text)]">{t('language')}</span>
-                <div className="flex gap-1 rounded-lg bg-[var(--surface)] p-1">
-                  {(['en', 'ru'] as Language[]).map((lng) => (
-                    <button
-                      key={lng}
-                      onClick={() => setLanguage(lng)}
-                      className={`rounded-md px-3 py-1 text-xs font-semibold uppercase transition-colors ${
-                        language === lng
-                          ? 'bg-[var(--container)] text-[var(--text)] shadow-sm'
-                          : 'text-[var(--text-muted)] hover:text-[var(--text)]'
-                      }`}
-                    >
-                      {lng}
-                    </button>
-                  ))}
-                </div>
+                <select
+                  value={language}
+                  onChange={(e) => setLanguage(e.target.value as Language)}
+                  className="w-full rounded-md border border-[var(--border)] bg-[var(--border-subtle)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-nonsprimary focus:border-transparent"
+                >
+                  <option value="en">🇺🇸 English</option>
+                  <option value="ru">🇷🇺 Русский</option>
+                  <option value="ro">🇷🇴 Română</option>
+                </select>
               </div>
 
               {/* Show in-progress on Library */}
