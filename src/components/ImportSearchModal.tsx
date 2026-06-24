@@ -4,6 +4,7 @@ import { useLanguage } from '../contexts/LanguageContext'
 import { librarianService } from '../services/librarianService'
 import type { TmdbCandidate } from '../services/librarianService'
 import { searchBooks, bookCandidateToItem, fetchWorkEditions, sourceLabel } from '../services/bookSearch'
+import InfinityLoader from './InfinityLoader'
 
 type Kind = 'book' | 'movie' | 'series'
 
@@ -33,6 +34,8 @@ export default function ImportSearchModal({ isOpen, onClose, onImported }: Props
   const [q, setQ] = useState('')
   const [rows, setRows] = useState<Row[]>([])
   const [loading, setLoading] = useState(false)
+  // pending = debounce timer is running (user typed, not yet searching)
+  const [pending, setPending] = useState(false)
   const [importingKey, setImportingKey] = useState<string | null>(null)
   const [error, setError] = useState('')
 
@@ -42,22 +45,24 @@ export default function ImportSearchModal({ isOpen, onClose, onImported }: Props
       setQ('')
       setRows([])
       setError('')
+      setPending(false)
     }
   }, [isOpen])
 
-  // Debounced search whenever the query or source changes. The delay is long
-  // enough for the user to finish typing (book searches hit multiple external
-  // APIs and are slow); loading only shows after the delay fires so there's no
-  // spinner while the user is still typing.
+  // Debounced search. Shows skeleton immediately on keystroke (pending),
+  // then fires the real request after 3 s.
   useEffect(() => {
     if (!isOpen) return
     if (!q.trim()) {
       setRows([])
       setLoading(false)
+      setPending(false)
       return
     }
     setError('')
+    setPending(true)
     const timer = setTimeout(async () => {
+      setPending(false)
       setLoading(true)
       try {
         const next = kind === 'book' ? await searchBooksRows(q) : await searchTmdbRows(kind, q)
@@ -69,7 +74,7 @@ export default function ImportSearchModal({ isOpen, onClose, onImported }: Props
         setLoading(false)
       }
     }, 3000)
-    return () => clearTimeout(timer)
+    return () => { clearTimeout(timer); setPending(false) }
   }, [q, kind, isOpen])
 
   if (!isOpen) return null
@@ -145,15 +150,25 @@ export default function ImportSearchModal({ isOpen, onClose, onImported }: Props
         <div className="flex-1 overflow-y-auto px-5 py-4">
           {error && <p className="mb-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-500">{error}</p>}
 
-          {loading ? (
-            <div className="flex justify-center py-10">
-              <div className="h-7 w-7 animate-spin rounded-full border-4 border-nonsprimary border-t-transparent" />
+          {/* Ghost skeletons while debounce is pending or request is in-flight */}
+          {(pending || loading) && (
+            <div className="flex flex-col gap-2">
+              <SkeletonRows />
             </div>
-          ) : !q.trim() ? (
+          )}
+
+          {!pending && !loading && !q.trim() && (
             <p className="py-12 text-center text-sm text-[var(--text-muted)]">{t('searchToBegin')}</p>
-          ) : rows.length === 0 ? (
-            <p className="py-12 text-center text-sm text-[var(--text-muted)]">{t('noResults')}</p>
-          ) : (
+          )}
+
+          {/* No results → show the infinity loader so it feels alive */}
+          {!pending && !loading && q.trim() && rows.length === 0 && (
+            <div className="flex justify-center py-6">
+              <InfinityLoader hint={t('searchingMore')} />
+            </div>
+          )}
+
+          {!pending && !loading && rows.length > 0 && (
             <div className="flex flex-col gap-2">
               {rows.map((row) => (
                 <div key={row.key} className="flex items-center gap-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] p-2.5">
@@ -199,6 +214,52 @@ export default function ImportSearchModal({ isOpen, onClose, onImported }: Props
         </div>
       </div>
     </div>
+  )
+}
+
+// ── source adapters → unified rows ────────────────────────────────────────────
+
+// ── Skeleton loading rows ─────────────────────────────────────────────────────
+
+function SkeletonRows() {
+  return (
+    <>
+      <style>{`
+        @keyframes sk-shimmer {
+          0%   { background-position: -400px 0 }
+          100% { background-position:  400px 0 }
+        }
+        .sk {
+          border-radius: 6px;
+          background: linear-gradient(
+            90deg,
+            var(--surface-hover) 25%,
+            var(--surface-active) 50%,
+            var(--surface-hover) 75%
+          );
+          background-size: 800px 100%;
+          animation: sk-shimmer 1.6s ease-in-out infinite;
+        }
+      `}</style>
+      {Array.from({ length: 5 }).map((_, i) => (
+        <div
+          key={i}
+          className="flex items-center gap-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] p-2.5"
+          style={{ opacity: 1 - i * 0.15 }}
+        >
+          {/* Cover */}
+          <div className="sk h-16 w-11 flex-shrink-0 rounded" />
+          {/* Text lines */}
+          <div className="flex min-w-0 flex-1 flex-col gap-2">
+            <div className="sk h-4 w-3/4 rounded" />
+            <div className="sk h-3 w-1/2 rounded" />
+            <div className="sk h-3 w-1/3 rounded" />
+          </div>
+          {/* Button */}
+          <div className="sk h-8 w-16 flex-shrink-0 rounded-lg" />
+        </div>
+      ))}
+    </>
   )
 }
 

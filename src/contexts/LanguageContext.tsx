@@ -347,6 +347,8 @@ export const translations: Translations = {
   searchSubtitle: { en: 'Books, films and series across the catalog.', ru: 'Книги, фильмы и сериалы по всему каталогу.' },
   searchPrompt: { en: 'Type in the search bar to find books, films and series.', ru: 'Введите запрос в строке поиска, чтобы найти книги, фильмы и сериалы.' },
   searchingExternal: { en: 'Searching external sources…', ru: 'Поиск во внешних источниках…' },
+  searchingMore: { en: 'Searching more sources', ru: 'Ищем в других источниках' },
+  seeAllResults: { en: 'See all results', ru: 'Все результаты' },
   searchLoadMore: { en: 'Load more', ru: 'Загрузить ещё' },
   filterAll: { en: 'All', ru: 'Все' },
   sortRelevance: { en: 'Relevance', ru: 'Релевантность' },

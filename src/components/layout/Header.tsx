@@ -25,6 +25,7 @@ import { isLibrarian } from '../../services/librarianService'
 import { catalogService, type CatalogItem } from '../../services/catalogService'
 import TypeBadge from '../TypeBadge'
 import ShelfLogo from '../ShelfLogo'
+import InfinityLoader from '../InfinityLoader'
 
 type NavItem = { to: string; label: string; icon: IconType; match: (p: string) => boolean }
 
@@ -505,6 +506,43 @@ function useHideOnScroll(locked: boolean): boolean {
   return locked ? false : hidden
 }
 
+function HeaderSkeletons() {
+  return (
+    <>
+      <style>{`
+        @keyframes hsk {
+          0%   { background-position: -300px 0 }
+          100% { background-position:  300px 0 }
+        }
+        .hsk {
+          border-radius: 5px;
+          background: linear-gradient(
+            90deg,
+            var(--surface-hover) 25%,
+            var(--surface-active) 50%,
+            var(--surface-hover) 75%
+          );
+          background-size: 600px 100%;
+          animation: hsk 1.5s ease-in-out infinite;
+        }
+      `}</style>
+      {Array.from({ length: 4 }).map((_, i) => (
+        <div
+          key={i}
+          className="flex items-center gap-3 rounded-xl p-2"
+          style={{ opacity: 1 - i * 0.18 }}
+        >
+          <div className="hsk h-12 w-8 flex-shrink-0 rounded" />
+          <div className="flex flex-1 flex-col gap-1.5">
+            <div className="hsk h-3.5 w-2/3 rounded" />
+            <div className="hsk h-3 w-2/5 rounded" />
+          </div>
+        </div>
+      ))}
+    </>
+  )
+}
+
 function HeaderSearch() {
   const { t } = useLanguage()
   const navigate = useNavigate()
@@ -602,11 +640,15 @@ function HeaderSearch() {
       {open && value && (
         <div className="animate-fade-up absolute right-0 top-full z-50 mt-2 w-[min(22rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-[var(--border-subtle)] bg-[color-mix(in_srgb,var(--container)_94%,transparent)] shadow-2xl backdrop-blur-xl">
           <div className="max-h-[60vh] overflow-y-auto p-2">
-            {loading || importing ? (
-              <div className="p-4 text-center text-sm text-[var(--text-muted)]">
-                {importing ? 'Searching external sources…' : t('loading')}
+            {loading && !importing && <HeaderSkeletons />}
+
+            {importing && (
+              <div className="flex justify-center py-3">
+                <InfinityLoader size={80} hint={t('searchingExternal')} />
               </div>
-            ) : results.length > 0 ? (
+            )}
+
+            {!loading && !importing && results.length > 0 ? (
               results.map((item) => (
                 <Link
                   key={item.id}
@@ -630,7 +672,9 @@ function HeaderSearch() {
                   </div>
                 </Link>
               ))
-            ) : (
+            ) : null}
+
+            {!loading && !importing && results.length === 0 && (
               <div className="p-4 text-center text-sm text-[var(--text-muted)]">{t('noResults')}</div>
             )}
           </div>
