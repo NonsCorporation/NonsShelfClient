@@ -19,6 +19,7 @@ import { mediaPath } from '../lib/paths'
 import { IoStar, IoEyeOffOutline, IoPeopleOutline, IoChevronBack, IoChevronForward } from 'react-icons/io5'
 import ShelfStatusBar from '../components/ShelfStatusBar'
 import TypeBadge from '../components/TypeBadge'
+import { ActivityCardSkeleton } from '../components/Skeletons'
 
 export default function FeedPage() {
   const { t } = useLanguage()
@@ -85,9 +86,9 @@ export default function FeedPage() {
       <section>
         <h2 className="mb-2 text-base font-semibold text-[var(--text)]">{t('friendsActivity')}</h2>
         {loading ? (
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-4">
             {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="h-16 animate-pulse rounded-xl bg-[var(--surface)]" />
+              <ActivityCardSkeleton key={i} />
             ))}
           </div>
         ) : activity.length === 0 ? (
