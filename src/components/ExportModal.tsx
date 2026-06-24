@@ -126,8 +126,9 @@ export default function ExportModal({ collections, onClose }: Props) {
       if (from) params.set('from', from)
       if (to) params.set('to', to)
       if (fields.size < ALL_FIELD_KEYS.length) params.set('fields', [...fields].join(','))
-      for (const [key, name] of Object.entries(colNames)) {
-        const trimmed = name.trim()
+      // Send renames for core fields and any renamed optional field.
+      for (const key of ALL_COL_KEYS) {
+        const trimmed = (colNames[key] ?? key).trim()
         if (trimmed && trimmed !== key) params.set(`rename_${key}`, trimmed)
       }
 
@@ -313,7 +314,38 @@ export default function ExportModal({ collections, onClose }: Props) {
                     <span />
                   </div>
 
-                  {/* Rows grouped by category */}
+                  {/* Core fields — always included, checkbox locked */}
+                  <div>
+                    <p className="px-3.5 pt-2.5 pb-1 text-[10px] font-semibold uppercase tracking-widest text-[var(--text-muted)]">
+                      {t('exportGroupCore')}
+                    </p>
+                    {CORE_FIELDS.map((f, fi) => {
+                      const isLast = fi === CORE_FIELDS.length - 1
+                      return (
+                        <div
+                          key={f.key}
+                          className={`grid grid-cols-[1fr_auto_auto] items-center gap-x-3 px-3.5 py-1.5 ${!isLast ? 'border-b border-[var(--border-subtle)]/50' : ''}`}
+                        >
+                          <span className="text-sm text-[var(--text)]">{t(f.labelKey)}</span>
+                          <input
+                            type="text"
+                            value={colNames[f.key] ?? f.key}
+                            onChange={(e) => setColNames((prev) => ({ ...prev, [f.key]: e.target.value }))}
+                            onBlur={(e) => { if (!e.target.value.trim()) setColNames((prev) => ({ ...prev, [f.key]: f.key })) }}
+                            className="w-32 rounded-md border border-transparent bg-[var(--surface)] px-2 py-1 font-mono text-[11px] text-[var(--text-muted)] transition-colors hover:border-[var(--border-subtle)] focus:border-[var(--primary-ring)] focus:text-[var(--text)] focus:outline-none"
+                          />
+                          <input
+                            type="checkbox"
+                            checked
+                            disabled
+                            className="h-4 w-4 rounded border-[var(--border-subtle)] opacity-40"
+                          />
+                        </div>
+                      )
+                    })}
+                  </div>
+
+                  {/* Optional fields grouped by category */}
                   {FIELD_GROUPS.map((group, gi) => (
                     <div key={group.labelKey}>
                       <p className="px-3.5 pt-2.5 pb-1 text-[10px] font-semibold uppercase tracking-widest text-[var(--text-muted)]">
