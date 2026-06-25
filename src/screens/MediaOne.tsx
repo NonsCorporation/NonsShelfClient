@@ -43,6 +43,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { isLibrarian } from '../services/librarianService'
 import { statusLabel } from '../lib/shelf'
 import TypeBadge from '../components/TypeBadge'
+import BoringAvatar from '../components/BoringAvatar'
 
 const MOCK_FRIEND_RATINGS = [
   { handle: 'alex', name: 'Alex M.', rating: 8, color: '#6768ab', review: 'Absolutely loved it. The pacing was perfect and the ending hit hard. One of the best I\'ve read this year.' },
@@ -51,13 +52,6 @@ const MOCK_FRIEND_RATINGS = [
 ]
 type CommSort = 'newest' | 'oldest' | 'high' | 'low'
 
-// Deterministic avatar colour for a reviewer without a profile picture.
-const REVIEW_PALETTE = ['#6768ab', '#c2557a', '#3e8e7e', '#b8843b', '#5b6cc0', '#8a5bc0', '#c05b5b', '#3e8ec0']
-function reviewColor(key: string): string {
-  let h = 0
-  for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) | 0
-  return REVIEW_PALETTE[Math.abs(h) % REVIEW_PALETTE.length]
-}
 // Compact "Mon YYYY" label for a review's date (unix seconds).
 function reviewDate(unixSeconds: number): string {
   if (!unixSeconds) return ''
@@ -1116,8 +1110,8 @@ export default function MediaOnePage({
                               {r.avatarUrl ? (
                                 <img src={r.avatarUrl} alt="" loading="lazy" className="h-7 w-7 flex-shrink-0 rounded-full object-cover" />
                               ) : (
-                                <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-[11px] font-semibold text-white" style={{ backgroundColor: reviewColor(r.username || String(r.userId)) }}>
-                                  {display[0]?.toUpperCase()}
+                                <span className="flex-shrink-0 overflow-hidden rounded-full" style={{ width: 28, height: 28 }}>
+                                  <BoringAvatar size={28} name={`user-${r.userId}`} />
                                 </span>
                               )}
                               {r.username ? (

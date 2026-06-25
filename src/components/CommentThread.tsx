@@ -5,9 +5,9 @@ import { Link } from '@/lib/router'
 import { IoTrashOutline } from 'react-icons/io5'
 import { useAuth } from '../contexts/AuthContext'
 import { useLanguage } from '../contexts/LanguageContext'
-import { initials, colorFor } from '../lib/user'
 import { userPath } from '../lib/paths'
 import { getComments, addComment, deleteComment, type FeedComment } from '../services/commentService'
+import BoringAvatar from './BoringAvatar'
 
 // Stop indenting past this depth so deep reply chains don't march off-screen.
 // 3 → top-level plus two nested indents = three visual levels; deeper replies
@@ -130,7 +130,7 @@ export default function CommentThread({ postId, onCountChange }: { postId: numbe
       {/* New top-level comment */}
       {user && (
         <div className="flex items-start gap-2.5">
-          <Avatar name={user.name || user.username} username={user.username} avatar={user.avatar_url} />
+          <Avatar id={user.id} name={user.name || user.username} username={user.username} avatar={user.avatar_url} />
           <div className="min-w-0 flex-1">
             <textarea
               value={body}
@@ -160,16 +160,18 @@ export default function CommentThread({ postId, onCountChange }: { postId: numbe
   )
 }
 
-function Avatar({ name, username, avatar, small }: { name: string; username: string; avatar?: string; small?: boolean }) {
-  const size = small ? 'h-7 w-7 text-[10px]' : 'h-8 w-8 text-[11px]'
+function Avatar({ id, name, username, avatar, small }: { id: number; name: string; username: string; avatar?: string; small?: boolean }) {
+  const px = small ? 28 : 32
   return (
     <Link
       to={userPath(username)}
-      className={`flex ${size} flex-shrink-0 items-center justify-center overflow-hidden rounded-full font-semibold text-white`}
-      style={{ backgroundColor: colorFor(username) }}
+      className="flex-shrink-0 overflow-hidden rounded-full"
+      style={{ width: px, height: px }}
       title={name}
     >
-      {avatar ? <img src={avatar} alt={name} className="h-full w-full object-cover" /> : initials(name)}
+      {avatar
+        ? <img src={avatar} alt={name} className="h-full w-full object-cover" />
+        : <BoringAvatar size={px} name={`user-${id}`} />}
     </Link>
   )
 }
@@ -209,7 +211,7 @@ function CommentNode({
   return (
     <div>
       <div className="flex items-start gap-2.5">
-        <Avatar name={comment.author.name} username={comment.author.username} avatar={comment.author.avatar_url} small />
+        <Avatar id={comment.author.id} name={comment.author.name} username={comment.author.username} avatar={comment.author.avatar_url} small />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-1.5 text-xs">
             <Link to={userPath(comment.author.username)} className="font-semibold text-[var(--text)] hover:text-nonsprimary">

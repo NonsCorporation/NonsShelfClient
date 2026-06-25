@@ -4,8 +4,8 @@ import type { Activity, ActivityType } from '../services/activityService'
 import { deletePost } from '../services/commentService'
 import { useAuth } from '../contexts/AuthContext'
 import { useLanguage } from '../contexts/LanguageContext'
-import { initials } from '../lib/user'
 import { mediaPath, userPath } from '../lib/paths'
+import BoringAvatar from './BoringAvatar'
 import { IoHeart, IoHeartOutline, IoChatbubbleOutline, IoTrashOutline } from 'react-icons/io5'
 import { IoMdStar, IoMdStarHalf, IoMdStarOutline } from 'react-icons/io'
 import TypeBadge from './TypeBadge'
@@ -93,11 +93,11 @@ export default function ActivityCard({
       <div className="mb-3 flex items-center gap-2.5">
         <Link
           to={userPath(a.user.handle || a.user.uuid || '')}
-          className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full text-[11px] font-semibold text-white"
-          style={{ backgroundColor: a.user.color }}
+          className="flex-shrink-0 overflow-hidden rounded-full"
+          style={{ width: 36, height: 36 }}
           title={a.user.name}
         >
-          {initials(a.user.name)}
+          <BoringAvatar size={36} name={`user-${a.userId}`} />
         </Link>
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-1.5 text-sm leading-6 text-[var(--text)]">
           <Link to={userPath(a.user.handle || a.user.uuid || '')} className="font-semibold hover:underline">

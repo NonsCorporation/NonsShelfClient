@@ -18,8 +18,8 @@ import type { IconType } from 'react-icons'
 import { FaCrown } from 'react-icons/fa6'
 import { useLanguage, type Language } from '../../contexts/LanguageContext'
 import { useAuth } from '../../contexts/AuthContext'
-import { initials, colorFor } from '../../lib/user'
 import { redirectToNonsLogin } from '../../lib/api'
+import BoringAvatar from '../BoringAvatar'
 import { userPath, mediaPath } from '../../lib/paths'
 import { isLibrarian } from '../../services/librarianService'
 import { catalogService, type CatalogItem } from '../../services/catalogService'
@@ -41,6 +41,7 @@ export default function Header() {
 
   const display = user
     ? {
+        id: user.id,
         handle: user.username,
         profileId: user.username || user.uuid || '',
         name: user.name || user.username,
@@ -353,16 +354,13 @@ export default function Header() {
     </>
   )
 
-  function Avatar({ display, big }: { display: { handle: string; name: string; avatar: string }; big?: boolean }) {
-    const size = big ? 'h-9 w-9 text-xs' : 'h-8 w-8 text-[11px]'
+  function Avatar({ display, big }: { display: { id: number; handle: string; name: string; avatar: string }; big?: boolean }) {
+    const px = big ? 36 : 32
     return display.avatar ? (
-      <img src={display.avatar} alt={display.name} className={`${size} flex-shrink-0 rounded-full object-cover`} />
+      <img src={display.avatar} alt={display.name} style={{ width: px, height: px }} className="flex-shrink-0 rounded-full object-cover" />
     ) : (
-      <span
-        className={`${size} flex flex-shrink-0 items-center justify-center rounded-full font-semibold text-white`}
-        style={{ backgroundColor: colorFor(display.handle) }}
-      >
-        {initials(display.name)}
+      <span className="flex-shrink-0 overflow-hidden rounded-full" style={{ width: px, height: px }}>
+        <BoringAvatar size={px} name={`user-${display.id}`} />
       </span>
     )
   }

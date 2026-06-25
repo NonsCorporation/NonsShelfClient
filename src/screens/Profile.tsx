@@ -11,7 +11,8 @@ import type { MediaItem, ShelfStatus } from '../types'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
 import { useCollections } from '../contexts/CollectionContext'
-import { currentUser, initials, colorFor } from '../lib/user'
+import { currentUser } from '../lib/user'
+import BoringAvatar from '../components/BoringAvatar'
 import { mediaPath } from '../lib/paths'
 import { STATUS_COLOR, statusLabel } from '../lib/shelf'
 import TypeBadge from '../components/TypeBadge'
@@ -32,9 +33,9 @@ import type { IconType } from 'react-icons'
 import type { MediaType } from '../types'
 
 type ProfileView = {
+  id: number
   name: string
   handle: string
-  color: string
   avatar: string
 }
 
@@ -82,9 +83,9 @@ export default function ProfilePage() {
         if (cancelled) return
         setIsSelf(true)
         setProfile({
+          id: authUser?.id ?? 0,
           name: authUser?.name || authUser?.username || currentUser.name,
           handle: authUser?.username ?? currentUser.handle,
-          color: currentUser.color,
           avatar: authUser?.avatar_url || '',
         })
         setItems(its)
@@ -97,7 +98,7 @@ export default function ProfilePage() {
           return
         }
         setIsSelf(false)
-        setProfile({ name: p.name, handle: p.username, color: colorFor(p.username), avatar: p.avatarUrl || '' })
+        setProfile({ id: p.id, name: p.name, handle: p.username, avatar: p.avatarUrl || '' })
         const its = await libraryService.getUserItems(p.id)
         if (cancelled) return
         setItems(its)
@@ -178,11 +179,8 @@ export default function ProfilePage() {
           {profile.avatar ? (
             <img src={profile.avatar} alt={profile.name} className="h-20 w-20 flex-shrink-0 rounded-2xl object-cover" />
           ) : (
-            <span
-              className="flex h-20 w-20 flex-shrink-0 items-center justify-center rounded-2xl text-2xl font-semibold text-white"
-              style={{ backgroundColor: profile.color }}
-            >
-              {initials(profile.name)}
+            <span className="flex-shrink-0 overflow-hidden rounded-2xl" style={{ width: 80, height: 80 }}>
+              <BoringAvatar size={80} name={`user-${profile.id}`} square />
             </span>
           )}
 
