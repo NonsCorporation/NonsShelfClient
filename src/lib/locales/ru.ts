@@ -430,6 +430,8 @@ export const ru = {
   watchedOfTotal: 'Просмотрено {watched} из {total}',
   updateProgress: 'Обновить прогресс',
   currentPage: 'Текущая страница',
+  pagesLabel: 'Страницы',
+  percentLabel: 'Процент',
   page: 'Страница',
   saving: 'Сохранение…',
   episodeInfo: 'Об эпизоде',

@@ -430,6 +430,8 @@ export const ro = {
   watchedOfTotal: 'Văzut {watched} din {total}',
   updateProgress: 'Actualizează progresul',
   currentPage: 'Pagina curentă',
+  pagesLabel: 'Pagini',
+  percentLabel: 'Procent',
   page: 'Pagina',
   saving: 'Se salvează…',
   episodeInfo: 'Info episod',

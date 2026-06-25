@@ -40,6 +40,7 @@ export default function ProgressModal({ isOpen, item, total: totalProp, onClose,
   const { t } = useLanguage()
   const isBook = item?.type === 'book'
 
+  const [mode, setMode] = useState<'pages' | 'pct'>('pages')
   const [page, setPage] = useState('')
   const [share, setShare] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -54,17 +55,33 @@ export default function ProgressModal({ isOpen, item, total: totalProp, onClose,
 
   useEffect(() => {
     if (!isOpen || !item) return
+    setMode('pages')
     setPage('')
     setSaved(false)
     setEpisodes(null)
     setOpenSeasons({})
     setInfo(null)
-    if (item.type !== 'series') return
     let cancelled = false
-    authedFetch(`/api/media/${item.id}/episodes`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => !cancelled && setEpisodes(d))
-      .catch(() => {})
+
+    if (item.type === 'book') {
+      libraryService.getProgress(item.id).then((entries) => {
+        if (cancelled || entries.length === 0) return
+        const latest = entries[0]
+        if (latest.page > 0) {
+          setMode('pages')
+          setPage(String(latest.page))
+        } else if (latest.progress_pct > 0) {
+          setMode('pct')
+          setPage(String(latest.progress_pct))
+        }
+      })
+    } else {
+      authedFetch(`/api/media/${item.id}/episodes`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => !cancelled && setEpisodes(d))
+        .catch(() => {})
+    }
+
     return () => {
       cancelled = true
     }
@@ -74,14 +91,29 @@ export default function ProgressModal({ isOpen, item, total: totalProp, onClose,
 
   const total = totalProp || item.pages || 0
 
+  const inputNum = parseFloat(page)
+  const validInput = !Number.isNaN(inputNum) && inputNum >= 0
+
+  // Derive pct and pageNum from whichever mode is active
+  const pct: number = (() => {
+    if (!validInput) return 0
+    if (mode === 'pct') return Math.min(inputNum, 100)
+    return total > 0 ? Math.min(100, (inputNum / total) * 100) : 0
+  })()
+  const pageNum: number = (() => {
+    if (!validInput) return 0
+    if (mode === 'pages') return Math.round(inputNum)
+    return total > 0 ? Math.round((inputNum / 100) * total) : 0
+  })()
+
+  const isOver = mode === 'pages' && total > 0 && inputNum > total
+
   const savePage = async () => {
-    const p = parseInt(page, 10)
-    if (!p || p < 0) return
+    if (!validInput || inputNum <= 0) return
     setSaving(true)
     setSaved(false)
     try {
-      const pct = total > 0 ? Math.min(100, Math.round((p / total) * 100)) : 0
-      await libraryService.logProgress(item.id, { page: p, pct, share })
+      await libraryService.logProgress(item.id, { page: pageNum, pct: Math.round(pct), share })
       setSaved(true)
     } finally {
       setSaving(false)
@@ -128,28 +160,95 @@ export default function ProgressModal({ isOpen, item, total: totalProp, onClose,
           </button>
         </div>
 
-        {/* Book: current page + its own "Update progress" button */}
+        {/* Book: current page / percent + progress bar */}
         {isBook && (
-          <div className="flex flex-col gap-2.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] p-3.5">
-            <label className="text-sm font-medium text-[var(--text)]">{t('currentPage')}</label>
+          <div className="flex flex-col gap-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] p-4">
+            {/* Mode toggle */}
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-[var(--text)]">
+                {mode === 'pages' ? t('currentPage') : t('percentLabel')}
+              </span>
+              <div className="flex rounded-lg border border-[var(--border-subtle)] bg-[var(--input)] p-0.5 text-xs font-medium">
+                {(['pages', 'pct'] as const).map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => {
+                    if (m === mode) return
+                    setSaved(false)
+                    const cur = parseFloat(page)
+                    if (!Number.isNaN(cur) && cur > 0) {
+                      if (m === 'pct') {
+                        // pages → pct
+                        const computed = total > 0 ? Math.min(100, Math.round((cur / total) * 100)) : 0
+                        setPage(computed > 0 ? String(computed) : '')
+                      } else {
+                        // pct → pages
+                        const computed = total > 0 ? Math.round((cur / 100) * total) : 0
+                        setPage(computed > 0 ? String(computed) : '')
+                      }
+                    }
+                    setMode(m)
+                  }}
+                    className={`rounded-md px-3 py-1 transition-colors ${
+                      mode === m
+                        ? 'bg-[var(--container)] text-[var(--text)] shadow-sm'
+                        : 'text-[var(--text-muted)] hover:text-[var(--text)]'
+                    }`}
+                  >
+                    {m === 'pages' ? t('pagesLabel') : '%'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Input row */}
             <div className="flex items-center gap-2">
               <input
                 type="number"
                 min={0}
-                max={total || undefined}
+                max={mode === 'pct' ? 100 : total || undefined}
                 value={page}
-                onChange={(e) => {
-                  setPage(e.target.value)
-                  setSaved(false)
-                }}
-                placeholder={total ? `0 – ${total}` : t('page')}
-                className="h-11 w-28 rounded-lg border border-[var(--border-subtle)] bg-[var(--input)] px-3 text-sm text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-ring)]"
+                onChange={(e) => { setPage(e.target.value); setSaved(false) }}
+                placeholder={mode === 'pct' ? '0 – 100' : total ? `0 – ${total}` : t('page')}
+                className={`h-11 w-32 rounded-lg border bg-[var(--input)] px-3 text-sm text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 transition-colors ${
+                  isOver
+                    ? 'border-[#e07070] focus:ring-[#e07070]/30'
+                    : 'border-[var(--border-subtle)] focus:ring-[var(--primary-ring)]'
+                }`}
               />
-              {total > 0 && <span className="text-sm text-[var(--text-muted)]">/ {total}</span>}
+              {mode === 'pages' && total > 0 && (
+                <span className={`text-sm ${isOver ? 'text-[#d45c5c]' : 'text-[var(--text-muted)]'}`}>
+                  / {total}
+                </span>
+              )}
+              {mode === 'pct' && validInput && (
+                <span className="text-sm text-[var(--text-muted)]">{Math.round(pct)}%</span>
+              )}
             </div>
+
+            {/* Progress bar */}
+            <div className="h-2 w-full overflow-hidden rounded-full bg-[var(--border-subtle)]">
+              <div
+                className="h-full rounded-full transition-all duration-200"
+                style={{
+                  width: `${Math.min(pct, 100)}%`,
+                  backgroundColor: isOver ? '#e07070' : 'var(--nonsprimary, #7c6af7)',
+                }}
+              />
+            </div>
+            {validInput && (
+              <p className={`-mt-1 text-xs ${isOver ? 'text-[#d45c5c]' : 'text-[var(--text-muted)]'}`}>
+                {isOver
+                  ? `${Math.round(inputNum - total)} ${t('pagesLabel').toLowerCase()} over total`
+                  : `${Math.round(pct)}%`}
+              </p>
+            )}
+
+            {/* Save + share */}
             <button
               onClick={savePage}
-              disabled={saving || !page}
+              disabled={saving || !validInput || inputNum <= 0}
               className="h-10 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] px-4 text-sm font-medium text-[var(--text)] transition-colors hover:border-nonsprimary hover:text-nonsprimary disabled:cursor-not-allowed disabled:opacity-50"
             >
               {saving ? t('saving') : saved ? t('saved') : t('updateProgress')}
