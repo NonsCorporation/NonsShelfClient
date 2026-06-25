@@ -60,15 +60,44 @@ type ActivityEvent = {
   edition_cover?: string
 }
 
+// The current user, so their own activity (shelf state changes, ratings) shows
+// in the feed alongside friends'.
+export type FeedSelf = { id: number; name: string; handle: string; uuid?: string }
+
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
 const PALETTE = ['#6768ab', '#c2557a', '#3e8e7e', '#b8843b', '#5b6cc0', '#8a5bc0', '#c05b5b', '#3e8ec0']
 
 /** Deterministic avatar colour per handle, so friends keep their colour. */
-function colorFor(handle: string): string {
+export function colorFor(handle: string): string {
   let h = 0
   for (let i = 0; i < handle.length; i++) h = (h * 31 + handle.charCodeAt(i)) | 0
   return PALETTE[Math.abs(h) % PALETTE.length]
+}
+
+/** Fetch the caller's friends from nons-server and return a map of
+ *  library-user-id → display info. Includes the caller themselves so their
+ *  own entries appear alongside friends'. */
+export async function getFriendUsers(me: FeedSelf): Promise<Map<number, Activity['user']>> {
+  let friendships: Friendship[] = []
+  try {
+    const res = await nonsFetch('/api/friendships/friends?limit=50')
+    if (res.ok) friendships = (await res.json()).friendships ?? []
+  } catch {
+    /* nons-server unreachable — fall back to just the caller */
+  }
+  const friends = new Map<number, Activity['user']>()
+  friends.set(me.id, { name: me.name, handle: me.handle, color: colorFor(me.handle), uuid: me.uuid })
+  for (const f of friendships) {
+    const friendId = f.requester_id === me.id ? f.addressee_id : f.requester_id
+    friends.set(friendId, {
+      name: f.name || f.username,
+      handle: f.username,
+      color: colorFor(f.username),
+      uuid: f.uuid || undefined,
+    })
+  }
+  return friends
 }
 
 function timeAgo(at: number): string {
@@ -79,41 +108,14 @@ function timeAgo(at: number): string {
   return `${Math.floor(s / (7 * 86400))}w`
 }
 
-// The current user, so their own activity (shelf state changes, ratings) shows
-// in the feed alongside friends'.
-export type FeedSelf = { id: number; name: string; handle: string; uuid?: string }
-
 export interface IActivityService {
   /** Recent library activity of the user + their nons friends. */
   getFriendsActivity(me: FeedSelf): Promise<Activity[]>
 }
 
-// Two-step fetch across the nons family: friendships live in nons-server (the
-// social platform), the library events live in nons-library-server. We resolve
-// friend ids + display names there (plus the user themselves), then ask our own
-// backend for their recent shelf/rating events.
 class ApiActivityService implements IActivityService {
   async getFriendsActivity(me: FeedSelf): Promise<Activity[]> {
-    let friendships: Friendship[] = []
-    try {
-      const res = await nonsFetch('/api/friendships/friends?limit=50')
-      if (res.ok) friendships = (await res.json()).friendships ?? []
-    } catch {
-      /* nons-server unreachable — fall back to just the user's own activity */
-    }
-
-    const friends = new Map<number, Activity['user']>()
-    // Include the user themselves so their own shelf changes appear in the feed.
-    friends.set(me.id, { name: me.name, handle: me.handle, color: colorFor(me.handle), uuid: me.uuid })
-    for (const f of friendships) {
-      const friendId = f.requester_id === me.id ? f.addressee_id : f.requester_id
-      friends.set(friendId, {
-        name: f.name || f.username,
-        handle: f.username,
-        color: colorFor(f.username),
-        uuid: f.uuid || undefined,
-      })
-    }
+    const friends = await getFriendUsers(me)
 
     const ids = [...friends.keys()].join(',')
     const res = await authedFetch(`/api/activity?user_ids=${ids}&limit=30`)

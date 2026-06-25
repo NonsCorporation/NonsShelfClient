@@ -14,7 +14,9 @@ import MediaHistory from '../components/MediaHistory'
 import StarsSelector from '../StarsSelector'
 import { libraryService } from '../services/libraryService'
 import { librarianService } from '../services/librarianService'
-import { getReviews, type ReviewsPage } from '../services/reviewService'
+import { getReviews, type ReviewsPage, type CommunityReview } from '../services/reviewService'
+import { getFriendUsers, colorFor } from '../services/activityService'
+import type { Activity } from '../services/activityService'
 import { userPath } from '../lib/paths'
 import { authedFetch, redirectToNonsLogin } from '../lib/api'
 import type { MediaItem, ShelfStatus } from '../types'
@@ -45,11 +47,6 @@ import { statusLabel } from '../lib/shelf'
 import TypeBadge from '../components/TypeBadge'
 import BoringAvatar from '../components/BoringAvatar'
 
-const MOCK_FRIEND_RATINGS = [
-  { handle: 'alex', name: 'Alex M.', rating: 8, color: '#6768ab', review: 'Absolutely loved it. The pacing was perfect and the ending hit hard. One of the best I\'ve read this year.' },
-  { handle: 'sara', name: 'Sara K.', rating: 9, color: '#f5a623', review: null },
-  { handle: 'dima', name: 'Dima V.', rating: 7, color: '#3ec98a', review: 'Good but a bit slow in the middle. Worth it for the final act.' },
-]
 type CommSort = 'newest' | 'oldest' | 'high' | 'low'
 
 // Compact "Mon YYYY" label for a review's date (unix seconds).
@@ -135,6 +132,9 @@ export default function MediaOnePage({
   const [commWithReview, setCommWithReview] = useState(false)
   const [reviewsPage, setReviewsPage] = useState<ReviewsPage>({ items: [], total: 0, average: 0, count: 0 })
   const [reviewsLoading, setReviewsLoading] = useState(false)
+  const [friendUsers, setFriendUsers] = useState<Map<number, Activity['user']>>(new Map())
+  const [friendReviews, setFriendReviews] = useState<CommunityReview[]>([])
+  const [friendsLoaded, setFriendsLoaded] = useState(false)
   const commSectionRef = useRef<HTMLDivElement>(null)
   const editionsRef = useRef<HTMLDivElement>(null)
   const scrollEditions = (dir: number) => editionsRef.current?.scrollBy({ left: dir * 340, behavior: 'smooth' })
@@ -241,6 +241,26 @@ export default function MediaOnePage({
       cancelled = true
     }
   }, [mediaNumId, commSort, commWithReview, commPage])
+
+  // Friends' ratings/reviews for this media item. Loads once per page visit:
+  // fetches the friend list from nons-server, then pulls their ratings for this
+  // specific catalog item. Only runs when authenticated.
+  const userId = user?.id
+  useEffect(() => {
+    if (!isAuthenticated || !userId || !mediaNumId) return
+    let cancelled = false
+    const me = { id: userId, name: user?.name || user?.username || '', handle: user?.username || '', uuid: user?.uuid }
+    getFriendUsers(me).then((map) => {
+      if (cancelled) return
+      setFriendUsers(map)
+      setFriendsLoaded(true)
+      if (map.size === 0) return
+      const userIds = [...map.keys()]
+      getReviews(mediaNumId, { userIds, perPage: userIds.length + 1 })
+        .then((p) => { if (!cancelled) setFriendReviews(p.items) })
+    })
+    return () => { cancelled = true }
+  }, [isAuthenticated, userId, mediaNumId])
 
   // Append the next page of editions to the carousel.
   const loadMoreEditions = useCallback(() => {
@@ -1021,13 +1041,23 @@ export default function MediaOnePage({
               <div className="-mx-4 md:mx-0 rounded-none md:rounded-2xl border-y md:border border-[var(--border-subtle)] bg-[var(--surface)] p-0 md:p-5">
                 <div className="px-4 py-4 md:p-0">
                   <h3 className="mb-3 text-[10px] uppercase tracking-widest text-[var(--text-muted)]">Friends</h3>
-                  {MOCK_FRIEND_RATINGS.length === 0 ? (
+                  {!friendsLoaded ? (
+                    <p className="text-sm text-[var(--placeholder)]">{t('loading')}</p>
+                  ) : friendReviews.length === 0 ? (
                     <p className="text-sm text-[var(--placeholder)]">No friends have rated this yet.</p>
                   ) : (
                     <div className="flex flex-col divide-y divide-[var(--border-subtle)]">
-                      {MOCK_FRIEND_RATINGS.map((f) => (
-                        <FriendRatingRow key={f.handle} f={f} />
-                      ))}
+                      {friendReviews.map((r) => {
+                        const u = friendUsers.get(r.userId)
+                        const f = {
+                          handle: r.username ?? `user-${r.userId}`,
+                          name: r.name || r.username || 'Friend',
+                          rating: r.value,
+                          color: u?.color ?? colorFor(r.username ?? ''),
+                          review: r.review ?? null,
+                        }
+                        return <FriendRatingRow key={r.userId} f={f} />
+                      })}
                     </div>
                   )}
                 </div>

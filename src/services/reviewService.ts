@@ -48,6 +48,8 @@ export interface ReviewQuery {
   withReview?: boolean
   page?: number
   perPage?: number
+  /** When set, only return reviews from these user IDs (friends filter). */
+  userIds?: number[]
 }
 
 // Fetch a page of community reviews + the aggregate score. `mediaId` is the
@@ -60,6 +62,7 @@ export async function getReviews(mediaId: number | string, q: ReviewQuery = {}):
     offset: String((q.page ?? 0) * perPage),
   })
   if (q.withReview) params.set('with_review', '1')
+  if (q.userIds && q.userIds.length > 0) params.set('user_ids', q.userIds.join(','))
   try {
     const res = await authedFetch(`/api/media/${mediaId}/reviews?${params}`)
     if (!res.ok) return EMPTY
