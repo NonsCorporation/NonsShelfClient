@@ -246,10 +246,15 @@ export const librarianService = {
   },
 
   // Resolve the book's work and auto-import all its editions (idempotent).
+  // title/author override the stored work values for the search query.
   // Returns how many editions were written.
-  async autoFindEditions(mediaId: string): Promise<number> {
+  async autoFindEditions(mediaId: string, title?: string, author?: string): Promise<number> {
+    const params = new URLSearchParams()
+    if (title) params.set('title', title)
+    if (author) params.set('author', author)
+    const qs = params.toString() ? `?${params.toString()}` : ''
     const data = (await jsonOrThrow(
-      await authedFetch(`/api/media/${mediaId}/editions/auto`, { method: 'POST' }),
+      await authedFetch(`/api/media/${mediaId}/editions/auto${qs}`, { method: 'POST' }),
     )) as { imported: number }
     return data.imported
   },

@@ -193,10 +193,12 @@ export default function MediaModal({ isOpen, initialData, initialType, catalogOn
             </div>
           )}
 
-          <label className="flex flex-col gap-1.5 text-sm font-medium text-[var(--text)]">
-            {t('coverUrl')}
-            <input className="h-11 px-3 rounded-lg bg-[var(--input)] border border-[var(--border-subtle)] text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--color-nonsprimaryfocus)] transition-shadow" placeholder={t('coverUrl')} value={form.coverUrl} onChange={(e) => setForm(s => ({...s, coverUrl: e.target.value}))} />
-          </label>
+          {type !== 'book' && (
+            <label className="flex flex-col gap-1.5 text-sm font-medium text-[var(--text)]">
+              {t('coverUrl')}
+              <input className="h-11 px-3 rounded-lg bg-[var(--input)] border border-[var(--border-subtle)] text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--color-nonsprimaryfocus)] transition-shadow" placeholder={t('coverUrl')} value={form.coverUrl} onChange={(e) => setForm(s => ({...s, coverUrl: e.target.value}))} />
+            </label>
+          )}
 
           <div className="grid grid-cols-2 gap-4">
             <label className="flex flex-col gap-1.5 text-sm font-medium text-[var(--text)]">
