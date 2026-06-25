@@ -7,7 +7,7 @@ import { useLanguage } from '../contexts/LanguageContext'
 
 type Props = { isOpen: boolean; onClose: () => void; onImported: () => void }
 type Step = 'choose' | 'books' | 'upload'
-type SourceKey = 'goodreads' | 'bookdiary'
+type SourceKey = 'goodreads' | 'bookdiary' | 'storygraph'
 
 // Book import sources: how to get the file + which endpoint to send it to.
 const SOURCES: Record<SourceKey, { name: string; sub: string; steps: ReactNode[]; run: (f: File) => Promise<ImportSummary> }> = {
@@ -29,6 +29,16 @@ const SOURCES: Record<SourceKey, { name: string; sub: string; steps: ReactNode[]
       <>Open <b className="text-[var(--text)]">Book Diary Pro</b> → Settings → Export.</>,
       <>Export your books as a <b className="text-[var(--text)]">CSV</b> file.</>,
       <>Save/share the file, then upload it here.</>,
+    ],
+  },
+  storygraph: {
+    name: 'StoryGraph',
+    sub: 'CSV export',
+    run: (f) => libraryService.importStoryGraph(f),
+    steps: [
+      <>Go to <a href="https://app.thestorygraph.com/profile/settings" target="_blank" rel="noreferrer" className="text-nonsprimary underline">StoryGraph → Profile → Settings</a>.</>,
+      <>Scroll to <b className="text-[var(--text)]">Export Your Data</b> and click <b className="text-[var(--text)]">Export your books</b>.</>,
+      <>Download the CSV file, then upload it here.</>,
     ],
   },
 }

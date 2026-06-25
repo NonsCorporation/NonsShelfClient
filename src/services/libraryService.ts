@@ -167,6 +167,7 @@ export interface ILibraryService {
   wipeLibrary(): Promise<void>
   importGoodreads(file: File): Promise<ImportSummary>
   importBookDiary(file: File): Promise<ImportSummary>
+  importStoryGraph(file: File): Promise<ImportSummary>
 }
 
 class ApiLibraryService implements ILibraryService {
@@ -510,6 +511,10 @@ class ApiLibraryService implements ILibraryService {
 
   importBookDiary(file: File): Promise<ImportSummary> {
     return this.uploadCsv('/api/import/bookdiary', file)
+  }
+
+  importStoryGraph(file: File): Promise<ImportSummary> {
+    return this.uploadCsv('/api/import/storygraph', file)
   }
 
   private setFavorite(mediaId: number, on: boolean) {
