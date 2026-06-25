@@ -370,7 +370,7 @@ export default function Home() {
           {t('library')}
         </p>
         {shelfNav.map((s) => {
-          const active = shelf === s.key && collectionFilter === null
+          const active = shelf === s.key
           const Icon = s.icon
           return (
             <button
@@ -505,7 +505,7 @@ export default function Home() {
       {/* Shelf tabs — mobile only */}
       <div className="mb-2 flex flex-wrap items-center gap-1.5 lg:hidden">
         {shelfNav.map((s) => {
-          const active = shelf === s.key && collectionFilter === null
+          const active = shelf === s.key
           const Icon = s.icon
           return (
             <button
@@ -513,7 +513,7 @@ export default function Home() {
               onClick={() => { setCollectionParam(null); setShelfParam(s.key) }}
               className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm transition-colors ${
                 active
-                  ? 'border-transparent bg-[var(--primary-soft)] font-medium text-[var(--text)]'
+                  ? 'border-[var(--border)] bg-[var(--container-2)] font-medium text-[var(--text)]'
                   : 'border-[var(--border-subtle)] text-[var(--text-muted)]'
               }`}
             >
@@ -540,7 +540,7 @@ export default function Home() {
                   onClick={() => setCollectionParam(active ? null : col.id)}
                   className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1 text-xs transition-colors ${
                     active
-                      ? 'border-transparent bg-[var(--primary-soft)] font-medium text-[var(--text)]'
+                      ? 'border-[var(--border)] bg-[var(--container-2)] font-medium text-[var(--text)]'
                       : 'border-[var(--border-subtle)] text-[var(--text-muted)]'
                   }`}
                 >
