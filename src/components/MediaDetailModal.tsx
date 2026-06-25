@@ -93,7 +93,7 @@ export default function MediaDetailModal({ item, onClose }: { item: MediaItem | 
 
         {/* Private note — only shown when the item is on the user's shelf */}
         {item.status && (
-          <div>
+          <div className="group relative">
             <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-widest text-[var(--text-muted)]">
               <FiClipboard className="h-3.5 w-3.5" />
               {t('privateNote')}
@@ -130,15 +130,15 @@ export default function MediaDetailModal({ item, onClose }: { item: MediaItem | 
                 </div>
               </div>
             ) : displayNote ? (
-              <div className="group relative">
-                <p className="whitespace-pre-line text-sm leading-6 text-[var(--text)]">{displayNote}</p>
+              <>
+                <p className="whitespace-pre-line pr-7 text-sm leading-6 text-[var(--text)]">{displayNote}</p>
                 <button
                   onClick={startEditNote}
-                  className="absolute right-0 top-0 rounded-lg p-1 text-[var(--text-muted)] opacity-0 transition-opacity group-hover:opacity-100 hover:text-[var(--text)]"
+                  className="absolute right-0 top-0 rounded-lg p-1 text-[var(--text-muted)] transition-opacity opacity-100 md:opacity-0 md:group-hover:opacity-100 hover:text-[var(--text)]"
                 >
                   <IoPencilOutline className="h-3.5 w-3.5" />
                 </button>
-              </div>
+              </>
             ) : (
               <button
                 onClick={startEditNote}

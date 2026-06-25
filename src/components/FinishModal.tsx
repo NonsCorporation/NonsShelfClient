@@ -105,7 +105,7 @@ export default function FinishModal({ isOpen, item, onClose, onFinished }: Props
 
         <div className="flex flex-col gap-1.5">
           <span className="text-sm font-medium text-[var(--text)]">{t('rating') || 'Rating'}</span>
-          <StarsSelector initialValue={rating} onChange={setRating} isEditable />
+          <StarsSelector initialValue={rating} onChange={setRating} onClear={() => setRating(null)} isEditable />
         </div>
 
         <label className="flex flex-col gap-1.5 text-sm font-medium text-[var(--text)]">

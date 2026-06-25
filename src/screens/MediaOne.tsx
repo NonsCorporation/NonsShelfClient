@@ -308,6 +308,11 @@ export default function MediaOnePage({
     await patch({ rating: val })
   }
 
+  const handleRatingClear = async () => {
+    setUserRating(null)
+    await patch({ rating: undefined })
+  }
+
   const saveReview = async () => {
     if (!item) return
     setReviewSaving(true)
@@ -917,7 +922,7 @@ export default function MediaOnePage({
                     </button>
                   </div>
 
-                  <StarsSelector initialValue={userRating} onChange={handleRatingChange} isEditable />
+                  <StarsSelector initialValue={userRating} onChange={handleRatingChange} onClear={handleRatingClear} isEditable />
 
                   {userReview ? (
                     <p className="mt-3 text-sm leading-7 text-[var(--text-muted)]">{userReview}</p>
@@ -960,7 +965,7 @@ export default function MediaOnePage({
 
               {/* ── Private note ── */}
               {status !== null && (
-                <div id="private-note-section" className="-mx-4 md:mx-0 rounded-none md:rounded-2xl border-y md:border border-[var(--border-subtle)] bg-[var(--surface)] p-0 md:p-5">
+                <div id="private-note-section" className="group relative -mx-4 md:mx-0 rounded-none md:rounded-2xl border-y md:border border-[var(--border-subtle)] bg-[var(--surface)] p-0 md:p-5">
                   <div className="px-4 py-4 md:p-0">
                     <div className="mb-3 flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-[var(--text-muted)]">
                       <FiClipboard className="h-3.5 w-3.5" />
@@ -998,15 +1003,15 @@ export default function MediaOnePage({
                         </div>
                       </div>
                     ) : userNote ? (
-                      <div className="group relative">
-                        <p className="text-sm leading-7 text-[var(--text-muted)]">{userNote}</p>
+                      <>
+                        <p className="pr-7 text-sm leading-7 text-[var(--text-muted)]">{userNote}</p>
                         <button
                           onClick={() => { setNoteEditText(userNote); setEditingNote(true) }}
-                          className="absolute right-0 top-0 rounded-lg p-1 text-[var(--text-muted)] opacity-0 transition-opacity group-hover:opacity-100 hover:text-[var(--text)]"
+                          className="absolute right-3 top-3 md:right-5 md:top-5 rounded-lg p-1 text-[var(--text-muted)] transition-opacity opacity-100 md:opacity-0 md:group-hover:opacity-100 hover:text-[var(--text)]"
                         >
                           <IoPencilOutline className="h-3.5 w-3.5" />
                         </button>
-                      </div>
+                      </>
                     ) : (
                       <button
                         onClick={() => { setNoteEditText(''); setEditingNote(true) }}

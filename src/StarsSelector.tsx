@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react"
 import { IoMdStar, IoMdStarHalf, IoMdStarOutline } from "react-icons/io"
+import { IoClose } from "react-icons/io5"
 
 type StarsSelectorProps = {
   initialValue?: number | null
   onChange?: (value: number) => void
+  onClear?: () => void
   isEditable?: boolean
   size?: 'sm' | 'md'
 }
@@ -11,27 +13,30 @@ type StarsSelectorProps = {
 export default function StarsSelector({
   initialValue = null,
   onChange = () => {},
+  onClear,
   isEditable = false,
   size = 'md',
 }: StarsSelectorProps) {
   const starCls = size === 'sm' ? 'w-5 h-5' : 'w-9 h-9'
-  // manage local state for rating and hover
   const [rating, setRating] = useState(initialValue)
   const [hover, setHover] = useState<number | null>(null)
 
-  // Sync state if initialValue changes
   useEffect(() => {
     setRating(initialValue)
   }, [initialValue])
 
-  // determine the currently displayed value
   const displayValue = hover !== null ? hover : rating
 
-  // update rating state and trigger callback
   const handleClick = (value: number) => {
     if (!isEditable) return
     setRating(value)
     onChange(value)
+  }
+
+  const handleClear = () => {
+    setRating(null)
+    setHover(null)
+    onClear?.()
   }
 
   // clear hover state
@@ -41,7 +46,8 @@ export default function StarsSelector({
   }
 
   return (
-    <div 
+    <div className="flex items-center gap-1.5">
+    <div
       className={`relative flex gap-0.2 ${displayValue === 0 || displayValue === null ? "text-gray-500" : "text-nonsprimary"} ${isEditable ? "hover:text-nonsprimaryfocus transition-colors" : ""}`}
       onMouseLeave={handleMouseLeave}
     >
@@ -92,6 +98,17 @@ export default function StarsSelector({
           </div>
         )
       })}
+    </div>
+    {isEditable && onClear && rating != null && rating > 0 && (
+      <button
+        type="button"
+        onClick={handleClear}
+        className="flex items-center justify-center rounded-full p-0.5 text-[var(--text-muted)] hover:text-[var(--text)] transition-colors"
+        aria-label="Clear rating"
+      >
+        <IoClose className="h-4 w-4" />
+      </button>
+    )}
     </div>
   )
 }
