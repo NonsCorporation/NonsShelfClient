@@ -1,4 +1,5 @@
 import { useState, type MouseEvent } from 'react'
+import Image from 'next/image'
 import { Link, useNavigate } from '@/lib/router'
 import {
   IoBookOutline,
@@ -64,11 +65,15 @@ type MediaCardProps = {
   progress?: ItemProgress
 }
 
-function Cover({ item, className }: { item: MediaItem; className?: string }) {
-  if (item.coverUrl) {
-    return <img src={item.coverUrl} alt={item.title} className={className} loading="lazy" />
-  }
+function Cover({ item, className, fill }: { item: MediaItem; className?: string; fill?: boolean }) {
   const Icon = item.type === 'book' ? IoBookOutline : item.type === 'series' ? IoTvOutline : IoFilmOutline
+  if (item.coverUrl) {
+    return fill ? (
+      <Image src={item.coverUrl} alt={item.title} fill className={`object-cover ${className ?? ''}`} sizes="(max-width: 640px) 50vw, 200px" />
+    ) : (
+      <Image src={item.coverUrl} alt={item.title} width={56} height={80} className={className} />
+    )
+  }
   return (
     <div className={`flex items-center justify-center bg-[var(--container-2)] ${className ?? ''}`}>
       <Icon className="h-8 w-8 text-[var(--placeholder)]" />
@@ -150,7 +155,9 @@ export default function MediaCard({
         className="group flex flex-col gap-2.5 rounded-2xl border border-[var(--border-subtle)] bg-[var(--container)] p-3 transition-colors hover:border-[var(--border)] hover:bg-[var(--surface-hover)]"
       >
         <div className="flex items-center gap-4">
-          <Cover item={item} className="h-20 w-14 flex-shrink-0 rounded-lg object-cover" />
+          <div className="relative h-20 w-14 flex-shrink-0 overflow-hidden rounded-lg">
+            <Cover item={item} fill className="rounded-lg" />
+          </div>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2 text-[11px] text-[var(--text-muted)]">
               <TypeIcon className="h-3.5 w-3.5" />
@@ -273,7 +280,7 @@ export default function MediaCard({
       className="group flex flex-col overflow-hidden rounded-2xl border border-[var(--border-subtle)] bg-[var(--container)] transition-colors duration-200 hover:border-[var(--border)]"
     >
       <div className="relative aspect-[2/3] w-full overflow-hidden bg-[var(--container-2)]">
-        <Cover item={item} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+        <Cover item={item} fill className="transition-transform duration-500 group-hover:scale-105" />
         <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
 
         {/* Interactive corner zones — each ~a quarter of the cover so they're easy
