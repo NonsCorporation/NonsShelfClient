@@ -503,7 +503,7 @@ export default function Home() {
       </div>
 
       {/* Shelf tabs — mobile only */}
-      <div className="mb-5 flex flex-wrap items-center gap-1.5 lg:hidden">
+      <div className="mb-2 flex flex-wrap items-center gap-1.5 lg:hidden">
         {shelfNav.map((s) => {
           const active = shelf === s.key && collectionFilter === null
           const Icon = s.icon
@@ -527,6 +527,62 @@ export default function Home() {
           )
         })}
       </div>
+
+      {/* Collection chips — mobile only */}
+      {!readOnly && (collections.length > 0 || creatingCol) && (
+        <div className="mb-4 lg:hidden">
+          <div className="no-scrollbar -mx-4 flex items-center gap-1.5 overflow-x-auto px-4 pb-1">
+            {collections.map((col) => {
+              const active = collectionFilter === col.id
+              return (
+                <button
+                  key={col.id}
+                  onClick={() => setCollectionParam(active ? null : col.id)}
+                  className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1 text-xs transition-colors ${
+                    active
+                      ? 'border-transparent bg-[var(--primary-soft)] font-medium text-[var(--text)]'
+                      : 'border-[var(--border-subtle)] text-[var(--text-muted)]'
+                  }`}
+                >
+                  <IoFolderOutline className="h-3 w-3 flex-shrink-0" />
+                  {col.name}
+                  <span className="opacity-50">{col.count}</span>
+                </button>
+              )
+            })}
+            {creatingCol ? (
+              <div className="flex shrink-0 items-center gap-1">
+                <input
+                  ref={newColInputRef}
+                  value={newColName}
+                  onChange={(e) => setNewColName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') commitCreate()
+                    if (e.key === 'Escape') { setCreatingCol(false); setNewColName('') }
+                  }}
+                  onBlur={() => { if (!newColName.trim()) setCreatingCol(false) }}
+                  placeholder={t('collectionName') || 'Name…'}
+                  className="h-7 w-32 rounded-full border border-[var(--primary-ring)] bg-[var(--input)] px-3 text-xs text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none"
+                />
+                <button onClick={commitCreate} className="flex-shrink-0 text-nonsprimary">
+                  <IoCheckmark className="h-3.5 w-3.5" />
+                </button>
+                <button onClick={() => { setCreatingCol(false); setNewColName('') }} className="flex-shrink-0 text-[var(--text-muted)]">
+                  <IoClose className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => { setCreatingCol(true); setTimeout(() => newColInputRef.current?.focus(), 30) }}
+                className="flex shrink-0 items-center gap-1 rounded-full border border-dashed border-[var(--border-subtle)] px-3 py-1 text-xs text-[var(--text-muted)]"
+              >
+                <IoAdd className="h-3 w-3" />
+                {t('newCollection') || 'New'}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Stats strip */}
       <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
