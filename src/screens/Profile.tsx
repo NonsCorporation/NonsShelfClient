@@ -10,6 +10,7 @@ import { nonsProfileUrl } from '../lib/api'
 import type { MediaItem, ShelfStatus } from '../types'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
+import { useCollections } from '../contexts/CollectionContext'
 import { currentUser, initials, colorFor } from '../lib/user'
 import { mediaPath } from '../lib/paths'
 import { STATUS_COLOR, statusLabel } from '../lib/shelf'
@@ -25,6 +26,7 @@ import {
   IoChatbubbleOutline,
   IoStarOutline,
   IoStar,
+  IoFolderOutline,
 } from 'react-icons/io5'
 import type { IconType } from 'react-icons'
 import type { MediaType } from '../types'
@@ -61,8 +63,10 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
   const [tab, setTab] = useState<Tab>('all')
+  const [collectionFilter, setCollectionFilter] = useState<number | null>(null)
   const [importOpen, setImportOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const { collections } = useCollections()
 
   useEffect(() => {
     if (authLoading) return
@@ -126,9 +130,10 @@ export default function ProfilePage() {
     [items],
   )
   const shown = useMemo(() => {
-    if (tab === 'all') return [...items].sort(byNewest)
-    return items.filter((it) => it.status === tab).sort(byNewest)
-  }, [items, tab])
+    let list = tab === 'all' ? [...items] : items.filter((it) => it.status === tab)
+    if (collectionFilter !== null) list = list.filter((it) => it.collectionIds?.includes(collectionFilter))
+    return list.sort(byNewest)
+  }, [items, tab, collectionFilter])
 
   const ratedAvg = useMemo(() => {
     const rated = items.filter((it) => typeof it.rating === 'number' && it.rating > 0)
@@ -237,6 +242,30 @@ export default function ProfilePage() {
           </button>
         ))}
       </div>
+
+      {/* Collection chips — own profile only */}
+      {isSelf && collections.length > 0 && (
+        <div className="no-scrollbar -mx-4 mt-3 flex items-center gap-1.5 overflow-x-auto px-4">
+          {collections.map((col) => {
+            const active = collectionFilter === col.id
+            return (
+              <button
+                key={col.id}
+                onClick={() => setCollectionFilter(active ? null : col.id)}
+                className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1 text-xs transition-colors ${
+                  active
+                    ? 'border-[var(--border)] bg-[var(--container-2)] font-medium text-[var(--text)]'
+                    : 'border-[var(--border-subtle)] text-[var(--text-muted)]'
+                }`}
+              >
+                <IoFolderOutline className="h-3 w-3 flex-shrink-0" />
+                {col.name}
+                <span className="opacity-50">{col.count}</span>
+              </button>
+            )
+          })}
+        </div>
+      )}
 
       {/* Shelf — a single horizontal row so reviews stay reachable below it. */}
       <div className="mt-5">
