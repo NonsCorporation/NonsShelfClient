@@ -156,6 +156,8 @@ export interface ILibraryService {
   getHistory(mediaId: string): Promise<HistoryEvent[]>
   /** Reading/watching spans over [from, to] (unix seconds) for the calendar. */
   getCalendar(from: number, to: number): Promise<CalendarData>
+  /** Watched/total episode counts for a series (lightweight). */
+  getEpisodeStats(mediaId: string): Promise<{ watched: number; total: number }>
   /** Mark/unmark a series episode as watched. */
   setEpisodeWatched(episodeId: number, watched: boolean): Promise<void>
   /** Finish an item: shelf → done, save rating/review, log a (backdatable) finished event. */
@@ -333,6 +335,13 @@ class ApiLibraryService implements ILibraryService {
         share: p.share ?? true,
       }),
     })
+  }
+
+  async getEpisodeStats(mediaId: string): Promise<{ watched: number; total: number }> {
+    const res = await authedFetch(`/api/media/${Number(mediaId)}/episodes`)
+    if (!res.ok) return { watched: 0, total: 0 }
+    const data = await res.json()
+    return { watched: data.watched_count ?? 0, total: data.total ?? 0 }
   }
 
   // The user's logged reading-progress updates for a book (newest first).

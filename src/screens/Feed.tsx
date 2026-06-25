@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from '@/lib/router'
 import Layout from '../components/layout/Layout'
-import Hint from '../components/Hint'
 import ActivityCard from '../components/ActivityCard'
 import ProgressModal from '../components/ProgressModal'
 import FinishModal from '../components/FinishModal'
@@ -11,12 +10,11 @@ import type { Activity } from '../services/activityService'
 import { getCommentCounts } from '../services/commentService'
 import type { MediaItem } from '../types'
 import { useLanguage } from '../contexts/LanguageContext'
-import { usePreferences } from '../contexts/PreferencesContext'
 import { useAuth } from '../contexts/AuthContext'
-import { statusLabel, STATUS_COLOR } from '../lib/shelf'
+import { STATUS_COLOR } from '../lib/shelf'
 import type { ShelfStatus } from '../types'
 import { mediaPath } from '../lib/paths'
-import { IoStar, IoEyeOffOutline, IoPeopleOutline, IoChevronBack, IoChevronForward } from 'react-icons/io5'
+import { IoStar, IoPeopleOutline, IoChevronBack, IoChevronForward } from 'react-icons/io5'
 import ShelfStatusBar from '../components/ShelfStatusBar'
 import TypeBadge from '../components/TypeBadge'
 import { ActivityCardSkeleton } from '../components/Skeletons'
@@ -24,7 +22,6 @@ import { ActivityCardSkeleton } from '../components/Skeletons'
 export default function FeedPage() {
   const { t } = useLanguage()
   const { user } = useAuth()
-  const { showInProgress, setShowInProgress } = usePreferences()
   const [items, setItems] = useState<MediaItem[]>([])
   const [activity, setActivity] = useState<Activity[]>([])
   const [commentCounts, setCommentCounts] = useState<Record<string, number>>({})
@@ -63,10 +60,9 @@ export default function FeedPage() {
       </div>
 
       {/* Currently watching / reading */}
-      {!loading && inProgress.length > 0 && showInProgress && (
+      {!loading && inProgress.length > 0 && (
         <InProgressSection
           items={inProgress}
-          onHide={() => setShowInProgress(false)}
           onFinish={openFinish}
           onEditProgress={openProgress}
           onStatusChanged={(id, status) =>
@@ -74,12 +70,6 @@ export default function FeedPage() {
           }
           t={t}
         />
-      )}
-
-      {!loading && inProgress.length > 0 && !showInProgress && (
-        <Hint icon={IoEyeOffOutline} className="mb-10">
-          {t('inProgressHiddenHint')}
-        </Hint>
       )}
 
       {/* Friends activity */}
@@ -135,14 +125,12 @@ export default function FeedPage() {
 
 function InProgressSection({
   items,
-  onHide,
   onFinish,
   onEditProgress,
   onStatusChanged,
   t,
 }: {
   items: MediaItem[]
-  onHide: () => void
   onFinish: (it: MediaItem) => void
   onEditProgress: (it: MediaItem) => void
   onStatusChanged: (id: string, status: ShelfStatus) => void
@@ -187,14 +175,6 @@ function InProgressSection({
           {t('shelfActive')}
         </h2>
         <p className="hidden text-sm text-[var(--text-muted)] sm:block">{t('continueHint')}</p>
-        <button
-          onClick={onHide}
-          title={t('hide')}
-          className="ml-auto inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
-        >
-          <IoEyeOffOutline className="h-4 w-4" />
-          {t('hide')}
-        </button>
       </div>
 
       <div className="relative">
@@ -251,6 +231,23 @@ function InProgressCard({
   onStatusChanged: (id: string, status: ShelfStatus) => void
   t: (key: string) => string
 }) {
+  const [latestPage, setLatestPage] = useState<number>(0)
+  const [episodeStats, setEpisodeStats] = useState<{ watched: number; total: number } | null>(null)
+  useEffect(() => {
+    if (item.type === 'book') {
+      libraryService.getProgress(item.id).then((rows) => setLatestPage(rows[0]?.page ?? 0)).catch(() => {})
+    } else if (item.type === 'series') {
+      libraryService.getEpisodeStats(item.id).then(setEpisodeStats).catch(() => {})
+    }
+  }, [item.id, item.type])
+
+  const totalPages = item.pages ?? 0
+  const pct = item.type === 'book' && totalPages > 0 && latestPage > 0
+    ? Math.min(100, Math.round((latestPage / totalPages) * 100))
+    : item.type === 'series' && episodeStats && episodeStats.total > 0
+      ? Math.min(100, Math.round((episodeStats.watched / episodeStats.total) * 100))
+      : 0
+
   const handleStatusChange = (key: ShelfStatus) => {
     if (key === 'done') { onFinish(); return }
     // Reflect the change immediately (e.g. → "did not finish" drops it out of the
@@ -274,6 +271,32 @@ function InProgressCard({
           <div className="min-w-0 flex-1">
             <h3 className="truncate text-sm font-semibold text-[var(--text)]">{item.title}</h3>
             <p className="truncate text-xs text-[var(--text-muted)]">{item.author}</p>
+            {item.type === 'book' && latestPage > 0 && (
+              <div className="mt-1.5">
+                <p className="mb-1 text-[11px] text-[var(--text-muted)]">
+                  {totalPages > 0 ? `Page ${latestPage} / ${totalPages}` : `Page ${latestPage}`}
+                  {pct > 0 && <span className="ml-1 font-semibold text-nonsprimary">{pct}%</span>}
+                </p>
+                {pct > 0 && (
+                  <div className="h-1 w-full overflow-hidden rounded-full bg-[var(--container-2)]">
+                    <div className="h-full rounded-full bg-nonsprimary transition-all" style={{ width: `${pct}%` }} />
+                  </div>
+                )}
+              </div>
+            )}
+            {item.type === 'series' && episodeStats && episodeStats.watched > 0 && (
+              <div className="mt-1.5">
+                <p className="mb-1 text-[11px] text-[var(--text-muted)]">
+                  {episodeStats.total > 0 ? `Ep ${episodeStats.watched} / ${episodeStats.total}` : `${episodeStats.watched} ep`}
+                  {pct > 0 && <span className="ml-1 font-semibold text-nonsprimary">{pct}%</span>}
+                </p>
+                {pct > 0 && (
+                  <div className="h-1 w-full overflow-hidden rounded-full bg-[var(--container-2)]">
+                    <div className="h-full rounded-full bg-nonsprimary transition-all" style={{ width: `${pct}%` }} />
+                  </div>
+                )}
+              </div>
+            )}
             {typeof item.rating === 'number' && item.rating > 0 && (
               <span className="mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-[var(--text)]">
                 <IoStar className="h-3 w-3 text-nonsprimary" />

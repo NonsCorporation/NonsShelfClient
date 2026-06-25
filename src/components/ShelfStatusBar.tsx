@@ -8,6 +8,7 @@ import { STATUS_COLOR, statusLabel } from '../lib/shelf'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useCollections } from '../contexts/CollectionContext'
 import { collectionService } from '../services/collectionService'
+import { libraryService } from '../services/libraryService'
 
 type Props = {
   item: MediaItem
@@ -21,6 +22,18 @@ export default function ShelfStatusBar({ item, currentStatus, onStatusChange, on
   const { collections, createCollection, refresh } = useCollections()
   const isBook = item.type === 'book'
 
+  // Latest progress label for active items — enriches the status label.
+  const [latestPage, setLatestPage] = useState<number>(0)
+  const [episodeStats, setEpisodeStats] = useState<{ watched: number; total: number } | null>(null)
+  useEffect(() => {
+    if (currentStatus !== 'active') { setLatestPage(0); setEpisodeStats(null); return }
+    if (isBook) {
+      libraryService.getProgress(item.id).then((rows) => setLatestPage(rows[0]?.page ?? 0)).catch(() => {})
+    } else if (item.type === 'series') {
+      libraryService.getEpisodeStats(item.id).then(setEpisodeStats).catch(() => {})
+    }
+  }, [item.id, item.type, currentStatus, isBook])
+
   const statusOptions: { key: ShelfStatus; label: string }[] = [
     { key: 'wishlist', label: isBook ? 'Want to read' : 'Want to watch' },
     { key: 'active',   label: isBook ? 'Reading' : 'Watching' },
@@ -30,9 +43,21 @@ export default function ShelfStatusBar({ item, currentStatus, onStatusChange, on
 
   const onShelf = currentStatus !== null
   const accent = onShelf ? STATUS_COLOR[currentStatus] : 'var(--text-muted)'
-  const currentLabel = onShelf
+  const baseLabel = onShelf
     ? statusOptions.find((o) => o.key === currentStatus)?.label ?? statusLabel(item.type, currentStatus, t)
     : t('addToShelf')
+  const currentLabel = (() => {
+    if (currentStatus !== 'active') return baseLabel
+    if (isBook && latestPage > 0) {
+      const total = item.pages ?? 0
+      return total > 0 ? `${baseLabel} (page ${latestPage}/${total})` : `${baseLabel} (page ${latestPage})`
+    }
+    if (item.type === 'series' && episodeStats && episodeStats.watched > 0) {
+      const { watched, total } = episodeStats
+      return total > 0 ? `${baseLabel} (ep ${watched}/${total})` : `${baseLabel} (ep ${watched})`
+    }
+    return baseLabel
+  })()
 
   // Which of the user's collections contain this item.
   const [itemCollectionIds, setItemCollectionIds] = useState<number[]>(item.collectionIds ?? [])

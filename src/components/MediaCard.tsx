@@ -40,6 +40,8 @@ function shortDate(iso: string): string {
 // user's library. undefined ⇒ the item isn't in the viewer's library.
 export type ShelfCompare = { status?: ShelfStatus; rating?: number } | undefined
 
+export type ItemProgress = { label: string; pct: number }
+
 type MediaCardProps = {
   item: MediaItem
   view: 'grid' | 'list'
@@ -58,6 +60,8 @@ type MediaCardProps = {
   // Grid view: make the corner badges quick-filter the library.
   onFilterStatus?: (status: ShelfStatus) => void
   onFilterType?: (type: MediaItem['type']) => void
+  /** Reading/watching progress for active items — shows a badge below the status chip. */
+  progress?: ItemProgress
 }
 
 function Cover({ item, className }: { item: MediaItem; className?: string }) {
@@ -82,6 +86,7 @@ export default function MediaCard({
   myEntry,
   onFilterStatus,
   onFilterType,
+  progress,
 }: MediaCardProps) {
   // Stops a corner badge click from following the card's link.
   const stop = (e: MouseEvent) => {
@@ -170,6 +175,19 @@ export default function MediaCard({
             </div>
             <h3 className="mt-1 truncate text-[15px] font-semibold text-[var(--text)]">{item.title}</h3>
             {byline}
+            {progress && (
+              <div className="mt-1.5">
+                <div className="mb-1 flex items-center gap-2 text-[11px]">
+                  <span className="text-[var(--text-muted)]">{progress.label}</span>
+                  {progress.pct > 0 && <span className="font-semibold text-nonsprimary">{progress.pct}%</span>}
+                </div>
+                {progress.pct > 0 && (
+                  <div className="h-1 w-full overflow-hidden rounded-full bg-[var(--container-2)]">
+                    <div className="h-full rounded-full bg-nonsprimary transition-all" style={{ width: `${progress.pct}%` }} />
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Comparison vs the viewer's own shelf (read-only other-user libraries) */}
             {compareName && (
@@ -267,17 +285,26 @@ export default function MediaCard({
           const badgeCls = 'inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-semibold text-white'
           const style = { backgroundColor: `${STATUS_COLOR[status]}d0` }
           const label = statusLabel(item.type, status, t)
-          const badge = <span className={badgeCls} style={style}>{label}</span>
+          const badges = (
+            <div className="flex flex-col items-start gap-1">
+              <span className={badgeCls} style={style}>{label}</span>
+              {progress && (
+                <span className="rounded-full bg-black/55 px-1.5 py-0.5 text-[10px] font-medium text-white/90">
+                  {progress.label}
+                </span>
+              )}
+            </div>
+          )
           return onFilterStatus ? (
             <button
               onClick={(e) => { stop(e); onFilterStatus(status) }}
               title={label}
-              className="absolute left-0 top-0 z-10 flex h-1/4 w-1/2 items-start justify-start p-2.5"
+              className="absolute left-0 top-0 z-10 flex w-1/2 items-start justify-start p-2.5"
             >
-              {badge}
+              {badges}
             </button>
           ) : (
-            <span className="absolute left-2.5 top-2.5">{badge}</span>
+            <span className="absolute left-2.5 top-2.5">{badges}</span>
           )
         })()}
 

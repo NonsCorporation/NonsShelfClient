@@ -25,7 +25,7 @@ import {
   IoDownloadOutline,
 } from 'react-icons/io5'
 import Layout from '../components/layout/Layout.tsx'
-import MediaCard from '../components/MediaCard.tsx'
+import MediaCard, { type ItemProgress } from '../components/MediaCard.tsx'
 import MediaModal from '../components/MediaModal.tsx'
 import ImportModal from '../components/ImportModal.tsx'
 import ExportModal from '../components/ExportModal.tsx'
@@ -70,6 +70,7 @@ export default function Home() {
 
   const [items, setItems] = useState<MediaItem[]>([])
   const [loading, setLoading] = useState(true)
+  const [progressMap, setProgressMap] = useState<Map<string, ItemProgress>>(new Map())
 
   const [typeFilter, setTypeFilter] = useState<'all' | 'book' | 'movie' | 'series'>('all')
   const [sort, setSort] = useState<SortKey>('added')
@@ -130,6 +131,40 @@ export default function Home() {
       cancelled = true
     }
   }, [authLoading, readOnly, userParam])
+
+  // Fetch progress for all active items and build a label map for MediaCard badges.
+  useEffect(() => {
+    const active = items.filter((it) => it.status === 'active' && (it.type === 'book' || it.type === 'series'))
+    if (active.length === 0) { setProgressMap(new Map()); return }
+    let cancelled = false
+    Promise.all(
+      active.map(async (it): Promise<[string, ItemProgress | null]> => {
+        try {
+          if (it.type === 'book') {
+            const rows = await libraryService.getProgress(it.id)
+            const page = rows[0]?.page ?? 0
+            if (!page) return [it.id, null]
+            const total = it.pages ?? 0
+            const pct = total > 0 ? Math.min(100, Math.round((page / total) * 100)) : rows[0]?.progress_pct ?? 0
+            return [it.id, { label: total > 0 ? `page ${page}/${total}` : `page ${page}`, pct }]
+          } else {
+            const { watched, total } = await libraryService.getEpisodeStats(it.id)
+            if (!watched) return [it.id, null]
+            const pct = total > 0 ? Math.min(100, Math.round((watched / total) * 100)) : 0
+            return [it.id, { label: total > 0 ? `ep ${watched}/${total}` : `ep ${watched}`, pct }]
+          }
+        } catch {
+          return [it.id, null]
+        }
+      }),
+    ).then((results) => {
+      if (cancelled) return
+      const map = new Map<string, ItemProgress>()
+      for (const [id, prog] of results) if (prog) map.set(id, prog)
+      setProgressMap(map)
+    })
+    return () => { cancelled = true }
+  }, [items])
 
   // Open the add modal when arrived here via the global "Add" action (?add=book|movie).
   useEffect(() => {
@@ -809,6 +844,7 @@ export default function Home() {
                 setParams(next, { replace: true })
               }}
               onFilterType={setTypeFilter}
+              progress={progressMap.get(it.id)}
             />
           ))}
         </div>
@@ -824,6 +860,7 @@ export default function Home() {
               onOpenDetail={setDetailItem}
               compareName={readOnly ? ownerName : undefined}
               myEntry={readOnly ? myByMediaId.get(it.id) : undefined}
+              progress={progressMap.get(it.id)}
             />
           ))}
         </div>
