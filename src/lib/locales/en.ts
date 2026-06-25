@@ -431,6 +431,8 @@ export const en = {
   updateProgress: 'Update progress',
   currentPage: 'Current page',
   page: 'Page',
+  pages: 'Pages',
+  percent: 'Percent',
   saving: 'Saving…',
   episodeInfo: 'Episode info',
   finishedReadingHint: 'Done reading it?',

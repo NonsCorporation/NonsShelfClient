@@ -42,7 +42,17 @@ export default function MediaHistory({ item, refreshKey = 0 }: { item: MediaItem
   useEffect(() => {
     let cancelled = false
     libraryService.getHistory(item.id).then((rows) => {
-      if (!cancelled) setEvents(rows)
+      if (cancelled) return
+      // For overwrite-style events (rated, reviewed) keep only the latest
+      // occurrence — events arrive newest-first so the first seen wins.
+      const seen = new Set<string>()
+      const deduped = rows.filter((e) => {
+        if (e.type !== 'rated' && e.type !== 'reviewed') return true
+        if (seen.has(e.type)) return false
+        seen.add(e.type)
+        return true
+      })
+      setEvents(deduped)
     })
     return () => {
       cancelled = true
