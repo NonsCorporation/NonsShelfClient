@@ -234,7 +234,7 @@ export default function MediaModal({ isOpen, initialData, initialType, catalogOn
           {withEditions && isEditing && type === 'book' && initialData?.id && (
             <div className="flex flex-col gap-2 border-t border-[var(--divider)] pt-4">
               <span className="text-sm font-medium text-[var(--text)]">{t('editionsTitle')}</span>
-              <EditionsManager mediaId={initialData.id} fallbackTitle={form.title} />
+              <EditionsManager mediaId={initialData.id} fallbackTitle={form.title} fallbackAuthor={form.author} />
             </div>
           )}
 

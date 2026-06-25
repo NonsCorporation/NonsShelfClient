@@ -1,7 +1,7 @@
 // Thin client over the server's unified book search (books_service): the server
-// searches the local catalog first, then Google Books + OpenLibrary, and returns
-// clean, deduped results with covers and the OpenLibrary work key. Editions are
-// resolved server-side too (original-script titles, ISBN cover fallback). All the
+// searches the local catalog first, then FantLab, OpenLibrary, and Google Books,
+// and returns clean, deduped results with covers and the OpenLibrary work key.
+// Editions are resolved server-side too from all three sources. All the
 // source-juggling, romanization and quota handling now lives on the server.
 
 import { authedFetch } from '../lib/api'
@@ -30,6 +30,7 @@ export interface EditionInput {
   language?: string
   cover_url?: string
   description?: string
+  source?: string
 }
 
 type ServerBook = {
@@ -55,6 +56,7 @@ type ServerEdition = {
   pages?: number
   cover_url?: string
   description?: string
+  source?: string
 }
 
 function mapBook(b: ServerBook): BookCandidate {
@@ -107,6 +109,7 @@ export async function fetchWorkEditions(workId: string, title?: string, author?:
       language: e.language || undefined,
       cover_url: e.cover_url || undefined,
       description: e.description || undefined,
+      source: e.source || undefined,
     }))
   } catch {
     return []
