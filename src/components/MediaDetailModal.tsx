@@ -106,7 +106,7 @@ export default function MediaDetailModal({ item, onClose }: { item: MediaItem | 
                   value={editText}
                   onChange={(e) => setEditText(e.target.value)}
                   rows={4}
-                  className="w-full resize-none rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3 text-sm text-[var(--text)] placeholder-[var(--text-muted)] focus:border-nonsprimary focus:outline-none"
+                  className="w-full resize-none rounded-md border-0 bg-black/[.04] dark:bg-white/[.04] px-2 py-1 text-sm leading-6 text-[var(--text)] placeholder:text-[var(--text-muted)] focus:outline-none focus:bg-black/[.07] dark:focus:bg-white/[.07] transition-colors"
                   placeholder={t('privateNotePlaceholder')}
                 />
                 <p className="flex items-center gap-1 text-xs text-[var(--text-muted)]">
@@ -131,7 +131,7 @@ export default function MediaDetailModal({ item, onClose }: { item: MediaItem | 
               </div>
             ) : displayNote ? (
               <>
-                <p className="whitespace-pre-line pr-7 text-sm leading-6 text-[var(--text)]">{displayNote}</p>
+                <p onClick={startEditNote} className="cursor-text whitespace-pre-line pr-7 text-sm leading-6 text-[var(--text)] hover:opacity-80 transition-opacity">{displayNote}</p>
                 <button
                   onClick={startEditNote}
                   className="absolute right-0 top-0 rounded-lg p-1 text-[var(--text-muted)] transition-opacity opacity-100 md:opacity-0 md:group-hover:opacity-100 hover:text-[var(--text)]"
@@ -140,13 +140,12 @@ export default function MediaDetailModal({ item, onClose }: { item: MediaItem | 
                 </button>
               </>
             ) : (
-              <button
+              <p
                 onClick={startEditNote}
-                className="flex items-center gap-1.5 rounded-xl border border-dashed border-[var(--border)] px-3 py-2 text-sm text-[var(--text-muted)] transition-colors hover:border-nonsprimary hover:text-[var(--text)]"
+                className="cursor-text text-sm italic text-[var(--text-muted)] opacity-50 hover:opacity-80 transition-opacity"
               >
-                <FiClipboard className="h-4 w-4" />
                 {t('addPrivateNote')}
-              </button>
+              </p>
             )}
           </div>
         )}

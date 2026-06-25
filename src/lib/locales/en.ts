@@ -558,7 +558,7 @@ export const en = {
 
   // Private note
   privateNote: 'Private note',
-  addPrivateNote: 'Add a private note…',
+  addPrivateNote: 'Add a private note only you can see…',
   privateNotePlaceholder: 'Your thoughts, reminders, quotes…',
   onlyVisibleToYou: 'Only visible to you',
 };

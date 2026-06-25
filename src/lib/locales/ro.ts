@@ -558,7 +558,7 @@ export const ro = {
 
   // Private note
   privateNote: 'Notă privată',
-  addPrivateNote: 'Adaugă o notă privată…',
+  addPrivateNote: 'Adaugă o notă privată vizibilă doar pentru tine…',
   privateNotePlaceholder: 'Gânduri, memento-uri, citate…',
   onlyVisibleToYou: 'Vizibilă doar pentru tine',
 };

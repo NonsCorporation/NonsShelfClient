@@ -558,7 +558,7 @@ export const ru = {
 
   // Private note
   privateNote: 'Личная заметка',
-  addPrivateNote: 'Добавить личную заметку…',
+  addPrivateNote: 'Добавить личную заметку, видимую только вам…',
   privateNotePlaceholder: 'Мысли, напоминания, цитаты…',
   onlyVisibleToYou: 'Видно только вам',
 };

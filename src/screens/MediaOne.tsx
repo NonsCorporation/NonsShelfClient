@@ -913,39 +913,24 @@ export default function MediaOnePage({
                 <div className="px-4 py-4 md:p-0">
                   <div className="mb-3 flex items-center justify-between">
                     <h3 className="text-[10px] uppercase tracking-widest text-[var(--text-muted)]">{t('yourReview')}</h3>
-                    <button
-                      onClick={() => setEditingReview(true)}
-                      className="text-xs text-[var(--text-muted)] transition-colors hover:text-[var(--text)] flex items-center gap-1"
-                    >
-                      <IoCreateOutline className="h-3.5 w-3.5" />
-                      {t('edit') || 'Edit'}
-                    </button>
                   </div>
 
                   <StarsSelector initialValue={userRating} onChange={handleRatingChange} onClear={handleRatingClear} isEditable />
 
-                  {userReview ? (
-                    <p className="mt-3 text-sm leading-7 text-[var(--text-muted)]">{userReview}</p>
-                  ) : (
-                    <p className="mt-3 text-sm italic text-[var(--placeholder)]">
-                      {t('reviewPlaceholder', { type: isBook ? t('book').toLowerCase() : t('film').toLowerCase() })}
-                    </p>
-                  )}
-
-                  {editingReview && (
-                    <div className="mt-4 flex flex-col gap-3 border-t border-[var(--border-subtle)] pt-4">
+                  {editingReview ? (
+                    <div className="mt-3 flex flex-col gap-2">
                       <textarea
                         value={userReview}
                         onChange={(e) => { setUserReview(e.target.value); setReviewSaved(false) }}
                         rows={4}
                         autoFocus
                         placeholder={t('reviewPlaceholder', { type: isBook ? t('book').toLowerCase() : t('film').toLowerCase() })}
-                        className="w-full resize-y rounded-lg border border-[var(--border-subtle)] bg-[var(--bg)] p-3 text-sm text-[var(--text)] placeholder:text-[var(--placeholder)] focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[var(--primary-ring)]"
+                        className="w-full resize-none rounded-md border-0 bg-black/[.04] dark:bg-white/[.04] px-2 py-1 text-sm leading-7 text-[var(--text-muted)] placeholder:text-[var(--placeholder)] focus:outline-none focus:bg-black/[.07] dark:focus:bg-white/[.07] transition-colors"
                       />
                       <div className="flex items-center justify-end gap-3">
                         {reviewSaved && <span className="text-xs text-[var(--text-muted)]">{t('saved') || 'Saved'}</span>}
                         <button
-                          onClick={() => setEditingReview(false)}
+                          onClick={() => { setUserReview(item.review ?? ''); setEditingReview(false) }}
                           className="rounded-lg border border-[var(--border-subtle)] px-4 py-1.5 text-sm text-[var(--text-muted)] transition-colors hover:text-[var(--text)]"
                         >
                           {t('cancel')}
@@ -959,6 +944,20 @@ export default function MediaOnePage({
                         </button>
                       </div>
                     </div>
+                  ) : userReview ? (
+                    <p
+                      onClick={() => setEditingReview(true)}
+                      className="mt-3 cursor-text text-sm leading-7 text-[var(--text-muted)] hover:text-[var(--text)] transition-colors"
+                    >
+                      {userReview}
+                    </p>
+                  ) : (
+                    <p
+                      onClick={() => setEditingReview(true)}
+                      className="mt-3 cursor-text text-sm italic text-[var(--placeholder)] hover:text-[var(--text-muted)] transition-colors"
+                    >
+                      {t('reviewPlaceholder', { type: isBook ? t('book').toLowerCase() : t('film').toLowerCase() })}
+                    </p>
                   )}
                 </div>
               </div>
@@ -980,7 +979,7 @@ export default function MediaOnePage({
                           onChange={(e) => setNoteEditText(e.target.value)}
                           rows={4}
                           placeholder={t('privateNotePlaceholder')}
-                          className="w-full resize-y rounded-lg border border-[var(--border-subtle)] bg-[var(--bg)] p-3 text-sm text-[var(--text)] placeholder:text-[var(--placeholder)] focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[var(--primary-ring)]"
+                          className="w-full resize-none rounded-md border-0 bg-black/[.04] dark:bg-white/[.04] px-2 py-1 text-sm leading-7 text-[var(--text-muted)] placeholder:text-[var(--placeholder)] focus:outline-none focus:bg-black/[.07] dark:focus:bg-white/[.07] transition-colors"
                         />
                         <p className="flex items-center gap-1 text-xs text-[var(--text-muted)]">
                           <IoLockClosedOutline className="h-3 w-3 flex-shrink-0" />
@@ -1004,7 +1003,7 @@ export default function MediaOnePage({
                       </div>
                     ) : userNote ? (
                       <>
-                        <p className="pr-7 text-sm leading-7 text-[var(--text-muted)]">{userNote}</p>
+                        <p onClick={() => { setNoteEditText(userNote); setEditingNote(true) }} className="cursor-text pr-7 text-sm leading-7 text-[var(--text-muted)] hover:text-[var(--text)] transition-colors">{userNote}</p>
                         <button
                           onClick={() => { setNoteEditText(userNote); setEditingNote(true) }}
                           className="absolute right-3 top-3 md:right-5 md:top-5 rounded-lg p-1 text-[var(--text-muted)] transition-opacity opacity-100 md:opacity-0 md:group-hover:opacity-100 hover:text-[var(--text)]"
@@ -1013,13 +1012,12 @@ export default function MediaOnePage({
                         </button>
                       </>
                     ) : (
-                      <button
+                      <p
                         onClick={() => { setNoteEditText(''); setEditingNote(true) }}
-                        className="flex items-center gap-1.5 rounded-xl border border-dashed border-[var(--border-subtle)] px-3 py-2 text-sm text-[var(--text-muted)] transition-colors hover:border-nonsprimary hover:text-[var(--text)]"
+                        className="cursor-text text-sm italic text-[var(--placeholder)] hover:text-[var(--text-muted)] transition-colors"
                       >
-                        <FiClipboard className="h-4 w-4" />
                         {t('addPrivateNote')}
-                      </button>
+                      </p>
                     )}
                   </div>
                 </div>
