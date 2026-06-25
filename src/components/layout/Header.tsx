@@ -37,12 +37,6 @@ export default function Header() {
 
   const [accountOpen, setAccountOpen] = useState(false)
   const [sheetOpen, setSheetOpen] = useState(false)
-  const [mobileSearchOpen, setMobileSearchOpen] = useState(false)
-  const [mobileQ, setMobileQ] = useState('')
-  const [mobileResults, setMobileResults] = useState<CatalogItem[]>([])
-  const [mobileLoading, setMobileLoading] = useState(false)
-  const [mobileImporting, setMobileImporting] = useState(false)
-  const mobileInputRef = useRef<HTMLInputElement>(null)
   const hidden = useHideOnScroll(accountOpen || sheetOpen)
 
   const display = user
@@ -79,28 +73,7 @@ export default function Header() {
   useEffect(() => {
     setAccountOpen(false)
     setSheetOpen(false)
-    setMobileSearchOpen(false)
   }, [path])
-
-  useEffect(() => {
-    if (!mobileSearchOpen) { setMobileQ(''); setMobileResults([]); return }
-    setTimeout(() => mobileInputRef.current?.focus(), 50)
-  }, [mobileSearchOpen])
-
-  useEffect(() => {
-    if (!mobileQ) { setMobileResults([]); setMobileLoading(false); setMobileImporting(false); return }
-    setMobileLoading(true)
-    const timer = setTimeout(async () => {
-      const data = await catalogService.getCatalog(mobileQ).catch(() => [] as CatalogItem[])
-      if (data.length > 0) { setMobileResults(data.slice(0, 6)); setMobileLoading(false); return }
-      setMobileImporting(true)
-      const fill = await catalogService.searchFill(mobileQ, { limit: 10, series: true })
-      setMobileImporting(false)
-      setMobileResults(fill.items.slice(0, 6))
-      setMobileLoading(false)
-    }, 300)
-    return () => clearTimeout(timer)
-  }, [mobileQ])
 
   return (
     <>
@@ -230,6 +203,7 @@ export default function Header() {
           {[
             { to: '/', icon: IoHomeOutline, label: t('home') || 'Home', active: path === '/' },
             { to: '/discover', icon: IoCompassOutline, label: t('discover') || 'Discover', active: path === '/discover' },
+            { to: '/library', icon: IoLibraryOutline, label: t('library') || 'Library', active: path === '/library' },
           ].map(({ to, icon: Icon, label, active }) => (
             <Link
               key={to}
@@ -244,19 +218,6 @@ export default function Header() {
               <span className="text-[10px] font-medium leading-none">{label}</span>
             </Link>
           ))}
-
-          {/* Search */}
-          <button
-            onClick={() => setMobileSearchOpen(true)}
-            className={`flex flex-col items-center gap-1 rounded-2xl px-3.5 py-1.5 transition-colors ${
-              mobileSearchOpen ? 'text-[var(--text)]' : 'text-[var(--text-muted)]'
-            }`}
-          >
-            <span className="flex h-[22px] items-center justify-center">
-              <IoSearch className="h-[22px] w-[22px]" />
-            </span>
-            <span className="text-[10px] font-medium leading-none">Search</span>
-          </button>
 
           {/* Profile — opens the sheet */}
           <button
@@ -276,80 +237,6 @@ export default function Header() {
           </button>
         </nav>
       </div>
-
-      {/* ── Mobile search overlay ── */}
-      {mobileSearchOpen && (
-        <>
-          <div onClick={() => setMobileSearchOpen(false)} className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm lg:hidden" />
-          <div className="animate-slide-up fixed inset-x-0 bottom-0 z-[70] rounded-t-3xl border-t border-[var(--border-subtle)] bg-[var(--container)] lg:hidden">
-            <div className="flex justify-center pb-2 pt-3">
-              <div className="h-1 w-10 rounded-full bg-[var(--border)]" />
-            </div>
-            <div className="flex items-center gap-2 px-4 pb-3 pt-1">
-              <div className="relative flex-1">
-                <IoSearch className="pointer-events-none absolute left-3.5 top-1/2 h-[17px] w-[17px] -translate-y-1/2 text-[var(--text-muted)]" />
-                <input
-                  ref={mobileInputRef}
-                  value={mobileQ}
-                  onChange={(e) => setMobileQ(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && mobileQ) {
-                      setMobileSearchOpen(false)
-                      window.location.href = `/search?q=${encodeURIComponent(mobileQ)}`
-                    }
-                  }}
-                  placeholder={t('globalSearch') || 'Search books, films…'}
-                  className="h-11 w-full rounded-full border border-[var(--border-subtle)] bg-[var(--input)] pl-11 pr-4 text-sm text-[var(--text)] placeholder:text-[var(--placeholder)] focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[var(--primary-ring)]"
-                />
-              </div>
-              <button
-                onClick={() => setMobileSearchOpen(false)}
-                className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-[var(--surface)] text-[var(--text-muted)]"
-              >
-                <IoClose className="h-5 w-5" />
-              </button>
-            </div>
-            {mobileLoading && !mobileImporting && (
-              <div className="px-3 pb-3">
-                <HeaderSkeletons />
-              </div>
-            )}
-            {mobileImporting && (
-              <div className="flex justify-center py-3">
-                <InfinityLoader size={80} hint={t('searchingExternal')} />
-              </div>
-            )}
-            {!mobileLoading && !mobileImporting && mobileResults.length > 0 && (
-              <div className="max-h-[55dvh] overflow-y-auto px-3 pb-3">
-                {mobileResults.map((item) => (
-                  <Link
-                    key={item.id}
-                    to={mediaPath(item)}
-                    onClick={() => setMobileSearchOpen(false)}
-                    className="flex items-center gap-3 rounded-xl p-2.5 transition-colors hover:bg-[var(--surface)]"
-                  >
-                    <div className="relative aspect-[2/3] w-8 flex-shrink-0">
-                      {item.coverUrl ? (
-                        <img src={item.coverUrl} alt="" className="h-full w-full rounded object-cover" />
-                      ) : (
-                        <div className="h-full w-full rounded bg-[var(--surface)]" />
-                      )}
-                      <TypeBadge type={item.type} position="-top-1 -right-1" size="h-5 w-5" iconSize="h-2.5 w-2.5" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate text-sm font-semibold text-[var(--text)]">{item.title}</div>
-                      <div className="truncate text-xs text-[var(--text-muted)]">
-                        {item.type === 'book' ? item.author : item.director || item.author}
-                      </div>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            )}
-            <div className="pb-safe h-6" />
-          </div>
-        </>
-      )}
 
       {/* ── Profile / more sheet ── */}
       {sheetOpen && (
