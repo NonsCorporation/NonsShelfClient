@@ -555,4 +555,10 @@ export const ro = {
   exportFieldLanguage: 'Limbă',
   exportFieldPublisher: 'Editură',
   allCollections: 'Toate colecțiile',
+
+  // Private note
+  privateNote: 'Notă privată',
+  addPrivateNote: 'Adaugă o notă privată…',
+  privateNotePlaceholder: 'Gânduri, memento-uri, citate…',
+  onlyVisibleToYou: 'Vizibilă doar pentru tine',
 };

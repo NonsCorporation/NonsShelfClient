@@ -555,4 +555,10 @@ export const en = {
   exportFieldLanguage: 'Language',
   exportFieldPublisher: 'Publisher',
   allCollections: 'All collections',
+
+  // Private note
+  privateNote: 'Private note',
+  addPrivateNote: 'Add a private note…',
+  privateNotePlaceholder: 'Your thoughts, reminders, quotes…',
+  onlyVisibleToYou: 'Only visible to you',
 };

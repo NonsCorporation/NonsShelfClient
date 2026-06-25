@@ -555,4 +555,10 @@ export const ru = {
   exportFieldLanguage: 'Язык',
   exportFieldPublisher: 'Издательство',
   allCollections: 'Все коллекции',
+
+  // Private note
+  privateNote: 'Личная заметка',
+  addPrivateNote: 'Добавить личную заметку…',
+  privateNotePlaceholder: 'Мысли, напоминания, цитаты…',
+  onlyVisibleToYou: 'Видно только вам',
 };

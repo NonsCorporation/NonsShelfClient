@@ -34,6 +34,7 @@ export type Signals = {
   favorite?: boolean
   rating?: number
   review?: string
+  note?: string
   createdAt?: number
   editionId?: number
   /** The chosen edition's own title/cover, when one is selected — these
@@ -75,6 +76,7 @@ export function toMediaItem(m: BackendMedia, s: Signals = {}): MediaItem {
     favorite: s.favorite,
     rating: s.rating,
     review: s.review || undefined,
+    note: s.note || undefined,
     editionId: s.editionId || undefined,
     dateAdded: s.createdAt ? new Date(s.createdAt * 1000).toISOString() : undefined,
     startedAt: s.startedAt ? new Date(s.startedAt * 1000).toISOString() : undefined,

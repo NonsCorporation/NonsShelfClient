@@ -31,11 +31,14 @@ import {
   IoCheckmarkCircle,
   IoCheckmarkCircleOutline,
   IoCreateOutline,
+  IoPencilOutline,
+  IoLockClosedOutline,
   IoChevronDown,
   IoChevronBack,
   IoChevronForward,
 } from 'react-icons/io5'
 import { useLanguage } from '../contexts/LanguageContext'
+import { FiClipboard } from 'react-icons/fi'
 import { useAuth } from '../contexts/AuthContext'
 import { isLibrarian } from '../services/librarianService'
 import { statusLabel } from '../lib/shelf'
@@ -128,6 +131,10 @@ export default function MediaOnePage({
   const [userReview, setUserReview] = useState(initialItem?.review ?? '')
   const [reviewSaving, setReviewSaving] = useState(false)
   const [reviewSaved, setReviewSaved] = useState(false)
+  const [userNote, setUserNote] = useState(initialItem?.note ?? '')
+  const [editingNote, setEditingNote] = useState(false)
+  const [noteEditText, setNoteEditText] = useState('')
+  const [noteSaving, setNoteSaving] = useState(false)
   const [episodesOpen, setEpisodesOpen] = useState(false)
   const [commPage, setCommPage] = useState(0)
   const [commSort, setCommSort] = useState<CommSort>('newest')
@@ -151,6 +158,7 @@ export default function MediaOnePage({
         setItem(found)
         setUserRating(found.rating ?? null)
         setUserReview(found.review ?? '')
+        setUserNote(found.note ?? '')
         setEditionId(found.editionId ?? null)
       }
       setLoading(false)
@@ -177,6 +185,7 @@ export default function MediaOnePage({
       )
       setUserRating(sig.rating ?? null)
       setUserReview(sig.review ?? '')
+      setUserNote(sig.note ?? '')
       setEditionId(sig.editionId ?? null)
     })
     return () => {
@@ -309,6 +318,18 @@ export default function MediaOnePage({
       setReviewSaved(true)
     } finally {
       setReviewSaving(false)
+    }
+  }
+
+  const saveNote = async () => {
+    if (!item) return
+    setNoteSaving(true)
+    try {
+      await libraryService.setNote(item.id, noteEditText)
+      setUserNote(noteEditText)
+      setEditingNote(false)
+    } finally {
+      setNoteSaving(false)
     }
   }
 
@@ -461,6 +482,15 @@ export default function MediaOnePage({
               <button className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] text-[var(--text-muted)] transition-colors hover:text-[var(--text)]">
                 <IoShareOutline className="h-4 w-4" />
               </button>
+              {status !== null && (
+                <button
+                  onClick={() => { setNoteEditText(userNote); setEditingNote(true); document.getElementById('private-note-section')?.scrollIntoView({ behavior: 'smooth', block: 'center' }) }}
+                  title={t('privateNote') || 'Private note'}
+                  className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] text-[var(--text-muted)] transition-colors hover:border-nonsprimary hover:text-nonsprimary"
+                >
+                  <FiClipboard className="h-4 w-4" />
+                </button>
+              )}
               {isLibrarian(user?.role) && (
                 <button
                   onClick={() => setEditing(true)}
@@ -927,6 +957,68 @@ export default function MediaOnePage({
                   )}
                 </div>
               </div>
+
+              {/* ── Private note ── */}
+              {status !== null && (
+                <div id="private-note-section" className="-mx-4 md:mx-0 rounded-none md:rounded-2xl border-y md:border border-[var(--border-subtle)] bg-[var(--surface)] p-0 md:p-5">
+                  <div className="px-4 py-4 md:p-0">
+                    <div className="mb-3 flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-[var(--text-muted)]">
+                      <FiClipboard className="h-3.5 w-3.5" />
+                      {t('privateNote')}
+                    </div>
+
+                    {editingNote ? (
+                      <div className="flex flex-col gap-3">
+                        <textarea
+                          autoFocus
+                          value={noteEditText}
+                          onChange={(e) => setNoteEditText(e.target.value)}
+                          rows={4}
+                          placeholder={t('privateNotePlaceholder')}
+                          className="w-full resize-y rounded-lg border border-[var(--border-subtle)] bg-[var(--bg)] p-3 text-sm text-[var(--text)] placeholder:text-[var(--placeholder)] focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[var(--primary-ring)]"
+                        />
+                        <p className="flex items-center gap-1 text-xs text-[var(--text-muted)]">
+                          <IoLockClosedOutline className="h-3 w-3 flex-shrink-0" />
+                          {t('onlyVisibleToYou')}
+                        </p>
+                        <div className="flex items-center justify-end gap-3">
+                          <button
+                            onClick={() => setEditingNote(false)}
+                            className="rounded-lg border border-[var(--border-subtle)] px-4 py-1.5 text-sm text-[var(--text-muted)] transition-colors hover:text-[var(--text)]"
+                          >
+                            {t('cancel')}
+                          </button>
+                          <button
+                            onClick={saveNote}
+                            disabled={noteSaving || noteEditText === userNote}
+                            className="rounded-lg bg-nonsprimary px-4 py-1.5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-40"
+                          >
+                            {noteSaving ? t('saving') : t('save')}
+                          </button>
+                        </div>
+                      </div>
+                    ) : userNote ? (
+                      <div className="group relative">
+                        <p className="text-sm leading-7 text-[var(--text-muted)]">{userNote}</p>
+                        <button
+                          onClick={() => { setNoteEditText(userNote); setEditingNote(true) }}
+                          className="absolute right-0 top-0 rounded-lg p-1 text-[var(--text-muted)] opacity-0 transition-opacity group-hover:opacity-100 hover:text-[var(--text)]"
+                        >
+                          <IoPencilOutline className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => { setNoteEditText(''); setEditingNote(true) }}
+                        className="flex items-center gap-1.5 rounded-xl border border-dashed border-[var(--border-subtle)] px-3 py-2 text-sm text-[var(--text-muted)] transition-colors hover:border-nonsprimary hover:text-[var(--text)]"
+                      >
+                        <FiClipboard className="h-4 w-4" />
+                        {t('addPrivateNote')}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* ── Friends rating ── */}
               <div className="-mx-4 md:mx-0 rounded-none md:rounded-2xl border-y md:border border-[var(--border-subtle)] bg-[var(--surface)] p-0 md:p-5">

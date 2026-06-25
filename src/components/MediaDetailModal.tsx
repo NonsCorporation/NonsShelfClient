@@ -1,11 +1,14 @@
 'use client'
 
 import { createPortal } from 'react-dom'
+import { useState } from 'react'
 import { Link } from '@/lib/router'
-import { IoClose } from 'react-icons/io5'
+import { IoClose, IoPencilOutline, IoLockClosedOutline } from 'react-icons/io5'
+import { FiClipboard } from 'react-icons/fi'
 import type { MediaItem } from '../types'
 import { useLanguage } from '../contexts/LanguageContext'
 import { mediaPath } from '../lib/paths'
+import { libraryService } from '../services/libraryService'
 import StarsSelector from '../StarsSelector'
 import MediaHistory from './MediaHistory'
 
@@ -15,9 +18,31 @@ import MediaHistory from './MediaHistory'
 // overlay isn't trapped by a transformed ancestor.
 export default function MediaDetailModal({ item, onClose }: { item: MediaItem | null; onClose: () => void }) {
   const { t } = useLanguage()
+  const [editingNote, setEditingNote] = useState(false)
+  const [editText, setEditText] = useState('')
+  const [optimisticNote, setOptimisticNote] = useState<string | undefined>(undefined)
+  const [saving, setSaving] = useState(false)
+
   if (!item || typeof document === 'undefined') return null
   const rated = typeof item.rating === 'number' && item.rating > 0
   const hasReview = !!item.review?.trim()
+  const displayNote = optimisticNote !== undefined ? optimisticNote : (item.note ?? '')
+
+  const startEditNote = () => {
+    setEditText(displayNote)
+    setEditingNote(true)
+  }
+
+  const saveNote = async () => {
+    setSaving(true)
+    try {
+      await libraryService.setNote(item.id, editText)
+      setOptimisticNote(editText)
+      setEditingNote(false)
+    } finally {
+      setSaving(false)
+    }
+  }
 
   return createPortal(
     <div onClick={onClose} className="fixed inset-0 z-[80] flex items-center justify-center bg-[var(--overlay)] p-4 backdrop-blur-sm">
@@ -63,6 +88,66 @@ export default function MediaDetailModal({ item, onClose }: { item: MediaItem | 
           <div>
             <div className="mb-1 text-[11px] font-semibold uppercase tracking-widest text-[var(--text-muted)]">{t('yourReview')}</div>
             <p className="whitespace-pre-line text-sm leading-6 text-[var(--text)]">{item.review}</p>
+          </div>
+        )}
+
+        {/* Private note — only shown when the item is on the user's shelf */}
+        {item.status && (
+          <div>
+            <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-widest text-[var(--text-muted)]">
+              <FiClipboard className="h-3.5 w-3.5" />
+              {t('privateNote')}
+            </div>
+
+            {editingNote ? (
+              <div className="flex flex-col gap-2">
+                <textarea
+                  autoFocus
+                  value={editText}
+                  onChange={(e) => setEditText(e.target.value)}
+                  rows={4}
+                  className="w-full resize-none rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3 text-sm text-[var(--text)] placeholder-[var(--text-muted)] focus:border-nonsprimary focus:outline-none"
+                  placeholder={t('privateNotePlaceholder')}
+                />
+                <p className="flex items-center gap-1 text-xs text-[var(--text-muted)]">
+                  <IoLockClosedOutline className="h-3 w-3 flex-shrink-0" />
+                  {t('onlyVisibleToYou')}
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={saveNote}
+                    disabled={saving}
+                    className="rounded-lg bg-nonsprimary px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-nonsprimaryfocus disabled:opacity-50"
+                  >
+                    {saving ? '…' : t('save')}
+                  </button>
+                  <button
+                    onClick={() => setEditingNote(false)}
+                    className="rounded-lg px-3 py-1.5 text-xs text-[var(--text-muted)] transition-colors hover:bg-[var(--surface)] hover:text-[var(--text)]"
+                  >
+                    {t('cancel')}
+                  </button>
+                </div>
+              </div>
+            ) : displayNote ? (
+              <div className="group relative">
+                <p className="whitespace-pre-line text-sm leading-6 text-[var(--text)]">{displayNote}</p>
+                <button
+                  onClick={startEditNote}
+                  className="absolute right-0 top-0 rounded-lg p-1 text-[var(--text-muted)] opacity-0 transition-opacity group-hover:opacity-100 hover:text-[var(--text)]"
+                >
+                  <IoPencilOutline className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={startEditNote}
+                className="flex items-center gap-1.5 rounded-xl border border-dashed border-[var(--border)] px-3 py-2 text-sm text-[var(--text-muted)] transition-colors hover:border-nonsprimary hover:text-[var(--text)]"
+              >
+                <FiClipboard className="h-4 w-4" />
+                {t('addPrivateNote')}
+              </button>
+            )}
           </div>
         )}
 

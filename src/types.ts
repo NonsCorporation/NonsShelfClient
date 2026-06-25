@@ -32,6 +32,8 @@ export type MediaItem = {
   rating?: number
   /** The user's own free-text review. */
   review?: string
+  /** The user's private personal note — never shown to others. */
+  note?: string
   pages?: number
   description?: string
   duration?: string

@@ -24,7 +24,7 @@ export const SHELF_META: Record<ShelfStatus, { key: string; dot: string }> = {
 // Next.js server can reuse them for the public /b and /m pages.
 
 type EditionRef = { id: number; title?: string; cover_url?: string; pages?: number }
-type ShelfEntry = { media_id: number; status: ShelfStatus; edition_id?: number; created_at: number; collection_ids?: number[]; media?: BackendMedia; edition?: EditionRef }
+type ShelfEntry = { media_id: number; status: ShelfStatus; edition_id?: number; note?: string; created_at: number; collection_ids?: number[]; media?: BackendMedia; edition?: EditionRef }
 type FavoriteEntry = { media_id: number; media?: BackendMedia }
 type RatingEntry = { media_id: number; value: number; review?: string; media?: BackendMedia }
 
@@ -144,6 +144,8 @@ export interface ILibraryService {
   setEdition(mediaId: string, editionId: number): Promise<void>
   /** Save (or clear) the user's free-text review. Posts to the feed unless share is false. */
   setReview(mediaId: string, review: string, share?: boolean): Promise<void>
+  /** Save (or clear) the user's private note for a shelf item. Never shared. */
+  setNote(mediaId: string, note: string): Promise<void>
   /** The user's started/finished reading dates for an item (unix seconds; 0 = unset). */
   getReadDates(mediaId: string): Promise<ReadDates>
   /** Update the user's started/finished reading dates (0 clears a date). */
@@ -196,6 +198,7 @@ class ApiLibraryService implements ILibraryService {
           favorite: favSet.has(e.media_id),
           rating: ratMap.get(e.media_id)?.value,
           review: ratMap.get(e.media_id)?.review,
+          note: e.note,
           createdAt: e.created_at,
           editionId: e.edition_id,
           editionTitle: e.edition?.title,
@@ -260,6 +263,7 @@ class ApiLibraryService implements ILibraryService {
       favorite,
       rating,
       review,
+      note: entry?.note,
       createdAt: entry?.created_at,
       editionId: entry?.edition_id,
       startedAt: dates.started_at || undefined,
@@ -286,6 +290,7 @@ class ApiLibraryService implements ILibraryService {
       favorite,
       rating: summary.own as number | undefined,
       review: summary.own_review as string | undefined,
+      note: entry?.note,
       editionId: entry?.edition_id,
       createdAt: entry?.created_at,
       startedAt: dates.started_at || undefined,
@@ -318,6 +323,14 @@ class ApiLibraryService implements ILibraryService {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ review, share }),
+    })
+  }
+
+  async setNote(mediaId: string, note: string): Promise<void> {
+    await authedFetch(`/api/shelf/${Number(mediaId)}/note`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ note }),
     })
   }
 
