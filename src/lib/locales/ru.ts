@@ -563,4 +563,18 @@ export const ru = {
   addPrivateNote: 'Добавить личную заметку, видимую только вам…',
   privateNotePlaceholder: 'Мысли, напоминания, цитаты…',
   onlyVisibleToYou: 'Видно только вам',
+
+  // Share
+  share: 'Поделиться',
+  copy: 'Копировать',
+  copied: 'Скопировано',
+  saveAsImage: 'Сохранить как изображение',
+  // First-person status phrasing for the share card.
+  shareWantToRead: 'Хочу прочитать',
+  shareWantToWatch: 'Хочу посмотреть',
+  shareReading: 'Читаю',
+  shareWatching: 'Смотрю',
+  shareFinishedBook: 'Я закончил!',
+  shareFinishedFilm: 'Посмотрел!',
+  shareDnf: 'Не дочитал',
 };

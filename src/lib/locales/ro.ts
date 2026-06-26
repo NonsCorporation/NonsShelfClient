@@ -563,4 +563,18 @@ export const ro = {
   addPrivateNote: 'Adaugă o notă privată vizibilă doar pentru tine…',
   privateNotePlaceholder: 'Gânduri, memento-uri, citate…',
   onlyVisibleToYou: 'Vizibilă doar pentru tine',
+
+  // Share
+  share: 'Distribuie',
+  copy: 'Copiază',
+  copied: 'Copiat',
+  saveAsImage: 'Salvează ca imagine',
+  // First-person status phrasing for the share card.
+  shareWantToRead: 'Vreau să citesc asta',
+  shareWantToWatch: 'Vreau să văd asta',
+  shareReading: 'Citesc asta',
+  shareWatching: 'Mă uit la asta',
+  shareFinishedBook: 'Am terminat!',
+  shareFinishedFilm: 'Am terminat de vizionat!',
+  shareDnf: 'Nu am terminat asta',
 };

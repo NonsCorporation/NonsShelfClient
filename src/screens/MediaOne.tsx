@@ -15,6 +15,7 @@ import StarsSelector from '../StarsSelector'
 import { libraryService } from '../services/libraryService'
 import { librarianService } from '../services/librarianService'
 import { getReviews, type ReviewsPage, type CommunityReview } from '../services/reviewService'
+import ShareModal from '../components/ShareModal'
 import { getFriendUsers, colorFor } from '../services/activityService'
 import type { Activity } from '../services/activityService'
 import { userPath } from '../lib/paths'
@@ -138,6 +139,7 @@ export default function MediaOnePage({
   const commSectionRef = useRef<HTMLDivElement>(null)
   const editionsRef = useRef<HTMLDivElement>(null)
   const scrollEditions = (dir: number) => editionsRef.current?.scrollBy({ left: dir * 340, behavior: 'smooth' })
+  const [shareOpen, setShareOpen] = useState(false)
   const [editing, setEditing] = useState(false)
   const [editingReview, setEditingReview] = useState(false)
   const [progressOpen, setProgressOpen] = useState(false)
@@ -498,7 +500,10 @@ export default function MediaOnePage({
                 {item.favorite ? <IoHeart className="h-4 w-4" /> : <IoHeartOutline className="h-4 w-4" />}
                 {item.favorite ? t('saved') : t('save')}
               </button>
-              <button className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] text-[var(--text-muted)] transition-colors hover:text-[var(--text)]">
+              <button
+                onClick={() => setShareOpen(true)}
+                className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] text-[var(--text-muted)] transition-colors hover:text-[var(--text)]"
+              >
                 <IoShareOutline className="h-4 w-4" />
               </button>
               {status !== null && (
@@ -1181,6 +1186,19 @@ export default function MediaOnePage({
 
         </div>
       </div>
+
+      {item && (
+        <ShareModal
+          isOpen={shareOpen}
+          item={item}
+          coverUrl={coverUrl}
+          totalPages={totalPages}
+          rating={userRating}
+          review={userReview}
+          status={status}
+          onClose={() => setShareOpen(false)}
+        />
+      )}
 
       <ProgressModal
         isOpen={progressOpen}

@@ -563,4 +563,18 @@ export const en = {
   addPrivateNote: 'Add a private note only you can see…',
   privateNotePlaceholder: 'Your thoughts, reminders, quotes…',
   onlyVisibleToYou: 'Only visible to you',
+
+  // Share
+  share: 'Share',
+  copy: 'Copy',
+  copied: 'Copied',
+  saveAsImage: 'Save as image',
+  // First-person status phrasing for the share card.
+  shareWantToRead: 'I want to read this',
+  shareWantToWatch: 'I want to watch this',
+  shareReading: "I'm reading this",
+  shareWatching: "I'm watching this",
+  shareFinishedBook: "I'm finished!",
+  shareFinishedFilm: 'Finished watching!',
+  shareDnf: "I didn't finish this",
 };

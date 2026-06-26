@@ -141,7 +141,7 @@ export default function ActivityCard({
 
       {/* body: cover + details */}
       <div className="flex gap-4">
-        <Link to={to} className="relative block aspect-[2/3] w-[88px] flex-shrink-0">
+        <Link to={to} className="relative block aspect-[2/3] w-[88px] flex-shrink-0 self-start">
           {a.coverUrl ? (
             <img
               src={a.coverUrl}

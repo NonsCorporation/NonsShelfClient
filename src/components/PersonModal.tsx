@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { IoClose, IoPersonOutline, IoCloudDownloadOutline, IoCheckmark } from 'react-icons/io5'
+import { IoClose, IoPersonOutline, IoCloudDownloadOutline, IoCheckmark, IoSearch } from 'react-icons/io5'
 import { librarianService } from '../services/librarianService'
 import type { PersonSummary, TmdbPersonSuggestion } from '../services/librarianService'
 import { useLanguage } from '../contexts/LanguageContext'
@@ -23,6 +23,7 @@ export default function PersonModal({ isOpen, person, initialName, onClose, onSa
   const [importing, setImporting] = useState(false)
   const [suggestion, setSuggestion] = useState<TmdbPersonSuggestion | null>(null)
   const [applying, setApplying] = useState(false)
+  const [mergeOpen, setMergeOpen] = useState(false)
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -122,6 +123,35 @@ export default function PersonModal({ isOpen, person, initialName, onClose, onSa
     }
   }
 
+  // Merge the picked duplicate into this person (the survivor).
+  // After merge, reload fresh aliases (dup's name is now an alias) then persist
+  // everything — including the user's bio choice — via updatePerson so we get a
+  // clean PersonSummary back for onSaved.
+  const executeMerge = async (dupUuid: string, chosenBio?: string) => {
+    if (!person?.uuid) return
+    setMergeOpen(false)
+    setBusy(true)
+    setError('')
+    try {
+      await librarianService.mergePeople(person.uuid, dupUuid)
+      const { aliases: freshAliases } = await librarianService.getPerson(person.uuid)
+      const bio = chosenBio !== undefined ? chosenBio : form.bio.trim() || undefined
+      const saved = await librarianService.updatePerson(person.uuid, {
+        name: form.name.trim(),
+        bio,
+        birth_date: form.birthDate.trim() || undefined,
+        photo_url: form.photoUrl.trim() || undefined,
+        aliases: freshAliases,
+      })
+      setForm((f) => ({ ...f, bio: bio ?? '', aliases: freshAliases.join(', ') }))
+      onSaved(saved)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const input =
     'h-11 px-3 rounded-lg bg-[var(--input)] border border-[var(--border-subtle)] text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-ring)] transition-shadow'
 
@@ -134,15 +164,24 @@ export default function PersonModal({ isOpen, person, initialName, onClose, onSa
           </h3>
           <div className="flex items-center gap-2">
             {person?.uuid && (
-              <button
-                onClick={importFromTMDB}
-                disabled={importing}
-                title={t('importFromTmdb') || 'Import from TMDB'}
-                className="flex h-8 items-center gap-1.5 rounded-full border border-[var(--border-subtle)] bg-[var(--surface)] px-3 text-xs font-medium text-[var(--text-muted)] transition-colors hover:border-nonsprimary hover:text-nonsprimary disabled:opacity-50"
-              >
-                <IoCloudDownloadOutline className="h-4 w-4" />
-                {importing ? t('importing') || 'Importing…' : 'TMDB'}
-              </button>
+              <>
+                <button
+                  onClick={importFromTMDB}
+                  disabled={importing}
+                  title={t('importFromTmdb') || 'Import from TMDB'}
+                  className="flex h-8 items-center gap-1.5 rounded-full border border-[var(--border-subtle)] bg-[var(--surface)] px-3 text-xs font-medium text-[var(--text-muted)] transition-colors hover:border-nonsprimary hover:text-nonsprimary disabled:opacity-50"
+                >
+                  <IoCloudDownloadOutline className="h-4 w-4" />
+                  {importing ? t('importing') || 'Importing…' : 'TMDB'}
+                </button>
+                <button
+                  onClick={() => setMergeOpen(true)}
+                  title="Merge with duplicate"
+                  className="flex h-8 items-center gap-1.5 rounded-full border border-[var(--border-subtle)] bg-[var(--surface)] px-3 text-xs font-medium text-[var(--text-muted)] transition-colors hover:border-orange-400 hover:text-orange-400"
+                >
+                  Merge
+                </button>
+              </>
             )}
             <button onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--surface)] text-[var(--text-muted)] hover:bg-[var(--surface-hover)]">
               <IoClose className="h-5 w-5" />
@@ -212,7 +251,204 @@ export default function PersonModal({ isOpen, person, initialName, onClose, onSa
           onDecline={() => setSuggestion(null)}
         />
       )}
+
+      {mergeOpen && person && (
+        <MergePersonModal
+          survivor={person}
+          survivorBio={form.bio}
+          onConfirm={executeMerge}
+          onCancel={() => setMergeOpen(false)}
+        />
+      )}
     </div>
+  )
+}
+
+// Two-phase merge picker portaled over the edit modal.
+// Phase 1: search for the duplicate.
+// Phase 2: review name/bio differences and confirm.
+function MergePersonModal({
+  survivor,
+  survivorBio,
+  onConfirm,
+  onCancel,
+}: {
+  survivor: PersonSummary
+  survivorBio: string
+  onConfirm: (dupUuid: string, chosenBio?: string) => void
+  onCancel: () => void
+}) {
+  const { t } = useLanguage()
+  const [q, setQ] = useState('')
+  const [results, setResults] = useState<PersonSummary[]>([])
+  const [searching, setSearching] = useState(false)
+  const [picked, setPicked] = useState<PersonSummary | null>(null)
+  const [dupBio, setDupBio] = useState<string | null>(null)
+  const [loadingDup, setLoadingDup] = useState(false)
+  const [bioPick, setBioPick] = useState<'keep' | 'dup'>('keep')
+
+  useEffect(() => {
+    if (!q.trim()) { setResults([]); return }
+    setSearching(true)
+    const timer = setTimeout(() => {
+      librarianService
+        .searchPeople(q)
+        .then((res) => setResults(res.filter((p) => p.uuid !== survivor.uuid)))
+        .catch(() => setResults([]))
+        .finally(() => setSearching(false))
+    }, 250)
+    return () => clearTimeout(timer)
+  }, [q, survivor.uuid])
+
+  useEffect(() => {
+    if (!picked) return
+    setLoadingDup(true)
+    librarianService
+      .getPerson(picked.uuid)
+      .then(({ person: p }) => { setDupBio(p.bio ?? null); setBioPick('keep') })
+      .catch(() => setDupBio(null))
+      .finally(() => setLoadingDup(false))
+  }, [picked])
+
+  const hasBothBios = survivorBio.trim() !== '' && dupBio != null && dupBio.trim() !== ''
+
+  const confirm = () => {
+    if (!picked) return
+    onConfirm(picked.uuid, hasBothBios && bioPick === 'dup' ? dupBio! : undefined)
+  }
+
+  if (typeof document === 'undefined') return null
+
+  return createPortal(
+    <div onClick={onCancel} className="fixed inset-0 z-[90] flex items-center justify-center bg-[var(--overlay)] p-4 backdrop-blur-sm">
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="animate-fade-up flex w-full max-w-md flex-col gap-4 rounded-2xl border border-[var(--border)] bg-[var(--container)] p-5"
+      >
+        <h3 className="text-lg font-semibold tracking-wide text-[var(--text)]">Merge with duplicate</h3>
+
+        {!picked ? (
+          <>
+            <p className="text-sm text-[var(--text-muted)]">
+              Search for the duplicate. Their credits and aliases will be moved to <strong className="text-[var(--text)]">{survivor.name}</strong>.
+            </p>
+            <div className="relative">
+              <IoSearch className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" />
+              <input
+                autoFocus
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="Search people…"
+                className="h-10 w-full rounded-lg border border-[var(--border-subtle)] bg-[var(--input)] pl-9 pr-3 text-sm text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-ring)]"
+              />
+            </div>
+            {searching && <p className="text-xs text-[var(--text-muted)]">…</p>}
+            {results.length > 0 && (
+              <div className="flex flex-col gap-1.5">
+                {results.map((p) => (
+                  <button
+                    key={p.uuid}
+                    onClick={() => setPicked(p)}
+                    className="flex items-center gap-2.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] px-3 py-2 text-left transition-colors hover:border-orange-400"
+                  >
+                    {p.photo_url ? (
+                      <img src={p.photo_url} alt="" className="h-8 w-8 flex-shrink-0 rounded-full object-cover" />
+                    ) : (
+                      <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[var(--container-2)]">
+                        <IoPersonOutline className="h-4 w-4 text-[var(--placeholder)]" />
+                      </span>
+                    )}
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm text-[var(--text)]">{p.name}</span>
+                      <span className="block text-xs text-[var(--text-muted)]">{t('creditsCount', { n: p.credit_count })}</span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </>
+        ) : loadingDup ? (
+          <p className="py-4 text-center text-sm text-[var(--text-muted)]">{t('loading')}</p>
+        ) : (
+          <div className="flex flex-col gap-3">
+            {/* selected dup card */}
+            <div className="flex items-center gap-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] p-3">
+              {picked.photo_url ? (
+                <img src={picked.photo_url} alt="" className="h-10 w-10 flex-shrink-0 rounded-full object-cover" />
+              ) : (
+                <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-[var(--container-2)]">
+                  <IoPersonOutline className="h-5 w-5 text-[var(--placeholder)]" />
+                </span>
+              )}
+              <div>
+                <p className="text-sm font-medium text-[var(--text)]">{picked.name}</p>
+                <p className="text-xs text-[var(--text-muted)]">{t('creditsCount', { n: picked.credit_count })}</p>
+              </div>
+            </div>
+
+            {/* name difference note */}
+            {picked.name !== survivor.name && (
+              <p className="rounded-lg bg-[var(--surface)] px-3 py-2 text-xs text-[var(--text-muted)]">
+                "<strong className="text-[var(--text)]">{picked.name}</strong>" will become an alias of <strong className="text-[var(--text)]">{survivor.name}</strong>.
+              </p>
+            )}
+
+            {/* bio picker — only when both sides have a bio */}
+            {hasBothBios && (
+              <div className="flex flex-col gap-2">
+                <p className="text-[10px] font-medium uppercase tracking-widest text-[var(--text-muted)]">Which bio to keep?</p>
+                {([
+                  { value: 'keep' as const, label: survivor.name, bio: survivorBio },
+                  { value: 'dup' as const, label: picked.name, bio: dupBio! },
+                ] as const).map((opt) => (
+                  <label
+                    key={opt.value}
+                    className={`flex cursor-pointer items-start gap-3 rounded-lg border px-3 py-2.5 transition-colors ${
+                      bioPick === opt.value
+                        ? 'border-nonsprimary bg-[var(--primary-soft)]'
+                        : 'border-[var(--border-subtle)] bg-[var(--surface)] hover:border-[var(--border)]'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      className="mt-0.5 flex-shrink-0 accent-nonsprimary"
+                      checked={bioPick === opt.value}
+                      onChange={() => setBioPick(opt.value)}
+                    />
+                    <div className="min-w-0">
+                      <p className="text-xs font-semibold text-[var(--text)]">{opt.label}</p>
+                      <p className="mt-1 line-clamp-3 text-xs leading-5 text-[var(--text-muted)]">{opt.bio}</p>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            )}
+
+            <p className="text-xs text-[var(--text-muted)]">
+              All of <strong className="text-[var(--text)]">{picked.name}</strong>'s credits will be moved to <strong className="text-[var(--text)]">{survivor.name}</strong>. This cannot be undone.
+            </p>
+          </div>
+        )}
+
+        <div className="flex justify-end gap-3">
+          <button
+            onClick={picked ? () => setPicked(null) : onCancel}
+            className="h-10 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] px-4 text-sm text-[var(--text-muted)] hover:text-[var(--text)]"
+          >
+            {picked ? 'Back' : t('cancel')}
+          </button>
+          {picked && !loadingDup && (
+            <button
+              onClick={confirm}
+              className="h-10 rounded-lg bg-orange-500 px-6 text-sm font-medium text-white hover:bg-orange-600"
+            >
+              Merge
+            </button>
+          )}
+        </div>
+      </div>
+    </div>,
+    document.body,
   )
 }
 

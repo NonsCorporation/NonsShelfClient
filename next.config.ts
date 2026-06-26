@@ -8,6 +8,8 @@ const nextConfig: NextConfig = {
       { protocol: 'https', hostname: 'books.google.com' },
       { protocol: 'http',  hostname: 'books.google.com' },
       { protocol: 'https', hostname: '*.googleapis.com' },
+      { protocol: 'https', hostname: 'fantlab.ru' },
+      { protocol: 'http',  hostname: 'fantlab.ru' },
     ],
   },
 };
