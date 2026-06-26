@@ -117,6 +117,10 @@ export default function MediaOnePage({
   const editionsPageRef = useRef(0)
   const [episodes, setEpisodes] = useState<EpisodesResponse | null>(null)
   const [editionId, setEditionId] = useState<number | null>(initialItem?.editionId ?? null)
+  // The user's chosen reading edition's own cover/title/pages, carried from their
+  // shelf signals. Used to show that printing's cover even when the edition isn't
+  // in the carousel page that's been loaded yet.
+  const [readingEdition, setReadingEdition] = useState<{ cover?: string; title?: string; pages?: number } | null>(null)
   const [isbnFind, setIsbnFind] = useState('')
 
   const [userRating, setUserRating] = useState<number | null>(initialItem?.rating ?? null)
@@ -183,6 +187,9 @@ export default function MediaOnePage({
       setUserReview(sig.review ?? '')
       setUserNote(sig.note ?? '')
       setEditionId(sig.editionId ?? null)
+      setReadingEdition(
+        sig.editionId ? { cover: sig.editionCover, title: sig.editionTitle, pages: sig.editionPages } : null,
+      )
     })
     return () => {
       cancelled = true
@@ -439,10 +446,13 @@ export default function MediaOnePage({
   // the user's shelf reading-edition. Its cover/details take over the page.
   const selectedEdition =
     editions.find((e) => e.uuid && e.uuid === params.get('e')) ?? editions.find((e) => e.id === editionId) ?? null
-  const coverUrl = selectedEdition?.cover_url || item.coverUrl
+  // Cover priority: the in-focus edition (when loaded), then the user's reading
+  // edition's own cover (carried from signals, so it shows even before that
+  // edition's carousel page loads), then the work's cover.
+  const coverUrl = selectedEdition?.cover_url || readingEdition?.cover || item.coverUrl
   // Page count to measure reading progress against: the selected edition's, when
   // it has one (the printing you're actually reading), else the work's.
-  const totalPages = selectedEdition?.pages || item.pages || 0
+  const totalPages = selectedEdition?.pages || readingEdition?.pages || item.pages || 0
 
   // Interactive controls (shelf, rating, review, favorite, edit) are for signed-in
   // users. Anonymous visitors and crawlers still get the full public content; we
@@ -862,8 +872,14 @@ export default function MediaOnePage({
                         }`}
                       >
                         <button onClick={() => chooseEdition(e)} className="block" title={e.title || item.title}>
-                          <div className="aspect-[2/3] w-full overflow-hidden bg-[var(--container-2)]">
-                            {e.cover_url ? <img src={e.cover_url} alt="" loading="lazy" className="h-full w-full object-cover" /> : null}
+                          <div className="flex aspect-[2/3] w-full items-center justify-center overflow-hidden bg-[var(--container-2)]">
+                            {/* Fall back to the work cover so an edition without its own
+                                cover still shows one instead of a blank box. */}
+                            {(e.cover_url || item.coverUrl) ? (
+                              <img src={e.cover_url || item.coverUrl} alt="" loading="lazy" className="h-full w-full object-cover" />
+                            ) : (
+                              <Icon className="h-8 w-8 text-[var(--placeholder)]" />
+                            )}
                           </div>
                         </button>
                         <div className="flex flex-1 flex-col p-2.5">

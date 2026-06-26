@@ -266,6 +266,11 @@ class ApiLibraryService implements ILibraryService {
       note: entry?.note,
       createdAt: entry?.created_at,
       editionId: entry?.edition_id,
+      // The chosen edition's cover/title/pages override the work's, so the page
+      // shows the printing the user is reading.
+      editionTitle: entry?.edition?.title,
+      editionCover: entry?.edition?.cover_url,
+      editionPages: entry?.edition?.pages,
       startedAt: dates.started_at || undefined,
       finishedAt: dates.finished_at || undefined,
     })
@@ -292,6 +297,12 @@ class ApiLibraryService implements ILibraryService {
       review: summary.own_review as string | undefined,
       note: entry?.note,
       editionId: entry?.edition_id,
+      // The chosen edition's own cover/title/pages, so the detail page can show
+      // the printing the user is reading even when that edition isn't in the
+      // first carousel page it loads.
+      editionTitle: entry?.edition?.title,
+      editionCover: entry?.edition?.cover_url,
+      editionPages: entry?.edition?.pages,
       createdAt: entry?.created_at,
       startedAt: dates.started_at || undefined,
       finishedAt: dates.finished_at || undefined,
