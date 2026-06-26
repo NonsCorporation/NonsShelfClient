@@ -10,6 +10,7 @@ const nextConfig: NextConfig = {
       { protocol: 'https', hostname: '*.googleapis.com' },
       { protocol: 'https', hostname: 'fantlab.ru' },
       { protocol: 'http',  hostname: 'fantlab.ru' },
+      { protocol: 'https', hostname: 'image.tmdb.org' },
     ],
   },
 };
