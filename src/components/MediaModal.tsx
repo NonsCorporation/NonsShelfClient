@@ -98,8 +98,8 @@ export default function MediaModal({ isOpen, initialData, initialType, catalogOn
   }
 
   return (
-    <div onClick={onClose} className="fixed inset-0 z-[60] bg-[var(--overlay)] flex items-center justify-center p-4">
-      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-xl rounded-2xl border border-[var(--border)] bg-[var(--container)] overflow-hidden flex flex-col max-h-[90vh]">
+    <div onClick={onClose} className="fixed inset-0 z-[60] bg-[var(--overlay)] flex items-end sm:items-center sm:p-4">
+      <div onClick={(e) => e.stopPropagation()} className="w-full sm:max-w-xl rounded-t-2xl sm:rounded-2xl border border-[var(--border)] bg-[var(--container)] overflow-hidden flex flex-col max-h-[85svh] sm:max-h-[90vh]">
         <div className="px-5 py-4 border-b border-[var(--divider)] bg-[var(--surface)] flex-shrink-0 flex items-center justify-between gap-2">
           <div>
             <h3 className="text-lg font-semibold tracking-wide text-[var(--text)]">
@@ -164,20 +164,29 @@ export default function MediaModal({ isOpen, initialData, initialType, catalogOn
             </div>
           )}
 
-          <label className="flex flex-col gap-1.5 text-sm font-medium text-[var(--text)]">
-            {t('title')}
-            <input className="h-11 px-3 rounded-lg bg-[var(--input)] border border-[var(--border-subtle)] text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--color-nonsprimaryfocus)] transition-shadow" placeholder={t('title')} value={form.title} onChange={(e) => setForm(s => ({...s, title: e.target.value}))} />
-          </label>
+          {/* For books in edit mode, title is managed per-edition; hide the
+              work-level title field to avoid confusion. Always show for new
+              entries and for movies/series where there are no per-item editions. */}
+          {!(withEditions && isEditing && type === 'book') && (
+            <label className="flex flex-col gap-1.5 text-sm font-medium text-[var(--text)]">
+              {t('title')}
+              <input className="h-11 px-3 rounded-lg bg-[var(--input)] border border-[var(--border-subtle)] text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--color-nonsprimaryfocus)] transition-shadow" placeholder={t('title')} value={form.title} onChange={(e) => setForm(s => ({...s, title: e.target.value}))} />
+            </label>
+          )}
 
           <label className="flex flex-col gap-1.5 text-sm font-medium text-[var(--text)]">
             {t('originalTitle')}
             <input className="h-11 px-3 rounded-lg bg-[var(--input)] border border-[var(--border-subtle)] text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--color-nonsprimaryfocus)] transition-shadow" placeholder={t('originalTitle')} value={form.originalTitle} onChange={(e) => setForm(s => ({...s, originalTitle: e.target.value}))} />
           </label>
 
-          <label className="flex flex-col gap-1.5 text-sm font-medium text-[var(--text)]">
-            {type === 'book' ? t('author') : t('director')}
-            <input className="h-11 px-3 rounded-lg bg-[var(--input)] border border-[var(--border-subtle)] text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--color-nonsprimaryfocus)] transition-shadow" placeholder={type === 'book' ? t('author') : t('director')} value={type === 'book' ? form.author : form.director} onChange={(e) => setForm(s => type === 'book' ? ({...s, author: e.target.value}) : ({...s, director: e.target.value}))} />
-          </label>
+          {/* Author/director text input — hidden when PersonPicker is available,
+              since picking a person already writes back to form.author/director. */}
+          {!(withEditions && isEditing) && (
+            <label className="flex flex-col gap-1.5 text-sm font-medium text-[var(--text)]">
+              {type === 'book' ? t('author') : t('director')}
+              <input className="h-11 px-3 rounded-lg bg-[var(--input)] border border-[var(--border-subtle)] text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--color-nonsprimaryfocus)] transition-shadow" placeholder={type === 'book' ? t('author') : t('director')} value={type === 'book' ? form.author : form.director} onChange={(e) => setForm(s => type === 'book' ? ({...s, author: e.target.value}) : ({...s, director: e.target.value}))} />
+            </label>
+          )}
 
           {/* Link the author/director to a person entity (searchable + creatable). */}
           {withEditions && isEditing && initialData?.id && (
