@@ -8,6 +8,7 @@ import { mediaPath } from '../lib/paths'
 import EditionsManager from './EditionsManager'
 import EpisodesManager from './EpisodesManager'
 import CreditsManager from './CreditsManager'
+import ConnectionsManager from './ConnectionsManager'
 import PersonPicker from './PersonPicker'
 import { librarianService } from '../services/librarianService'
 import { catalogService } from '../services/catalogService'
@@ -254,6 +255,16 @@ export default function MediaModal({ isOpen, initialData, initialType, catalogOn
             <div className="flex flex-col gap-2 border-t border-[var(--divider)] pt-4">
               <span className="text-sm font-medium text-[var(--text)]">{t('episodesTitle')}</span>
               <EpisodesManager mediaId={initialData.id} />
+            </div>
+          )}
+
+          {/* Connections — series membership, universe, and adaptation links.
+              Applies to every catalog type (book/movie/series). */}
+          {withEditions && isEditing && initialData?.id && (
+            <div className="flex flex-col gap-2 border-t border-[var(--divider)] pt-4">
+              <span className="text-sm font-medium text-[var(--text)]">{t('connectionsEditorTitle')}</span>
+              <p className="text-xs text-[var(--text-muted)]">{t('connectionsEditorHint')}</p>
+              <ConnectionsManager item={initialData as MediaItem} />
             </div>
           )}
 

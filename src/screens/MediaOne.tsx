@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, Fragment, type ReactNode, useRef } fr
 import { useParams, useNavigate, useSearchParams, Link } from '@/lib/router'
 import Layout from '../components/layout/Layout'
 import { DetailPageSkeleton } from '../components/Skeletons'
+import ConnectionsPanel from '../components/ConnectionsPanel'
 import MediaModal from '../components/MediaModal'
 import ProgressModal from '../components/ProgressModal'
 import FinishModal from '../components/FinishModal'
@@ -972,6 +973,9 @@ export default function MediaOnePage({
               </div>
             )
           })()}
+
+          {/* ── Connections: series, universe, adaptations ── */}
+          {mediaNumId && <ConnectionsPanel mediaId={mediaNumId} />}
 
           {/* ── My review ── */}
           {canInteract && (

@@ -7,6 +7,103 @@ export type Collection = {
   created_at: number
 }
 
+// ── Connections: how catalog works relate (series, franchises, adaptations) ──
+
+/** Slim work shape embedded in connection payloads (card + link). */
+export type MediaSummary = {
+  id: number
+  uuid: string
+  type: MediaType
+  title: string
+  author?: string
+  director?: string
+  year?: number
+  cover_url?: string
+}
+
+export type SeriesRef = { id: number; uuid: string; name: string; type: MediaType; role?: string }
+export type FranchiseRef = { id: number; uuid: string; name: string }
+
+/** A catalog series (ordered grouping of works in one medium). */
+export type Series = {
+  id: number
+  uuid: string
+  name: string
+  type: MediaType
+  description?: string
+  franchise_id?: number | null
+  parent_series_id?: number | null
+  role?: string
+  created_at?: number
+}
+
+/** A franchise / universe that groups sibling series across media. */
+export type Franchise = {
+  id: number
+  uuid: string
+  name: string
+  description?: string
+  created_at?: number
+}
+
+export type RelationKind = 'adaptation' | 'novelization' | 'remake' | 'companion' | 'crossover'
+
+/** This work's place in one series, with neighbours (prev/next). */
+export type SeriesMembership = {
+  series: SeriesRef
+  position: number
+  label?: string
+  total: number
+  prev?: MediaSummary
+  next?: MediaSummary
+}
+
+/** This work's place in a universe, plus that universe's sibling series. */
+export type FranchiseMembership = {
+  franchise: FranchiseRef
+  order: number
+  saga?: string
+  role?: string
+  siblings: SeriesRef[]
+}
+
+/** A typed edge from this work's point of view ('outgoing' = this is the source). */
+export type WorkRelationView = {
+  id: number
+  kind: RelationKind
+  direction: 'incoming' | 'outgoing'
+  part?: number
+  note?: string
+  media: MediaSummary
+}
+
+/** The unified "connections" panel for one work. */
+export type Connections = {
+  series: SeriesMembership[]
+  franchises: FranchiseMembership[]
+  relations: WorkRelationView[]
+}
+
+export type SeriesPageData = {
+  series: Series
+  items: { position: number; label?: string; media: MediaSummary }[]
+}
+
+export type FranchisePageData = {
+  franchise: Franchise
+  series: SeriesRef[]
+  members: { order: number; saga?: string; role?: string; media: MediaSummary }[]
+}
+
+/** Result of auto-building a movie's series from its TMDB collection. */
+export type AutoConnectSummary = {
+  series: string
+  series_uuid: string
+  linked: number
+  skipped: number
+  created: boolean
+}
+
 // Shelf status — the Goodreads/IMDb "what am I doing with this" axis.
 //   wishlist -> Want to Read / Want to Watch
 //   active   -> Currently Reading / Watching

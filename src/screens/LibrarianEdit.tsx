@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from '@/lib/router'
 import Layout from '../components/layout/Layout'
 import MediaModal from '../components/MediaModal'
 import EpisodesManager from '../components/EpisodesManager'
+import ConnectionsManager from '../components/ConnectionsManager'
 import { libraryService } from '../services/libraryService'
 import { catalogService } from '../services/catalogService'
 import { authedFetch } from '../lib/api'
@@ -260,6 +261,11 @@ export default function LibrarianEditPage() {
             <EpisodesManager mediaId={id} />
           </Section>
         )}
+
+        {/* Connections: series, universe, adaptations */}
+        <Section title={t('connectionsEditorTitle')} hint={t('connectionsEditorHint')}>
+          <ConnectionsManager item={item} />
+        </Section>
 
         {/* Merge a duplicate entry into this one */}
         <Section title={t('mergeDuplicateTitle')} hint={t('mergeDuplicateHint')}>
