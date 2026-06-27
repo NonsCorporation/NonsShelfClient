@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, useEffect, useCallback, Fragment, type ReactNode, useRef } from 'react'
 import { useParams, useNavigate, useSearchParams, Link } from '@/lib/router'
@@ -815,6 +815,7 @@ export default function MediaOnePage({
             if (pages) rows.push([t('pages') || 'Pages', pages])
             if (selectedEdition?.publisher) rows.push([t('publisher') || 'Publisher', selectedEdition.publisher])
             if (selectedEdition?.published_year) rows.push([t('publishedYear') || 'Published', selectedEdition.published_year])
+            if (selectedEdition?.language) rows.push([t('language') || 'Language', selectedEdition.language.toUpperCase()])
             if (item.year) rows.push([t('firstPublished') || 'First published', item.year])
             if (item.originalLanguage) rows.push([t('originalLanguage') || 'Original language', item.originalLanguage])
             if (item.titleEn && item.titleEn !== item.title) rows.push([t('originalTitle') || 'Original title', item.titleEn])
@@ -897,13 +898,18 @@ export default function MediaOnePage({
                         }`}
                       >
                         <button onClick={() => chooseEdition(e)} className="block" title={e.title || item.title}>
-                          <div className="flex aspect-[2/3] w-full items-center justify-center overflow-hidden bg-[var(--container-2)]">
+                          <div className="relative flex aspect-[2/3] w-full items-center justify-center overflow-hidden bg-[var(--container-2)]">
                             {/* Fall back to the work cover so an edition without its own
                                 cover still shows one instead of a blank box. */}
                             {(e.cover_url || item.coverUrl) ? (
                               <img src={e.cover_url || item.coverUrl} alt="" loading="lazy" className="h-full w-full object-cover" />
                             ) : (
                               <Icon className="h-8 w-8 text-[var(--placeholder)]" />
+                            )}
+                            {e.language && (
+                              <span className="absolute bottom-1.5 left-1.5 rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white backdrop-blur-sm">
+                                {e.language}
+                              </span>
                             )}
                           </div>
                         </button>
@@ -913,7 +919,6 @@ export default function MediaOnePage({
                             {[
                               e.publisher,
                               e.published_year || undefined,
-                              (e.language || '').toUpperCase() || undefined,
                               e.pages ? t('pagesCount', { count: e.pages }) : undefined,
                             ]
                               .filter(Boolean)
