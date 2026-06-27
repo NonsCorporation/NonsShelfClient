@@ -32,6 +32,16 @@ export interface TmdbPersonSuggestion {
   also_known_as: string[]
 }
 
+// An OpenLibrary author match previewed before import (GET /api/people/:uuid/ol/suggest).
+export interface OlPersonSuggestion {
+  ol_key: string
+  name: string
+  biography: string
+  photo_url: string
+  birth_date: string
+  also_known_as: string[]
+}
+
 // Editable fields for a person (create/update).
 export interface PersonInput {
   name: string
@@ -407,6 +417,26 @@ export const librarianService = {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(tmdbId ? { tmdb_id: tmdbId } : {}),
+      }),
+    ) as Promise<PersonSummary>
+  },
+
+  // Preview an OpenLibrary author match without applying it.
+  async suggestPersonFromOL(uuid: string): Promise<OlPersonSuggestion> {
+    return jsonOrThrow(
+      await authedFetch(`/api/people/${uuid}/ol/suggest`),
+    ) as Promise<OlPersonSuggestion>
+  },
+
+  // Pull a person's bio/photo/birth date + name variants from OpenLibrary.
+  // Pass the accepted suggestion's olKey to import that record (and store it);
+  // omit it to use the person's already-stored OL key.
+  async enrichPersonFromOL(uuid: string, olKey?: string): Promise<PersonSummary> {
+    return jsonOrThrow(
+      await authedFetch(`/api/people/${uuid}/ol`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(olKey ? { ol_key: olKey } : {}),
       }),
     ) as Promise<PersonSummary>
   },

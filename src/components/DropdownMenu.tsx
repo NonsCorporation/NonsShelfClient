@@ -61,7 +61,7 @@ export default function DropdownMenu({
 
       {isOpen && (
         <div
-          className={`animate-fade-up absolute top-full z-50 mt-1 min-w-[160px] rounded-xl border border-[var(--border)] bg-[var(--container)] py-1 shadow-xl ${align === 'right' ? 'right-0' : 'left-0'} ${menuClassName}`}
+          className={`animate-fade-up absolute top-full z-50 mt-1 w-max rounded-xl border border-[var(--border)] bg-[var(--container)] py-1 shadow-xl ${align === 'right' ? 'right-0' : 'left-0'} ${menuClassName}`}
           onClick={(e) => e.stopPropagation()}
         >
           {items.map((item, index) => (
@@ -69,11 +69,7 @@ export default function DropdownMenu({
               {item.divider && <div className="my-1 border-t border-[var(--border)]" />}
               <button
                 onClick={() => handleItemClick(item)}
-                className={`flex w-full items-center gap-3 px-4 py-2 text-left text-sm transition-colors ${
-                  item.danger
-                    ? 'text-red-400 hover:bg-red-500/10'
-                    : 'text-[var(--text-muted)] hover:bg-[var(--border-subtle)] hover:text-[var(--text)]'
-                }`}
+                className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-[var(--text-muted)] transition-colors hover:bg-[var(--border-subtle)] hover:text-[var(--text)]"
               >
                 {item.icon && <span className="shrink-0">{item.icon}</span>}
                 <span>{item.label}</span>

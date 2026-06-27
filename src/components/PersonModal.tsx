@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { IoClose, IoPersonOutline, IoCloudDownloadOutline, IoCheckmark, IoSearch } from 'react-icons/io5'
 import { librarianService } from '../services/librarianService'
-import type { PersonSummary, TmdbPersonSuggestion } from '../services/librarianService'
+import type { PersonSummary, TmdbPersonSuggestion, OlPersonSuggestion } from '../services/librarianService'
 import { useLanguage } from '../contexts/LanguageContext'
 
 type Props = {
@@ -23,6 +23,9 @@ export default function PersonModal({ isOpen, person, initialName, onClose, onSa
   const [importing, setImporting] = useState(false)
   const [suggestion, setSuggestion] = useState<TmdbPersonSuggestion | null>(null)
   const [applying, setApplying] = useState(false)
+  const [importingOL, setImportingOL] = useState(false)
+  const [olSuggestion, setOlSuggestion] = useState<OlPersonSuggestion | null>(null)
+  const [applyingOL, setApplyingOL] = useState(false)
   const [mergeOpen, setMergeOpen] = useState(false)
   const [error, setError] = useState('')
 
@@ -123,6 +126,41 @@ export default function PersonModal({ isOpen, person, initialName, onClose, onSa
     }
   }
 
+  const importFromOL = async () => {
+    if (!person?.uuid) return
+    setImportingOL(true)
+    setError('')
+    try {
+      setOlSuggestion(await librarianService.suggestPersonFromOL(person.uuid))
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setImportingOL(false)
+    }
+  }
+
+  const acceptOLSuggestion = async () => {
+    if (!person?.uuid || !olSuggestion) return
+    setApplyingOL(true)
+    setError('')
+    try {
+      await librarianService.enrichPersonFromOL(person.uuid, olSuggestion.ol_key)
+      const { person: p, aliases } = await librarianService.getPerson(person.uuid)
+      setForm({
+        name: p.name ?? '',
+        bio: p.bio ?? '',
+        birthDate: p.birth_date ?? '',
+        photoUrl: p.photo_url ?? '',
+        aliases: aliases.join(', '),
+      })
+      setOlSuggestion(null)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setApplyingOL(false)
+    }
+  }
+
   // Merge the picked duplicate into this person (the survivor).
   // After merge, reload fresh aliases (dup's name is now an alias) then persist
   // everything — including the user's bio choice — via updatePerson so we get a
@@ -173,6 +211,15 @@ export default function PersonModal({ isOpen, person, initialName, onClose, onSa
                 >
                   <IoCloudDownloadOutline className="h-4 w-4" />
                   {importing ? t('importing') || 'Importing…' : 'TMDB'}
+                </button>
+                <button
+                  onClick={importFromOL}
+                  disabled={importingOL}
+                  title="Import from OpenLibrary"
+                  className="flex h-8 items-center gap-1.5 rounded-full border border-[var(--border-subtle)] bg-[var(--surface)] px-3 text-xs font-medium text-[var(--text-muted)] transition-colors hover:border-nonsprimary hover:text-nonsprimary disabled:opacity-50"
+                >
+                  <IoCloudDownloadOutline className="h-4 w-4" />
+                  {importingOL ? t('importing') || 'Importing…' : 'OL'}
                 </button>
                 <button
                   onClick={() => setMergeOpen(true)}
@@ -249,6 +296,22 @@ export default function PersonModal({ isOpen, person, initialName, onClose, onSa
           busy={applying}
           onAccept={acceptSuggestion}
           onDecline={() => setSuggestion(null)}
+        />
+      )}
+
+      {olSuggestion && (
+        <TmdbSuggestionModal
+          suggestion={{
+            tmdb_id: 0,
+            name: olSuggestion.name,
+            biography: olSuggestion.biography,
+            photo_url: olSuggestion.photo_url,
+            birthday: olSuggestion.birth_date,
+            also_known_as: olSuggestion.also_known_as,
+          }}
+          busy={applyingOL}
+          onAccept={acceptOLSuggestion}
+          onDecline={() => setOlSuggestion(null)}
         />
       )}
 
