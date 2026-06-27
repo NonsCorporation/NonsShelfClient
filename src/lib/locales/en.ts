@@ -303,6 +303,8 @@ export const en = {
   ratingsReviewsTitle: 'Ratings & reviews',
   noReviewsYet: 'No reviews yet.',
   noRatingsReviews: 'No ratings or reviews yet.',
+  previousPage: 'Previous page',
+  nextPage: 'Next page',
   nothingInProgress: 'Nothing in progress right now.',
 
   // Settings (own profile only)

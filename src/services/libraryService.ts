@@ -26,7 +26,13 @@ export const SHELF_META: Record<ShelfStatus, { key: string; dot: string }> = {
 type EditionRef = { id: number; title?: string; cover_url?: string; pages?: number }
 type ShelfEntry = { media_id: number; status: ShelfStatus; edition_id?: number; note?: string; created_at: number; collection_ids?: number[]; media?: BackendMedia; edition?: EditionRef }
 type FavoriteEntry = { media_id: number; media?: BackendMedia }
-type RatingEntry = { media_id: number; value: number; review?: string; media?: BackendMedia }
+type RatingEntry = { media_id: number; value: number; review?: string; updated_at?: number; media?: BackendMedia }
+
+// One page of a user's ratings & reviews, for the profile section.
+export interface ReviewsPage {
+  items: MediaItem[]
+  total: number
+}
 
 /** Parse a leading integer out of a duration string like "180 min" -> 180. */
 function parseDuration(d?: string): number {
@@ -133,6 +139,10 @@ export interface ILibraryService {
   getItems(): Promise<MediaItem[]>
   /** Another user's public library (shelf + ratings), for their profile page. */
   getUserItems(userId: number): Promise<MediaItem[]>
+  /** One page of a user's rated-or-reviewed items, newest first. Pass the numeric
+   *  user id for another user, or undefined for the signed-in user. `page` is
+   *  zero-based. Powers the profile's paginated "Ratings & reviews" section. */
+  getReviews(userId: number | undefined, page: number, perPage: number): Promise<ReviewsPage>
   getItem(id: string): Promise<MediaItem | undefined>
   /** The signed-in user's personal overlay (shelf/like/rating/review) on a
    *  catalog row — used to enrich the server-rendered public /b and /m pages
@@ -234,6 +244,31 @@ class ApiLibraryService implements ILibraryService {
           editionPages: e.edition?.pages,
         }),
       )
+  }
+
+  // One page of a user's ratings & reviews (rated or reviewed items), newest
+  // first. undefined userId → the signed-in user's own; otherwise the public,
+  // privacy-gated read of another user's. The rating's updated_at drives the
+  // displayed date, matching the newest-first server ordering.
+  async getReviews(userId: number | undefined, page: number, perPage: number): Promise<ReviewsPage> {
+    const params = new URLSearchParams({ limit: String(perPage), offset: String(page * perPage) })
+    const path = userId ? `/api/users/${userId}/reviews?${params}` : `/api/reviews?${params}`
+    const res = await authedFetch(path)
+    if (!res.ok) return { items: [], total: 0 }
+    const data = await res.json()
+    const entries = (data.items ?? []) as RatingEntry[]
+    return {
+      items: entries
+        .filter((e) => e.media)
+        .map((e) =>
+          toItem(e.media!, {
+            rating: e.value || undefined,
+            review: e.review,
+            createdAt: e.updated_at,
+          }),
+        ),
+      total: data.total ?? 0,
+    }
   }
 
   // `id` is either the numeric catalog id or the media uuid (from /b/<uuid>

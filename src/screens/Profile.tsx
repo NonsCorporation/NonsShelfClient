@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Link, useParams } from '@/lib/router'
 import Layout from '../components/layout/Layout'
 import { ProfileSkeleton } from '../components/Skeletons'
 import ImportModal from '../components/ImportModal'
 import SettingsModal from '../components/SettingsModal'
 import { libraryService } from '../services/libraryService'
+import Pagination from '../components/Pagination'
 import { fetchPublicProfile } from '../services/userService'
 import { nonsProfileUrl, nonsFetch } from '../lib/api'
 import type { MediaItem, ShelfStatus } from '../types'
@@ -45,6 +46,9 @@ type Tab = 'all' | ShelfStatus
 
 type Friend = { uuid: string; username: string; name: string }
 
+// Reviews are paginated server-side; this many cards per page.
+const REVIEWS_PER_PAGE = 10
+
 // Per-type identity used across the cards: an icon, a label key and an accent
 // colour. Gives books, films and series a distinct, recognisable look instead of
 // leaning on one generic poster treatment.
@@ -72,13 +76,27 @@ export default function ProfilePage() {
   const [importOpen, setImportOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [friends, setFriends] = useState<Friend[]>([])
+  // Ratings & reviews — paginated server-side (separate from the shelf items).
+  const [reviews, setReviews] = useState<MediaItem[]>([])
+  const [reviewsTotal, setReviewsTotal] = useState(0)
+  const [reviewsPage, setReviewsPage] = useState(0) // zero-based
+  const [reviewsLoading, setReviewsLoading] = useState(false)
+  const reviewsRef = useRef<HTMLElement>(null)
   const { collections } = useCollections()
+
+  // Jump to the top of the reviews list, then load the page. Used on page
+  // change so the user lands at the first card instead of mid-scroll.
+  const goToReviewsPage = (page: number) => {
+    reviewsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    setReviewsPage(page)
+  }
 
   useEffect(() => {
     if (authLoading) return
     let cancelled = false
     setLoading(true)
     setNotFound(false)
+    setReviewsPage(0) // new profile → back to the first page of reviews
 
     const mine = !routeId || routeId === authUser?.username || routeId === authUser?.uuid
 
@@ -132,14 +150,30 @@ export default function ProfilePage() {
   }, [routeId, authUser, authLoading])
 
   const byNewest = (a: MediaItem, b: MediaItem) => (b.dateAdded ?? '').localeCompare(a.dateAdded ?? '')
-  // Rated OR reviewed items — Goodreads shows a rating-only entry here too.
-  const reviews = useMemo(
-    () =>
-      items
-        .filter((it) => (it.review && it.review.trim()) || (typeof it.rating === 'number' && it.rating > 0))
-        .sort(byNewest),
-    [items],
-  )
+
+  // Rated OR reviewed items, fetched one page at a time from the server (the
+  // list can grow large, so we don't load it all with the shelf items).
+  useEffect(() => {
+    if (!profile) return
+    let cancelled = false
+    setReviewsLoading(true)
+    libraryService
+      .getReviews(isSelf ? undefined : profile.id, reviewsPage, REVIEWS_PER_PAGE)
+      .then((res) => {
+        if (cancelled) return
+        setReviews(res.items)
+        setReviewsTotal(res.total)
+      })
+      .finally(() => {
+        if (!cancelled) setReviewsLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [profile, isSelf, reviewsPage])
+
+  const reviewsPageCount = Math.ceil(reviewsTotal / REVIEWS_PER_PAGE)
+
   const counts = useMemo(
     () => ({
       all: items.length,
@@ -392,17 +426,19 @@ export default function ProfilePage() {
       </div>
 
       {/* Ratings & reviews — below the shelves, Goodreads-style */}
-      <section className="mt-8">
-        <h2 className="mb-3 flex items-baseline gap-2 text-base font-semibold text-[var(--text)]">
+      <section ref={reviewsRef} className="-mx-4 mt-8 scroll-mt-4 sm:mx-0">
+        <h2 className="mb-3 flex items-baseline gap-2 px-4 text-base font-semibold text-[var(--text)] sm:px-0">
           {t('ratingsReviewsTitle')}
-          {reviews.length > 0 && <span className="text-sm font-normal text-[var(--text-muted)]">{reviews.length}</span>}
+          {reviewsTotal > 0 && <span className="text-sm font-normal text-[var(--text-muted)]">{reviewsTotal}</span>}
         </h2>
-        {reviews.length === 0 ? (
-          <p className="rounded-xl border border-dashed border-[var(--border-subtle)] px-4 py-6 text-sm text-[var(--text-muted)]">
-            {t('noRatingsReviews')}
-          </p>
+        {reviewsTotal === 0 ? (
+          !reviewsLoading && (
+            <p className="mx-4 rounded-xl border border-dashed border-[var(--border-subtle)] px-4 py-6 text-sm text-[var(--text-muted)] sm:mx-0">
+              {t('noRatingsReviews')}
+            </p>
+          )
         ) : (
-          <div className="flex flex-col gap-4">
+          <div className={`flex flex-col gap-3 transition-opacity sm:gap-4 ${reviewsLoading ? 'opacity-60' : ''}`}>
             {reviews.map((it) => {
               const meta = typeMeta(it.type)
               const TypeIcon = meta.icon
@@ -411,7 +447,7 @@ export default function ProfilePage() {
               return (
                 <article
                   key={it.id}
-                  className="group rounded-2xl border border-[var(--border-subtle)] bg-[var(--container)] p-4 transition-colors hover:border-[var(--border)] sm:p-5"
+                  className="group border-b border-[var(--border-subtle)] bg-[var(--container)] px-4 py-4 transition-colors hover:border-[var(--border)] sm:rounded-2xl sm:border sm:p-5"
                 >
                   {/* cover + details, single aligned column on the right */}
                   <div className="flex gap-4">
@@ -470,6 +506,12 @@ export default function ProfilePage() {
                 </article>
               )
             })}
+            <Pagination
+              currentPage={reviewsPage + 1}
+              totalPages={reviewsPageCount}
+              onPageChange={(p) => goToReviewsPage(p - 1)}
+              t={t}
+            />
           </div>
         )}
       </section>

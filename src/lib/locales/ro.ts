@@ -303,6 +303,8 @@ export const ro = {
   ratingsReviewsTitle: 'Note și recenzii',
   noReviewsYet: 'Nicio recenzie încă.',
   noRatingsReviews: 'Nicio notă sau recenzie încă.',
+  previousPage: 'Pagina anterioară',
+  nextPage: 'Pagina următoare',
   nothingInProgress: 'Nimic în progres acum.',
 
   // Settings (own profile only)

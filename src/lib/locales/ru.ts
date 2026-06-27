@@ -303,6 +303,8 @@ export const ru = {
   ratingsReviewsTitle: 'Оценки и рецензии',
   noReviewsYet: 'Пока нет рецензий.',
   noRatingsReviews: 'Пока нет оценок и рецензий.',
+  previousPage: 'Предыдущая страница',
+  nextPage: 'Следующая страница',
   nothingInProgress: 'Сейчас ничего нет в процессе.',
 
   // Settings (own profile only)
