@@ -97,7 +97,11 @@ export default function ActivityCard({
           style={{ width: 36, height: 36 }}
           title={a.user.name}
         >
-          <BoringAvatar size={36} name={`user-${a.userId}`} />
+          {a.user.avatarUrl ? (
+            <img src={a.user.avatarUrl} alt={a.user.name} loading="lazy" className="h-9 w-9 rounded-full object-cover" />
+          ) : (
+            <BoringAvatar size={36} name={`user-${a.userId}`} />
+          )}
         </Link>
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-1.5 text-sm leading-6 text-[var(--text)]">
           <Link to={userPath(a.user.handle || a.user.uuid || '')} className="font-semibold hover:underline">

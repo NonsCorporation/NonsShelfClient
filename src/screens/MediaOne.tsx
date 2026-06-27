@@ -1106,6 +1106,8 @@ export default function MediaOnePage({
                           rating: r.value,
                           color: u?.color ?? colorFor(r.username ?? ''),
                           review: r.review ?? null,
+                          avatarUrl: r.avatarUrl ?? null,
+                          userId: r.userId,
                         }
                         return <FriendRatingRow key={r.userId} f={f} />
                       })}
@@ -1275,16 +1277,20 @@ export default function MediaOnePage({
   )
 }
 
-function FriendRatingRow({ f }: { f: { handle: string; name: string; rating: number; color: string; review: string | null } }) {
+function FriendRatingRow({ f }: { f: { handle: string; name: string; rating: number; color: string; review: string | null; avatarUrl: string | null; userId: number } }) {
   return (
     <div className="py-3 first:pt-0 last:pb-0">
       <div className="flex items-center gap-3">
-        <span
-          className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-[11px] font-semibold text-white"
-          style={{ backgroundColor: f.color }}
-        >
-          {f.name[0]}
-        </span>
+        {f.avatarUrl ? (
+          <img src={f.avatarUrl} alt={f.name} loading="lazy" className="h-7 w-7 flex-shrink-0 rounded-full object-cover" />
+        ) : (
+          <span
+            className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-[11px] font-semibold text-white"
+            style={{ backgroundColor: f.color }}
+          >
+            {f.name[0]}
+          </span>
+        )}
         <span className="min-w-0 flex-1 truncate text-sm text-[var(--text)]">{f.name}</span>
         <StarsSelector initialValue={f.rating} isEditable={false} size="sm" />
       </div>

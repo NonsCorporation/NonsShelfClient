@@ -34,7 +34,7 @@ export default function FeedPage() {
 
   const load = useCallback(() => {
     if (!user) return
-    const me = { id: user.id, name: user.name || user.username, handle: user.username, uuid: user.uuid }
+    const me = { id: user.id, name: user.name || user.username, handle: user.username, uuid: user.uuid, avatar: user.avatar_url }
     Promise.all([libraryService.getItems(), activityService.getFriendsActivity(me)]).then(([lib, act]) => {
       setItems(lib)
       setActivity(act)
