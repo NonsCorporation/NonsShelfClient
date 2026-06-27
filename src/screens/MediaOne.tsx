@@ -122,7 +122,17 @@ export default function MediaOnePage({
   // in the carousel page that's been loaded yet.
   const [readingEdition, setReadingEdition] = useState<{ cover?: string; title?: string; pages?: number } | null>(null)
   const [isbnFind, setIsbnFind] = useState('')
-  const [selectedLang, setSelectedLang] = useState('')
+  // State (not derived) so it survives carousel page changes where the selected
+  // edition isn't in the currently loaded slice. Initialized synchronously from
+  // initialEditions + URL so the first credits fetch already has the right lang.
+  const [selectedLang, setSelectedLang] = useState<string>(() => {
+    const eUuid = new URLSearchParams(window.location.search).get('e')
+    if (eUuid && initialEditions.length) {
+      const ed = initialEditions.find((e) => e.uuid === eUuid)
+      if (ed?.language) return ed.language
+    }
+    return ''
+  })
 
   const [userRating, setUserRating] = useState<number | null>(initialItem?.rating ?? null)
   const [userReview, setUserReview] = useState(initialItem?.review ?? '')
@@ -229,16 +239,13 @@ export default function MediaOnePage({
         setEditions(eds)
         setEditionsTotal(d.total ?? eds.length)
         editionsPageRef.current = 0
-        // Restore the selected language from the active edition so the
-        // credits byline is localized on page load. Check both the URL UUID
-        // (?e=<uuid>) and the shelf's numeric editionId — whichever is set.
-        const eUuid = params.get('e')
-        const activeEd = eUuid
+        // Update selectedLang when the active edition appears in this batch.
+        // Don't clear it when not found — the edition may be on a later page.
+        const eUuid = new URLSearchParams(window.location.search).get('e')
+        const foundEd = eUuid
           ? eds.find((e) => e.uuid === eUuid)
-          : editionId
-            ? eds.find((e) => e.id === editionId)
-            : null
-        if (activeEd?.language) setSelectedLang(activeEd.language)
+          : editionId ? eds.find((e) => e.id === editionId) : null
+        if (foundEd?.language) setSelectedLang(foundEd.language)
       })
       .catch(() => {})
     return () => {
