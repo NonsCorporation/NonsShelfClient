@@ -1,32 +1,36 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { useParams, Link } from '@/lib/router'
-import { IoLayersOutline } from 'react-icons/io5'
+import { useCallback, useEffect, useState } from 'react'
+import { useParams, useNavigate, Link } from '@/lib/router'
+import { IoLayersOutline, IoCreateOutline } from 'react-icons/io5'
 import Layout from '../components/layout/Layout'
+import SeriesEditor from '../components/SeriesEditor'
 import { connectionService } from '../services/connectionService'
 import { mediaPath } from '../lib/paths'
 import { useLanguage } from '../contexts/LanguageContext'
+import { useAuth } from '../contexts/AuthContext'
+import { isLibrarian } from '../services/librarianService'
 import type { SeriesPageData } from '../types'
 
 // Public page for a series (/series/<uuid>): the ordered list of works, Goodreads
-// "Book N of M" style. Books or films — the series' `type` drives the medium.
+// "Book N of M" style. Librarians get an inline editor (reorder, edit, add/remove).
 export default function SeriesScreen() {
   const { t } = useLanguage()
+  const { user } = useAuth()
+  const navigate = useNavigate()
   const { uuid = '' } = useParams<{ uuid: string }>()
   const [data, setData] = useState<SeriesPageData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [editing, setEditing] = useState(false)
 
-  useEffect(() => {
-    let cancelled = false
-    setLoading(true)
-    connectionService.getSeries(uuid).then((d) => {
-      if (cancelled) return
+  const load = useCallback(() => {
+    return connectionService.getSeries(uuid).then((d) => {
       setData(d)
       setLoading(false)
     })
-    return () => { cancelled = true }
   }, [uuid])
+
+  useEffect(() => { setLoading(true); load() }, [load])
 
   if (loading) {
     return <Layout><div className="py-24 text-center text-[var(--text-muted)]">{t('loading')}</div></Layout>
@@ -36,6 +40,7 @@ export default function SeriesScreen() {
   }
 
   const { series, items } = data
+  const canEdit = isLibrarian(user?.role)
 
   return (
     <Layout>
@@ -44,21 +49,35 @@ export default function SeriesScreen() {
         <div className="mt-0.5 flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl bg-[var(--primary-soft)]">
           <IoLayersOutline className="h-5 w-5 text-nonsprimary" />
         </div>
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <p className="text-[10px] uppercase tracking-widest text-[var(--text-muted)]">
             {t('seriesTitle') || 'Series'}
             {series.role && series.role !== 'main' ? ` · ${t(`role_${series.role}`) || series.role}` : ''}
           </p>
           <h1 className="mt-0.5 text-2xl font-bold tracking-tight text-[var(--text)]">{series.name}</h1>
           <p className="mt-1 text-sm text-[var(--text-muted)]">{t('seriesEntries', { n: items.length })}</p>
-          {series.description && (
+          {series.description && !editing && (
             <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--text-muted)]">{series.description}</p>
           )}
         </div>
+        {canEdit && (
+          <button
+            onClick={() => setEditing((v) => !v)}
+            className={`inline-flex h-10 flex-shrink-0 items-center gap-2 rounded-xl px-4 text-sm font-semibold transition-colors ${
+              editing
+                ? 'bg-[var(--surface-active)] text-[var(--text)]'
+                : 'bg-nonsprimary text-white hover:bg-nonsprimaryfocus'
+            }`}
+          >
+            <IoCreateOutline className="h-4 w-4" />
+            {editing ? (t('back') || 'Done') : t('edit')}
+          </button>
+        )}
       </div>
 
-      {/* Ordered entries */}
-      {items.length === 0 ? (
+      {editing && canEdit ? (
+        <SeriesEditor uuid={series.uuid} onChanged={load} onDeleted={() => navigate('/library')} />
+      ) : items.length === 0 ? (
         <p className="py-16 text-center text-sm text-[var(--text-muted)]">{t('noEntriesYet') || 'No entries yet.'}</p>
       ) : (
         <ol className="flex flex-col gap-3">

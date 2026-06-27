@@ -564,6 +564,7 @@ export const en = {
   // Connections (series / franchise / adaptations)
   connectionsTitle: 'Connections',
   previous: 'Previous',
+  thisTitle: 'This',
   ofTotal: 'of',
   partOf: 'Part of',
   inThisUniverse: 'More in this universe',
@@ -588,6 +589,13 @@ export const en = {
   franchiseWorks: '{n} works',
   noEntriesYet: 'No entries yet.',
   spinoffsAndMore: 'Series in this universe',
+  seriesName: 'Series name',
+  seriesDescription: 'Description',
+  seriesRole: 'Role',
+  attachFranchise: 'Attach a universe',
+  addWork: 'Add a work to this series',
+  deleteSeries: 'Delete series',
+  deleteSeriesConfirm: 'Delete this series? The works stay in your catalog — only the series grouping is removed.',
   // Librarian: connections editor
   connectionsEditorTitle: 'Connections',
   connectionsEditorHint: 'Place this work in a series, a universe, and link adaptations.',

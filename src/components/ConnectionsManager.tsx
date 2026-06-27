@@ -9,10 +9,13 @@ import {
   IoSparklesOutline,
   IoGitNetworkOutline,
   IoFlashOutline,
+  IoChevronDown,
+  IoChevronForward,
 } from 'react-icons/io5'
 import { Link } from '@/lib/router'
 import { connectionService } from '../services/connectionService'
 import { catalogService, type CatalogItem } from '../services/catalogService'
+import SeriesEditor from './SeriesEditor'
 import { useLanguage } from '../contexts/LanguageContext'
 import type { Connections, Franchise, MediaItem, RelationKind, Series } from '../types'
 
@@ -42,13 +45,16 @@ export default function ConnectionsManager({ item }: { item: MediaItem }) {
       {/* ── Series membership ── */}
       <Group icon={<IoLayersOutline className="h-4 w-4 text-nonsprimary" />} title={t('seriesMembership') || 'Series'}>
         {conn?.series.map((m) => (
-          <Row key={m.series.id} onRemove={() => connectionService.removeSeriesItem(m.series.uuid, mediaId).then(reload)}>
-            <span className="min-w-0 flex-1 truncate text-sm text-[var(--text)]">{m.series.name}</span>
-            <span className="flex-shrink-0 text-xs text-[var(--text-muted)]">
-              #{m.position}
-              {m.label ? ` · ${m.label}` : ''} / {m.total}
-            </span>
-          </Row>
+          <SeriesMembershipRow
+            key={m.series.id}
+            uuid={m.series.uuid}
+            name={m.series.name}
+            position={m.position}
+            label={m.label}
+            total={m.total}
+            onRemove={() => connectionService.removeSeriesItem(m.series.uuid, mediaId).then(reload)}
+            onChanged={reload}
+          />
         ))}
         <SeriesAdder mediaId={mediaId} type={item.type} onDone={reload} />
       </Group>
@@ -175,6 +181,44 @@ function Row({ children, onRemove }: { children: React.ReactNode; onRemove: () =
 
 const inputCls =
   'h-9 rounded-lg border border-[var(--border-subtle)] bg-[var(--input)] px-2.5 text-sm text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-ring)]'
+
+// A series this work belongs to: shows its position, can be removed, and expands
+// to the full series editor (reorder all entries, edit metadata, add/remove).
+function SeriesMembershipRow({
+  uuid, name, position, label, total, onRemove, onChanged,
+}: {
+  uuid: string
+  name: string
+  position: number
+  label?: string
+  total: number
+  onRemove: () => void
+  onChanged: () => void
+}) {
+  const { t } = useLanguage()
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)]">
+      <div className="flex items-center gap-2 px-3 py-2">
+        <button onClick={() => setOpen((v) => !v)} className="flex min-w-0 flex-1 items-center gap-2 text-left">
+          {open ? <IoChevronDown className="h-4 w-4 flex-shrink-0 text-[var(--text-muted)]" /> : <IoChevronForward className="h-4 w-4 flex-shrink-0 text-[var(--text-muted)]" />}
+          <span className="min-w-0 flex-1 truncate text-sm text-[var(--text)]">{name}</span>
+        </button>
+        <span className="flex-shrink-0 text-xs text-[var(--text-muted)]">
+          #{position}{label ? ` · ${label}` : ''} / {total}
+        </span>
+        <button onClick={onRemove} title={t('removeLabel') || 'Remove'} className="flex-shrink-0 rounded-lg p-1.5 text-[var(--text-muted)] hover:bg-red-500/10 hover:text-red-500">
+          <IoTrashOutline className="h-4 w-4" />
+        </button>
+      </div>
+      {open && (
+        <div className="border-t border-[var(--border-subtle)] p-3">
+          <SeriesEditor uuid={uuid} onChanged={onChanged} onDeleted={onChanged} />
+        </div>
+      )}
+    </div>
+  )
+}
 
 // ── Series adder: pick an existing series or create one, then set position ──────
 function SeriesAdder({ mediaId, type, onDone }: { mediaId: number; type: MediaItem['type']; onDone: () => void }) {
