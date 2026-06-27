@@ -98,7 +98,7 @@ export default function MediaModal({ isOpen, initialData, initialType, catalogOn
   }
 
   return (
-    <div onClick={onClose} className="fixed inset-0 z-[60] bg-[var(--overlay)] flex items-end sm:items-center sm:p-4">
+    <div onClick={onClose} className="fixed inset-0 z-[60] bg-[var(--overlay)] flex items-end pb-28 sm:pb-0 sm:items-center sm:p-4">
       <div onClick={(e) => e.stopPropagation()} className="w-full sm:max-w-xl rounded-t-2xl sm:rounded-2xl border border-[var(--border)] bg-[var(--container)] overflow-hidden flex flex-col max-h-[85svh] sm:max-h-[90vh]">
         <div className="px-5 py-4 border-b border-[var(--divider)] bg-[var(--surface)] flex-shrink-0 flex items-center justify-between gap-2">
           <div>
