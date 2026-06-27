@@ -86,6 +86,26 @@ export default function FeedPage() {
 
   const activityPageCount = Math.ceil(activityTotal / ACTIVITY_PER_PAGE)
 
+  // The viewer's own library, keyed by catalog id, so each activity card can
+  // show their shelf status/rating for that media and let them shelve it.
+  const myByMedia = useMemo(() => {
+    const m = new Map<number, MediaItem>()
+    for (const it of items) m.set(Number(it.id), it)
+    return m
+  }, [items])
+
+  // Merge a persisted shelf change back into the library state (insert when the
+  // item wasn't on the shelf yet), so the card + in-progress row stay in sync.
+  const applyShelfChange = useCallback((updated: MediaItem) => {
+    setItems((prev) => {
+      const i = prev.findIndex((x) => x.id === updated.id)
+      if (i === -1) return [...prev, updated]
+      const next = [...prev]
+      next[i] = updated
+      return next
+    })
+  }, [])
+
   const [progressItem, setProgressItem] = useState<MediaItem | null>(null)
   const openFinish = (it: MediaItem) => setFinishItem(it)
   const openProgress = (it: MediaItem) => setProgressItem(it)
@@ -145,6 +165,8 @@ export default function FeedPage() {
                 key={a.id}
                 a={a}
                 commentCount={commentCounts[String(a.postId)] ?? 0}
+                myItem={myByMedia.get(a.mediaId)}
+                onShelfChange={applyShelfChange}
                 onDeleted={(postId) => {
                   setActivity((prev) => prev.filter((x) => x.postId !== postId))
                   setActivityTotal((n) => Math.max(0, n - 1))

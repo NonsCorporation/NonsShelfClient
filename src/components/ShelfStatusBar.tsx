@@ -15,9 +15,13 @@ type Props = {
   currentStatus: ShelfStatus | null
   onStatusChange: (status: ShelfStatus) => void
   onEditProgress?: () => void
+  /** 'bar' (default) is the slim left-accent row used in the in-progress
+   *  carousel; 'button' is a more prominent bordered pill (chevron leading the
+   *  label) for standalone use, e.g. in a feed card. */
+  variant?: 'bar' | 'button'
 }
 
-export default function ShelfStatusBar({ item, currentStatus, onStatusChange, onEditProgress }: Props) {
+export default function ShelfStatusBar({ item, currentStatus, onStatusChange, onEditProgress, variant = 'bar' }: Props) {
   const { t } = useLanguage()
   const { collections, createCollection, refresh } = useCollections()
   const isBook = item.type === 'book'
@@ -137,40 +141,60 @@ export default function ShelfStatusBar({ item, currentStatus, onStatusChange, on
 
   return (
     <>
-      <div className="flex items-center gap-1">
-        <div
-          ref={btnRef}
-          style={{ borderLeftColor: accent, color: accent }}
-          className="flex min-w-0 flex-1 items-center rounded-r-lg border-l-[3px]"
-        >
-          <button
-            data-shelf-popover
-            onClick={onShelf ? handleToggle : () => onStatusChange('wishlist')}
-            className="flex min-w-0 flex-1 items-center gap-1.5 py-1.5 pl-2.5 text-xs font-medium transition-opacity hover:opacity-70"
-          >
-            {!onShelf && <IoAdd className="h-3.5 w-3.5 flex-shrink-0" />}
-            <span className="truncate">{currentLabel}</span>
-          </button>
+      {variant === 'button' ? (
+        // Prominent pill: a neutral bordered button (chevron leading the label)
+        // with the status shown as a small accent dot, so it reads as a clear,
+        // tappable action without the saturated colour shouting.
+        <div ref={btnRef} className="inline-flex max-w-full">
           <button
             data-shelf-popover
             onClick={handleToggle}
-            aria-label={t('status') || 'Status'}
-            className="flex flex-shrink-0 items-center py-1.5 pl-1 pr-2.5 transition-opacity hover:opacity-70"
+            className="inline-flex min-w-0 items-center gap-1.5 rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs font-semibold text-[var(--text)] transition-colors hover:bg-[var(--surface)]"
           >
-            <IoChevronDown className={`h-3.5 w-3.5 transition-transform duration-200 ${anchor ? 'rotate-180' : ''}`} />
+            <IoChevronDown className={`h-3.5 w-3.5 flex-shrink-0 text-[var(--text-muted)] transition-transform duration-200 ${anchor ? 'rotate-180' : ''}`} />
+            {!onShelf && <IoAdd className="h-3.5 w-3.5 flex-shrink-0 text-[var(--text-muted)]" />}
+            <span className="truncate">{currentLabel}</span>
+            {onShelf && (
+              <span className="h-2 w-2 flex-shrink-0 rounded-full border-[1.5px]" style={{ borderColor: accent }} />
+            )}
           </button>
         </div>
-
-        {onEditProgress && (
-          <button
-            onClick={onEditProgress}
-            title={t('updateProgress') || 'Update progress'}
-            className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-[var(--text-muted)] transition-colors hover:bg-[var(--surface)] hover:text-nonsprimary"
+      ) : (
+        <div className="flex items-center gap-1">
+          <div
+            ref={btnRef}
+            style={{ borderLeftColor: accent, color: accent }}
+            className="flex min-w-0 flex-1 items-center rounded-r-lg border-l-[3px]"
           >
-            <IoTrendingUpOutline className="h-4 w-4" />
-          </button>
-        )}
-      </div>
+            <button
+              data-shelf-popover
+              onClick={onShelf ? handleToggle : () => onStatusChange('wishlist')}
+              className="flex min-w-0 flex-1 items-center gap-1.5 py-1.5 pl-2.5 text-xs font-medium transition-opacity hover:opacity-70"
+            >
+              {!onShelf && <IoAdd className="h-3.5 w-3.5 flex-shrink-0" />}
+              <span className="truncate">{currentLabel}</span>
+            </button>
+            <button
+              data-shelf-popover
+              onClick={handleToggle}
+              aria-label={t('status') || 'Status'}
+              className="flex flex-shrink-0 items-center py-1.5 pl-1 pr-2.5 transition-opacity hover:opacity-70"
+            >
+              <IoChevronDown className={`h-3.5 w-3.5 transition-transform duration-200 ${anchor ? 'rotate-180' : ''}`} />
+            </button>
+          </div>
+
+          {onEditProgress && (
+            <button
+              onClick={onEditProgress}
+              title={t('updateProgress') || 'Update progress'}
+              className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-[var(--text-muted)] transition-colors hover:bg-[var(--surface)] hover:text-nonsprimary"
+            >
+              <IoTrendingUpOutline className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+      )}
 
       {anchor && createPortal(
         <div

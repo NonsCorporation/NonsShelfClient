@@ -1,11 +1,14 @@
 import { useState } from 'react'
 import { Link } from '@/lib/router'
 import type { Activity, ActivityType } from '../services/activityService'
+import type { MediaItem, ShelfStatus } from '../types'
 import { deletePost } from '../services/commentService'
+import { libraryService } from '../services/libraryService'
 import { useAuth } from '../contexts/AuthContext'
 import { useLanguage } from '../contexts/LanguageContext'
 import { mediaPath, userPath } from '../lib/paths'
 import BoringAvatar from './BoringAvatar'
+import ShelfStatusBar from './ShelfStatusBar'
 import { IoHeart, IoHeartOutline, IoChatbubbleOutline, IoTrashOutline } from 'react-icons/io5'
 import { IoMdStar, IoMdStarHalf, IoMdStarOutline } from 'react-icons/io'
 import TypeBadge from './TypeBadge'
@@ -49,15 +52,23 @@ function Stars({ rating }: { rating: number }) {
 export default function ActivityCard({
   a,
   commentCount = 0,
+  myItem,
   onDeleted,
   onCountChange,
+  onShelfChange,
 }: {
   a: Activity
   commentCount?: number
+  /** The viewer's own library entry for this media, if any — drives the
+   *  "You" quick-action row so they can shelve/compare from the feed. */
+  myItem?: MediaItem
   onDeleted?: (postId: number) => void
   /** Live count updates from the open thread, lifted to the parent so the badge
    *  reflects the batched count immediately (not only after opening comments). */
   onCountChange?: (postId: number, n: number) => void
+  /** Persisted shelf change for this media — lifted so the parent feed updates
+   *  its own library state (and the in-progress row). */
+  onShelfChange?: (item: MediaItem) => void
 }) {
   const { t } = useLanguage()
   const { user } = useAuth()
@@ -65,6 +76,31 @@ export default function ActivityCard({
   const [showComments, setShowComments] = useState(false)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
+
+  // The viewer's own shelf state for this media. When they haven't added it,
+  // synthesize a minimal item from the activity so they can shelve it in place.
+  const myStatus = myItem?.status ?? null
+  const shelfItem: MediaItem = myItem ?? {
+    id: String(a.mediaId),
+    uuid: a.mediaUuid,
+    type: a.mediaType,
+    title: a.mediaTitle,
+    author: a.mediaAuthor ?? '',
+    coverUrl: a.coverUrl,
+    year: a.mediaYear,
+  }
+
+  // Set the viewer's own shelf status from the feed. Optimistic, then persisted;
+  // the resolved item (full catalog fields) replaces the optimistic one.
+  const handleSetStatus = async (status: ShelfStatus) => {
+    onShelfChange?.({ ...shelfItem, status })
+    try {
+      const updated = await libraryService.updateItem(shelfItem.id, { status })
+      onShelfChange?.(updated)
+    } catch {
+      /* leave the optimistic value; a reload will reconcile */
+    }
+  }
   const to = mediaPath({ type: a.mediaType, uuid: a.mediaUuid, id: String(a.mediaId) })
   const typeLabel = a.mediaType === 'book' ? t('book') : a.mediaType === 'series' ? t('series') : t('film')
   const showStars = typeof a.rating === 'number' && a.rating > 0
@@ -172,6 +208,11 @@ export default function ActivityCard({
             {typeLabel}
             {a.mediaYear ? ` · ${a.mediaYear}` : ''}
           </p>
+
+          {/* Your shelf — Goodreads-style quick action under the metadata. */}
+          <div className="mt-2">
+            <ShelfStatusBar item={shelfItem} currentStatus={myStatus} onStatusChange={handleSetStatus} variant="button" />
+          </div>
 
           {a.mediaDescription && (
             <p className="mt-2 text-sm leading-6 text-[var(--text-muted)]">
