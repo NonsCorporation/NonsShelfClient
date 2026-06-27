@@ -8,6 +8,7 @@ import { useLanguage } from '../contexts/LanguageContext'
 import { userPath } from '../lib/paths'
 import { getComments, addComment, deleteComment, type FeedComment } from '../services/commentService'
 import BoringAvatar from './BoringAvatar'
+import DropdownMenu from './DropdownMenu'
 
 // Stop indenting past this depth so deep reply chains don't march off-screen.
 // 3 → top-level plus two nested indents = three visual levels; deeper replies
@@ -213,12 +214,20 @@ function CommentNode({
       <div className="flex items-start gap-2.5">
         <Avatar id={comment.author.id} name={comment.author.name} username={comment.author.username} avatar={comment.author.avatar_url} small />
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-x-1.5 text-xs">
-            <Link to={userPath(comment.author.username)} className="font-semibold text-[var(--text)] hover:text-nonsprimary">
-              {comment.author.name}
-            </Link>
-            <span className="text-[var(--text-muted)]">@{comment.author.username}</span>
-            <span className="text-[var(--text-muted)]">· {timeAgo(comment.created_at)}</span>
+          <div className="flex items-start justify-between gap-1">
+            <div className="flex flex-wrap items-center gap-x-1.5 text-xs">
+              <Link to={userPath(comment.author.username)} className="font-semibold text-[var(--text)] hover:text-nonsprimary">
+                {comment.author.name}
+              </Link>
+              <span className="text-[var(--text-muted)]">@{comment.author.username}</span>
+              <span className="text-[var(--text-muted)]">· {timeAgo(comment.created_at)}</span>
+            </div>
+            {isOwn && (
+              <DropdownMenu
+                items={[{ label: t('delete'), icon: <IoTrashOutline className="h-4 w-4" />, onClick: () => onDelete(comment.id), danger: true }]}
+                buttonClassName="!p-0.5"
+              />
+            )}
           </div>
           <p className="mt-0.5 whitespace-pre-wrap break-words text-sm leading-6 text-[var(--text)]">{comment.body}</p>
 
@@ -229,15 +238,6 @@ function CommentNode({
             >
               {t('reply')}
             </button>
-            {isOwn && (
-              <button
-                onClick={() => onDelete(comment.id)}
-                className="inline-flex items-center gap-1 font-medium text-[var(--text-muted)] transition-colors hover:text-red-500"
-              >
-                <IoTrashOutline className="h-3.5 w-3.5" />
-                {t('delete')}
-              </button>
-            )}
           </div>
 
           {replying && (
