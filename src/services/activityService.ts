@@ -116,21 +116,27 @@ function timeAgo(at: number): string {
   return `${Math.floor(s / (7 * 86400))}w`
 }
 
+// One page of friends-activity plus the total event count, for pagination.
+export type ActivityPage = { items: Activity[]; total: number }
+
 export interface IActivityService {
-  /** Recent library activity of the user + their nons friends. */
-  getFriendsActivity(me: FeedSelf): Promise<Activity[]>
+  /** One page of library activity of the user + their nons friends, newest
+   *  first. `page` is zero-based. */
+  getFriendsActivity(me: FeedSelf, page?: number, perPage?: number): Promise<ActivityPage>
 }
 
 class ApiActivityService implements IActivityService {
-  async getFriendsActivity(me: FeedSelf): Promise<Activity[]> {
+  async getFriendsActivity(me: FeedSelf, page = 0, perPage = 20): Promise<ActivityPage> {
     const friends = await getFriendUsers(me)
 
     const ids = [...friends.keys()].join(',')
-    const res = await authedFetch(`/api/activity?user_ids=${ids}&limit=30`)
-    if (!res.ok) return []
-    const events: ActivityEvent[] = (await res.json()).items ?? []
+    const params = new URLSearchParams({ user_ids: ids, limit: String(perPage), offset: String(page * perPage) })
+    const res = await authedFetch(`/api/activity?${params}`)
+    if (!res.ok) return { items: [], total: 0 }
+    const body = await res.json()
+    const events: ActivityEvent[] = body.items ?? []
 
-    return events
+    const items = events
       .filter((e) => e.media && friends.has(e.user_id))
       .map((e) => ({
         id: `p-${e.post_id}`,
@@ -154,6 +160,8 @@ class ApiActivityService implements IActivityService {
         page: e.page || undefined,
         timeAgo: timeAgo(e.at),
       }))
+
+    return { items, total: body.total ?? items.length }
   }
 }
 

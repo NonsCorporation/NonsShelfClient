@@ -1,10 +1,9 @@
 import { MdChevronLeft, MdChevronRight } from 'react-icons/md'
 
-// Page navigator for the profile's "Ratings & reviews". Pages are 1-based.
-// The active page is rendered as a tilted "sheet of paper" (matching
-// nons-client's PaginatedArea), and the list is truncated to first / a window
-// around the current page / last, with "…" gaps — so a long history stays a
-// single tidy row instead of dozens of buttons.
+// Page navigator (ratings & reviews, friends feed). Pages are 1-based. The
+// active page is rendered as a tilted "sheet of paper" (matching nons-client's
+// PaginatedArea), and only a sliding window around the current page is shown —
+// a couple behind, a few ahead — so a long history stays a single tidy row.
 interface PaginationProps {
   currentPage: number
   totalPages: number
@@ -12,12 +11,16 @@ interface PaginationProps {
   t: (key: string) => string
 }
 
-// Compact page list, e.g. 1 2 3 4 … 20  /  1 … 9 10 11 … 20  /  1 … 17 18 19 20.
-function pageItems(current: number, total: number): (number | 'ellipsis')[] {
-  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1)
-  if (current <= 3) return [1, 2, 3, 4, 'ellipsis', total]
-  if (current >= total - 2) return [1, 'ellipsis', total - 3, total - 2, total - 1, total]
-  return [1, 'ellipsis', current - 1, current, current + 1, 'ellipsis', total]
+// A sliding window around the current page — a couple of pages behind and a few
+// ahead — without anchoring to the last page. e.g. on page 6: 4 5 [6] 7 8 9 10.
+function pageItems(current: number, total: number): number[] {
+  const before = 2
+  const after = 4
+  const start = Math.max(1, current - before)
+  const end = Math.min(total, current + after)
+  const pages: number[] = []
+  for (let i = start; i <= end; i++) pages.push(i)
+  return pages
 }
 
 export default function Pagination({ currentPage, totalPages, onPageChange, t }: PaginationProps) {
@@ -33,12 +36,8 @@ export default function Pagination({ currentPage, totalPages, onPageChange, t }:
         <MdChevronLeft className="h-5 w-5" />
       </button>
 
-      {pageItems(currentPage, totalPages).map((p, i) =>
-        p === 'ellipsis' ? (
-          <span key={`gap-${i}`} className="select-none px-0.5 text-sm text-[var(--text-muted)]">
-            …
-          </span>
-        ) : p === currentPage ? (
+      {pageItems(currentPage, totalPages).map((p) =>
+        p === currentPage ? (
           // The current page — a slightly tilted sheet of paper.
           <button
             key={p}

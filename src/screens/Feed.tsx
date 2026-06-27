@@ -6,7 +6,8 @@ import ProgressModal from '../components/ProgressModal'
 import FinishModal from '../components/FinishModal'
 import { libraryService } from '../services/libraryService'
 import { activityService } from '../services/activityService'
-import type { Activity } from '../services/activityService'
+import type { Activity, ActivityPage } from '../services/activityService'
+import Pagination from '../components/Pagination'
 import { getCommentCounts } from '../services/commentService'
 import { catalogService } from '../services/catalogService'
 import type { CatalogItem } from '../services/catalogService'
@@ -23,6 +24,9 @@ import TypeBadge from '../components/TypeBadge'
 import { ActivityCardSkeleton } from '../components/Skeletons'
 import InfinityLoader from '../components/InfinityLoader'
 
+// Friends-activity is paginated server-side; this many cards per page.
+const ACTIVITY_PER_PAGE = 10
+
 export default function FeedPage() {
   const { t } = useLanguage()
   const { user } = useAuth()
@@ -30,25 +34,57 @@ export default function FeedPage() {
   const [activity, setActivity] = useState<Activity[]>([])
   const [commentCounts, setCommentCounts] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState(true)
+  const [activityTotal, setActivityTotal] = useState(0)
+  const [activityPage, setActivityPage] = useState(0) // zero-based
+  const [activityLoading, setActivityLoading] = useState(false)
   const [finishItem, setFinishItem] = useState<MediaItem | null>(null)
+  const activityRef = useRef<HTMLElement>(null)
 
+  const me = useMemo(
+    () => (user ? { id: user.id, name: user.name || user.username, handle: user.username, uuid: user.uuid, avatar: user.avatar_url } : null),
+    [user],
+  )
+
+  // Apply a fetched activity page + fetch its cards' comment counts (one batched
+  // call, keyed by post id).
+  const applyActivity = useCallback((res: ActivityPage) => {
+    setActivity(res.items)
+    setActivityTotal(res.total)
+    getCommentCounts(res.items.map((a) => a.postId))
+      .then(setCommentCounts)
+      .catch(() => {})
+  }, [])
+
+  // Initial load (and manual refresh, e.g. after finishing a book): library
+  // items + the first activity page. Returning to page 0 surfaces the new event.
   const load = useCallback(() => {
-    if (!user) return
-    const me = { id: user.id, name: user.name || user.username, handle: user.username, uuid: user.uuid, avatar: user.avatar_url }
-    Promise.all([libraryService.getItems(), activityService.getFriendsActivity(me)]).then(([lib, act]) => {
+    if (!me) return
+    setLoading(true)
+    setActivityPage(0)
+    Promise.all([libraryService.getItems(), activityService.getFriendsActivity(me, 0, ACTIVITY_PER_PAGE)]).then(([lib, act]) => {
       setItems(lib)
-      setActivity(act)
+      applyActivity(act)
       setLoading(false)
-      // One batched call for all cards' comment counts (keyed by post id).
-      getCommentCounts(act.map((a) => a.postId))
-        .then(setCommentCounts)
-        .catch(() => {})
     })
-  }, [user])
+  }, [me, applyActivity])
 
   useEffect(() => {
     load()
   }, [load])
+
+  // Jump to the top of the feed, then load the chosen activity page.
+  const goToActivityPage = (page: number) => {
+    if (!me) return
+    activityRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    setActivityPage(page)
+    setActivityLoading(true)
+    activityService
+      .getFriendsActivity(me, page, ACTIVITY_PER_PAGE)
+      .then(applyActivity)
+      .finally(() => setActivityLoading(false))
+  }
+
+  const activityPageCount = Math.ceil(activityTotal / ACTIVITY_PER_PAGE)
 
   const [progressItem, setProgressItem] = useState<MediaItem | null>(null)
   const openFinish = (it: MediaItem) => setFinishItem(it)
@@ -87,7 +123,7 @@ export default function FeedPage() {
       )}
 
       {/* Friends activity */}
-      <section>
+      <section ref={activityRef} className="scroll-mt-4">
         <h2 className="mb-2 text-base font-semibold text-[var(--text)]">{t('friendsActivity')}</h2>
         {loading ? (
           <div className="flex flex-col gap-4">
@@ -95,7 +131,7 @@ export default function FeedPage() {
               <ActivityCardSkeleton key={i} />
             ))}
           </div>
-        ) : activity.length === 0 ? (
+        ) : activityTotal === 0 ? (
           <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-[var(--border)] py-16 text-center">
             <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--surface)]">
               <IoPeopleOutline className="h-7 w-7 text-[var(--text-muted)]" />
@@ -103,16 +139,25 @@ export default function FeedPage() {
             <p className="max-w-sm px-6 text-sm leading-6 text-[var(--text-muted)]">{t('inviteFriends')}</p>
           </div>
         ) : (
-          <div className="animate-fade-up flex flex-col gap-4">
+          <div className={`animate-fade-up flex flex-col gap-4 transition-opacity ${activityLoading ? 'opacity-60' : ''}`}>
             {activity.map((a) => (
               <ActivityCard
                 key={a.id}
                 a={a}
                 commentCount={commentCounts[String(a.postId)] ?? 0}
-                onDeleted={(postId) => setActivity((prev) => prev.filter((x) => x.postId !== postId))}
+                onDeleted={(postId) => {
+                  setActivity((prev) => prev.filter((x) => x.postId !== postId))
+                  setActivityTotal((n) => Math.max(0, n - 1))
+                }}
                 onCountChange={(postId, n) => setCommentCounts((m) => ({ ...m, [String(postId)]: n }))}
               />
             ))}
+            <Pagination
+              currentPage={activityPage + 1}
+              totalPages={activityPageCount}
+              onPageChange={(p) => goToActivityPage(p - 1)}
+              t={t}
+            />
           </div>
         )}
       </section>
