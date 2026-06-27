@@ -36,8 +36,8 @@ export default function Header() {
   const { user, logout, isAuthenticated, loading } = useAuth()
 
   const [accountOpen, setAccountOpen] = useState(false)
-  const [sheetOpen, setSheetOpen] = useState(false)
-  const hidden = useHideOnScroll(accountOpen || sheetOpen)
+  const [profileOpen, setProfileOpen] = useState(false)
+  const hidden = useHideOnScroll(accountOpen || profileOpen)
 
   const display = user
     ? {
@@ -71,9 +71,19 @@ export default function Header() {
     return () => document.removeEventListener('mousedown', onClick)
   }, [accountOpen])
 
+  const profileRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!profileOpen) return
+    const onClick = (e: MouseEvent) => {
+      if (profileRef.current && !profileRef.current.contains(e.target as Node)) setProfileOpen(false)
+    }
+    document.addEventListener('mousedown', onClick)
+    return () => document.removeEventListener('mousedown', onClick)
+  }, [profileOpen])
+
   useEffect(() => {
     setAccountOpen(false)
-    setSheetOpen(false)
+    setProfileOpen(false)
   }, [path])
 
   return (
@@ -196,11 +206,11 @@ export default function Header() {
       </header>
 
       {/* ── Bottom gradient scrim ── */}
-      <div className="pointer-events-none fixed bottom-0 left-0 right-0 z-40 h-36 bg-gradient-to-t from-[var(--bg)] to-transparent lg:hidden" />
+      <div className="pointer-events-none fixed bottom-0 left-0 right-0 z-40 h-20 bg-gradient-to-t from-[var(--bg)] to-transparent lg:hidden" />
 
       {/* ── Mobile bottom nav (floating oval pill) ── */}
       <div className="pointer-events-none fixed bottom-6 left-0 right-0 z-50 flex justify-center lg:hidden">
-        <nav className="pointer-events-auto flex items-center gap-0.5 rounded-full border border-[var(--border-subtle)] bg-[color-mix(in_srgb,var(--bg)_92%,transparent)] px-3 py-2.5 shadow-2xl backdrop-blur-xl">
+        <nav className="pointer-events-auto relative flex items-center gap-0.5 rounded-full border border-[var(--border-subtle)] bg-[color-mix(in_srgb,var(--bg)_92%,transparent)] px-3 py-2.5 shadow-2xl backdrop-blur-xl">
           {[
             { to: '/', icon: IoHomeOutline, label: t('home') || 'Home', active: path === '/' },
             { to: '/discover', icon: IoCompassOutline, label: t('discover') || 'Discover', active: path === '/discover' },
@@ -210,7 +220,7 @@ export default function Header() {
               key={to}
               to={to}
               className={`flex flex-col items-center gap-1 rounded-2xl px-3.5 py-1.5 transition-colors ${
-                active ? 'text-[var(--text)]' : 'text-[var(--text-muted)]'
+                active ? 'bg-[var(--surface)] text-[var(--text)] ring-1 ring-inset ring-[var(--border-subtle)]' : 'text-[var(--text-muted)]'
               }`}
             >
               <span className="flex h-[22px] items-center justify-center">
@@ -220,137 +230,75 @@ export default function Header() {
             </Link>
           ))}
 
-          {/* Profile — opens the sheet */}
-          <button
-            onClick={() => setSheetOpen(true)}
-            className={`flex flex-col items-center gap-1 rounded-2xl px-3.5 py-1.5 transition-colors ${
-              sheetOpen ? 'text-[var(--text)]' : 'text-[var(--text-muted)]'
-            }`}
-          >
-            <span className="flex h-[22px] items-center justify-center">
-              {display ? (
-                <Avatar display={display} />
-              ) : (
-                <IoPersonOutline className="h-[22px] w-[22px]" />
-              )}
-            </span>
-            <span className="text-[10px] font-medium leading-none">{t('profile') || 'Profile'}</span>
-          </button>
+          {/* Profile — opens compact popover */}
+          <div ref={profileRef} className="relative">
+            <button
+              onClick={() => setProfileOpen((v) => !v)}
+              className={`flex flex-col items-center gap-1 rounded-2xl px-3.5 py-1.5 transition-colors ${
+                profileOpen ? 'bg-[var(--surface)] text-[var(--text)] ring-1 ring-inset ring-[var(--border-subtle)]' : 'text-[var(--text-muted)]'
+              }`}
+            >
+              <span className="flex h-[22px] items-center justify-center">
+                {display ? <Avatar display={display} /> : <IoPersonOutline className="h-[22px] w-[22px]" />}
+              </span>
+              <span className="text-[10px] font-medium leading-none">{t('profile') || 'Profile'}</span>
+            </button>
+
+            {/* Compact popover */}
+            {profileOpen && (
+              <div className="absolute bottom-full right-0 mb-3 w-56 overflow-hidden rounded-2xl border border-[var(--border-subtle)] bg-[color-mix(in_srgb,var(--container)_96%,transparent)] shadow-2xl backdrop-blur-xl">
+                {isAuthenticated && display ? (
+                  <Link
+                    to={userPath(display.profileId)}
+                    onClick={() => setProfileOpen(false)}
+                    className="flex items-center gap-3 px-4 py-3.5 transition-colors hover:bg-[var(--surface)]"
+                  >
+                    <Avatar display={display} big />
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-semibold text-[var(--text)]">{display.name}</span>
+                      <span className="block truncate text-xs text-[var(--text-muted)]">@{display.handle}</span>
+                    </span>
+                  </Link>
+                ) : null}
+
+                <div className="h-px bg-[var(--border-subtle)]" />
+
+                <div className="p-3">
+                  <select
+                    value={language}
+                    onChange={(e) => setLanguage(e.target.value as Language)}
+                    className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] p-2 text-sm text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-nonsprimary"
+                  >
+                    <option value="en">🇺🇸 English</option>
+                    <option value="ru">🇷🇺 Русский</option>
+                    <option value="ro">🇷🇴 Română</option>
+                  </select>
+                </div>
+
+                <div className="h-px bg-[var(--border-subtle)]" />
+
+                {isAuthenticated ? (
+                  <button
+                    onClick={() => { logout(); setProfileOpen(false) }}
+                    className="flex w-full items-center gap-3 px-4 py-3 text-sm text-[var(--text-muted)] transition-colors hover:bg-[var(--surface)] hover:text-[var(--text)]"
+                  >
+                    <IoLogOutOutline className="h-[18px] w-[18px]" />
+                    {t('logout') || 'Log out'}
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => { redirectToNonsLogin(); setProfileOpen(false) }}
+                    className="flex w-full items-center gap-3 px-4 py-3 text-sm font-medium text-nonsprimary transition-colors hover:bg-[var(--surface)]"
+                  >
+                    <IoLogInOutline className="h-[18px] w-[18px]" />
+                    {t('login') || 'Sign in'}
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
         </nav>
       </div>
-
-      {/* ── Profile / more sheet ── */}
-      {sheetOpen && (
-        <>
-          {/* Backdrop */}
-          <div
-            onClick={() => setSheetOpen(false)}
-            className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm lg:hidden"
-          />
-
-          {/* Sheet */}
-          <div className="animate-slide-up fixed inset-x-0 bottom-0 z-[70] max-h-[85dvh] overflow-y-auto rounded-t-3xl border-t border-[var(--border-subtle)] bg-[var(--container)] lg:hidden">
-            {/* Drag handle */}
-            <div className="flex justify-center pb-2 pt-3">
-              <div className="h-1 w-10 rounded-full bg-[var(--border)]" />
-            </div>
-
-            {/* Account row */}
-            {isAuthenticated && display ? (
-              <div className="flex items-center justify-between gap-3 px-5 pb-4 pt-2">
-                <Link
-                  to={userPath(display.profileId)}
-                  onClick={() => setSheetOpen(false)}
-                  className="flex min-w-0 flex-1 items-center gap-3"
-                >
-                  <Avatar display={display} big />
-                  <span className="min-w-0">
-                    <span className="block truncate text-sm font-semibold text-[var(--text)]">{display.name}</span>
-                    <span className="block truncate text-xs text-[var(--text-muted)]">@{display.handle}</span>
-                  </span>
-                </Link>
-                <button
-                  onClick={() => setSheetOpen(false)}
-                  className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[var(--surface)] text-[var(--text-muted)]"
-                >
-                  <IoClose className="h-5 w-5" />
-                </button>
-              </div>
-            ) : (
-              <div className="flex items-center justify-between px-5 pb-4 pt-2">
-                <p className="text-sm font-semibold text-[var(--text)]">Menu</p>
-                <button
-                  onClick={() => setSheetOpen(false)}
-                  className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--surface)] text-[var(--text-muted)]"
-                >
-                  <IoClose className="h-5 w-5" />
-                </button>
-              </div>
-            )}
-
-            <div className="h-px bg-[var(--border-subtle)]" />
-
-            {/* Nav links: library + calendar + any extras (librarians etc.) */}
-            <nav className="p-3">
-              {nav
-                .filter((item) => !['/', '/discover'].includes(item.to))
-                .map((item) => {
-                  const Icon = item.icon
-                  const active = item.match(path)
-                  return (
-                    <Link
-                      key={item.to}
-                      to={item.to}
-                      onClick={() => setSheetOpen(false)}
-                      className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm transition-colors ${
-                        active ? 'bg-[var(--surface)] font-medium text-[var(--text)]' : 'text-[var(--text-muted)]'
-                      }`}
-                    >
-                      <Icon className="h-[18px] w-[18px]" />
-                      {item.label}
-                    </Link>
-                  )
-                })}
-            </nav>
-
-            <div className="h-px bg-[var(--border-subtle)]" />
-
-            {/* Language + logout */}
-            <div className="p-4">
-              <select
-                value={language}
-                onChange={(e) => setLanguage(e.target.value as Language)}
-                className="w-full rounded-md border border-[var(--border)] bg-[var(--border-subtle)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-nonsprimary focus:border-transparent"
-              >
-                <option value="en">🇺🇸 English</option>
-                <option value="ru">🇷🇺 Русский</option>
-                <option value="ro">🇷🇴 Română</option>
-              </select>
-            </div>
-
-            {isAuthenticated ? (
-              <button
-                onClick={() => { logout(); setSheetOpen(false) }}
-                className="flex w-full items-center gap-3 px-7 py-4 text-sm text-[var(--text-muted)] transition-colors hover:text-[var(--text)]"
-              >
-                <IoLogOutOutline className="h-[18px] w-[18px]" />
-                {t('logout') || 'Log out'}
-              </button>
-            ) : (
-              <button
-                onClick={() => { redirectToNonsLogin(); setSheetOpen(false) }}
-                className="flex w-full items-center justify-center gap-2 px-5 py-4 text-sm font-medium text-nonsprimary"
-              >
-                <IoLogInOutline className="h-[18px] w-[18px]" />
-                {t('login') || 'Sign in'}
-              </button>
-            )}
-
-            {/* Safe area spacer */}
-            <div className="pb-safe h-4" />
-          </div>
-        </>
-      )}
     </>
   )
 

@@ -17,6 +17,7 @@ import { STATUS_COLOR } from '../lib/shelf'
 import type { ShelfStatus } from '../types'
 import { mediaPath } from '../lib/paths'
 import { IoSearch, IoStar, IoPeopleOutline, IoChevronBack, IoChevronForward } from 'react-icons/io5'
+import ShelfLogo from '../components/ShelfLogo'
 import ShelfStatusBar from '../components/ShelfStatusBar'
 import TypeBadge from '../components/TypeBadge'
 import { ActivityCardSkeleton } from '../components/Skeletons'
@@ -57,8 +58,14 @@ export default function FeedPage() {
 
   return (
     <Layout>
-      <div className="mb-5 lg:hidden">
-        <MobileCatalogSearch t={t} />
+      <div className="mb-5 flex items-center gap-3 lg:hidden">
+        <div className="flex flex-shrink-0 items-center gap-2">
+          <ShelfLogo className="h-6 w-6 text-[var(--text)]" />
+          <span className="text-xl font-bold tracking-tight text-[var(--text)]">Nons Shelf</span>
+        </div>
+        <div className="min-w-0 flex-1">
+          <MobileCatalogSearch t={t} />
+        </div>
       </div>
 
       <div className="mb-6 hidden lg:block">
