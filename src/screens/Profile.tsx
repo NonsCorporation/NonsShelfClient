@@ -199,10 +199,10 @@ export default function ProfilePage() {
       <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--container)] p-5 sm:p-6">
         <div className="flex items-start gap-5">
           {profile.avatar ? (
-            <img src={profile.avatar} alt={profile.name} className="h-20 w-20 flex-shrink-0 rounded-2xl object-cover" />
+            <img src={profile.avatar} alt={profile.name} className="h-20 w-20 flex-shrink-0 rounded-full object-cover" />
           ) : (
-            <span className="flex-shrink-0 overflow-hidden rounded-2xl" style={{ width: 80, height: 80 }}>
-              <BoringAvatar size={80} name={`user-${profile.id}`} square />
+            <span className="flex-shrink-0 overflow-hidden rounded-full" style={{ width: 80, height: 80 }}>
+              <BoringAvatar size={80} name={`user-${profile.id}`} />
             </span>
           )}
 
@@ -260,61 +260,52 @@ export default function ProfilePage() {
               <span className="mt-1 text-[11px] uppercase tracking-wide text-[var(--text-muted)]">{t('statAvg')}</span>
             </div>
           )}
-          {isSelf && (
-            <div className="flex flex-col border-l border-[var(--border-subtle)] pl-6 sm:pl-8">
-              <span className="text-xl font-bold leading-none text-[var(--text)]">
-                {items.filter((it) => it.favorite).length}
-              </span>
-              <span className="mt-1 text-[11px] uppercase tracking-wide text-[var(--text-muted)]">{t('favorites')}</span>
+        </div>
+      </div>
+
+      {/* Friends — own profile only, separate card */}
+      {isSelf && (
+        <div className="mt-4 rounded-2xl border border-[var(--border-subtle)] bg-[var(--container)] p-5 sm:p-6">
+          <div className="mb-3 flex items-center gap-2">
+            <IoPeopleOutline className="h-4 w-4 text-[var(--text-muted)]" />
+            <span className="text-sm font-semibold text-[var(--text)]">
+              {t('friends') || 'Friends'}
+            </span>
+            {friends.length > 0 && (
+              <span className="text-xs text-[var(--text-muted)]">{friends.length}</span>
+            )}
+            <div className="group relative ml-auto">
+              <IoInformationCircleOutline className="h-4 w-4 cursor-help text-[var(--text-muted)]" />
+              <div className="pointer-events-none absolute right-0 top-6 z-50 w-64 rounded-xl border border-[var(--border)] bg-[var(--container)] p-3 text-xs leading-relaxed text-[var(--text-muted)] opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
+                Friends are imported from nons. Add them there to see their reading progress here.
+              </div>
+            </div>
+          </div>
+          {friends.length === 0 ? (
+            <p className="text-xs text-[var(--text-muted)]">
+              {t('noFriendsYet') || 'No friends yet — add them on nons to see their progress.'}
+            </p>
+          ) : (
+            <div className="no-scrollbar -mx-1 flex gap-4 overflow-x-auto px-1">
+              {friends.map((f) => (
+                <Link
+                  key={f.uuid}
+                  to={`/u/${f.username}`}
+                  className="group/friend flex flex-shrink-0 flex-col items-center gap-1.5"
+                  title={f.name}
+                >
+                  <span className="overflow-hidden rounded-full ring-2 ring-transparent transition-colors group-hover/friend:ring-nonsprimary">
+                    <BoringAvatar size={40} name={f.username} />
+                  </span>
+                  <span className="max-w-[52px] truncate text-[10px] text-[var(--text-muted)] group-hover/friend:text-[var(--text)]">
+                    {f.name}
+                  </span>
+                </Link>
+              ))}
             </div>
           )}
         </div>
-
-        {/* Friends — own profile only, imported from nons */}
-        {isSelf && (
-          <div className="mt-5 border-t border-[var(--border-subtle)] pt-4">
-            <div className="mb-3 flex items-center gap-2">
-              <IoPeopleOutline className="h-4 w-4 text-[var(--text-muted)]" />
-              <span className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">
-                {t('friends') || 'Friends'}
-              </span>
-              {friends.length > 0 && (
-                <span className="text-xs text-[var(--text-muted)]">{friends.length}</span>
-              )}
-              {/* Info tooltip */}
-              <div className="group relative ml-auto">
-                <IoInformationCircleOutline className="h-4 w-4 cursor-help text-[var(--text-muted)]" />
-                <div className="pointer-events-none absolute right-0 top-6 z-50 w-64 rounded-xl border border-[var(--border)] bg-[var(--container)] p-3 text-xs leading-relaxed text-[var(--text-muted)] opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
-                  Friends are imported from nons. Add them there to see their reading progress here.
-                </div>
-              </div>
-            </div>
-            {friends.length === 0 ? (
-              <p className="text-xs text-[var(--text-muted)]">
-                {t('noFriendsYet') || 'No friends yet — add them on nons to see their progress.'}
-              </p>
-            ) : (
-              <div className="no-scrollbar -mx-1 flex gap-4 overflow-x-auto px-1">
-                {friends.map((f) => (
-                  <Link
-                    key={f.uuid}
-                    to={`/u/${f.username}`}
-                    className="group/friend flex flex-shrink-0 flex-col items-center gap-1.5"
-                    title={f.name}
-                  >
-                    <span className="overflow-hidden rounded-full ring-2 ring-transparent transition-colors group-hover/friend:ring-nonsprimary">
-                      <BoringAvatar size={40} name={f.username} />
-                    </span>
-                    <span className="max-w-[52px] truncate text-[10px] text-[var(--text-muted)] group-hover/friend:text-[var(--text)]">
-                      {f.name}
-                    </span>
-                  </Link>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
+      )}
 
       {/* Shelf tabs */}
       <div className="no-scrollbar mt-6 flex gap-1 overflow-x-auto border-b border-[var(--border-subtle)]">
