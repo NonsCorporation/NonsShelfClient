@@ -1,7 +1,7 @@
 'use client'
 
-import Home from '@/screens/Home'
+import LibraryScreen from '@/screens/Library'
 
 export default function Page() {
-  return <Home />
+  return <LibraryScreen />
 }

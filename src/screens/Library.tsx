@@ -17,8 +17,7 @@ import {
   IoStar,
   IoChatbubbleOutline,
   IoFolderOutline,
-  IoPencilOutline,
-  IoTrashOutline,
+  IoSettingsOutline,
   IoAdd,
   IoClose,
   IoCheckmark,
@@ -30,9 +29,10 @@ import MediaModal from '../components/MediaModal.tsx'
 import ImportModal from '../components/ImportModal.tsx'
 import ExportModal from '../components/ExportModal.tsx'
 import MediaDetailModal from '../components/MediaDetailModal.tsx'
+import CollectionSettingsModal from '../components/CollectionSettingsModal.tsx'
 import { libraryService } from '../services/libraryService.ts'
 import { fetchPublicProfile } from '../services/userService.ts'
-import type { MediaItem } from '../types.ts'
+import type { MediaItem, Collection } from '../types.ts'
 import { useLanguage } from '../contexts/LanguageContext.tsx'
 import { useAuth } from '../contexts/AuthContext.tsx'
 import { useCollections } from '../contexts/CollectionContext.tsx'
@@ -40,21 +40,19 @@ import { useCollections } from '../contexts/CollectionContext.tsx'
 type ShelfKey = 'all' | 'wishlist' | 'active' | 'done' | 'dnf' | 'favorites'
 type SortKey = 'added' | 'rating' | 'title' | 'year' | 'reviewed'
 
-export default function Home() {
+export default function LibraryScreen() {
   const { t } = useLanguage()
   const { user: authUser, loading: authLoading } = useAuth()
-  const { collections, createCollection, renameCollection, deleteCollection } = useCollections()
+  const { collections, createCollection } = useCollections()
   const [params, setParams] = useSearchParams()
   const shelf = (params.get('shelf') as ShelfKey) || 'all'
   const collectionFilter = params.get('collection') ? Number(params.get('collection')) : null
 
   // Sidebar collection management state.
-  const [editingColId, setEditingColId] = useState<number | null>(null)
-  const [editingName, setEditingName] = useState('')
+  const [settingsCol, setSettingsCol] = useState<Collection | null>(null)
   const [creatingCol, setCreatingCol] = useState(false)
   const [newColName, setNewColName] = useState('')
   const newColInputRef = useRef<HTMLInputElement>(null)
-  const editInputRef = useRef<HTMLInputElement>(null)
 
   // ?user=<username> opens another user's library read-only (the "open full
   // library" button on a profile links here). Viewing your own username — or no
@@ -311,18 +309,17 @@ export default function Home() {
     { label: t('statFinished'), value: stats.done },
   ]
 
+  // After any collection settings mutation: clear filter if the target collection
+  // was deleted/moved-from, then re-fetch items to reflect updated collectionIds.
+  const handleSettingsDone = async () => {
+    if (settingsCol !== null && collectionFilter === settingsCol.id) {
+      setCollectionParam(null)
+    }
+    const its = await libraryService.getItems()
+    setItems(its)
+  }
+
   // Sidebar collection helpers
-  const startEdit = (id: number, name: string) => {
-    setEditingColId(id)
-    setEditingName(name)
-    setTimeout(() => editInputRef.current?.focus(), 30)
-  }
-  const commitEdit = async () => {
-    if (editingColId == null) return
-    const name = editingName.trim()
-    if (name) await renameCollection(editingColId, name)
-    setEditingColId(null)
-  }
   const commitCreate = async () => {
     const name = newColName.trim()
     if (name) await createCollection(name)
@@ -402,55 +399,27 @@ export default function Home() {
             {collections.map((col) => {
               const active = collectionFilter === col.id
               return (
-                <div key={col.id} className="group relative flex items-center">
-                  {editingColId === col.id ? (
-                    <div className="flex flex-1 items-center gap-1 pr-1">
-                      <input
-                        ref={editInputRef}
-                        value={editingName}
-                        onChange={(e) => setEditingName(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') commitEdit()
-                          if (e.key === 'Escape') setEditingColId(null)
-                        }}
-                        onBlur={commitEdit}
-                        className="h-7 min-w-0 flex-1 rounded-md border border-[var(--primary-ring)] bg-[var(--input)] px-2 text-xs text-[var(--text)] focus:outline-none"
-                      />
-                      <button onClick={commitEdit} className="flex-shrink-0 text-nonsprimary hover:opacity-70">
-                        <IoCheckmark className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  ) : (
-                    <>
-                      <button
-                        onClick={() => setCollectionParam(active ? null : col.id)}
-                        className={`flex min-w-0 flex-1 items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm transition-colors ${
-                          active
-                            ? 'bg-[var(--surface-active)] font-medium text-[var(--text)]'
-                            : 'text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]'
-                        }`}
-                      >
-                        <IoFolderOutline className="h-3.5 w-3.5 flex-shrink-0" />
-                        <span className="min-w-0 truncate">{col.name}</span>
-                        <span className="ml-auto flex-shrink-0 text-[11px] text-[var(--text-muted)]">{col.count}</span>
-                      </button>
-                      <div className="absolute right-0 hidden items-center gap-0.5 bg-[var(--bg)] pl-1 group-hover:flex">
-                        <button
-                          onClick={() => startEdit(col.id, col.name)}
-                          title="Rename"
-                          className="flex h-6 w-6 items-center justify-center rounded text-[var(--text-muted)] hover:bg-[var(--surface)] hover:text-[var(--text)]"
-                        >
-                          <IoPencilOutline className="h-3 w-3" />
-                        </button>
-                        <button
-                          onClick={() => deleteCollection(col.id)}
-                          title="Delete"
-                          className="flex h-6 w-6 items-center justify-center rounded text-[var(--text-muted)] hover:bg-red-500/10 hover:text-red-400"
-                        >
-                          <IoTrashOutline className="h-3 w-3" />
-                        </button>
-                      </div>
-                    </>
+                <div key={col.id} className="flex items-center gap-0.5">
+                  <button
+                    onClick={() => setCollectionParam(active ? null : col.id)}
+                    className={`flex min-w-0 flex-1 items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm transition-colors ${
+                      active
+                        ? 'bg-[var(--surface-active)] font-medium text-[var(--text)]'
+                        : 'text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]'
+                    }`}
+                  >
+                    <IoFolderOutline className="h-3.5 w-3.5 flex-shrink-0" />
+                    <span className="min-w-0 truncate">{col.name}</span>
+                    <span className="ml-auto flex-shrink-0 text-[11px] text-[var(--text-muted)]">{col.count}</span>
+                  </button>
+                  {active && (
+                    <button
+                      onClick={() => setSettingsCol(col)}
+                      title="Settings"
+                      className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded text-[var(--text-muted)] hover:bg-[var(--surface)] hover:text-[var(--text)]"
+                    >
+                      <IoSettingsOutline className="h-3.5 w-3.5" />
+                    </button>
                   )}
                 </div>
               )
@@ -535,19 +504,29 @@ export default function Home() {
             {collections.map((col) => {
               const active = collectionFilter === col.id
               return (
-                <button
+                <div
                   key={col.id}
-                  onClick={() => setCollectionParam(active ? null : col.id)}
-                  className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1 text-xs transition-colors ${
-                    active
-                      ? 'border-[var(--border)] bg-[var(--container-2)] font-medium text-[var(--text)]'
-                      : 'border-[var(--border-subtle)] text-[var(--text-muted)]'
+                  className={`flex shrink-0 items-stretch overflow-hidden rounded-full border text-xs transition-colors ${
+                    active ? 'border-[var(--border)] bg-[var(--container-2)]' : 'border-[var(--border-subtle)]'
                   }`}
                 >
-                  <IoFolderOutline className="h-3 w-3 flex-shrink-0" />
-                  {col.name}
-                  <span className="opacity-50">{col.count}</span>
-                </button>
+                  <button
+                    onClick={() => setCollectionParam(active ? null : col.id)}
+                    className={`flex items-center gap-1.5 py-1 pl-3 pr-2 ${active ? 'font-medium text-[var(--text)]' : 'text-[var(--text-muted)]'}`}
+                  >
+                    <IoFolderOutline className="h-3 w-3 flex-shrink-0" />
+                    {col.name}
+                    <span className="opacity-50">{col.count}</span>
+                  </button>
+                  {active && (
+                    <button
+                      onClick={() => setSettingsCol(col)}
+                      className="flex items-center border-l border-[var(--border)] px-2 text-[var(--text-muted)] transition-colors hover:text-[var(--text)]"
+                    >
+                      <IoSettingsOutline className="h-3 w-3" />
+                    </button>
+                  )}
+                </div>
               )
             })}
             {creatingCol ? (
@@ -868,6 +847,15 @@ export default function Home() {
       <MediaDetailModal item={detailItem} onClose={() => setDetailItem(null)} />
       {showExport && (
         <ExportModal collections={collections} onClose={() => setShowExport(false)} />
+      )}
+      {settingsCol && (
+        <CollectionSettingsModal
+          collection={settingsCol}
+          allCollections={collections}
+          items={items}
+          onClose={() => setSettingsCol(null)}
+          onDone={handleSettingsDone}
+        />
       )}
 
       {/* Content */}
