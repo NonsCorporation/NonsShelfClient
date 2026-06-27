@@ -51,6 +51,18 @@ const FAINT = '#3f3f46'
 const LINE = '#27272a'
 const PRIMARY = '#6768ab' // nons primary
 
+// Several cover hosts (Google Books, ISBNdb, Fantlab) don't send CORS headers,
+// so an <img crossOrigin="anonymous"> request to them fails outright — the share
+// card's cover shows blank and html-to-image can't capture it. Route covers
+// through a CORS-enabled image proxy so they both display and export reliably.
+// Relative/same-origin covers have no CORS problem and are used as-is.
+function corsCover(url?: string): string | undefined {
+  if (!url) return undefined
+  if (!/^https?:\/\//i.test(url)) return url
+  const upstream = 'ssl:' + url.replace(/^https?:\/\//i, '')
+  return `https://images.weserv.nl/?url=${encodeURIComponent(upstream)}`
+}
+
 // Wait for every <img> inside the node to finish loading, so html-to-image
 // captures the cover instead of a blank box.
 async function waitForImages(node: HTMLElement) {
@@ -124,7 +136,7 @@ export default function ShareModal({ isOpen, item, coverUrl, totalPages = 0, rat
   const url = `${window.location.origin}${mediaPath({ type: item.type, uuid: item.uuid, id: String(item.id) })}`
   const pct = currentPage > 0 && totalPages > 0 ? Math.min(100, Math.round((currentPage / totalPages) * 100)) : 0
   const typeLabel = item.type === 'book' ? t('book') : item.type === 'series' ? t('series') : t('film')
-  const cover = coverUrl || item.coverUrl
+  const cover = corsCover(coverUrl || item.coverUrl)
 
   const copyLink = async () => {
     try {
