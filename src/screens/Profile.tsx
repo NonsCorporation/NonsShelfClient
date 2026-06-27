@@ -161,6 +161,15 @@ export default function ProfilePage() {
     return rated.length ? rated.reduce((s, it) => s + (it.rating || 0), 0) / rated.length / 2 : 0
   }, [items])
 
+  const typeCounts = useMemo(
+    () => ({
+      book: items.filter((it) => it.type === 'book').length,
+      movie: items.filter((it) => it.type === 'movie').length,
+      series: items.filter((it) => it.type === 'series').length,
+    }),
+    [items],
+  )
+
   if (loading) {
     return (
       <Layout>
@@ -175,13 +184,6 @@ export default function ProfilePage() {
       </Layout>
     )
   }
-
-  const stats: { label: string; value: string | number }[] = [
-    { label: t('statTotal'), value: items.length },
-    { label: t('statFinished'), value: counts.done },
-    { label: t('statAvg'), value: ratedAvg ? ratedAvg.toFixed(1) : '—' },
-  ]
-  if (isSelf) stats.push({ label: t('favorites'), value: items.filter((it) => it.favorite).length })
 
   const tabs: { key: Tab; label: string; count: number }[] = [
     { key: 'all', label: t('filterAll'), count: counts.all },
@@ -232,14 +234,40 @@ export default function ProfilePage() {
           )}
         </div>
 
-        {/* Stats — stacked value-over-label cells, divided like an IMDb header */}
+        {/* Stats — type composition + avg rating; tab bar below carries status counts */}
         <div className="mt-5 flex flex-wrap items-stretch gap-x-6 gap-y-3 border-t border-[var(--border-subtle)] pt-4 sm:gap-x-8">
-          {stats.map((s, i) => (
-            <div key={s.label} className={`flex flex-col ${i > 0 ? 'border-l border-[var(--border-subtle)] pl-6 sm:pl-8' : ''}`}>
-              <span className="text-xl font-bold leading-none text-[var(--text)]">{s.value}</span>
-              <span className="mt-1 text-[11px] uppercase tracking-wide text-[var(--text-muted)]">{s.label}</span>
+          {(['book', 'movie', 'series'] as const)
+            .filter((tp) => typeCounts[tp] > 0)
+            .map((tp, i) => {
+              const meta = TYPE_META[tp]
+              const Icon = meta.icon
+              return (
+                <div key={tp} className={`flex flex-col ${i > 0 ? 'border-l border-[var(--border-subtle)] pl-6 sm:pl-8' : ''}`}>
+                  <span className="flex items-center gap-1.5 text-xl font-bold leading-none text-[var(--text)]">
+                    <Icon className="h-[17px] w-[17px]" style={{ color: meta.color }} />
+                    {typeCounts[tp]}
+                  </span>
+                  <span className="mt-1 text-[11px] uppercase tracking-wide text-[var(--text-muted)]">{t(meta.labelKey)}</span>
+                </div>
+              )
+            })}
+          {ratedAvg > 0 && (
+            <div className={`flex flex-col ${(['book', 'movie', 'series'] as const).some((tp) => typeCounts[tp] > 0) ? 'border-l border-[var(--border-subtle)] pl-6 sm:pl-8' : ''}`}>
+              <span className="flex items-center gap-1.5 text-xl font-bold leading-none text-[var(--text)]">
+                <IoStar className="h-[17px] w-[17px] text-nonsprimaryfocus" />
+                {ratedAvg.toFixed(1)}
+              </span>
+              <span className="mt-1 text-[11px] uppercase tracking-wide text-[var(--text-muted)]">{t('statAvg')}</span>
             </div>
-          ))}
+          )}
+          {isSelf && (
+            <div className="flex flex-col border-l border-[var(--border-subtle)] pl-6 sm:pl-8">
+              <span className="text-xl font-bold leading-none text-[var(--text)]">
+                {items.filter((it) => it.favorite).length}
+              </span>
+              <span className="mt-1 text-[11px] uppercase tracking-wide text-[var(--text-muted)]">{t('favorites')}</span>
+            </div>
+          )}
         </div>
 
         {/* Friends — own profile only, imported from nons */}
