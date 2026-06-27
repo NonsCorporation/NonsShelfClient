@@ -148,10 +148,10 @@ export default function ShelfStatusBar({ item, currentStatus, onStatusChange, on
         <div ref={btnRef} className="inline-flex max-w-full">
           <button
             data-shelf-popover
-            onClick={handleToggle}
+            onClick={onShelf ? handleToggle : () => onStatusChange('wishlist')}
             className="inline-flex min-w-0 items-center gap-1.5 rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs font-semibold text-[var(--text)] transition-colors hover:bg-[var(--surface)]"
           >
-            <IoChevronDown className={`h-3.5 w-3.5 flex-shrink-0 text-[var(--text-muted)] transition-transform duration-200 ${anchor ? 'rotate-180' : ''}`} />
+            {onShelf && <IoChevronDown className={`h-3.5 w-3.5 flex-shrink-0 text-[var(--text-muted)] transition-transform duration-200 ${anchor ? 'rotate-180' : ''}`} />}
             {!onShelf && <IoAdd className="h-3.5 w-3.5 flex-shrink-0 text-[var(--text-muted)]" />}
             <span className="truncate">{currentLabel}</span>
             {onShelf && (
