@@ -52,7 +52,7 @@ export function useParams<T extends Record<string, string | undefined>>(): T {
   return useNextParams() as unknown as T
 }
 
-type SetSearchParams = (next: URLSearchParams, options?: { replace?: boolean }) => void
+type SetSearchParams = (next: URLSearchParams, options?: { replace?: boolean; scroll?: boolean }) => void
 
 // useSearchParams() → react-router's [params, setParams] tuple.
 export function useSearchParams(): [URLSearchParams, SetSearchParams] {
@@ -69,7 +69,7 @@ export function useSearchParams(): [URLSearchParams, SetSearchParams] {
     (next, options) => {
       const qs = next.toString()
       const url = qs ? `${pathname}?${qs}` : pathname
-      if (options?.replace) router.replace(url)
+      if (options?.replace) router.replace(url, { scroll: options.scroll ?? false })
       else router.push(url)
     },
     [router, pathname],

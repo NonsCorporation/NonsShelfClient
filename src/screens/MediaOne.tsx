@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import { useState, useEffect, useCallback, Fragment, type ReactNode, useRef } from 'react'
 import { useParams, useNavigate, useSearchParams, Link } from '@/lib/router'
@@ -33,6 +33,8 @@ import {
   IoArrowBack,
   IoCheckmarkCircle,
   IoCheckmarkCircleOutline,
+  IoBookmark,
+  IoBookmarkOutline,
   IoCreateOutline,
   IoPencilOutline,
   IoLockClosedOutline,
@@ -903,62 +905,50 @@ export default function MediaOnePage({
                   {shown.map((e) => {
                     const selected = selectedEdition?.id === e.id
                     return (
-                      <div
-                        key={e.id}
-                        className={`flex w-40 flex-shrink-0 flex-col overflow-hidden rounded-xl border transition-colors ${
-                          selected ? 'border-nonsprimary bg-[var(--primary-soft)]' : 'border-[var(--border-subtle)] bg-[var(--surface)]'
-                        }`}
-                      >
-                        <button onClick={() => chooseEdition(e)} className="block" title={e.title || item.title}>
-                          <div className="relative flex aspect-[2/3] w-full items-center justify-center overflow-hidden bg-[var(--container-2)]">
-                            {/* Fall back to the work cover so an edition without its own
-                                cover still shows one instead of a blank box. */}
-                            {(e.cover_url || item.coverUrl) ? (
-                              <img src={e.cover_url || item.coverUrl} alt="" loading="lazy" className="h-full w-full object-cover" />
-                            ) : (
-                              <Icon className="h-8 w-8 text-[var(--placeholder)]" />
-                            )}
-                            {e.language && (
-                              <span className="absolute bottom-1.5 left-1.5 rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white backdrop-blur-sm">
-                                {e.language}
-                              </span>
-                            )}
-                          </div>
-                        </button>
-                        <div className="flex flex-1 flex-col p-2.5">
-                          <p className="truncate text-sm text-[var(--text)]">{e.title || item.title}</p>
-                          <p className="mt-0.5 min-h-[1rem] truncate text-xs text-[var(--text-muted)]">
-                            {[
-                              e.publisher,
-                              e.published_year || undefined,
-                              e.pages ? t('pagesCount', { count: e.pages }) : undefined,
-                            ]
-                              .filter(Boolean)
-                              .join(' · ') || ' '}
-                          </p>
-                          <p className="mt-0.5 min-h-[0.95rem] truncate text-[11px] text-[var(--text-muted)]">
-                            {e.isbn13 || e.isbn10 ? `ISBN ${e.isbn13 || e.isbn10}` : ' '}
-                          </p>
-                          <button
-                            onClick={() => chooseEdition(e)}
-                            className={`mt-2.5 inline-flex h-8 items-center justify-center gap-1.5 rounded-lg text-xs font-semibold transition-colors ${
-                              selected
-                                ? 'bg-nonsprimary text-white hover:bg-nonsprimaryfocus'
-                                : 'border border-nonsprimary/40 text-nonsprimaryfocus hover:bg-[var(--primary-soft)]'
-                            }`}
-                          >
-                            {selected ? (
-                              <>
-                                <IoCheckmarkCircle className="h-4 w-4" />
-                                {t('selectedEdition') || 'Selected'}
-                              </>
-                            ) : (
-                              <>
-                                <IoCheckmarkCircleOutline className="h-4 w-4" />
-                                {t('selectThisEdition') || 'Select this'}
-                              </>
-                            )}
+                      <div key={e.id} className="w-40 flex-shrink-0">
+                        <div
+                          className={`flex flex-col overflow-hidden rounded-xl border transition-colors ${
+                            selected ? 'border-nonsprimary/60 bg-[var(--surface)]' : 'border-[var(--border-subtle)] bg-[var(--surface)]'
+                          }`}
+                        >
+                          <button onClick={() => chooseEdition(e)} className="block" title={e.title || item.title}>
+                            <div className="relative flex aspect-[2/3] w-full items-center justify-center overflow-hidden bg-[var(--container-2)]">
+                              {/* Fall back to the work cover so an edition without its own
+                                  cover still shows one instead of a blank box. */}
+                              {(e.cover_url || item.coverUrl) ? (
+                                <img src={e.cover_url || item.coverUrl} alt="" loading="lazy" className="h-full w-full object-cover" />
+                              ) : (
+                                <Icon className="h-8 w-8 text-[var(--placeholder)]" />
+                              )}
+                              {e.language && (
+                                <span className="absolute bottom-1.5 left-1.5 rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white backdrop-blur-sm">
+                                  {e.language}
+                                </span>
+                              )}
+                              {/* Bookmark pinned to the top-right of the cover. */}
+                              {selected && (
+                                <span className="pointer-events-none" style={{ position: 'absolute', top: -8, right: 10, width: 36, height: 46 }}>
+                                  <IoBookmark style={{ position: 'absolute', top: 0, left: 0, width: 36, height: 46, color: '#111' }} />
+                                  <IoBookmarkOutline style={{ position: 'absolute', top: 0, left: 0, width: 36, height: 46, color: 'rgba(103,104,171,0.55)' }} />
+                                </span>
+                              )}
+                            </div>
                           </button>
+                          <div className="flex flex-1 flex-col p-2.5">
+                            <p className="truncate text-sm text-[var(--text)]">{e.title || item.title}</p>
+                            <p className="mt-0.5 min-h-[1rem] truncate text-xs text-[var(--text-muted)]">
+                              {[
+                                e.publisher,
+                                e.published_year || undefined,
+                                e.pages ? t('pagesCount', { count: e.pages }) : undefined,
+                              ]
+                                .filter(Boolean)
+                                .join(' · ') || ' '}
+                            </p>
+                            <p className="mt-0.5 min-h-[0.95rem] truncate text-[11px] text-[var(--text-muted)]">
+                              {e.isbn13 || e.isbn10 ? `ISBN ${e.isbn13 || e.isbn10}` : ' '}
+                            </p>
+                          </div>
                         </div>
                       </div>
                     )
