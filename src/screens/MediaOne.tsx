@@ -120,7 +120,7 @@ export default function MediaOnePage({
   // The user's chosen reading edition's own cover/title/pages, carried from their
   // shelf signals. Used to show that printing's cover even when the edition isn't
   // in the carousel page that's been loaded yet.
-  const [readingEdition, setReadingEdition] = useState<{ cover?: string; title?: string; pages?: number } | null>(null)
+  const [readingEdition, setReadingEdition] = useState<{ cover?: string; title?: string; pages?: number; language?: string } | null>(null)
   const [isbnFind, setIsbnFind] = useState('')
   // State (not derived) so it survives carousel page changes where the selected
   // edition isn't in the currently loaded slice. Initialized synchronously from
@@ -199,8 +199,12 @@ export default function MediaOnePage({
       setUserNote(sig.note ?? '')
       setEditionId(sig.editionId ?? null)
       setReadingEdition(
-        sig.editionId ? { cover: sig.editionCover, title: sig.editionTitle, pages: sig.editionPages } : null,
+        sig.editionId ? { cover: sig.editionCover, title: sig.editionTitle, pages: sig.editionPages, language: sig.editionLanguage } : null,
       )
+      // Seed the byline language from the reading edition so author credits
+      // localize to it immediately — the title already does (from the edition
+      // title carried here), and this keeps the author in step.
+      if (sig.editionId && sig.editionLanguage) setSelectedLang(sig.editionLanguage)
     })
     return () => {
       cancelled = true
@@ -462,6 +466,14 @@ export default function MediaOnePage({
   // Byline makers: authors for books, directors for movies — linked when we have
   // credits, otherwise the plain denormalized name.
   const makers = isBook ? credits?.authors : credits?.directors
+
+  // Byline text localized to the selected edition's language (credits are
+  // refetched per selectedLang, so makers' names already reflect it). Falls back
+  // to the work's denormalized author/director when no credits are loaded.
+  const displayAuthor =
+    makers && makers.length > 0
+      ? makers.map((m) => m.person.name).join(', ')
+      : isBook ? item.author : item.director || item.author
 
   // The edition currently in focus: from the ?e=<uuid> URL param, falling back to
   // the user's shelf reading-edition. Its cover/details take over the page.
@@ -1240,6 +1252,7 @@ export default function MediaOnePage({
           isOpen={shareOpen}
           item={item}
           coverUrl={coverUrl}
+          author={displayAuthor}
           totalPages={totalPages}
           rating={userRating}
           review={userReview}

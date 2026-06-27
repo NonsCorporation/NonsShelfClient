@@ -34,6 +34,9 @@ type Props = {
   item: MediaItem
   /** Resolved cover URL (edition-aware). */
   coverUrl?: string
+  /** Resolved byline (edition-language–aware), e.g. the author localized to the
+   *  selected edition. Falls back to the work's author when absent. */
+  author?: string
   /** Resolved total pages (edition-aware). */
   totalPages?: number
   rating: number | null
@@ -87,7 +90,7 @@ function Stars({ rating }: { rating: number }) {
   )
 }
 
-export default function ShareModal({ isOpen, item, coverUrl, totalPages = 0, rating, review, status, onClose }: Props) {
+export default function ShareModal({ isOpen, item, coverUrl, author, totalPages = 0, rating, review, status, onClose }: Props) {
   const { t } = useLanguage()
   const cardRef = useRef<HTMLDivElement>(null)
   const [currentPage, setCurrentPage] = useState(0)
@@ -137,6 +140,7 @@ export default function ShareModal({ isOpen, item, coverUrl, totalPages = 0, rat
   const pct = currentPage > 0 && totalPages > 0 ? Math.min(100, Math.round((currentPage / totalPages) * 100)) : 0
   const typeLabel = item.type === 'book' ? t('book') : item.type === 'series' ? t('series') : t('film')
   const cover = corsCover(coverUrl || item.coverUrl)
+  const byline = author || item.author
 
   const copyLink = async () => {
     try {
@@ -189,7 +193,7 @@ export default function ShareModal({ isOpen, item, coverUrl, totalPages = 0, rat
 
         <div style={{ flex: 1, minWidth: 0 }}>
           <p style={{ margin: 0, fontSize: 18, fontWeight: 700, lineHeight: 1.25 }}>{item.title}</p>
-          {item.author && <p style={{ margin: '4px 0 0', fontSize: 13, color: MUTED }}>{item.author}</p>}
+          {byline && <p style={{ margin: '4px 0 0', fontSize: 13, color: MUTED }}>{byline}</p>}
           <p style={{ margin: '6px 0 0', fontSize: 10.5, letterSpacing: '0.1em', textTransform: 'uppercase', color: MUTED }}>
             {typeLabel}{item.year ? ` · ${item.year}` : ''}
           </p>

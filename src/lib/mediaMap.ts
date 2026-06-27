@@ -44,6 +44,10 @@ export type Signals = {
   /** The chosen edition's page count, when set — used as the reading-progress
    *  total (the printing's pages), falling back to the work's. */
   editionPages?: number
+  /** The chosen edition's language (2-letter code), so the page can localize the
+   *  byline (author credits) to the printing the user is reading, even before the
+   *  editions carousel loads that edition. */
+  editionLanguage?: string
   /** The user's reading period (unix seconds; 0/undefined = unset). */
   startedAt?: number
   finishedAt?: number

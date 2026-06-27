@@ -23,7 +23,7 @@ export const SHELF_META: Record<ShelfStatus, { key: string; dot: string }> = {
 // BackendMedia, Signals and the toItem mapper live in ../lib/mediaMap so the
 // Next.js server can reuse them for the public /b and /m pages.
 
-type EditionRef = { id: number; title?: string; cover_url?: string; pages?: number }
+type EditionRef = { id: number; title?: string; cover_url?: string; pages?: number; language?: string }
 type ShelfEntry = { media_id: number; status: ShelfStatus; edition_id?: number; note?: string; created_at: number; collection_ids?: number[]; media?: BackendMedia; edition?: EditionRef }
 type FavoriteEntry = { media_id: number; media?: BackendMedia }
 type RatingEntry = { media_id: number; value: number; review?: string; updated_at?: number; media?: BackendMedia }
@@ -306,6 +306,7 @@ class ApiLibraryService implements ILibraryService {
       editionTitle: entry?.edition?.title,
       editionCover: entry?.edition?.cover_url,
       editionPages: entry?.edition?.pages,
+      editionLanguage: entry?.edition?.language,
       startedAt: dates.started_at || undefined,
       finishedAt: dates.finished_at || undefined,
     })
@@ -338,6 +339,7 @@ class ApiLibraryService implements ILibraryService {
       editionTitle: entry?.edition?.title,
       editionCover: entry?.edition?.cover_url,
       editionPages: entry?.edition?.pages,
+      editionLanguage: entry?.edition?.language,
       createdAt: entry?.created_at,
       startedAt: dates.started_at || undefined,
       finishedAt: dates.finished_at || undefined,
