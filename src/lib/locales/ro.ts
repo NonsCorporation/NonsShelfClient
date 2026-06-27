@@ -65,6 +65,7 @@ export const ro = {
   birthDate: 'Data nașterii',
   altNames: 'Nume alternative',
   altNamesPlaceholder: 'Separate prin virgulă (ex. Dostoievski, Dostoevsky)',
+  addName: 'Adaugă nume',
   avatarUrl: 'URL avatar',
   addAuthor: 'Adaugă autor',
   editPerson: 'Editează persoana',

@@ -65,6 +65,7 @@ export const ru = {
   birthDate: 'Дата рождения',
   altNames: 'Альтернативные имена',
   altNamesPlaceholder: 'Через запятую (напр. Достоевский, Dostoevsky)',
+  addName: 'Добавить имя',
   avatarUrl: 'Ссылка на фото',
   addAuthor: 'Добавить автора',
   editPerson: 'Редактировать персону',

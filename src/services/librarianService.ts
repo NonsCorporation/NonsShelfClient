@@ -15,6 +15,7 @@ export interface PersonSummary {
   id: number
   uuid: string
   name: string
+  name_lang?: string // BCP-47 tag for the canonical name spelling
   photo_url?: string
   bio?: string
   birth_year?: number
@@ -42,13 +43,21 @@ export interface OlPersonSuggestion {
   also_known_as: string[]
 }
 
+// One name variant: a spelling plus its optional language tag (e.g.
+// { name: 'Достоевский', lang: 'ru' }).
+export interface PersonAlias {
+  name: string
+  lang?: string
+}
+
 // Editable fields for a person (create/update).
 export interface PersonInput {
   name: string
+  name_lang?: string // BCP-47 tag for the canonical name spelling
   bio?: string
   photo_url?: string
   birth_date?: string
-  aliases?: string[]
+  aliases?: PersonAlias[]
 }
 
 // A credit role and which media kinds it applies to.
@@ -369,13 +378,14 @@ export const librarianService = {
     return data.items ?? []
   },
 
-  // Full person detail incl. alternative names (the search list omits aliases).
-  async getPerson(uuid: string): Promise<{ person: PersonSummary; aliases: string[] }> {
+  // Full person detail incl. alternative names with their language tags (the
+  // search list omits aliases).
+  async getPerson(uuid: string): Promise<{ person: PersonSummary; aliases: PersonAlias[] }> {
     const data = (await jsonOrThrow(await authedFetch(`/api/people/${uuid}`))) as {
       person: PersonSummary
-      aliases?: { name: string; lang?: string }[]
+      aliases?: PersonAlias[]
     }
-    return { person: data.person, aliases: (data.aliases ?? []).map((a) => a.name) }
+    return { person: data.person, aliases: data.aliases ?? [] }
   },
 
   // Create a new person (or return the existing one with the same name). Returns

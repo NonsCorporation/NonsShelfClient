@@ -65,6 +65,7 @@ export const en = {
   birthDate: 'Date of birth',
   altNames: 'Alternative names',
   altNamesPlaceholder: 'Comma-separated (e.g. Достоевский, Dostoevsky)',
+  addName: 'Add name',
   avatarUrl: 'Avatar URL',
   addAuthor: 'Add author',
   editPerson: 'Edit person',

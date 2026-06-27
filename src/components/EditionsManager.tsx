@@ -10,6 +10,44 @@ import { useLanguage } from '../contexts/LanguageContext'
 // True when the text contains any Cyrillic letter (already "rusified").
 const hasCyrillic = (s?: string) => !!s && /[Ѐ-ӿ]/.test(s)
 
+const LANG_OPTIONS: { code: string; label: string }[] = [
+  { code: 'en', label: 'EN — English' },
+  { code: 'ru', label: 'RU — Russian' },
+  { code: 'de', label: 'DE — German' },
+  { code: 'fr', label: 'FR — French' },
+  { code: 'es', label: 'ES — Spanish' },
+  { code: 'it', label: 'IT — Italian' },
+  { code: 'pt', label: 'PT — Portuguese' },
+  { code: 'pl', label: 'PL — Polish' },
+  { code: 'uk', label: 'UK — Ukrainian' },
+  { code: 'ro', label: 'RO — Romanian' },
+  { code: 'nl', label: 'NL — Dutch' },
+  { code: 'sv', label: 'SV — Swedish' },
+  { code: 'cs', label: 'CS — Czech' },
+  { code: 'hu', label: 'HU — Hungarian' },
+  { code: 'tr', label: 'TR — Turkish' },
+  { code: 'ja', label: 'JA — Japanese' },
+  { code: 'zh', label: 'ZH — Chinese' },
+  { code: 'ko', label: 'KO — Korean' },
+  { code: 'ar', label: 'AR — Arabic' },
+  { code: 'he', label: 'HE — Hebrew' },
+  { code: 'la', label: 'LA — Latin' },
+]
+
+// Normalize ISO 639-2/B 3-letter codes to 2-letter so existing DB values
+// still match a dropdown option (backend also normalizes on save).
+const LANG_3TO2: Record<string, string> = {
+  eng: 'en', rus: 'ru', ger: 'de', fre: 'fr', fra: 'fr', spa: 'es',
+  ita: 'it', por: 'pt', pol: 'pl', ukr: 'uk', rum: 'ro', ron: 'ro',
+  nld: 'nl', dut: 'nl', swe: 'sv', ces: 'cs', cze: 'cs', hun: 'hu',
+  tur: 'tr', jpn: 'ja', chi: 'zh', zho: 'zh', kor: 'ko', ara: 'ar',
+  heb: 'he', lat: 'la',
+}
+const normEditionLang = (s: string) => {
+  const lc = (s ?? '').trim().toLowerCase()
+  return LANG_3TO2[lc] ?? lc
+}
+
 type EditionForm = {
   title: string
   publisher: string
@@ -27,7 +65,7 @@ function toForm(e: Edition): EditionForm {
   return {
     title: e.title ?? '',
     publisher: e.publisher ?? '',
-    language: e.language ?? '',
+    language: normEditionLang(e.language ?? ''),
     published_year: e.published_year ? String(e.published_year) : '',
     pages: e.pages ? String(e.pages) : '',
     isbn13: e.isbn13 ?? e.isbn10 ?? '',
@@ -324,7 +362,16 @@ function EditionRowForm({
       </div>
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         <input className={input} placeholder={t('publisher')} value={form.publisher} onChange={(e) => setForm((s) => ({ ...s, publisher: e.target.value }))} />
-        <input className={input} placeholder={t('language')} value={form.language} onChange={(e) => setForm((s) => ({ ...s, language: e.target.value }))} />
+        <select
+          className={input}
+          value={form.language}
+          onChange={(e) => setForm((s) => ({ ...s, language: e.target.value }))}
+        >
+          <option value="">{t('language') || 'Language'}</option>
+          {LANG_OPTIONS.map((l) => (
+            <option key={l.code} value={l.code}>{l.label}</option>
+          ))}
+        </select>
         <input className={input} placeholder={t('publishedYear')} value={form.published_year} onChange={(e) => setForm((s) => ({ ...s, published_year: e.target.value }))} />
         <input className={input} type="number" placeholder={t('pages')} value={form.pages} onChange={(e) => setForm((s) => ({ ...s, pages: e.target.value }))} />
       </div>

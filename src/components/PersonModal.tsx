@@ -1,9 +1,33 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { IoClose, IoPersonOutline, IoCloudDownloadOutline, IoCheckmark, IoSearch } from 'react-icons/io5'
+import { IoClose, IoPersonOutline, IoCloudDownloadOutline, IoCheckmark, IoSearch, IoAdd, IoTrashOutline, IoChevronUp, IoChevronDown } from 'react-icons/io5'
 import { librarianService } from '../services/librarianService'
-import type { PersonSummary, TmdbPersonSuggestion, OlPersonSuggestion } from '../services/librarianService'
+import type { PersonSummary, TmdbPersonSuggestion, OlPersonSuggestion, PersonAlias } from '../services/librarianService'
 import { useLanguage } from '../contexts/LanguageContext'
+
+// One editable name variant. lang '' means "unspecified".
+type AliasRow = { name: string; lang: string }
+
+// Language tags offered for a name variant. The first entries double as the
+// display-priority order: English and Russian come first, then the remaining
+// languages — so the alias list always leads with the most useful spellings.
+const LANG_PRIORITY = ['en', 'ru', 'ro']
+const LANG_OPTIONS = ['', 'en', 'ru', 'ro', 'uk', 'de', 'fr', 'es', 'it', 'pl', 'ja', 'zh', 'ko']
+
+const langLabel = (code: string) => (code ? code.toUpperCase() : '—')
+
+const langRank = (lang: string) => {
+  const i = LANG_PRIORITY.indexOf((lang || '').toLowerCase())
+  return i === -1 ? LANG_PRIORITY.length : i
+}
+
+// Order by language priority (EN, RU, RO, then others); stable within a tier so
+// same-language names keep their entered order.
+const sortAliases = (rows: AliasRow[]) => [...rows].sort((a, b) => langRank(a.lang) - langRank(b.lang))
+
+// Map API aliases into editable rows (sorted), normalising a missing lang to ''.
+const toAliasRows = (aliases: PersonAlias[]): AliasRow[] =>
+  sortAliases(aliases.map((a) => ({ name: a.name, lang: a.lang ?? '' })))
 
 type Props = {
   isOpen: boolean
@@ -18,7 +42,9 @@ type Props = {
 // Create or edit an author/person with full details: name, avatar, birth year, bio.
 export default function PersonModal({ isOpen, person, initialName, onClose, onSaved }: Props) {
   const { t } = useLanguage()
-  const [form, setForm] = useState({ name: '', bio: '', birthDate: '', photoUrl: '', aliases: '' })
+  const [form, setForm] = useState({ bio: '', birthDate: '', photoUrl: '' })
+  // nameRows[0] is the canonical name (not deletable); the rest are aliases.
+  const [nameRows, setNameRows] = useState<AliasRow[]>([{ name: '', lang: '' }])
   const [busy, setBusy] = useState(false)
   const [importing, setImporting] = useState(false)
   const [suggestion, setSuggestion] = useState<TmdbPersonSuggestion | null>(null)
@@ -33,12 +59,11 @@ export default function PersonModal({ isOpen, person, initialName, onClose, onSa
     if (!isOpen) return
     setError('')
     setForm({
-      name: person?.name ?? initialName ?? '',
       bio: person?.bio ?? '',
       birthDate: person?.birth_date ?? '',
       photoUrl: person?.photo_url ?? '',
-      aliases: '',
     })
+    setNameRows([{ name: person?.name ?? initialName ?? '', lang: person?.name_lang ?? '' }])
     // The search list doesn't carry aliases — fetch the full record when editing.
     if (person?.uuid) {
       let cancelled = false
@@ -51,8 +76,11 @@ export default function PersonModal({ isOpen, person, initialName, onClose, onSa
             bio: p.bio ?? s.bio,
             birthDate: p.birth_date ?? s.birthDate,
             photoUrl: p.photo_url ?? s.photoUrl,
-            aliases: aliases.join(', '),
           }))
+          setNameRows([
+            { name: p.name, lang: p.name_lang ?? '' },
+            ...toAliasRows(aliases),
+          ])
         })
         .catch(() => {})
       return () => {
@@ -63,18 +91,43 @@ export default function PersonModal({ isOpen, person, initialName, onClose, onSa
 
   if (!isOpen) return null
 
+  // Name list edits. Index 0 is always the canonical name (cannot be removed).
+  const addName = () => setNameRows((rows) => [...rows, { name: '', lang: '' }])
+  const updateName = (i: number, patch: Partial<AliasRow>) =>
+    setNameRows((rows) => rows.map((r, idx) => (idx === i ? { ...r, ...patch } : r)))
+  const removeName = (i: number) => setNameRows((rows) => rows.filter((_, idx) => idx !== i))
+
+  const moveUp = (i: number) => setNameRows((rows) => {
+    if (i === 0) return rows
+    const next = [...rows];
+    [next[i - 1], next[i]] = [next[i], next[i - 1]]
+    return next
+  })
+
+  const moveDown = (i: number) => setNameRows((rows) => {
+    if (i >= rows.length - 1) return rows
+    const next = [...rows];
+    [next[i], next[i + 1]] = [next[i + 1], next[i]]
+    return next
+  })
+
+  const primaryName = nameRows[0]?.name.trim() ?? ''
+
   const save = async () => {
-    const name = form.name.trim()
-    if (!name) return
+    if (!primaryName) return
     setBusy(true)
     setError('')
     try {
       const fields = {
-        name,
+        name: primaryName,
+        name_lang: nameRows[0]?.lang || undefined,
         bio: form.bio.trim() || undefined,
         birth_date: form.birthDate.trim() || undefined,
         photo_url: form.photoUrl.trim() || undefined,
-        aliases: form.aliases.split(',').map((a) => a.trim()).filter(Boolean),
+        aliases: nameRows
+          .slice(1)
+          .map((a) => ({ name: a.name.trim(), lang: a.lang || undefined }))
+          .filter((a) => a.name),
       }
       const saved = person?.uuid
         ? await librarianService.updatePerson(person.uuid, fields)
@@ -111,13 +164,8 @@ export default function PersonModal({ isOpen, person, initialName, onClose, onSa
     try {
       await librarianService.enrichPersonFromTMDB(person.uuid, suggestion.tmdb_id)
       const { person: p, aliases } = await librarianService.getPerson(person.uuid)
-      setForm({
-        name: p.name ?? '',
-        bio: p.bio ?? '',
-        birthDate: p.birth_date ?? '',
-        photoUrl: p.photo_url ?? '',
-        aliases: aliases.join(', '),
-      })
+      setForm({ bio: p.bio ?? '', birthDate: p.birth_date ?? '', photoUrl: p.photo_url ?? '' })
+      setNameRows([{ name: p.name, lang: p.name_lang ?? '' }, ...toAliasRows(aliases)])
       setSuggestion(null)
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
@@ -146,13 +194,8 @@ export default function PersonModal({ isOpen, person, initialName, onClose, onSa
     try {
       await librarianService.enrichPersonFromOL(person.uuid, olSuggestion.ol_key)
       const { person: p, aliases } = await librarianService.getPerson(person.uuid)
-      setForm({
-        name: p.name ?? '',
-        bio: p.bio ?? '',
-        birthDate: p.birth_date ?? '',
-        photoUrl: p.photo_url ?? '',
-        aliases: aliases.join(', '),
-      })
+      setForm({ bio: p.bio ?? '', birthDate: p.birth_date ?? '', photoUrl: p.photo_url ?? '' })
+      setNameRows([{ name: p.name, lang: p.name_lang ?? '' }, ...toAliasRows(aliases)])
       setOlSuggestion(null)
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
@@ -172,16 +215,18 @@ export default function PersonModal({ isOpen, person, initialName, onClose, onSa
     setError('')
     try {
       await librarianService.mergePeople(person.uuid, dupUuid)
-      const { aliases: freshAliases } = await librarianService.getPerson(person.uuid)
+      const { person: freshP, aliases: freshAliases } = await librarianService.getPerson(person.uuid)
       const bio = chosenBio !== undefined ? chosenBio : form.bio.trim() || undefined
       const saved = await librarianService.updatePerson(person.uuid, {
-        name: form.name.trim(),
+        name: primaryName || freshP.name,
+        name_lang: nameRows[0]?.lang || undefined,
         bio,
         birth_date: form.birthDate.trim() || undefined,
         photo_url: form.photoUrl.trim() || undefined,
         aliases: freshAliases,
       })
-      setForm((f) => ({ ...f, bio: bio ?? '', aliases: freshAliases.join(', ') }))
+      setForm((f) => ({ ...f, bio: bio ?? '' }))
+      setNameRows([{ name: saved.name, lang: saved.name_lang ?? '' }, ...toAliasRows(freshAliases)])
       onSaved(saved)
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
@@ -252,19 +297,79 @@ export default function PersonModal({ isOpen, person, initialName, onClose, onSa
           />
         </div>
 
-        <label className="flex flex-col gap-1.5 text-sm font-medium text-[var(--text)]">
+        <div className="flex flex-col gap-1.5 text-sm font-medium text-[var(--text)]">
           {t('name')}
-          <input autoFocus className={input} placeholder={t('name')} value={form.name} onChange={(e) => setForm((s) => ({ ...s, name: e.target.value }))} />
-        </label>
+          <div className="flex flex-col gap-1.5">
+            {nameRows.map((row, i) => (
+              <div key={i} className="flex items-center gap-1.5">
+                {/* reorder column — up/down for every row; disabled at edges */}
+                <div className="flex flex-shrink-0 flex-col">
+                  <button
+                    type="button"
+                    onClick={() => moveUp(i)}
+                    disabled={i === 0}
+                    className="flex h-5 w-5 items-center justify-center rounded text-[var(--text-muted)] transition-colors hover:enabled:text-[var(--text)] disabled:opacity-20"
+                  >
+                    <IoChevronUp className="h-3 w-3" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => moveDown(i)}
+                    disabled={i === nameRows.length - 1}
+                    className="flex h-5 w-5 items-center justify-center rounded text-[var(--text-muted)] transition-colors hover:enabled:text-[var(--text)] disabled:opacity-20"
+                  >
+                    <IoChevronDown className="h-3 w-3" />
+                  </button>
+                </div>
+
+                <input
+                  autoFocus={i === 0}
+                  className="h-10 min-w-0 flex-1 rounded-lg border border-[var(--border-subtle)] bg-[var(--input)] px-3 text-sm font-normal text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-ring)]"
+                  placeholder={t('name')}
+                  value={row.name}
+                  onChange={(e) => updateName(i, { name: e.target.value })}
+                />
+                <select
+                  className="h-10 flex-shrink-0 rounded-lg border border-[var(--border-subtle)] bg-[var(--input)] px-2 text-xs font-normal text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-ring)]"
+                  value={row.lang}
+                  onChange={(e) => updateName(i, { lang: e.target.value })}
+                  title="Language"
+                >
+                  {(LANG_OPTIONS.includes(row.lang) ? LANG_OPTIONS : [row.lang, ...LANG_OPTIONS]).map((code) => (
+                    <option key={code} value={code}>{langLabel(code)}</option>
+                  ))}
+                </select>
+
+                {/* P badge for primary, trash for the rest */}
+                {i === 0 ? (
+                  <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center">
+                    <span className="select-none text-[10px] font-bold uppercase tracking-widest text-nonsprimary">P</span>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => removeName(i)}
+                    className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] text-[var(--text-muted)] transition-colors hover:border-red-400 hover:text-red-400"
+                  >
+                    <IoTrashOutline className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={addName}
+              className="flex h-10 items-center justify-center gap-1.5 rounded-lg border border-dashed border-[var(--border-subtle)] text-sm font-medium text-[var(--text-muted)] transition-colors hover:border-nonsprimary hover:text-nonsprimary"
+            >
+              <IoAdd className="h-4 w-4" />
+              {t('addName')}
+            </button>
+          </div>
+        </div>
 
         <label className="flex flex-col gap-1.5 text-sm font-medium text-[var(--text)]">
           {t('birthDate')}
           <input className={input} type="date" value={form.birthDate} onChange={(e) => setForm((s) => ({ ...s, birthDate: e.target.value }))} />
-        </label>
-
-        <label className="flex flex-col gap-1.5 text-sm font-medium text-[var(--text)]">
-          {t('altNames')}
-          <input className={input} placeholder={t('altNamesPlaceholder')} value={form.aliases} onChange={(e) => setForm((s) => ({ ...s, aliases: e.target.value }))} />
         </label>
 
         <label className="flex flex-col gap-1.5 text-sm font-medium text-[var(--text)]">
@@ -284,7 +389,7 @@ export default function PersonModal({ isOpen, person, initialName, onClose, onSa
           <button onClick={onClose} className="h-10 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] px-4 text-sm text-[var(--text-muted)] hover:text-[var(--text)]">
             {t('cancel')}
           </button>
-          <button onClick={save} disabled={busy || !form.name.trim()} className="h-10 rounded-lg bg-nonsprimary px-6 text-sm font-medium text-white hover:bg-nonsprimaryfocus disabled:opacity-50">
+          <button onClick={save} disabled={busy || !primaryName} className="h-10 rounded-lg bg-nonsprimary px-6 text-sm font-medium text-white hover:bg-nonsprimaryfocus disabled:opacity-50">
             {t('save')}
           </button>
         </div>

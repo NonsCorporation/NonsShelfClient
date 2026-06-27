@@ -122,6 +122,7 @@ export default function MediaOnePage({
   // in the carousel page that's been loaded yet.
   const [readingEdition, setReadingEdition] = useState<{ cover?: string; title?: string; pages?: number } | null>(null)
   const [isbnFind, setIsbnFind] = useState('')
+  const [selectedLang, setSelectedLang] = useState('')
 
   const [userRating, setUserRating] = useState<number | null>(initialItem?.rating ?? null)
   const [userReview, setUserReview] = useState(initialItem?.review ?? '')
@@ -196,21 +197,21 @@ export default function MediaOnePage({
     }
   }, [ssr, isAuthenticated, initialItem, loadItem])
 
-  // Cast & crew with stable person uuids, for linking to /p/<uuid>. Always
-  // refetch on the client — even on SSR pages, whose `initialCredits` are cached
-  // (revalidate 3600), so a freshly imported/linked maker shows up (and the
-  // byline becomes clickable) right after a reload instead of an hour later.
+  // Cast & crew with stable person uuids, for linking to /p/<uuid>. Re-fetches
+  // when the selected edition's language changes so person names are localized
+  // to that language (using aliases when available, falling back to canonical).
   useEffect(() => {
     if (!id) return
     let cancelled = false
-    authedFetch(`/api/media/${id}/credits`)
+    const url = selectedLang ? `/api/media/${id}/credits?lang=${selectedLang}` : `/api/media/${id}/credits`
+    authedFetch(url)
       .then((r) => (r.ok ? r.json() : null))
       .then((c) => !cancelled && c && setCredits(c))
       .catch(() => {})
     return () => {
       cancelled = true
     }
-  }, [id])
+  }, [id, selectedLang])
 
   // Editions (books) for the metadata section, loaded a page at a time. Always
   // refetches the first page on the client — even on SSR pages, where
@@ -224,9 +225,20 @@ export default function MediaOnePage({
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
         if (cancelled || !d) return
-        setEditions(d.editions ?? [])
-        setEditionsTotal(d.total ?? (d.editions?.length ?? 0))
-        editionsPageRef.current = 0 // reset paging for this work
+        const eds: Edition[] = d.editions ?? []
+        setEditions(eds)
+        setEditionsTotal(d.total ?? eds.length)
+        editionsPageRef.current = 0
+        // Restore the selected language from the active edition so the
+        // credits byline is localized on page load. Check both the URL UUID
+        // (?e=<uuid>) and the shelf's numeric editionId — whichever is set.
+        const eUuid = params.get('e')
+        const activeEd = eUuid
+          ? eds.find((e) => e.uuid === eUuid)
+          : editionId
+            ? eds.find((e) => e.id === editionId)
+            : null
+        if (activeEd?.language) setSelectedLang(activeEd.language)
       })
       .catch(() => {})
     return () => {
@@ -371,10 +383,12 @@ export default function MediaOnePage({
     if (selected) {
       next.delete('e')
       setEditionId(null)
+      setSelectedLang('')
       if (item.status) await libraryService.setEdition(item.id, 0)
     } else {
       if (e.uuid) next.set('e', e.uuid)
       setEditionId(e.id)
+      setSelectedLang(e.language ?? '')
       if (item.status) await libraryService.setEdition(item.id, e.id)
     }
     setParams(next, { replace: true })
@@ -450,6 +464,10 @@ export default function MediaOnePage({
   // edition's own cover (carried from signals, so it shows even before that
   // edition's carousel page loads), then the work's cover.
   const coverUrl = selectedEdition?.cover_url || readingEdition?.cover || item.coverUrl
+  // Title priority mirrors the cover: the in-focus edition's own title (e.g. a
+  // translated printing in another language), then the user's reading edition's
+  // title, then the work's. So switching editions retitles the page.
+  const displayTitle = selectedEdition?.title || readingEdition?.title || item.title
   // Page count to measure reading progress against: the selected edition's, when
   // it has one (the printing you're actually reading), else the work's.
   const totalPages = selectedEdition?.pages || readingEdition?.pages || item.pages || 0
@@ -488,7 +506,7 @@ export default function MediaOnePage({
         <div className="flex w-full flex-shrink-0 flex-col gap-3 md:w-64 md:sticky md:top-[88px] md:self-start">
           <div className="relative aspect-[2/3] overflow-hidden rounded-2xl border border-[var(--border-subtle)]">
             {coverUrl ? (
-              <img src={coverUrl} alt={item.title} className="h-full w-full object-cover" />
+              <img src={coverUrl} alt={displayTitle} className="h-full w-full object-cover" />
             ) : (
               <div className="flex h-full w-full items-center justify-center bg-[var(--container-2)]">
                 <Icon className="h-10 w-10 text-[var(--placeholder)]" />
@@ -596,7 +614,7 @@ export default function MediaOnePage({
 
             <div className="mb-2">
               <h1 className="text-3xl font-bold leading-tight tracking-tight text-[var(--text)] md:text-[2.6rem]">
-                {item.title}
+                {displayTitle}
               </h1>
             </div>
 
