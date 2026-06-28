@@ -12,7 +12,7 @@ import {
 import { connectionService } from '../services/connectionService'
 import { catalogService, type CatalogItem } from '../services/catalogService'
 import { useLanguage } from '../contexts/LanguageContext'
-import type { Franchise, SeriesPageData } from '../types'
+import type { Franchise, FranchiseRef, SeriesPageData } from '../types'
 
 const SERIES_ROLES = ['', 'main', 'spinoff', 'prequel', 'sequel', 'interquel']
 
@@ -49,18 +49,20 @@ export default function SeriesEditor({
     return <p className="py-4 text-sm text-[var(--text-muted)]">{t('loading')}</p>
   }
 
-  const { series, items } = data
-  return <Editor series={series} items={items} reload={reload} onDeleted={onDeleted} />
+  const { series, items, franchise } = data
+  return <Editor series={series} items={items} franchise={franchise} reload={reload} onDeleted={onDeleted} />
 }
 
 function Editor({
   series,
   items,
+  franchise,
   reload,
   onDeleted,
 }: {
   series: SeriesPageData['series']
   items: SeriesPageData['items']
+  franchise?: FranchiseRef
   reload: () => Promise<void>
   onDeleted?: () => void
 }) {
@@ -71,7 +73,7 @@ function Editor({
   const [description, setDescription] = useState(series.description || '')
   const [role, setRole] = useState(series.role || '')
   const [franchiseId, setFranchiseId] = useState<number | null>(series.franchise_id ?? null)
-  const [franchiseName, setFranchiseName] = useState('')
+  const [franchiseName, setFranchiseName] = useState(franchise?.name ?? '')
   const [savingMeta, setSavingMeta] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
 
@@ -81,7 +83,8 @@ function Editor({
     setDescription(series.description || '')
     setRole(series.role || '')
     setFranchiseId(series.franchise_id ?? null)
-  }, [series.name, series.description, series.role, series.franchise_id])
+    setFranchiseName(franchise?.name ?? '')
+  }, [series.name, series.description, series.role, series.franchise_id, franchise?.name])
 
   const saveMeta = async () => {
     setSavingMeta(true)

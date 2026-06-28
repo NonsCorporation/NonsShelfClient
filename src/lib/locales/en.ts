@@ -593,6 +593,7 @@ export const en = {
   seriesDescription: 'Description',
   seriesRole: 'Role',
   attachFranchise: 'Attach a universe',
+  universeNeedsSeriesHint: 'Tip: add this movie to a series first, so the whole series joins the universe.',
   addWork: 'Add a work to this series',
   deleteSeries: 'Delete series',
   deleteSeriesConfirm: 'Delete this series? The works stay in your catalog — only the series grouping is removed.',

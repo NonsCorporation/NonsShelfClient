@@ -19,7 +19,6 @@ import SeriesEditor from './SeriesEditor'
 import { useLanguage } from '../contexts/LanguageContext'
 import type { Connections, Franchise, MediaItem, RelationKind, Series } from '../types'
 
-const RELATION_KINDS: RelationKind[] = ['adaptation', 'novelization', 'remake', 'companion', 'crossover']
 const SERIES_ROLES = ['main', 'spinoff', 'prequel', 'sequel', 'interquel']
 
 // Librarian editor for a work's connections: its series membership, the
@@ -36,6 +35,48 @@ export default function ConnectionsManager({ item }: { item: MediaItem }) {
   }, [item.id])
 
   useEffect(() => { reload() }, [reload])
+
+  // A "universe" (franchise) groups whole series. Selecting one for this movie
+  // attaches the movie's series to it (so the whole series joins) — or, if the
+  // movie isn't in any series, adds the movie directly as a fallback.
+  const attachUniverse = async (f: Franchise) => {
+    if (conn && conn.series.length > 0) {
+      await Promise.all(conn.series.map(async (m) => {
+        const d = await connectionService.getSeries(m.series.uuid)
+        if (!d) return
+        await connectionService.updateSeries(m.series.uuid, {
+          name: d.series.name,
+          type: d.series.type,
+          description: d.series.description,
+          role: d.series.role,
+          franchise_id: f.id,
+          parent_series_id: d.series.parent_series_id ?? null,
+        })
+      }))
+    } else {
+      await connectionService.setFranchiseMember(f.uuid, { media_id: mediaId, order: 0 })
+    }
+    reload()
+  }
+
+  const detachUniverse = async (franchiseUuid: string) => {
+    await connectionService.removeFranchiseMember(franchiseUuid, mediaId).catch(() => {})
+    if (conn) {
+      await Promise.all(conn.series.map(async (m) => {
+        const d = await connectionService.getSeries(m.series.uuid)
+        if (!d || !d.series.franchise_id) return
+        await connectionService.updateSeries(m.series.uuid, {
+          name: d.series.name,
+          type: d.series.type,
+          description: d.series.description,
+          role: d.series.role,
+          franchise_id: null,
+          parent_series_id: d.series.parent_series_id ?? null,
+        })
+      }))
+    }
+    reload()
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -59,18 +100,18 @@ export default function ConnectionsManager({ item }: { item: MediaItem }) {
         <SeriesAdder mediaId={mediaId} type={item.type} onDone={reload} />
       </Group>
 
-      {/* ── Franchise membership ── */}
+      {/* ── Universe (groups whole series) ── */}
       <Group icon={<IoSparklesOutline className="h-4 w-4 text-nonsprimary" />} title={t('franchiseMembership') || 'Universe'}>
         {conn?.franchises.map((f) => (
-          <Row key={f.franchise.id} onRemove={() => connectionService.removeFranchiseMember(f.franchise.uuid, mediaId).then(reload)}>
+          <Row key={f.franchise.id} onRemove={() => detachUniverse(f.franchise.uuid)}>
             <span className="min-w-0 flex-1 truncate text-sm text-[var(--text)]">{f.franchise.name}</span>
-            <span className="flex-shrink-0 text-xs text-[var(--text-muted)]">
-              {f.saga ? `${f.saga} · ` : ''}#{f.order}
-              {f.role && f.role !== 'main' ? ` · ${f.role}` : ''}
-            </span>
+            {f.saga && <span className="flex-shrink-0 text-xs text-[var(--text-muted)]">{f.saga}</span>}
           </Row>
         ))}
-        <FranchiseAdder mediaId={mediaId} onDone={reload} />
+        <UniversePicker onPick={attachUniverse} />
+        {conn && conn.series.length === 0 && (
+          <p className="text-xs text-[var(--text-muted)]">{t('universeNeedsSeriesHint') || 'Tip: add this movie to a series first, so the whole series joins the universe.'}</p>
+        )}
       </Group>
 
       {/* ── Adaptations & links ── */}
@@ -290,87 +331,65 @@ function SeriesAdder({ mediaId, type, onDone }: { mediaId: number; type: MediaIt
   )
 }
 
-// ── Franchise adder ──────────────────────────────────────────────────────────────
-function FranchiseAdder({ mediaId, onDone }: { mediaId: number; onDone: () => void }) {
+// ── Universe picker ────────────────────────────────────────────────────────────
+// Pick (or create) a universe. The parent decides what attaching means — here it
+// attaches the movie's whole series to the universe. Creation is find-or-create
+// by name on the server, so the same universe is never duplicated.
+function UniversePicker({ onPick }: { onPick: (f: Franchise) => void }) {
   const { t } = useLanguage()
   const [q, setQ] = useState('')
   const [results, setResults] = useState<Franchise[]>([])
-  const [picked, setPicked] = useState<Franchise | null>(null)
-  const [order, setOrder] = useState('')
-  const [saga, setSaga] = useState('')
-  const [role, setRole] = useState('')
-  const [busy, setBusy] = useState(false)
 
   useEffect(() => {
-    if (!q.trim() || picked) { setResults([]); return }
+    if (!q.trim()) { setResults([]); return }
     const timer = setTimeout(() => connectionService.searchFranchises(q).then(setResults).catch(() => setResults([])), 300)
     return () => clearTimeout(timer)
-  }, [q, picked])
+  }, [q])
 
   const term = q.trim()
   const exact = results.some((f) => f.name.toLowerCase() === term.toLowerCase())
 
-  const createAndPick = async () => {
+  const choose = (f: Franchise) => { onPick(f); setQ(''); setResults([]) }
+  const createAndChoose = async () => {
     const f = await connectionService.createFranchise({ name: term })
-    setPicked(f)
-    setResults([])
-  }
-
-  const submit = async () => {
-    if (!picked) return
-    setBusy(true)
-    try {
-      await connectionService.setFranchiseMember(picked.uuid, {
-        media_id: mediaId,
-        order: parseFloat(order) || 0,
-        saga: saga.trim() || undefined,
-        role: role.trim() || undefined,
-      })
-      setPicked(null); setQ(''); setOrder(''); setSaga(''); setRole('')
-      onDone()
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  if (picked) {
-    return (
-      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-dashed border-[var(--border-subtle)] p-2.5">
-        <span className="text-sm font-medium text-[var(--text)]">{picked.name}</span>
-        <input className={`${inputCls} w-20`} type="number" step="0.5" placeholder={t('orderLabel') || 'Order'} value={order} onChange={(e) => setOrder(e.target.value)} />
-        <input className={`${inputCls} w-32`} placeholder={t('saga') || 'Saga / phase'} value={saga} onChange={(e) => setSaga(e.target.value)} />
-        <select className={inputCls} value={role} onChange={(e) => setRole(e.target.value)}>
-          <option value="">main</option>
-          <option value="crossover">crossover</option>
-          <option value="guest">guest</option>
-        </select>
-        <button onClick={submit} disabled={busy} className="inline-flex items-center gap-1.5 rounded-lg bg-nonsprimary px-3 py-1.5 text-xs font-semibold text-white hover:bg-nonsprimaryfocus disabled:opacity-50">
-          <IoAdd className="h-3.5 w-3.5" /> {t('add')}
-        </button>
-        <button onClick={() => { setPicked(null); setQ('') }} className="text-xs text-[var(--text-muted)] hover:text-[var(--text)]">{t('cancel')}</button>
-      </div>
-    )
+    choose(f)
   }
 
   return (
     <SearchBox q={q} setQ={setQ} placeholder={t('addToFranchise') || 'Add to a universe'}>
       {term && !exact && (
-        <CreateRow label={t('createFranchiseNamed', { name: term }) || `Create universe "${term}"`} onClick={createAndPick} />
+        <CreateRow label={t('createFranchiseNamed', { name: term }) || `Create universe "${term}"`} onClick={createAndChoose} />
       )}
       {results.map((f) => (
-        <PickRow key={f.id} title={f.name} onClick={() => setPicked(f)} />
+        <PickRow key={f.id} title={f.name} onClick={() => choose(f)} />
       ))}
     </SearchBox>
   )
 }
 
-// ── Relation adder: pick a target work from the catalog, choose kind/part ─────────
+// Directional relation choices. `swap` flips from/to so the edge is stored in
+// its canonical direction (a book→film adaptation) no matter which side you're
+// editing: on a film you pick "Based on / adapted from" → it stores book→film,
+// which the panel then renders as "Based on" here and "Adaptations" on the book.
+// So "based on" is just the reverse of "adaptation" — no separate DB kind.
+type RelationChoice = { value: string; label: string; kind: RelationKind; swap: boolean }
+const RELATION_CHOICES: RelationChoice[] = [
+  { value: 'based_on', label: 'Based on / adapted from', kind: 'adaptation', swap: true },
+  { value: 'adapted_into', label: 'Adapted into', kind: 'adaptation', swap: false },
+  { value: 'novelization_of', label: 'Novelization of', kind: 'novelization', swap: true },
+  { value: 'novelized_as', label: 'Novelized as', kind: 'novelization', swap: false },
+  { value: 'remake', label: 'Remake / version of', kind: 'remake', swap: false },
+  { value: 'companion', label: 'Companion to', kind: 'companion', swap: false },
+  { value: 'crossover', label: 'Crossover with', kind: 'crossover', swap: false },
+]
+
+// ── Relation adder: pick a target work, choose a directional relation + part ─────
 function RelationAdder({ mediaId, onDone }: { mediaId: number; onDone: () => void }) {
   const { t } = useLanguage()
   const [q, setQ] = useState('')
   const [results, setResults] = useState<CatalogItem[]>([])
   const [picked, setPicked] = useState<CatalogItem | null>(null)
-  const [kind, setKind] = useState<RelationKind>('adaptation')
+  const [choice, setChoice] = useState<string>('based_on')
   const [part, setPart] = useState('')
   const [note, setNote] = useState('')
   const [busy, setBusy] = useState(false)
@@ -386,16 +405,19 @@ function RelationAdder({ mediaId, onDone }: { mediaId: number; onDone: () => voi
 
   const submit = async () => {
     if (!picked) return
+    const c = RELATION_CHOICES.find((x) => x.value === choice) ?? RELATION_CHOICES[0]
+    const other = Number(picked.id)
     setBusy(true)
     try {
       await connectionService.createRelation({
-        from_media_id: mediaId,
-        to_media_id: Number(picked.id),
-        kind,
+        // swap=true means the picked work is the source (e.g. the book this film is based on).
+        from_media_id: c.swap ? other : mediaId,
+        to_media_id: c.swap ? mediaId : other,
+        kind: c.kind,
         part: part ? parseInt(part, 10) : undefined,
         note: note.trim() || undefined,
       })
-      setPicked(null); setQ(''); setKind('adaptation'); setPart(''); setNote('')
+      setPicked(null); setQ(''); setChoice('based_on'); setPart(''); setNote('')
       onDone()
     } finally {
       setBusy(false)
@@ -406,9 +428,8 @@ function RelationAdder({ mediaId, onDone }: { mediaId: number; onDone: () => voi
     return (
       <div className="flex flex-wrap items-center gap-2 rounded-xl border border-dashed border-[var(--border-subtle)] p-2.5">
         <span className="min-w-0 max-w-[40%] truncate text-sm font-medium text-[var(--text)]">{picked.title}</span>
-        <span className="text-xs text-[var(--text-muted)]">{t('relationKind') || 'Relation'}:</span>
-        <select className={inputCls} value={kind} onChange={(e) => setKind(e.target.value as RelationKind)}>
-          {RELATION_KINDS.map((k) => <option key={k} value={k}>{k}</option>)}
+        <select className={inputCls} value={choice} onChange={(e) => setChoice(e.target.value)}>
+          {RELATION_CHOICES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
         </select>
         <input className={`${inputCls} w-16`} type="number" placeholder={t('partLabel') || 'Part'} value={part} onChange={(e) => setPart(e.target.value)} />
         <input className={`${inputCls} w-36`} placeholder={t('noteOptional') || 'Note (optional)'} value={note} onChange={(e) => setNote(e.target.value)} />

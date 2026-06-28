@@ -31,8 +31,13 @@ export default function ConnectionsPanel({ mediaId }: { mediaId: string }) {
     connectionService.getConnections(mediaId).then(async (c) => {
       if (cancelled) return
       setData(c)
+      // Fetch every series we render: the work's own series (big rails) plus the
+      // sibling series listed under each franchise (compact previews).
+      const uuids = new Set<string>()
+      c.series.forEach((m) => uuids.add(m.series.uuid))
+      c.franchises.forEach((f) => f.siblings.forEach((s) => uuids.add(s.uuid)))
       const entries = await Promise.all(
-        c.series.map(async (m) => [m.series.uuid, (await connectionService.getSeries(m.series.uuid))?.items ?? []] as const),
+        [...uuids].map(async (u) => [u, (await connectionService.getSeries(u))?.items ?? []] as const),
       )
       if (!cancelled) setSeriesItems(Object.fromEntries(entries))
     })
@@ -44,6 +49,9 @@ export default function ConnectionsPanel({ mediaId }: { mediaId: string }) {
   if (series.length === 0 && franchises.length === 0 && relations.length === 0) return null
 
   const relationGroups = groupRelations(relations, t)
+  // The series the viewer is already looking at — highlighted in the universe's
+  // "all series" list so they know where the current title sits.
+  const ownSeriesUuids = new Set(series.map((m) => m.series.uuid))
 
   return (
     <section className="flex flex-col gap-6">
@@ -73,18 +81,55 @@ export default function ConnectionsPanel({ mediaId }: { mediaId: string }) {
             {f.saga && <span className="flex-shrink-0 text-xs text-[var(--text-muted)]">{f.saga}</span>}
           </Link>
           {f.siblings.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 bg-[var(--surface)] p-3">
-              {f.siblings.map((s) => (
-                <Link
-                  key={s.id}
-                  to={`/series/${s.uuid}`}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border-subtle)] bg-[var(--container)] px-3 py-1.5 text-xs text-[var(--text-muted)] transition-colors hover:border-nonsprimary/50 hover:text-[var(--text)]"
-                >
-                  <IoLayersOutline className="h-3 w-3" />
-                  {s.name}
-                  {s.role && s.role !== 'main' && <span className="opacity-60">· {t(`role_${s.role}`) || s.role}</span>}
-                </Link>
-              ))}
+            <div className="flex flex-col gap-1.5 bg-[var(--surface)] p-3">
+              {f.siblings.map((s) => {
+                const its = seriesItems[s.uuid]
+                const covers = (its ?? []).map((it) => it.media.cover_url).filter(Boolean).slice(0, 5) as string[]
+                const isOwn = ownSeriesUuids.has(s.uuid)
+                return (
+                  <Link
+                    key={s.id}
+                    to={`/series/${s.uuid}`}
+                    className={`group flex items-center gap-3 rounded-xl border p-2 transition-colors hover:border-nonsprimary/50 ${
+                      isOwn ? 'border-nonsprimary/40 bg-[var(--primary-soft)]' : 'border-[var(--border-subtle)] bg-[var(--container)]'
+                    }`}
+                  >
+                    {/* Stacked mini-covers — a brief peek at the series' titles. */}
+                    <div className="flex flex-shrink-0 -space-x-3">
+                      {covers.length > 0 ? (
+                        covers.map((c, i) => (
+                          <div
+                            key={i}
+                            className="h-12 w-8 overflow-hidden rounded border border-[var(--border-subtle)] bg-[var(--container-2)] ring-1 ring-[var(--container)]"
+                            style={{ zIndex: covers.length - i }}
+                          >
+                            <img src={c} alt="" loading="lazy" className="h-full w-full object-cover" />
+                          </div>
+                        ))
+                      ) : (
+                        <div className="flex h-12 w-8 items-center justify-center rounded border border-[var(--border-subtle)] bg-[var(--container-2)]">
+                          <IoLayersOutline className="h-4 w-4 text-[var(--text-muted)]" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="flex items-center gap-1.5 truncate text-sm font-medium text-[var(--text)] group-hover:text-nonsprimary">
+                        {s.name}
+                        {s.role && s.role !== 'main' && (
+                          <span className="flex-shrink-0 rounded-full bg-[var(--primary-soft)] px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide text-[var(--text-muted)]">
+                            {t(`role_${s.role}`) || s.role}
+                          </span>
+                        )}
+                      </p>
+                      <p className="text-xs text-[var(--text-muted)]">
+                        {its ? t('nTitles', { n: its.length }) : ''}
+                        {isOwn ? ` · ${t('thisTitle') || 'This'}` : ''}
+                      </p>
+                    </div>
+                    <IoArrowForward className="h-4 w-4 flex-shrink-0 text-[var(--text-muted)] opacity-0 transition-opacity group-hover:opacity-100" />
+                  </Link>
+                )
+              })}
             </div>
           )}
         </div>

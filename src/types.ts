@@ -86,6 +86,7 @@ export type Connections = {
 
 export type SeriesPageData = {
   series: Series
+  franchise?: FranchiseRef
   items: { position: number; label?: string; media: MediaSummary }[]
 }
 
