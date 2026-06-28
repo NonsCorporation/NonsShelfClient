@@ -5,7 +5,6 @@ import { Link } from '@/lib/router'
 import {
   IoLayersOutline,
   IoGitNetworkOutline,
-  IoSparklesOutline,
   IoArrowForward,
   IoChevronBack,
   IoChevronForward,
@@ -75,7 +74,8 @@ export default function ConnectionsPanel({ mediaId }: { mediaId: string }) {
             className="group flex items-center justify-between gap-3 bg-gradient-to-r from-[var(--primary-soft)] to-[var(--surface)] px-4 py-3"
           >
             <span className="flex min-w-0 items-center gap-2">
-              <IoSparklesOutline className="h-4 w-4 flex-shrink-0 text-nonsprimary" />
+              <span className="flex-shrink-0 text-[10px] font-medium uppercase tracking-widest text-[var(--text-muted)]">Universe</span>
+              <span className="text-[var(--border-strong)]">·</span>
               <span className="truncate text-sm font-semibold text-[var(--text)] group-hover:text-nonsprimary">{f.franchise.name}</span>
             </span>
             {f.saga && <span className="flex-shrink-0 text-xs text-[var(--text-muted)]">{f.saga}</span>}
@@ -168,7 +168,8 @@ function SeriesCard({ m, entries, mediaId }: { m: SeriesMembership; entries?: Se
         className="group flex items-center justify-between gap-3 border-b border-[var(--border-subtle)] bg-[var(--container)] px-4 py-3"
       >
         <span className="flex min-w-0 items-center gap-2">
-          <IoLayersOutline className="h-4 w-4 flex-shrink-0 text-nonsprimary" />
+          <span className="flex-shrink-0 text-[10px] font-medium uppercase tracking-widest text-[var(--text-muted)]">Series</span>
+          <span className="text-[var(--border-strong)]">·</span>
           <span className="truncate text-sm font-semibold text-[var(--text)] group-hover:text-nonsprimary">{m.series.name}</span>
           {m.series.role && m.series.role !== 'main' && (
             <span className="flex-shrink-0 rounded-full bg-[var(--primary-soft)] px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--text-muted)]">
