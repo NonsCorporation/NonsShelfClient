@@ -268,6 +268,7 @@ export default function EditionsManager({
               submitLabel={t('save')}
               onSubmit={(f) => handleUpdate(e.id, f)}
               onCancel={() => setEditingId(null)}
+              isEditing
             />
           ) : movingId === e.id ? (
             <MoveEditionPicker
@@ -338,11 +339,13 @@ function EditionRowForm({
   submitLabel,
   onSubmit,
   onCancel,
+  isEditing,
 }: {
   initial: EditionForm
   submitLabel: string
   onSubmit: (f: EditionForm) => void | Promise<void>
   onCancel: () => void
+  isEditing?: boolean
 }) {
   const { t } = useLanguage()
   const [form, setForm] = useState(initial)
@@ -368,7 +371,11 @@ function EditionRowForm({
     setCoverError('')
     try {
       const cdnUrl = await downloadCoverToB2(form.cover_url)
-      setForm((s) => ({ ...s, cover_url: cdnUrl }))
+      const updated = { ...form, cover_url: cdnUrl }
+      setForm(updated)
+      if (isEditing) {
+        await onSubmit(updated)
+      }
     } catch (e) {
       setCoverError(e instanceof Error ? e.message : 'Failed to download cover')
     } finally {

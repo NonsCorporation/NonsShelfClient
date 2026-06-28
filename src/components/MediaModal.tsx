@@ -89,6 +89,24 @@ export default function MediaModal({ isOpen, initialData, initialType, catalogOn
     try {
       const cdnUrl = await downloadCoverToB2(form.coverUrl)
       setForm((s) => ({ ...s, coverUrl: cdnUrl }))
+      if (isEditing) {
+        const baseData: Partial<MediaItem> = {
+          type,
+          status,
+          title: form.title,
+          titleEn: form.originalTitle.trim() || undefined,
+          author: form.author,
+          coverUrl: cdnUrl,
+          year: form.year ? parseInt(form.year) : undefined,
+          description: form.description || undefined,
+          genre: form.genre ? form.genre.split(',').map((g: string) => g.trim()).filter(Boolean) : undefined,
+        }
+        if (type !== 'book') {
+          baseData.director = form.director || form.author
+          baseData.duration = form.duration || undefined
+        }
+        await onSave(baseData)
+      }
     } catch (e) {
       setCoverError(e instanceof Error ? e.message : 'Failed to download cover')
     } finally {
