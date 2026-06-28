@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { IoClose, IoBookOutline, IoFilmOutline, IoTvOutline, IoSearch, IoGitMergeOutline } from 'react-icons/io5'
+import { IoClose, IoBookOutline, IoFilmOutline, IoTvOutline, IoSearch, IoGitMergeOutline, IoCloudDownloadOutline } from 'react-icons/io5'
 import { useNavigate } from '@/lib/router'
 import type { MediaItem, MediaType, ShelfStatus } from '../types.ts'
 import { useLanguage } from '../contexts/LanguageContext.tsx'
@@ -11,6 +11,7 @@ import CreditsManager from './CreditsManager'
 import ConnectionsManager from './ConnectionsManager'
 import PersonPicker from './PersonPicker'
 import { librarianService } from '../services/librarianService'
+import { downloadCoverToB2 } from '../lib/api'
 import { suggestionService } from '../services/suggestionService'
 import { SuggestionProvider } from '../contexts/SuggestionContext'
 import { catalogService } from '../services/catalogService'
@@ -74,9 +75,26 @@ export default function MediaModal({ isOpen, initialData, initialType, catalogOn
     }
   }, [isOpen, initialData, initialType])
 
+  const [downloadingCover, setDownloadingCover] = useState(false)
+  const [coverError, setCoverError] = useState('')
+
   if (!isOpen) return null
 
   const targetRef = mediaUuid ?? initialData?.id ?? ''
+
+  const handleDownloadCover = async () => {
+    if (!form.coverUrl) return
+    setDownloadingCover(true)
+    setCoverError('')
+    try {
+      const cdnUrl = await downloadCoverToB2(form.coverUrl)
+      setForm((s) => ({ ...s, coverUrl: cdnUrl }))
+    } catch (e) {
+      setCoverError(e instanceof Error ? e.message : 'Failed to download cover')
+    } finally {
+      setDownloadingCover(false)
+    }
+  }
 
   const handleSave = async () => {
     if (!form.title) return
@@ -213,10 +231,23 @@ export default function MediaModal({ isOpen, initialData, initialType, catalogOn
           )}
 
           {type !== 'book' && (
-            <label className="flex flex-col gap-1.5 text-sm font-medium text-[var(--text)]">
-              {t('coverUrl')}
-              <input className="h-11 px-3 rounded-lg bg-[var(--input)] border border-[var(--border-subtle)] text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--color-nonsprimaryfocus)] transition-shadow" placeholder={t('coverUrl')} value={form.coverUrl} onChange={(e) => setForm(s => ({...s, coverUrl: e.target.value}))} />
-            </label>
+            <div className="flex flex-col gap-1.5 text-sm font-medium text-[var(--text)]">
+              <span>{t('coverUrl')}</span>
+              <div className="flex gap-2">
+                <input className="h-11 px-3 flex-1 rounded-lg bg-[var(--input)] border border-[var(--border-subtle)] text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--color-nonsprimaryfocus)] transition-shadow" placeholder={t('coverUrl')} value={form.coverUrl} onChange={(e) => setForm(s => ({...s, coverUrl: e.target.value}))} />
+                <button
+                  type="button"
+                  onClick={handleDownloadCover}
+                  disabled={!form.coverUrl || downloadingCover}
+                  title="Download cover to CDN"
+                  className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] px-3 text-sm font-medium text-[var(--text)] hover:border-nonsprimary hover:text-nonsprimary disabled:opacity-50 transition-colors"
+                >
+                  <IoCloudDownloadOutline className="h-4 w-4" />
+                  {downloadingCover ? '…' : 'CDN'}
+                </button>
+              </div>
+              {coverError && <p className="text-xs text-red-500">{coverError}</p>}
+            </div>
           )}
 
           <div className="grid grid-cols-2 gap-4">

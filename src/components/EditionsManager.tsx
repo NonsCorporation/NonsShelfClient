@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { IoTrashOutline, IoCreateOutline, IoAdd, IoCheckmark, IoClose, IoLanguageOutline, IoCloudDownloadOutline, IoSparklesOutline, IoSwapHorizontalOutline, IoSearch } from 'react-icons/io5'
-import { authedFetch } from '../lib/api'
+import { authedFetch, downloadCoverToB2 } from '../lib/api'
 import { librarianService } from '../services/librarianService'
 import type { Edition } from '../services/librarianService'
 import { catalogService } from '../services/catalogService'
@@ -348,6 +348,8 @@ function EditionRowForm({
   const [form, setForm] = useState(initial)
   const [busy, setBusy] = useState(false)
   const [finding, setFinding] = useState(false)
+  const [downloadingCover, setDownloadingCover] = useState(false)
+  const [coverError, setCoverError] = useState('')
   const input =
     'h-10 rounded-lg border border-[var(--border-subtle)] bg-[var(--input)] px-3 text-sm text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-ring)]'
 
@@ -357,6 +359,20 @@ function EditionRowForm({
       await onSubmit(form)
     } finally {
       setBusy(false)
+    }
+  }
+
+  const handleDownloadCover = async () => {
+    if (!form.cover_url) return
+    setDownloadingCover(true)
+    setCoverError('')
+    try {
+      const cdnUrl = await downloadCoverToB2(form.cover_url)
+      setForm((s) => ({ ...s, cover_url: cdnUrl }))
+    } catch (e) {
+      setCoverError(e instanceof Error ? e.message : 'Failed to download cover')
+    } finally {
+      setDownloadingCover(false)
     }
   }
 
@@ -425,7 +441,20 @@ function EditionRowForm({
         <input className={input} placeholder={t('publishedYear')} value={form.published_year} onChange={(e) => setForm((s) => ({ ...s, published_year: e.target.value }))} />
         <input className={input} type="number" placeholder={t('pages')} value={form.pages} onChange={(e) => setForm((s) => ({ ...s, pages: e.target.value }))} />
       </div>
-      <input className={input} placeholder={t('coverUrl')} value={form.cover_url} onChange={(e) => setForm((s) => ({ ...s, cover_url: e.target.value }))} />
+      <div className="flex gap-2">
+        <input className={`${input} flex-1`} placeholder={t('coverUrl')} value={form.cover_url} onChange={(e) => setForm((s) => ({ ...s, cover_url: e.target.value }))} />
+        <button
+          type="button"
+          onClick={handleDownloadCover}
+          disabled={!form.cover_url || downloadingCover}
+          title="Download cover to CDN"
+          className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] px-3 text-sm font-medium text-[var(--text)] hover:border-nonsprimary hover:text-nonsprimary disabled:opacity-50 transition-colors"
+        >
+          <IoCloudDownloadOutline className="h-4 w-4" />
+          {downloadingCover ? '…' : 'CDN'}
+        </button>
+      </div>
+      {coverError && <p className="text-xs text-red-500">{coverError}</p>}
       <textarea
         className={`${input} h-auto resize-y py-2`}
         rows={3}

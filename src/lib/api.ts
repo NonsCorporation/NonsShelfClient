@@ -103,3 +103,23 @@ export function redirectToNonsLogin(): void {
   const redirect = encodeURIComponent(window.location.href)
   window.location.href = `${NONS_LOGIN_URL}?redirect=${redirect}`
 }
+
+// downloadCoverToB2 sends a public image URL to nons-server, which downloads
+// it and stores it in the B2 bucket under library/, returning the CDN URL.
+export async function downloadCoverToB2(coverUrl: string): Promise<string> {
+  const res = await nonsFetch('/api/upload/library-cover', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url: coverUrl }),
+  })
+  if (!res.ok) {
+    let msg = 'Failed to download cover'
+    try {
+      const body = await res.json()
+      if (body?.error) msg = body.error
+    } catch { /* keep default */ }
+    throw new Error(msg)
+  }
+  const data = await res.json() as { url: string }
+  return data.url
+}
