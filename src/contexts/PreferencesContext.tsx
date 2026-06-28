@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import { getPrivacy, savePrivacy } from '../services/privacyService'
 
 const STORAGE_KEY = 'nons_show_inprogress'
+const MEDIA_LANG_KEY = 'nons_preferred_media_lang'
 
 // Who may see a given facet of your profile. Mirrors the nons platform's own
 // audience model so it reads familiarly: nobody / friends only / everyone.
@@ -31,6 +32,9 @@ interface PreferencesContextType {
   /** Per-facet profile visibility (persisted server-side; defaults until loaded). */
   privacy: Privacy
   setVisibility: (facet: PrivacyFacet, value: Visibility) => void
+  /** ISO 639-1 code of the preferred display language for movies/series (e.g. "ru"). Empty = use catalog default. */
+  preferredMediaLang: string
+  setPreferredMediaLang: (value: string) => void
 }
 
 const PreferencesContext = createContext<PreferencesContextType | undefined>(undefined)
@@ -40,6 +44,9 @@ export const PreferencesProvider = ({ children }: { children: ReactNode }) => {
     // Guarded for SSR (public /b and /m pages render on the server, where there
     // is no localStorage). Defaults to shown.
     typeof window === 'undefined' ? true : localStorage.getItem(STORAGE_KEY) !== 'false',
+  )
+  const [preferredMediaLang, setPreferredMediaLangState] = useState<string>(() =>
+    typeof window === 'undefined' ? '' : (localStorage.getItem(MEDIA_LANG_KEY) ?? ''),
   )
   const [privacy, setPrivacy] = useState<Privacy>(DEFAULT_PRIVACY)
 
@@ -60,6 +67,11 @@ export const PreferencesProvider = ({ children }: { children: ReactNode }) => {
     if (typeof window !== 'undefined') localStorage.setItem(STORAGE_KEY, String(value))
   }
 
+  const setPreferredMediaLang = (value: string) => {
+    setPreferredMediaLangState(value)
+    if (typeof window !== 'undefined') localStorage.setItem(MEDIA_LANG_KEY, value)
+  }
+
   const setVisibility = (facet: PrivacyFacet, value: Visibility) => {
     setPrivacy((prev) => {
       const next = { ...prev, [facet]: value }
@@ -69,7 +81,7 @@ export const PreferencesProvider = ({ children }: { children: ReactNode }) => {
   }
 
   return (
-    <PreferencesContext.Provider value={{ showInProgress, setShowInProgress, privacy, setVisibility }}>
+    <PreferencesContext.Provider value={{ showInProgress, setShowInProgress, privacy, setVisibility, preferredMediaLang, setPreferredMediaLang }}>
       {children}
     </PreferencesContext.Provider>
   )

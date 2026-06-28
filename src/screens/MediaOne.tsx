@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, Fragment, type ReactNode, useRef } from 'react'
+import { useState, useEffect, useCallback, useMemo, Fragment, type ReactNode, useRef } from 'react'
 import { useParams, useNavigate, useSearchParams, Link } from '@/lib/router'
 import Layout from '../components/layout/Layout'
 import { DetailPageSkeleton } from '../components/Skeletons'
@@ -45,12 +45,20 @@ import {
   IoChevronForward,
 } from 'react-icons/io5'
 import { useLanguage } from '../contexts/LanguageContext'
+import { usePreferences } from '../contexts/PreferencesContext'
 import { FiClipboard } from 'react-icons/fi'
 import { useAuth } from '../contexts/AuthContext'
 import { isLibrarian } from '../services/librarianService'
 import { statusLabel } from '../lib/shelf'
 import TypeBadge from '../components/TypeBadge'
 import BoringAvatar from '../components/BoringAvatar'
+
+// Intl.DisplayNames instance for resolving ISO 639-1 codes to English language
+// names ("ru" → "Russian", "bg" → "Bulgarian"). Created once at module level.
+const _langNames = typeof Intl !== 'undefined'
+  ? new Intl.DisplayNames(['en'], { type: 'language' })
+  : null
+const langLabel = (code: string) => _langNames?.of(code) ?? code.toUpperCase()
 
 type CommSort = 'newest' | 'oldest' | 'high' | 'low'
 
@@ -88,6 +96,15 @@ interface EpisodesResponse {
   total: number
 }
 
+interface AltTitle {
+  id: number
+  country_code: string
+  language: string
+  title: string
+  overview: string
+  title_type: string
+}
+
 interface MediaOneProps {
   /** SSR mode: public catalog data was fetched on the server (the /b and /m
    *  pages). Skips the authed public fetches and overlays personal signals on
@@ -105,6 +122,7 @@ export default function MediaOnePage({
   initialEditions = [],
 }: MediaOneProps = {}) {
   const { t } = useLanguage()
+  const { preferredMediaLang } = usePreferences()
   const navigate = useNavigate()
   const { user, isAuthenticated, loading: authLoading } = useAuth()
   const { id } = useParams<{ id: string }>()
@@ -168,6 +186,8 @@ export default function MediaOnePage({
   const [editingReview, setEditingReview] = useState(false)
   const [progressOpen, setProgressOpen] = useState(false)
   const [finishOpen, setFinishOpen] = useState(false)
+  const [altTitles, setAltTitles] = useState<AltTitle[]>([])
+  const [mediaLang, setMediaLang] = useState('')
   // Bumped when the progress modal closes, so the reading-progress log refetches.
   const [progressRefresh, setProgressRefresh] = useState(0)
 
@@ -338,6 +358,27 @@ export default function MediaOnePage({
     }
   }, [id, item?.type])
 
+  // Alternative titles and localized descriptions for movies/series. Fetched
+  // once per page; auto-selects the user's preferred language when available.
+  useEffect(() => {
+    if (!id || item?.type === 'book') return
+    let cancelled = false
+    setAltTitles([])
+    setMediaLang('')
+    authedFetch(`/api/media/${id}/alt-titles`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (cancelled || !d) return
+        const titles: AltTitle[] = d.titles ?? []
+        setAltTitles(titles)
+        if (preferredMediaLang && titles.some((t) => t.language === preferredMediaLang)) {
+          setMediaLang(preferredMediaLang)
+        }
+      })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [id, item?.type, preferredMediaLang])
+
   // Mark/unmark an episode watched and reflect it in local state immediately.
   const toggleWatched = async (episodeId: number, watched: boolean) => {
     setEpisodes((prev) => {
@@ -492,10 +533,32 @@ export default function MediaOnePage({
   // edition's own cover (carried from signals, so it shows even before that
   // edition's carousel page loads), then the work's cover.
   const coverUrl = selectedEdition?.cover_url || readingEdition?.cover || item.coverUrl
+
+  // For movies/series: the alt title entry matching the selected language, if any.
+  // Prefer entries that carry an overview (from translations) over title-only ones.
+  const altTitleEntry = useMemo(() => {
+    if (isBook || !mediaLang) return null
+    const matches = altTitles.filter((t) => t.language === mediaLang && t.title)
+    return matches.find((t) => t.overview) ?? matches[0] ?? null
+  }, [isBook, mediaLang, altTitles])
+
+  // Available language chips: one per distinct language code that has at least one
+  // title entry, sorted alphabetically by display name.
+  const altLangs = useMemo(() => {
+    const seen = new Set<string>()
+    const langs: { code: string; label: string }[] = []
+    for (const t of altTitles) {
+      if (!t.language || seen.has(t.language)) continue
+      seen.add(t.language)
+      langs.push({ code: t.language, label: langLabel(t.language) })
+    }
+    return langs.sort((a, b) => a.label.localeCompare(b.label))
+  }, [altTitles])
+
   // Title priority mirrors the cover: the in-focus edition's own title (e.g. a
   // translated printing in another language), then the user's reading edition's
   // title, then the work's. So switching editions retitles the page.
-  const displayTitle = selectedEdition?.title || readingEdition?.title || item.title
+  const displayTitle = altTitleEntry?.title || selectedEdition?.title || readingEdition?.title || item.title
   // Page count to measure reading progress against: the selected edition's, when
   // it has one (the printing you're actually reading), else the work's.
   const totalPages = selectedEdition?.pages || readingEdition?.pages || item.pages || 0
@@ -669,10 +732,42 @@ export default function MediaOnePage({
 
           <hr className="border-[var(--divider)]" />
 
+          {/* Language switcher — movies/series only, when alt titles exist */}
+          {!isBook && altLangs.length > 0 && (
+            <div>
+              <h3 className="mb-2 text-[10px] uppercase tracking-widest text-[var(--text-muted)]">Display language</h3>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => setMediaLang('')}
+                  className={`rounded-full px-3 py-1 text-xs transition-colors ${
+                    !mediaLang
+                      ? 'bg-[var(--primary-soft)] text-nonsprimary'
+                      : 'border border-[var(--border-subtle)] text-[var(--text-muted)] hover:border-[var(--border)] hover:text-[var(--text)]'
+                  }`}
+                >
+                  Default
+                </button>
+                {altLangs.map((lang) => (
+                  <button
+                    key={lang.code}
+                    onClick={() => setMediaLang(lang.code)}
+                    className={`rounded-full px-3 py-1 text-xs transition-colors ${
+                      mediaLang === lang.code
+                        ? 'bg-[var(--primary-soft)] text-nonsprimary'
+                        : 'border border-[var(--border-subtle)] text-[var(--text-muted)] hover:border-[var(--border)] hover:text-[var(--text)]'
+                    }`}
+                  >
+                    {lang.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div>
             <h3 className="mb-2 text-[10px] uppercase tracking-widest text-[var(--text-muted)]">{t('synopsis')}</h3>
             <p className="text-sm leading-7 text-[var(--text-muted)]">
-              {selectedEdition?.description || item.description || t('noDescription')}
+              {selectedEdition?.description || altTitleEntry?.overview || item.description || t('noDescription')}
             </p>
           </div>
 

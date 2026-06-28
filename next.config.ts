@@ -8,6 +8,9 @@ const nextConfig: NextConfig = {
       { protocol: 'https', hostname: 'books.google.com' },
       { protocol: 'http',  hostname: 'books.google.com' },
       { protocol: 'https', hostname: '*.googleapis.com' },
+      { protocol: 'https', hostname: '*.nonsapp.com' },
+      { protocol: 'http', hostname: '*.nonsapp.com' },
+
       { protocol: 'https', hostname: 'fantlab.ru' },
       { protocol: 'http',  hostname: 'fantlab.ru' },
       { protocol: 'https', hostname: 'image.tmdb.org' },

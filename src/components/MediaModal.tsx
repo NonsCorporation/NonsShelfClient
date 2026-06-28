@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { IoClose, IoBookOutline, IoFilmOutline, IoTvOutline, IoSearch, IoGitMergeOutline, IoCloudDownloadOutline } from 'react-icons/io5'
 import { useNavigate } from '@/lib/router'
 import type { MediaItem, MediaType, ShelfStatus } from '../types.ts'
@@ -300,6 +300,11 @@ export default function MediaModal({ isOpen, initialData, initialType, catalogOn
             </div>
           )}
 
+          {/* Alternative titles — movie/series only; import from TMDB and display stored ones. */}
+          {withEditions && isEditing && type !== 'book' && initialData?.id && !suggestionMode && (
+            <AltTitlesSection mediaId={initialData.id} />
+          )}
+
           {/* Editions manager — only when editing an existing book. */}
           {withEditions && isEditing && type === 'book' && initialData?.id && (
             <div className="flex flex-col gap-2 border-t border-[var(--divider)] pt-4">
@@ -361,6 +366,81 @@ export default function MediaModal({ isOpen, initialData, initialType, catalogOn
       </div>
     </div>
     </SuggestionProvider>
+  )
+}
+
+type AltTitle = { id: number; country_code: string; language: string; title: string; overview: string; title_type: string }
+
+function AltTitlesSection({ mediaId }: { mediaId: string }) {
+  const [titles, setTitles] = useState<AltTitle[]>([])
+  const [importing, setImporting] = useState(false)
+  const [expanded, setExpanded] = useState<number | null>(null)
+
+  const load = useCallback(() => {
+    librarianService.getAltTitles(mediaId).then(setTitles).catch(() => {})
+  }, [mediaId])
+
+  useEffect(() => { load() }, [load])
+
+  const handleImport = async () => {
+    setImporting(true)
+    try {
+      await librarianService.importAltTitles(mediaId)
+      load()
+    } finally {
+      setImporting(false)
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-2 border-t border-[var(--divider)] pt-4">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-sm font-medium text-[var(--text)]">
+          Alternative titles{titles.length > 0 ? ` (${titles.length})` : ''}
+        </span>
+        <button
+          type="button"
+          onClick={handleImport}
+          disabled={importing}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] px-2.5 py-1 text-xs font-medium text-[var(--text)] transition-colors hover:border-nonsprimary hover:text-nonsprimary disabled:opacity-50"
+        >
+          <IoCloudDownloadOutline className="h-3.5 w-3.5 text-nonsprimary" />
+          {importing ? 'Importing…' : 'Import from TMDB'}
+        </button>
+      </div>
+      {titles.length > 0 ? (
+        <div className="max-h-56 overflow-y-auto rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)]">
+          {titles.map((t) => (
+            <div
+              key={t.id}
+              className="border-b border-[var(--border-subtle)] last:border-0"
+            >
+              <button
+                type="button"
+                onClick={() => setExpanded(expanded === t.id ? null : t.id)}
+                className="flex w-full items-center gap-3 px-3 py-1.5 text-left text-xs hover:bg-[var(--surface-hover)]"
+              >
+                <span className="w-8 flex-shrink-0 font-mono font-semibold uppercase text-[var(--text-muted)]">
+                  {t.language || t.country_code}
+                </span>
+                <span className="flex-1 text-[var(--text)]">{t.title}</span>
+                {t.title_type && (
+                  <span className="flex-shrink-0 italic text-[var(--text-muted)]">{t.title_type}</span>
+                )}
+                {t.overview && (
+                  <span className="flex-shrink-0 text-[var(--text-muted)]">{expanded === t.id ? '▲' : '▼'}</span>
+                )}
+              </button>
+              {expanded === t.id && t.overview && (
+                <p className="px-3 pb-2 text-xs leading-5 text-[var(--text-muted)]">{t.overview}</p>
+              )}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="text-xs text-[var(--text-muted)]">No alternative titles stored. Import from TMDB above.</p>
+      )}
+    </div>
   )
 }
 

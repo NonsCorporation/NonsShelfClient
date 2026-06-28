@@ -19,6 +19,7 @@ import {
   type PrivacyFacet,
   type Visibility,
 } from '../contexts/PreferencesContext'
+import { MEDIA_LANG_OPTIONS } from '../lib/mediaLangs'
 import { useAuth } from '../contexts/AuthContext'
 import { libraryService } from '../services/libraryService'
 import ConfirmModal from './ConfirmModal'
@@ -47,7 +48,7 @@ const FACET_META: Record<PrivacyFacet, { labelKey: string; icon: IconType }> = {
 
 export default function SettingsModal({ isOpen, onClose, onOpenImport }: Props) {
   const { t, language, setLanguage } = useLanguage()
-  const { showInProgress, setShowInProgress, privacy, setVisibility } = usePreferences()
+  const { showInProgress, setShowInProgress, privacy, setVisibility, preferredMediaLang, setPreferredMediaLang } = usePreferences()
   const { logout } = useAuth()
   // Two-step delete: 0 = idle, 1 = first confirm, 2 = final confirm.
   const [wipeStep, setWipeStep] = useState(0)
@@ -117,6 +118,22 @@ export default function SettingsModal({ isOpen, onClose, onOpenImport }: Props) 
                   <option value="en">🇺🇸 English</option>
                   <option value="ru">🇷🇺 Русский</option>
                   <option value="ro">🇷🇴 Română</option>
+                </select>
+              </div>
+
+              {/* Preferred display language for movies/series */}
+              <div className="flex flex-col gap-1.5">
+                <span className="text-sm text-[var(--text)]">Preferred film/series language</span>
+                <p className="text-xs text-[var(--text-muted)]">When available, titles and synopses show in this language.</p>
+                <select
+                  value={preferredMediaLang}
+                  onChange={(e) => setPreferredMediaLang(e.target.value)}
+                  className="w-full rounded-md border border-[var(--border)] bg-[var(--border-subtle)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-nonsprimary focus:border-transparent"
+                >
+                  <option value="">Catalog default</option>
+                  {MEDIA_LANG_OPTIONS.map((opt) => (
+                    <option key={opt.code} value={opt.code}>{opt.label}</option>
+                  ))}
                 </select>
               </div>
 

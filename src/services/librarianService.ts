@@ -493,6 +493,22 @@ export const librarianService = {
     return data.imported
   },
 
+  // Fetch and store alternative titles for a movie/series from TMDB.
+  async importAltTitles(mediaId: string): Promise<number> {
+    const data = (await jsonOrThrow(
+      await authedFetch(`/api/media/${mediaId}/alt-titles/import`, { method: 'POST' }),
+    )) as { imported: number }
+    return data.imported
+  },
+
+  // Read the stored alternative titles for a media work.
+  async getAltTitles(mediaId: string): Promise<{ id: number; country_code: string; language: string; title: string; overview: string; title_type: string }[]> {
+    const data = (await jsonOrThrow(
+      await authedFetch(`/api/media/${mediaId}/alt-titles`),
+    )) as { titles: { id: number; country_code: string; language: string; title: string; overview: string; title_type: string }[] }
+    return data.titles ?? []
+  },
+
   // Fold `dupUuid` into `keepUuid` (the survivor).
   async mergePeople(keepUuid: string, dupUuid: string): Promise<void> {
     await jsonOrThrow(
