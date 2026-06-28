@@ -104,6 +104,20 @@ export default function CalendarPage() {
         return counts;
     }, [items, currentYear]);
 
+    // column index for the first day of each month, used to position month labels
+    const githubMonthPositions = useMemo(() => {
+        const startDate = new Date(currentYear, 0, 1);
+        const startDay = startDate.getDay();
+        const offset = startDay === 0 ? 6 : startDay - 1;
+        const shortMonths = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        let dayCount = 0;
+        return shortMonths.map((month, m) => {
+            const col = Math.floor((offset + dayCount) / 7);
+            dayCount += new Date(currentYear, m + 1, 0).getDate();
+            return { month, col };
+        });
+    }, [currentYear]);
+
     // map out every day of the selected year plus empty offset days
     const githubGridDays = useMemo(() => {
         const days = [];
@@ -251,7 +265,7 @@ export default function CalendarPage() {
                 )}
 
                 {/* view container */}
-                <div className="bg-[var(--container)] border border-[var(--border-subtle)] rounded-2xl p-4 md:p-6">
+                <div className={`bg-[var(--container)] border border-[var(--border-subtle)] rounded-2xl p-4 md:p-6${viewMode === 'github' ? ' w-fit' : ''}`}>
                     {viewMode === 'calendar' ? (
                         <>
                             <div className="grid grid-cols-7 mb-3 text-center text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">
@@ -314,22 +328,46 @@ export default function CalendarPage() {
                             </div>
                         </>
                     ) : (
-                        <div className="w-full overflow-x-auto pb-2 flex justify-center">
-                            <div className="inline-grid grid-rows-7 grid-flow-col gap-1 md:gap-1.5">
-                                {githubGridDays.map((date, i) => {
-                                    if (!date) return <div key={`empty-git-${i}`} className="w-3 h-3 md:w-3.5 md:h-3.5" />;
-                                    
-                                    const dateString = new Date(date.getTime() - (date.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
-                                    const count = yearlyActivity[dateString] || 0;
-                                    
-                                    return (
-                                        <div 
-                                            key={dateString}
-                                            title={`${dateString}: ${count} items`}
-                                            className={`w-3 h-3 md:w-3.5 md:h-3.5 rounded-sm transition-colors ${getActivityColor(count)}`}
-                                        />
-                                    );
-                                })}
+                        <div className="w-full overflow-x-auto pb-2">
+                            <div className="inline-flex flex-col gap-2">
+                                {/* Month labels */}
+                                <div className="relative h-4" style={{ marginLeft: '28px' }}>
+                                    {githubMonthPositions.map(({ month, col }) => (
+                                        <span
+                                            key={month}
+                                            className="absolute text-[10px] font-medium leading-none text-[var(--text-muted)]"
+                                            style={{ left: `${col * 18}px` }}
+                                        >
+                                            {month}
+                                        </span>
+                                    ))}
+                                </div>
+                                {/* Day labels + heat grid */}
+                                <div className="flex gap-1">
+                                    {/* Day of week labels */}
+                                    <div className="flex w-6 shrink-0 flex-col gap-1">
+                                        {['Mo', '', 'We', '', 'Fr', '', 'Su'].map((label, i) => (
+                                            <div key={i} className="flex h-3.5 items-center justify-end pr-0.5">
+                                                <span className="text-[9px] leading-none text-[var(--text-muted)]">{label}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    {/* Heat grid */}
+                                    <div className="inline-grid grid-rows-7 grid-flow-col gap-1">
+                                        {githubGridDays.map((date, i) => {
+                                            if (!date) return <div key={`empty-git-${i}`} className="h-3.5 w-3.5" />;
+                                            const dateString = new Date(date.getTime() - (date.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+                                            const count = yearlyActivity[dateString] || 0;
+                                            return (
+                                                <div
+                                                    key={dateString}
+                                                    title={`${dateString}: ${count} items`}
+                                                    className={`h-3.5 w-3.5 rounded-sm transition-colors ${getActivityColor(count)}`}
+                                                />
+                                            );
+                                        })}
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     )}
