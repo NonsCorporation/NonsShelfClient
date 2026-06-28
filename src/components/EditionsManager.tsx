@@ -6,6 +6,7 @@ import type { Edition } from '../services/librarianService'
 import { catalogService } from '../services/catalogService'
 import type { CatalogItem } from '../services/catalogService'
 import { useLanguage } from '../contexts/LanguageContext'
+import { useSuggestion } from '../contexts/SuggestionContext'
 
 // True when the text contains any Cyrillic letter (already "rusified").
 const hasCyrillic = (s?: string) => !!s && /[Ѐ-ӿ]/.test(s)
@@ -91,8 +92,19 @@ function fromForm(f: EditionForm): Partial<Edition> {
 
 // Full editions CRUD for a book work: list, add, inline edit, delete, rusify.
 // Reused by the media edit modal and the librarian edit page.
-export default function EditionsManager({ mediaId, fallbackTitle, fallbackAuthor }: { mediaId: string; fallbackTitle?: string; fallbackAuthor?: string }) {
+export default function EditionsManager({
+  mediaId,
+  mediaUuid,
+  fallbackTitle,
+  fallbackAuthor,
+}: {
+  mediaId: string
+  mediaUuid?: string
+  fallbackTitle?: string
+  fallbackAuthor?: string
+}) {
   const { t } = useLanguage()
+  const { isSuggestionMode, suggest } = useSuggestion()
   const [editions, setEditions] = useState<Edition[]>([])
   const [loading, setLoading] = useState(true)
   const [editingId, setEditingId] = useState<number | null>(null)
@@ -100,6 +112,9 @@ export default function EditionsManager({ mediaId, fallbackTitle, fallbackAuthor
   const [adding, setAdding] = useState(false)
   const [error, setError] = useState('')
   const [searching, setSearching] = useState(false)
+  const [suggestionToast, setSuggestionToast] = useState('')
+
+  const targetRef = mediaUuid ?? mediaId
 
   const reload = useCallback(() => {
     setLoading(true)
@@ -114,6 +129,11 @@ export default function EditionsManager({ mediaId, fallbackTitle, fallbackAuthor
     reload()
   }, [reload])
 
+  const flashSuggestion = () => {
+    setSuggestionToast('Suggestion submitted for librarian review')
+    setTimeout(() => setSuggestionToast(''), 3000)
+  }
+
   const wrap = async (fn: () => Promise<unknown>) => {
     setError('')
     try {
@@ -123,25 +143,46 @@ export default function EditionsManager({ mediaId, fallbackTitle, fallbackAuthor
     }
   }
 
-  const handleAdd = (f: EditionForm) =>
+  const handleAdd = (f: EditionForm) => {
+    if (isSuggestionMode) {
+      suggest('add_edition', targetRef, fromForm(f))
+        .then(() => { setAdding(false); flashSuggestion() })
+        .catch(() => {})
+      return
+    }
     wrap(async () => {
       await librarianService.addEdition(mediaId, fromForm(f))
       setAdding(false)
       reload()
     })
+  }
 
-  const handleUpdate = (id: number, f: EditionForm) =>
+  const handleUpdate = (id: number, f: EditionForm) => {
+    if (isSuggestionMode) {
+      suggest('update_edition', `${targetRef}/${id}`, fromForm(f))
+        .then(() => { setEditingId(null); flashSuggestion() })
+        .catch(() => {})
+      return
+    }
     wrap(async () => {
       await librarianService.updateEdition(mediaId, id, fromForm(f))
       setEditingId(null)
       reload()
     })
+  }
 
-  const handleDelete = (id: number) =>
+  const handleDelete = (id: number) => {
+    if (isSuggestionMode) {
+      suggest('delete_edition', `${targetRef}/${id}`, {})
+        .then(() => flashSuggestion())
+        .catch(() => {})
+      return
+    }
     wrap(async () => {
       await librarianService.deleteEdition(mediaId, id)
       setEditions((eds) => eds.filter((e) => e.id !== id))
     })
+  }
 
   const handleMove = (id: number, targetMediaId: number) =>
     wrap(async () => {
@@ -170,33 +211,40 @@ export default function EditionsManager({ mediaId, fallbackTitle, fallbackAuthor
   return (
     <div className="flex flex-col gap-3">
       {error && <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-500">{error}</p>}
+      {suggestionToast && (
+        <p className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-600">
+          {suggestionToast}
+        </p>
+      )}
 
       <div className="flex items-center justify-between gap-2">
         <span className="text-xs text-[var(--text-muted)]">
           {editions.length} {(t('editions') || 'Editions').toLowerCase()}
         </span>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setSearching((v) => !v)}
-            className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors ${
-              searching
-                ? 'border-nonsprimary bg-[var(--primary-soft)] text-nonsprimary'
-                : 'border-[var(--border-subtle)] bg-[var(--surface)] text-[var(--text)] hover:border-nonsprimary hover:text-nonsprimary'
-            }`}
-          >
-            <IoSearch className="h-3.5 w-3.5" />
-            {t('autoFindEditions')}
-          </button>
-          {editions.some((e) => !hasCyrillic(e.title)) && (
+        {!isSuggestionMode && (
+          <div className="flex items-center gap-2">
             <button
-              onClick={handleRusifyAll}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] px-2.5 py-1 text-xs font-medium text-[var(--text)] transition-colors hover:border-nonsprimary hover:text-nonsprimary"
+              onClick={() => setSearching((v) => !v)}
+              className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors ${
+                searching
+                  ? 'border-nonsprimary bg-[var(--primary-soft)] text-nonsprimary'
+                  : 'border-[var(--border-subtle)] bg-[var(--surface)] text-[var(--text)] hover:border-nonsprimary hover:text-nonsprimary'
+              }`}
             >
-              <IoLanguageOutline className="h-3.5 w-3.5 text-nonsprimary" />
-              {t('rusifyAll')}
+              <IoSearch className="h-3.5 w-3.5" />
+              {t('autoFindEditions')}
             </button>
-          )}
-        </div>
+            {editions.some((e) => !hasCyrillic(e.title)) && (
+              <button
+                onClick={handleRusifyAll}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] px-2.5 py-1 text-xs font-medium text-[var(--text)] transition-colors hover:border-nonsprimary hover:text-nonsprimary"
+              >
+                <IoLanguageOutline className="h-3.5 w-3.5 text-nonsprimary" />
+                {t('rusifyAll')}
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {searching && (
@@ -248,14 +296,16 @@ export default function EditionsManager({ mediaId, fallbackTitle, fallbackAuthor
                 </p>
                 {(e.isbn13 || e.isbn10) && <p className="text-xs text-[var(--text-muted)]">ISBN {e.isbn13 || e.isbn10}</p>}
               </div>
-              {!hasCyrillic(e.title) && (
+              {!isSuggestionMode && !hasCyrillic(e.title) && (
                 <button onClick={() => handleRusify(e.id)} title={t('rusify')} className="flex-shrink-0 rounded-lg p-2 text-[var(--text-muted)] hover:bg-[var(--primary-soft)] hover:text-nonsprimary">
                   <IoLanguageOutline className="h-4 w-4" />
                 </button>
               )}
-              <button onClick={() => setMovingId(e.id)} title={t('moveEditionTitle')} className="flex-shrink-0 rounded-lg p-2 text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]">
-                <IoSwapHorizontalOutline className="h-4 w-4" />
-              </button>
+              {!isSuggestionMode && (
+                <button onClick={() => setMovingId(e.id)} title={t('moveEditionTitle')} className="flex-shrink-0 rounded-lg p-2 text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]">
+                  <IoSwapHorizontalOutline className="h-4 w-4" />
+                </button>
+              )}
               <button onClick={() => setEditingId(e.id)} title={t('edit')} className="flex-shrink-0 rounded-lg p-2 text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]">
                 <IoCreateOutline className="h-4 w-4" />
               </button>

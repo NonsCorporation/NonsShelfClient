@@ -13,6 +13,7 @@ import type { Edition, PersonSummary } from '../services/librarianService'
 import type { MediaItem } from '../types'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
+import { SuggestionProvider, useSuggestion } from '../contexts/SuggestionContext'
 import {
   IoArrowBack,
   IoCreateOutline,
@@ -23,16 +24,28 @@ import {
   IoGitMergeOutline,
   IoLinkOutline,
   IoLanguageOutline,
+  IoInformationCircleOutline,
 } from 'react-icons/io5'
 
 // True when the text contains any Cyrillic letter (already "rusified").
 const hasCyrillic = (s?: string) => !!s && /[Ѐ-ӿ]/.test(s)
 
 export default function LibrarianEditPage() {
-  const { t } = useLanguage()
   const { user } = useAuth()
-  const navigate = useNavigate()
   const { id = '' } = useParams<{ id: string }>()
+  const suggestionMode = !isLibrarian(user?.role)
+
+  return (
+    <SuggestionProvider isSuggestionMode={suggestionMode}>
+      <LibrarianEditContent id={id} suggestionMode={suggestionMode} />
+    </SuggestionProvider>
+  )
+}
+
+function LibrarianEditContent({ id, suggestionMode }: { id: string; suggestionMode: boolean }) {
+  const { t } = useLanguage()
+  const navigate = useNavigate()
+  const { suggest } = useSuggestion()
 
   const [item, setItem] = useState<MediaItem | null>(null)
   const [loading, setLoading] = useState(true)
@@ -61,14 +74,6 @@ export default function LibrarianEditPage() {
     loadEditions()
   }, [load, loadEditions])
 
-  if (!isLibrarian(user?.role)) {
-    return (
-      <Layout>
-        <p className="py-24 text-center text-sm text-[var(--text-muted)]">{t('notAuthorized')}</p>
-      </Layout>
-    )
-  }
-
   if (loading) {
     return (
       <Layout>
@@ -90,6 +95,20 @@ export default function LibrarianEditPage() {
   const makerRole: 'author' | 'director' = isBook ? 'author' : 'director'
 
   const handleSaveMeta = async (data: Partial<MediaItem>) => {
+    if (suggestionMode) {
+      const genres = Array.isArray(data.genre) ? data.genre.join(', ') : data.genre || ''
+      await suggest('update_media', item!.uuid ?? id, {
+        type: data.type, title: data.title, original_title: data.titleEn || '',
+        author: data.author || data.director || '', director: data.director || '',
+        year: data.year || 0, genres, cover_url: data.coverUrl || '',
+        description: data.description || '', pages: data.pages || 0,
+        duration_min: data.duration ? parseInt(data.duration, 10) || 0 : 0,
+        isbn: data.isbn || '',
+      }).catch(() => {}) // cancelled
+      setEditingMeta(false)
+      flash('Suggestion submitted')
+      return
+    }
     await librarianService.updateMedia(id, data)
     setEditingMeta(false)
     flash(t('savedToast'))
@@ -97,17 +116,33 @@ export default function LibrarianEditPage() {
   }
 
   const handleLinkMaker = async (person: PersonSummary) => {
+    if (suggestionMode) {
+      await suggest('set_maker', item!.uuid ?? id, { person_uuid: person.uuid, role: makerRole })
+        .catch(() => {})
+      flash('Suggestion submitted')
+      return
+    }
     await librarianService.setMaker(id, person.uuid, makerRole)
     flash(t('makerLinked'))
     load()
   }
 
   const handleAddEdition = async (e: Partial<Edition>) => {
+    if (suggestionMode) {
+      await suggest('add_edition', item!.uuid ?? id, e).catch(() => {})
+      flash('Suggestion submitted')
+      return
+    }
     await librarianService.addEdition(id, e)
     fetchEditions(id).then(setEditions)
   }
 
   const handleRemoveEdition = async (editionId: number) => {
+    if (suggestionMode) {
+      await suggest('delete_edition', `${item!.uuid ?? id}/${editionId}`, {}).catch(() => {})
+      flash('Suggestion submitted')
+      return
+    }
     await librarianService.deleteEdition(id, editionId)
     setEditions((eds) => eds.filter((x) => x.id !== editionId))
   }
@@ -156,6 +191,16 @@ export default function LibrarianEditPage() {
         <IoArrowBack className="h-4 w-4" />
         {t('back')}
       </button>
+
+      {suggestionMode && (
+        <div className="mb-4 flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3">
+          <IoInformationCircleOutline className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-500" />
+          <p className="text-sm text-amber-700 dark:text-amber-400">
+            You're viewing the catalog editor as a regular user. Any edits you make will be submitted
+            as suggestions for librarian review — nothing is applied immediately.
+          </p>
+        </div>
+      )}
 
       {toast && (
         <div className="mb-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-sm text-emerald-500">
@@ -267,26 +312,31 @@ export default function LibrarianEditPage() {
           <ConnectionsManager item={item} />
         </Section>
 
-        {/* Merge a duplicate entry into this one */}
-        <Section title={t('mergeDuplicateTitle')} hint={t('mergeDuplicateHint')}>
-          <MediaAutocomplete type={item.type} excludeId={item.id} onPick={handleMergeDuplicate} actionLabel={t('mergeHere')} />
-        </Section>
+        {/* Merge / delete — librarian-only destructive tools */}
+        {!suggestionMode && (
+          <>
+            <Section title={t('mergeDuplicateTitle')} hint={t('mergeDuplicateHint')}>
+              <MediaAutocomplete type={item.type} excludeId={item.id} onPick={handleMergeDuplicate} actionLabel={t('mergeHere')} />
+            </Section>
 
-        {/* Merge THIS entry into another one (this entry disappears) */}
-        <Section title={t('mergeIntoTitle')} hint={t('mergeIntoHint')}>
-          <MediaAutocomplete type={item.type} excludeId={item.id} onPick={handleMergeInto} actionLabel={t('mergeIntoEntry')} />
-        </Section>
+            <Section title={t('mergeIntoTitle')} hint={t('mergeIntoHint')}>
+              <MediaAutocomplete type={item.type} excludeId={item.id} onPick={handleMergeInto} actionLabel={t('mergeIntoEntry')} />
+            </Section>
+          </>
+        )}
 
-        {/* Danger zone */}
-        <Section title="">
-          <button
-            onClick={handleDelete}
-            className="inline-flex items-center gap-2 rounded-xl bg-red-500/10 px-4 py-2.5 text-sm font-medium text-red-500 transition-colors hover:bg-red-500/20"
-          >
-            <IoTrashOutline className="h-4 w-4" />
-            {t('deleteEntry')}
-          </button>
-        </Section>
+        {/* Delete — librarian-only */}
+        {!suggestionMode && (
+          <Section title="">
+            <button
+              onClick={handleDelete}
+              className="inline-flex items-center gap-2 rounded-xl bg-red-500/10 px-4 py-2.5 text-sm font-medium text-red-500 transition-colors hover:bg-red-500/20"
+            >
+              <IoTrashOutline className="h-4 w-4" />
+              {t('deleteEntry')}
+            </button>
+          </Section>
+        )}
       </div>
 
       <MediaModal

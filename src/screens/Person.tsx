@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate, Link } from '@/lib/router'
 import Layout from '../components/layout/Layout'
 import { DetailPageSkeleton } from '../components/Skeletons'
@@ -45,7 +45,16 @@ export default function PersonPage() {
   const [data, setData] = useState<PersonResp | null>(null)
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState(false)
-  const canEdit = isLibrarian(user?.role)
+  const [suggestionToast, setSuggestionToast] = useState('')
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const canInteract = !!user
+  const librarianUser = isLibrarian(user?.role)
+
+  const flashSuggestion = () => {
+    setSuggestionToast('Suggestion submitted — a librarian will review it')
+    if (toastTimer.current) clearTimeout(toastTimer.current)
+    toastTimer.current = setTimeout(() => setSuggestionToast(''), 4000)
+  }
 
   const load = useCallback(() => {
     if (!uuid) return
@@ -112,10 +121,10 @@ export default function PersonPage() {
               <h1 className="text-3xl font-bold leading-tight tracking-tight text-[var(--text)] md:text-[2.6rem]">
                 {person.name}
               </h1>
-              {canEdit && (
+              {canInteract && (
                 <button
                   onClick={() => setEditing(true)}
-                  title={t('edit')}
+                  title={librarianUser ? t('edit') : 'Suggest an edit'}
                   className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] text-[var(--text-muted)] transition-colors hover:border-nonsprimary hover:text-nonsprimary"
                 >
                   <IoCreateOutline className="h-4 w-4" />
@@ -190,11 +199,16 @@ export default function PersonPage() {
         isOpen={editing}
         person={{ id: 0, credit_count: 0, uuid: person.uuid, name: person.name, photo_url: person.photo_url, bio: person.bio }}
         onClose={() => setEditing(false)}
-        onSaved={() => {
-          setEditing(false)
-          load()
-        }}
+        onSaved={() => { setEditing(false); load() }}
+        suggestionMode={!librarianUser}
+        onSuggested={() => { setEditing(false); flashSuggestion() }}
       />
+
+      {suggestionToast && (
+        <div className="fixed bottom-28 left-1/2 z-50 -translate-x-1/2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2.5 text-sm text-emerald-600 shadow-lg backdrop-blur-sm lg:bottom-6">
+          {suggestionToast}
+        </div>
+      )}
     </Layout>
   )
 }

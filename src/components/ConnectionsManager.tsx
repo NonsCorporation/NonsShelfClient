@@ -17,6 +17,7 @@ import { connectionService } from '../services/connectionService'
 import { catalogService, type CatalogItem } from '../services/catalogService'
 import SeriesEditor from './SeriesEditor'
 import { useLanguage } from '../contexts/LanguageContext'
+import { useSuggestion } from '../contexts/SuggestionContext'
 import type { Connections, Franchise, MediaItem, RelationKind, Series } from '../types'
 
 const SERIES_ROLES = ['main', 'spinoff', 'prequel', 'sequel', 'interquel']
@@ -27,7 +28,9 @@ const SERIES_ROLES = ['main', 'spinoff', 'prequel', 'sequel', 'interquel']
 // writes through the writer-guarded series/franchise/work-relation endpoints.
 export default function ConnectionsManager({ item }: { item: MediaItem }) {
   const { t } = useLanguage()
+  const { isSuggestionMode, suggest } = useSuggestion()
   const mediaId = Number(item.id)
+  const mediaUuid = item.uuid ?? item.id
   const [conn, setConn] = useState<Connections | null>(null)
 
   const reload = useCallback(() => {
@@ -36,21 +39,21 @@ export default function ConnectionsManager({ item }: { item: MediaItem }) {
 
   useEffect(() => { reload() }, [reload])
 
-  // A "universe" (franchise) groups whole series. Selecting one for this movie
-  // attaches the movie's series to it (so the whole series joins) — or, if the
-  // movie isn't in any series, adds the movie directly as a fallback.
   const attachUniverse = async (f: Franchise) => {
+    if (isSuggestionMode) {
+      await suggest('add_franchise_member', mediaUuid, {
+        franchise_id: f.id, franchise_uuid: f.uuid, franchise_name: f.name,
+        media_id: mediaId, order: 0,
+      }).catch(() => {})
+      return
+    }
     if (conn && conn.series.length > 0) {
       await Promise.all(conn.series.map(async (m) => {
         const d = await connectionService.getSeries(m.series.uuid)
         if (!d) return
         await connectionService.updateSeries(m.series.uuid, {
-          name: d.series.name,
-          type: d.series.type,
-          description: d.series.description,
-          role: d.series.role,
-          franchise_id: f.id,
-          parent_series_id: d.series.parent_series_id ?? null,
+          name: d.series.name, type: d.series.type, description: d.series.description,
+          role: d.series.role, franchise_id: f.id, parent_series_id: d.series.parent_series_id ?? null,
         })
       }))
     } else {
@@ -59,19 +62,21 @@ export default function ConnectionsManager({ item }: { item: MediaItem }) {
     reload()
   }
 
-  const detachUniverse = async (franchiseUuid: string) => {
+  const detachUniverse = async (franchiseUuid: string, franchiseName: string, franchiseId: number) => {
+    if (isSuggestionMode) {
+      await suggest('remove_franchise_member', mediaUuid, {
+        franchise_id: franchiseId, franchise_name: franchiseName, media_id: mediaId,
+      }).catch(() => {})
+      return
+    }
     await connectionService.removeFranchiseMember(franchiseUuid, mediaId).catch(() => {})
     if (conn) {
       await Promise.all(conn.series.map(async (m) => {
         const d = await connectionService.getSeries(m.series.uuid)
         if (!d || !d.series.franchise_id) return
         await connectionService.updateSeries(m.series.uuid, {
-          name: d.series.name,
-          type: d.series.type,
-          description: d.series.description,
-          role: d.series.role,
-          franchise_id: null,
-          parent_series_id: d.series.parent_series_id ?? null,
+          name: d.series.name, type: d.series.type, description: d.series.description,
+          role: d.series.role, franchise_id: null, parent_series_id: d.series.parent_series_id ?? null,
         })
       }))
     }
@@ -93,17 +98,23 @@ export default function ConnectionsManager({ item }: { item: MediaItem }) {
             position={m.position}
             label={m.label}
             total={m.total}
-            onRemove={() => connectionService.removeSeriesItem(m.series.uuid, mediaId).then(reload)}
+            onRemove={() => {
+              if (isSuggestionMode) {
+                suggest('remove_series_item', mediaUuid, { series_id: m.series.id, series_name: m.series.name, media_id: mediaId }).catch(() => {})
+              } else {
+                connectionService.removeSeriesItem(m.series.uuid, mediaId).then(reload)
+              }
+            }}
             onChanged={reload}
           />
         ))}
-        <SeriesAdder mediaId={mediaId} type={item.type} onDone={reload} />
+        <SeriesAdder mediaId={mediaId} mediaUuid={mediaUuid} type={item.type} onDone={reload} />
       </Group>
 
       {/* ── Universe (groups whole series) ── */}
       <Group icon={<IoSparklesOutline className="h-4 w-4 text-nonsprimary" />} title={t('franchiseMembership') || 'Universe'}>
         {conn?.franchises.map((f) => (
-          <Row key={f.franchise.id} onRemove={() => detachUniverse(f.franchise.uuid)}>
+          <Row key={f.franchise.id} onRemove={() => detachUniverse(f.franchise.uuid, f.franchise.name, f.franchise.id)}>
             <span className="min-w-0 flex-1 truncate text-sm text-[var(--text)]">{f.franchise.name}</span>
             {f.saga && <span className="flex-shrink-0 text-xs text-[var(--text-muted)]">{f.saga}</span>}
           </Row>
@@ -117,7 +128,16 @@ export default function ConnectionsManager({ item }: { item: MediaItem }) {
       {/* ── Adaptations & links ── */}
       <Group icon={<IoGitNetworkOutline className="h-4 w-4 text-nonsprimary" />} title={t('workRelations') || 'Adaptations & links'}>
         {conn?.relations.map((r) => (
-          <Row key={r.id} onRemove={() => connectionService.deleteRelation(r.id).then(reload)}>
+          <Row
+            key={r.id}
+            onRemove={() => {
+              if (isSuggestionMode) {
+                suggest('delete_relation', `${mediaUuid}/${r.id}`, { kind: r.kind, other_title: r.media.title }).catch(() => {})
+              } else {
+                connectionService.deleteRelation(r.id).then(reload)
+              }
+            }}
+          >
             <span className="flex-shrink-0 rounded-full bg-[var(--primary-soft)] px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--text-muted)]">
               {r.kind}
               {r.direction === 'incoming' ? ' ←' : ' →'}
@@ -128,7 +148,7 @@ export default function ConnectionsManager({ item }: { item: MediaItem }) {
             )}
           </Row>
         ))}
-        <RelationAdder mediaId={mediaId} onDone={reload} />
+        <RelationAdder mediaId={mediaId} mediaUuid={mediaUuid} mediaType={item.type} onDone={reload} />
       </Group>
     </div>
   )
@@ -262,8 +282,9 @@ function SeriesMembershipRow({
 }
 
 // ── Series adder: pick an existing series or create one, then set position ──────
-function SeriesAdder({ mediaId, type, onDone }: { mediaId: number; type: MediaItem['type']; onDone: () => void }) {
+function SeriesAdder({ mediaId, mediaUuid, type, onDone }: { mediaId: number; mediaUuid: string; type: MediaItem['type']; onDone: () => void }) {
   const { t } = useLanguage()
+  const { isSuggestionMode, suggest } = useSuggestion()
   const [q, setQ] = useState('')
   const [results, setResults] = useState<Series[]>([])
   const [picked, setPicked] = useState<Series | null>(null)
@@ -290,11 +311,16 @@ function SeriesAdder({ mediaId, type, onDone }: { mediaId: number; type: MediaIt
     if (!picked) return
     setBusy(true)
     try {
-      await connectionService.setSeriesItem(picked.uuid, {
-        media_id: mediaId,
-        position: parseFloat(position) || 0,
-        label: label.trim() || undefined,
-      })
+      if (isSuggestionMode) {
+        await suggest('add_series_item', mediaUuid, {
+          series_id: picked.id, series_uuid: picked.uuid, series_name: picked.name,
+          media_id: mediaId, position: parseFloat(position) || 0, label: label.trim() || '',
+        })
+      } else {
+        await connectionService.setSeriesItem(picked.uuid, {
+          media_id: mediaId, position: parseFloat(position) || 0, label: label.trim() || undefined,
+        })
+      }
       setPicked(null); setQ(''); setPosition(''); setLabel('')
       onDone()
     } finally {
@@ -384,8 +410,9 @@ const RELATION_CHOICES: RelationChoice[] = [
 ]
 
 // ── Relation adder: pick a target work, choose a directional relation + part ─────
-function RelationAdder({ mediaId, onDone }: { mediaId: number; onDone: () => void }) {
+function RelationAdder({ mediaId, mediaUuid, mediaType, onDone }: { mediaId: number; mediaUuid: string; mediaType: MediaItem['type']; onDone: () => void }) {
   const { t } = useLanguage()
+  const { isSuggestionMode, suggest } = useSuggestion()
   const [q, setQ] = useState('')
   const [results, setResults] = useState<CatalogItem[]>([])
   const [picked, setPicked] = useState<CatalogItem | null>(null)
@@ -407,16 +434,28 @@ function RelationAdder({ mediaId, onDone }: { mediaId: number; onDone: () => voi
     if (!picked) return
     const c = RELATION_CHOICES.find((x) => x.value === choice) ?? RELATION_CHOICES[0]
     const other = Number(picked.id)
+    const fromId = c.swap ? other : mediaId
+    const toId = c.swap ? mediaId : other
     setBusy(true)
     try {
-      await connectionService.createRelation({
-        // swap=true means the picked work is the source (e.g. the book this film is based on).
-        from_media_id: c.swap ? other : mediaId,
-        to_media_id: c.swap ? mediaId : other,
-        kind: c.kind,
-        part: part ? parseInt(part, 10) : undefined,
-        note: note.trim() || undefined,
-      })
+      if (isSuggestionMode) {
+        await suggest('add_relation', mediaUuid, {
+          from_media_id: fromId, to_media_id: toId, kind: c.kind,
+          part: part ? parseInt(part, 10) : undefined, note: note.trim() || '',
+          from_uuid: c.swap ? picked.uuid : mediaUuid,
+          from_title: c.swap ? picked.title : undefined,
+          from_type: c.swap ? picked.type : mediaType,
+          to_uuid: c.swap ? mediaUuid : picked.uuid,
+          to_title: c.swap ? undefined : picked.title,
+          to_type: c.swap ? mediaType : picked.type,
+          direction_label: c.label,
+        })
+      } else {
+        await connectionService.createRelation({
+          from_media_id: fromId, to_media_id: toId, kind: c.kind,
+          part: part ? parseInt(part, 10) : undefined, note: note.trim() || undefined,
+        })
+      }
       setPicked(null); setQ(''); setChoice('based_on'); setPart(''); setNote('')
       onDone()
     } finally {

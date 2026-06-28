@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { IoClose, IoPersonOutline, IoCloudDownloadOutline, IoCheckmark, IoSearch, IoAdd, IoTrashOutline, IoChevronUp, IoChevronDown } from 'react-icons/io5'
 import { librarianService } from '../services/librarianService'
 import type { PersonSummary, TmdbPersonSuggestion, OlPersonSuggestion, PersonAlias } from '../services/librarianService'
+import { suggestionService } from '../services/suggestionService'
 import { useLanguage } from '../contexts/LanguageContext'
 
 // One editable name variant. lang '' means "unspecified".
@@ -37,10 +38,12 @@ type Props = {
   initialName?: string
   onClose: () => void
   onSaved: (person: PersonSummary) => void
+  suggestionMode?: boolean
+  onSuggested?: () => void
 }
 
 // Create or edit an author/person with full details: name, avatar, birth year, bio.
-export default function PersonModal({ isOpen, person, initialName, onClose, onSaved }: Props) {
+export default function PersonModal({ isOpen, person, initialName, onClose, onSaved, suggestionMode, onSuggested }: Props) {
   const { t } = useLanguage()
   const [form, setForm] = useState({ bio: '', birthDate: '', photoUrl: '' })
   // nameRows[0] is the canonical name (not deletable); the rest are aliases.
@@ -128,6 +131,11 @@ export default function PersonModal({ isOpen, person, initialName, onClose, onSa
           .slice(1)
           .map((a) => ({ name: a.name.trim(), lang: a.lang || undefined }))
           .filter((a) => a.name),
+      }
+      if (suggestionMode && person?.uuid) {
+        await suggestionService.submit('update_person', person.uuid, fields)
+        onSuggested?.()
+        return
       }
       const saved = person?.uuid
         ? await librarianService.updatePerson(person.uuid, fields)
@@ -246,7 +254,7 @@ export default function PersonModal({ isOpen, person, initialName, onClose, onSa
             {person?.uuid ? t('editPerson') : t('addAuthor')}
           </h3>
           <div className="flex items-center gap-2">
-            {person?.uuid && (
+            {person?.uuid && !suggestionMode && (
               <>
                 <button
                   onClick={importFromTMDB}

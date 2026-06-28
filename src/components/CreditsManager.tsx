@@ -3,6 +3,7 @@ import { IoCloseCircle, IoCloudDownloadOutline } from 'react-icons/io5'
 import { librarianService } from '../services/librarianService'
 import type { Credit, CreditRole } from '../services/librarianService'
 import { useLanguage } from '../contexts/LanguageContext'
+import { useSuggestion } from '../contexts/SuggestionContext'
 import PersonPicker from './PersonPicker'
 
 // Localized role label, falling back to the capitalized key.
@@ -15,14 +16,31 @@ function roleLabel(t: (k: string) => string, role: string): string {
 // Manage a media item's cast/crew: add people in roles (actor, producer,
 // translator, …), each selectable like authors. Roles are filtered to the ones
 // that fit the media type.
-export default function CreditsManager({ mediaId, mediaType }: { mediaId: string; mediaType: string }) {
+export default function CreditsManager({
+  mediaId,
+  mediaUuid,
+  mediaType,
+}: {
+  mediaId: string
+  mediaUuid?: string
+  mediaType: string
+}) {
   const { t } = useLanguage()
+  const { isSuggestionMode, suggest } = useSuggestion()
   const [roles, setRoles] = useState<CreditRole[]>([])
   const [credits, setCredits] = useState<Credit[]>([])
   const [role, setRole] = useState('')
   const [character, setCharacter] = useState('')
   const [error, setError] = useState('')
   const [finding, setFinding] = useState(false)
+  const [suggestionToast, setSuggestionToast] = useState('')
+
+  const targetRef = mediaUuid ?? mediaId
+
+  const flashSuggestion = () => {
+    setSuggestionToast('Suggestion submitted for librarian review')
+    setTimeout(() => setSuggestionToast(''), 3000)
+  }
 
   const reloadCredits = useCallback(() => {
     librarianService.getCredits(mediaId).then(setCredits).catch(() => setCredits([]))
@@ -42,6 +60,12 @@ export default function CreditsManager({ mediaId, mediaType }: { mediaId: string
 
   const addPerson = async (personUuid: string) => {
     setError('')
+    if (isSuggestionMode) {
+      suggest('add_credit', targetRef, { person_uuid: personUuid, role, character: character || undefined })
+        .then(() => { setCharacter(''); flashSuggestion() })
+        .catch(() => {})
+      return
+    }
     try {
       await librarianService.addCredit(mediaId, { person_uuid: personUuid, role, character: character || undefined })
       setCharacter('')
@@ -53,6 +77,12 @@ export default function CreditsManager({ mediaId, mediaType }: { mediaId: string
 
   const remove = async (id: number) => {
     setError('')
+    if (isSuggestionMode) {
+      suggest('delete_credit', `${targetRef}/${id}`, {})
+        .then(() => flashSuggestion())
+        .catch(() => {})
+      return
+    }
     try {
       await librarianService.deleteCredit(mediaId, id)
       setCredits((cs) => cs.filter((c) => c.id !== id))
@@ -82,8 +112,13 @@ export default function CreditsManager({ mediaId, mediaType }: { mediaId: string
   return (
     <div className="flex flex-col gap-3">
       {error && <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-500">{error}</p>}
+      {suggestionToast && (
+        <p className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-600">
+          {suggestionToast}
+        </p>
+      )}
 
-      {mediaType !== 'book' && (
+      {!isSuggestionMode && mediaType !== 'book' && (
         <button
           onClick={autoFind}
           disabled={finding}

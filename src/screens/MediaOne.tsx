@@ -15,6 +15,7 @@ import MediaHistory from '../components/MediaHistory'
 import StarsSelector from '../StarsSelector'
 import { libraryService } from '../services/libraryService'
 import { librarianService } from '../services/librarianService'
+import { suggestionService } from '../services/suggestionService'
 import { getReviews, type ReviewsPage, type CommunityReview } from '../services/reviewService'
 import ShareModal from '../components/ShareModal'
 import { getFriendUsers, colorFor } from '../services/activityService'
@@ -159,6 +160,11 @@ export default function MediaOnePage({
   const scrollEditions = (dir: number) => editionsRef.current?.scrollBy({ left: dir * 340, behavior: 'smooth' })
   const [shareOpen, setShareOpen] = useState(false)
   const [editing, setEditing] = useState(false)
+  const [suggestionToast, setSuggestionToast] = useState('')
+  const flashSuggestion = () => {
+    setSuggestionToast('Suggestion submitted for librarian review')
+    setTimeout(() => setSuggestionToast(''), 3000)
+  }
   const [editingReview, setEditingReview] = useState(false)
   const [progressOpen, setProgressOpen] = useState(false)
   const [finishOpen, setFinishOpen] = useState(false)
@@ -565,15 +571,13 @@ export default function MediaOnePage({
                   <FiClipboard className="h-4 w-4" />
                 </button>
               )}
-              {isLibrarian(user?.role) && (
-                <button
-                  onClick={() => setEditing(true)}
-                  title={t('edit')}
-                  className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] text-[var(--text-muted)] transition-colors hover:border-nonsprimary hover:text-nonsprimary"
-                >
-                  <IoCreateOutline className="h-4 w-4" />
-                </button>
-              )}
+              <button
+                onClick={() => setEditing(true)}
+                title={isLibrarian(user?.role) ? t('edit') : 'Suggest an edit'}
+                className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] text-[var(--text-muted)] transition-colors hover:border-nonsprimary hover:text-nonsprimary"
+              >
+                <IoCreateOutline className="h-4 w-4" />
+              </button>
             </div>
           )}
 
@@ -1272,14 +1276,34 @@ export default function MediaOnePage({
         isOpen={editing}
         catalogOnly
         withEditions
+        suggestionMode={!isLibrarian(user?.role)}
+        mediaUuid={item.uuid}
         initialData={item}
         onClose={() => setEditing(false)}
         onSave={async (data) => {
-          await librarianService.updateMedia(item.id, data)
           setEditing(false)
-          loadItem()
+          if (isLibrarian(user?.role)) {
+            await librarianService.updateMedia(item.id, data)
+            loadItem()
+          } else {
+            const genres = Array.isArray(data.genre) ? data.genre.join(', ') : data.genre || ''
+            await suggestionService.submit('update_media', item.uuid ?? String(item.id), {
+              type: data.type, title: data.title, original_title: data.titleEn || '',
+              author: data.author || data.director || '', director: data.director || '',
+              year: data.year || 0, genres, cover_url: data.coverUrl || '',
+              description: data.description || '', pages: data.pages || 0,
+              duration_min: data.duration ? parseInt(data.duration, 10) || 0 : 0,
+              isbn: data.isbn || '',
+            })
+            flashSuggestion()
+          }
         }}
       />
+      {suggestionToast && (
+        <div className="fixed bottom-28 left-1/2 z-50 -translate-x-1/2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2.5 text-sm text-emerald-600 shadow-lg backdrop-blur-sm lg:bottom-6">
+          {suggestionToast}
+        </div>
+      )}
     </Layout>
   )
 }

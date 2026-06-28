@@ -11,6 +11,8 @@ import CreditsManager from './CreditsManager'
 import ConnectionsManager from './ConnectionsManager'
 import PersonPicker from './PersonPicker'
 import { librarianService } from '../services/librarianService'
+import { suggestionService } from '../services/suggestionService'
+import { SuggestionProvider } from '../contexts/SuggestionContext'
 import { catalogService } from '../services/catalogService'
 import type { CatalogItem } from '../services/catalogService'
 
@@ -18,17 +20,16 @@ type MediaModalProps = {
   isOpen: boolean
   initialData?: Partial<MediaItem> & { id?: string }
   initialType?: 'book' | 'movie'
-  // catalogOnly hides the shelf-status control: the librarian is curating the
-  // shared catalog, not adding the item to their own shelf.
   catalogOnly?: boolean
-  // withEditions shows the editions manager when editing an existing book.
   withEditions?: boolean
+  suggestionMode?: boolean
+  mediaUuid?: string
   onClose: () => void
   onSave: (data: Partial<MediaItem>) => Promise<void>
   onDelete?: (id: string) => Promise<void>
 }
 
-export default function MediaModal({ isOpen, initialData, initialType, catalogOnly, withEditions, onClose, onSave, onDelete }: MediaModalProps) {
+export default function MediaModal({ isOpen, initialData, initialType, catalogOnly, withEditions, suggestionMode, mediaUuid, onClose, onSave, onDelete }: MediaModalProps) {
   const { t } = useLanguage()
   const navigate = useNavigate()
 
@@ -75,6 +76,8 @@ export default function MediaModal({ isOpen, initialData, initialType, catalogOn
 
   if (!isOpen) return null
 
+  const targetRef = mediaUuid ?? initialData?.id ?? ''
+
   const handleSave = async () => {
     if (!form.title) return
 
@@ -99,8 +102,9 @@ export default function MediaModal({ isOpen, initialData, initialType, catalogOn
   }
 
   return (
+    <SuggestionProvider isSuggestionMode={suggestionMode ?? false}>
     <div onClick={onClose} className="fixed inset-0 z-[60] bg-[var(--overlay)] flex items-end pb-28 sm:pb-0 sm:items-center sm:p-4">
-      <div onClick={(e) => e.stopPropagation()} className="w-full sm:max-w-xl rounded-t-2xl sm:rounded-2xl border border-[var(--border)] bg-[var(--container)] overflow-hidden flex flex-col max-h-[85svh] sm:max-h-[90vh]">
+      <div onClick={(e) => e.stopPropagation()} className="w-full sm:max-w-xl rounded-t-2xl sm:rounded-2xl border border-[var(--border)] bg-[var(--container)] overflow-hidden flex flex-col max-h-[calc(100svh-8rem)] sm:max-h-[90vh]">
         <div className="px-5 py-4 border-b border-[var(--divider)] bg-[var(--surface)] flex-shrink-0 flex items-center justify-between gap-2">
           <div>
             <h3 className="text-lg font-semibold tracking-wide text-[var(--text)]">
@@ -197,7 +201,12 @@ export default function MediaModal({ isOpen, initialData, initialType, catalogOn
                 current={{ uuid: initialData.makerUuid, name: type === 'book' ? form.author : form.director }}
                 onPick={async (p) => {
                   setForm((s) => (type === 'book' ? { ...s, author: p.name } : { ...s, director: p.name }))
-                  await librarianService.setMaker(initialData.id!, p.uuid, type === 'book' ? 'author' : 'director').catch(() => {})
+                  const role = type === 'book' ? 'author' : 'director'
+                  if (suggestionMode) {
+                    await suggestionService.submit('set_maker', targetRef, { person_uuid: p.uuid, role }).catch(() => {})
+                  } else {
+                    await librarianService.setMaker(initialData.id!, p.uuid, role).catch(() => {})
+                  }
                 }}
               />
             </div>
@@ -238,7 +247,7 @@ export default function MediaModal({ isOpen, initialData, initialType, catalogOn
           {withEditions && isEditing && initialData?.id && (
             <div className="flex flex-col gap-2 border-t border-[var(--divider)] pt-4">
               <span className="text-sm font-medium text-[var(--text)]">{t('castAndCrew')}</span>
-              <CreditsManager mediaId={initialData.id} mediaType={type} />
+              <CreditsManager mediaId={initialData.id} mediaUuid={mediaUuid} mediaType={type} />
             </div>
           )}
 
@@ -246,7 +255,7 @@ export default function MediaModal({ isOpen, initialData, initialType, catalogOn
           {withEditions && isEditing && type === 'book' && initialData?.id && (
             <div className="flex flex-col gap-2 border-t border-[var(--divider)] pt-4">
               <span className="text-sm font-medium text-[var(--text)]">{t('editionsTitle')}</span>
-              <EditionsManager mediaId={initialData.id} fallbackTitle={form.title} fallbackAuthor={form.author} />
+              <EditionsManager mediaId={initialData.id} mediaUuid={mediaUuid} fallbackTitle={form.title} fallbackAuthor={form.author} />
             </div>
           )}
 
@@ -270,7 +279,7 @@ export default function MediaModal({ isOpen, initialData, initialType, catalogOn
 
           {/* Merge THIS entry into another one (this entry disappears). Books and
               movies only — series merge would leave episodes/watches orphaned. */}
-          {withEditions && isEditing && initialData?.id && type !== 'series' && (
+          {withEditions && isEditing && initialData?.id && type !== 'series' && !suggestionMode && (
             <div className="flex flex-col gap-2 border-t border-[var(--divider)] pt-4">
               <span className="text-sm font-medium text-[var(--text)]">{t('mergeIntoTitle')}</span>
               <p className="text-xs text-[var(--text-muted)]">{t('mergeIntoHint')}</p>
@@ -302,6 +311,7 @@ export default function MediaModal({ isOpen, initialData, initialType, catalogOn
         </div>
       </div>
     </div>
+    </SuggestionProvider>
   )
 }
 

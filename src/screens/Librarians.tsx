@@ -11,6 +11,8 @@ import type { PersonSummary } from '../services/librarianService'
 import type { MediaItem } from '../types'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
+import { suggestionService } from '../services/suggestionService'
+import type { Suggestion } from '../services/suggestionService'
 import {
   IoSearch,
   IoCreateOutline,
@@ -21,13 +23,16 @@ import {
   IoPersonOutline,
   IoGitMergeOutline,
   IoOpenOutline,
+  IoCheckmarkCircleOutline,
+  IoCloseCircleOutline,
+  IoTimeOutline,
 } from 'react-icons/io5'
 import type { BulkJob } from '../services/librarianService'
 import PersonModal from '../components/PersonModal'
 import TypeBadge from '../components/TypeBadge'
 import { mediaPath } from '../lib/paths'
 
-type Tab = 'catalog' | 'authors'
+type Tab = 'catalog' | 'authors' | 'suggestions'
 
 export default function LibrariansPage() {
   const { t } = useLanguage()
@@ -50,7 +55,7 @@ export default function LibrariansPage() {
       </div>
 
       <div className="mb-6 inline-flex rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] p-1">
-        {(['catalog', 'authors'] as Tab[]).map((key) => (
+        {(['catalog', 'authors', 'suggestions'] as Tab[]).map((key) => (
           <button
             key={key}
             onClick={() => setTab(key)}
@@ -60,12 +65,12 @@ export default function LibrariansPage() {
                 : 'text-[var(--text-muted)] hover:text-[var(--text)]'
             }`}
           >
-            {key === 'catalog' ? t('tabCatalog') : t('tabAuthors')}
+            {key === 'catalog' ? t('tabCatalog') : key === 'authors' ? t('tabAuthors') : 'Suggestions'}
           </button>
         ))}
       </div>
 
-      {tab === 'catalog' ? <CatalogTab /> : <AuthorsTab />}
+      {tab === 'catalog' ? <CatalogTab /> : tab === 'authors' ? <AuthorsTab /> : <SuggestionsTab />}
     </Layout>
   )
 }
@@ -569,5 +574,532 @@ function AuthorsTab() {
         onSaved={onSaved}
       />
     </>
+  )
+}
+
+// ── Suggestions tab: review pending community edits ───────────────────────────
+
+const ACTION_LABELS: Record<string, string> = {
+  add_edition: 'Add edition',
+  update_edition: 'Edit edition',
+  delete_edition: 'Delete edition',
+  update_media: 'Edit metadata',
+  add_credit: 'Add credit',
+  delete_credit: 'Remove credit',
+  add_person: 'Add person',
+  update_person: 'Edit person',
+  set_maker: 'Link primary author/director',
+  add_episode: 'Add episode',
+  update_episode: 'Edit episode',
+  delete_episode: 'Delete episode',
+  add_relation: 'Add relation',
+  delete_relation: 'Remove relation',
+  add_series_item: 'Add to series',
+  remove_series_item: 'Remove from series',
+  add_franchise_member: 'Add to universe',
+  remove_franchise_member: 'Remove from universe',
+}
+
+// Payload shapes — one per action type
+interface EditionPayload { title?: string; publisher?: string; language?: string; published_year?: number; pages?: number; isbn13?: string; isbn10?: string; cover_url?: string; description?: string }
+interface MediaPayload { title?: string; original_title?: string; author?: string; director?: string; year?: number; genres?: string; cover_url?: string; description?: string }
+interface CreditPayload { person_uuid?: string; role?: string; character?: string }
+interface MakerPayload { person_uuid?: string; role?: string }
+interface PersonPayload { name?: string; bio?: string; birth_date?: string; photo_url?: string; name_lang?: string; aliases?: { name: string; lang?: string }[] }
+interface EpisodePayload { season?: number; number?: number; title?: string; overview?: string; air_date?: string; runtime_min?: number }
+interface RelationPayload { from_media_id?: number; to_media_id?: number; kind?: string; part?: number; note?: string; from_uuid?: string; from_title?: string; from_type?: string; to_uuid?: string; to_title?: string; to_type?: string; direction_label?: string }
+interface DeleteRelationPayload { kind?: string; other_title?: string }
+interface SeriesItemPayload { series_id?: number; series_name?: string; media_id?: number; position?: number; label?: string }
+interface RemoveSeriesPayload { series_name?: string }
+interface FranchiseMemberPayload { franchise_id?: number; franchise_name?: string; media_id?: number; order?: number }
+interface RemoveFranchisePayload { franchise_name?: string }
+
+// Strips the "/numericId" suffix from compound target IDs to get the media UUID.
+function workUUID(targetId?: string) { return (targetId ?? '').split('/')[0] }
+function childId(targetId?: string) { return (targetId ?? '').split('/')[1] ?? '' }
+function cast<T>(v: unknown) { return v as T }
+
+function WorkLink({ uuid, label = 'Open work' }: { uuid: string; label?: string }) {
+  if (!uuid) return null
+  return (
+    <Link to={`/librarian/edit/${uuid}`} className="mt-1.5 inline-flex items-center gap-1 text-xs text-nonsprimary hover:underline">
+      <IoOpenOutline className="h-3 w-3" /> {label}
+    </Link>
+  )
+}
+
+function SuggestionBody({ sg }: { sg: Suggestion }) {
+  const { action_type: at, target_id: tid, payload } = sg
+
+  if (at === 'add_edition' || at === 'update_edition') {
+    const ed = cast<EditionPayload>(payload)
+    return (
+      <div>
+        <div className="flex gap-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] p-3">
+          <div className="h-16 w-11 flex-shrink-0 overflow-hidden rounded bg-[var(--container-2)]">
+            {ed.cover_url && <img src={ed.cover_url} alt="" loading="lazy" className="h-full w-full object-cover" />}
+          </div>
+          <div className="min-w-0 flex-1 text-sm">
+            <p className="font-medium text-[var(--text)]">{ed.title || <span className="italic text-[var(--text-muted)]">no title</span>}</p>
+            <p className="mt-0.5 text-xs text-[var(--text-muted)]">
+              {[ed.publisher, ed.published_year, ed.language?.toUpperCase(), ed.pages ? `${ed.pages} pp` : undefined].filter(Boolean).join(' · ')}
+            </p>
+            {(ed.isbn13 || ed.isbn10) && <p className="text-xs text-[var(--text-muted)]">ISBN {ed.isbn13 || ed.isbn10}</p>}
+            {ed.description && <p className="mt-1 line-clamp-2 text-xs text-[var(--text-muted)]">{ed.description}</p>}
+          </div>
+        </div>
+        <WorkLink uuid={workUUID(tid)} />
+      </div>
+    )
+  }
+
+  if (at === 'delete_edition') {
+    return (
+      <div>
+        <p className="text-sm text-[var(--text-muted)]">
+          Remove edition <span className="font-mono text-xs text-[var(--text)]">#{childId(tid)}</span> from catalog
+        </p>
+        <WorkLink uuid={workUUID(tid)} />
+      </div>
+    )
+  }
+
+  if (at === 'update_media') {
+    const m = cast<MediaPayload>(payload)
+    return (
+      <div>
+        <div className="flex gap-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] p-3">
+          {m.cover_url && (
+            <div className="h-16 w-11 flex-shrink-0 overflow-hidden rounded bg-[var(--container-2)]">
+              <img src={m.cover_url} alt="" loading="lazy" className="h-full w-full object-cover" />
+            </div>
+          )}
+          <div className="min-w-0 flex-1 text-sm">
+            {m.title && <p className="font-medium text-[var(--text)]">{m.title}</p>}
+            {m.original_title && m.original_title !== m.title && <p className="text-xs text-[var(--text-muted)]">{m.original_title}</p>}
+            <p className="mt-0.5 text-xs text-[var(--text-muted)]">
+              {[m.author || m.director, m.year, m.genres].filter(Boolean).join(' · ')}
+            </p>
+            {m.description && <p className="mt-1 line-clamp-2 text-xs text-[var(--text-muted)]">{m.description}</p>}
+          </div>
+        </div>
+        <WorkLink uuid={workUUID(tid)} />
+      </div>
+    )
+  }
+
+  if (at === 'add_credit') {
+    const c = cast<CreditPayload>(payload)
+    return (
+      <div>
+        <div className="flex flex-wrap items-center gap-2">
+          {c.role && <span className="rounded-md bg-[var(--surface)] px-2 py-0.5 text-xs font-medium text-[var(--text)]">{c.role}</span>}
+          {c.person_uuid && <span className="font-mono text-xs text-[var(--text-muted)]">{c.person_uuid}</span>}
+          {c.character && <span className="text-xs text-[var(--text-muted)]">as {c.character}</span>}
+        </div>
+        <WorkLink uuid={workUUID(tid)} />
+      </div>
+    )
+  }
+
+  if (at === 'delete_credit') {
+    return (
+      <div>
+        <p className="text-sm text-[var(--text-muted)]">
+          Remove credit <span className="font-mono text-xs text-[var(--text)]">#{childId(tid)}</span>
+        </p>
+        <WorkLink uuid={workUUID(tid)} />
+      </div>
+    )
+  }
+
+  if (at === 'set_maker') {
+    const m = cast<MakerPayload>(payload)
+    return (
+      <div>
+        <div className="flex flex-wrap items-center gap-2">
+          {m.role && <span className="rounded-md bg-[var(--surface)] px-2 py-0.5 text-xs font-medium text-[var(--text)]">{m.role}</span>}
+          {m.person_uuid && <span className="font-mono text-xs text-[var(--text-muted)]">{m.person_uuid}</span>}
+        </div>
+        <WorkLink uuid={workUUID(tid)} />
+      </div>
+    )
+  }
+
+  if (at === 'add_person' || at === 'update_person') {
+    const p = cast<PersonPayload>(payload)
+    return (
+      <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] p-3 text-sm">
+        <div className="flex items-center gap-3">
+          {p.photo_url && (
+            <img src={p.photo_url} alt="" className="h-10 w-10 flex-shrink-0 rounded-full object-cover" />
+          )}
+          <div className="min-w-0">
+            {p.name && (
+              <p className="font-medium text-[var(--text)]">
+                {p.name}
+                {p.name_lang && <span className="ml-1.5 text-[10px] font-normal uppercase text-[var(--text-muted)]">{p.name_lang}</span>}
+              </p>
+            )}
+            {p.birth_date && <p className="text-xs text-[var(--text-muted)]">b. {p.birth_date}</p>}
+          </div>
+        </div>
+        {p.aliases && p.aliases.length > 0 && (
+          <p className="mt-2 text-xs text-[var(--text-muted)]">
+            Also: {p.aliases.map((a) => a.name).join(' · ')}
+          </p>
+        )}
+        {p.bio && <p className="mt-2 line-clamp-3 text-xs leading-5 text-[var(--text-muted)]">{p.bio}</p>}
+        {at === 'update_person' && tid && <WorkLink uuid={tid} />}
+      </div>
+    )
+  }
+
+  if (at === 'add_episode' || at === 'update_episode') {
+    const ep = cast<EpisodePayload>(payload)
+    return (
+      <div>
+        <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] p-3 text-sm">
+          <p className="font-medium text-[var(--text)]">
+            {ep.season != null && ep.number != null
+              ? `S${String(ep.season).padStart(2, '0')}E${String(ep.number).padStart(2, '0')}`
+              : ''}
+            {ep.title ? ` — ${ep.title}` : ''}
+          </p>
+          <p className="mt-0.5 text-xs text-[var(--text-muted)]">
+            {[ep.air_date, ep.runtime_min ? `${ep.runtime_min} min` : undefined].filter(Boolean).join(' · ')}
+          </p>
+          {ep.overview && <p className="mt-1 line-clamp-2 text-xs text-[var(--text-muted)]">{ep.overview}</p>}
+        </div>
+        <WorkLink uuid={workUUID(tid)} label="Open series" />
+      </div>
+    )
+  }
+
+  if (at === 'delete_episode') {
+    return (
+      <div>
+        <p className="text-sm text-[var(--text-muted)]">
+          Delete episode <span className="font-mono text-xs text-[var(--text)]">#{childId(tid)}</span>
+        </p>
+        <WorkLink uuid={workUUID(tid)} label="Open series" />
+      </div>
+    )
+  }
+
+  if (at === 'add_relation') {
+    const r = cast<RelationPayload>(payload)
+    return (
+      <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] p-3">
+        <div className="flex items-center gap-2">
+          {r.from_uuid && r.from_type ? (
+            <Link
+              to={mediaPath({ type: r.from_type as 'book' | 'movie' | 'series', uuid: r.from_uuid, id: r.from_uuid })}
+              className="min-w-0 flex-1 truncate text-sm font-medium text-nonsprimary hover:underline"
+            >
+              {r.from_title ?? r.from_uuid}
+            </Link>
+          ) : (
+            <span className="min-w-0 flex-1 truncate text-sm font-medium text-[var(--text)]">{r.from_title ?? '—'}</span>
+          )}
+          <span className="flex-shrink-0 rounded-full bg-[var(--container-2)] px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--text-muted)]">
+            {r.direction_label ?? r.kind ?? '→'}
+          </span>
+          {r.to_uuid && r.to_type ? (
+            <Link
+              to={mediaPath({ type: r.to_type as 'book' | 'movie' | 'series', uuid: r.to_uuid, id: r.to_uuid })}
+              className="min-w-0 flex-1 truncate text-right text-sm font-medium text-nonsprimary hover:underline"
+            >
+              {r.to_title ?? r.to_uuid}
+            </Link>
+          ) : (
+            <span className="min-w-0 flex-1 truncate text-right text-sm font-medium text-[var(--text)]">{r.to_title ?? '—'}</span>
+          )}
+        </div>
+        {(r.part != null && r.part > 0 || r.note) && (
+          <p className="mt-1.5 text-xs text-[var(--text-muted)]">
+            {r.part != null && r.part > 0 ? `Part ${r.part}` : ''}{r.note ? ` — ${r.note}` : ''}
+          </p>
+        )}
+      </div>
+    )
+  }
+
+  if (at === 'delete_relation') {
+    const r = cast<DeleteRelationPayload>(payload)
+    return (
+      <div>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-sm text-[var(--text-muted)]">Remove</span>
+          {r.kind && <span className="rounded-md bg-[var(--surface)] px-2 py-0.5 text-xs font-medium uppercase text-[var(--text-muted)]">{r.kind}</span>}
+          {r.other_title && <span className="text-sm text-[var(--text)]">{r.other_title}</span>}
+        </div>
+        <WorkLink uuid={workUUID(tid)} />
+      </div>
+    )
+  }
+
+  if (at === 'add_series_item') {
+    const s = cast<SeriesItemPayload>(payload)
+    return (
+      <div>
+        <div className="flex flex-wrap items-center gap-2">
+          {s.series_name && <span className="text-sm font-medium text-[var(--text)]">{s.series_name}</span>}
+          {s.position != null && <span className="text-xs text-[var(--text-muted)]">position #{s.position}</span>}
+          {s.label && <span className="rounded-md bg-[var(--surface)] px-2 py-0.5 text-xs text-[var(--text-muted)]">{s.label}</span>}
+        </div>
+        <WorkLink uuid={workUUID(tid)} />
+      </div>
+    )
+  }
+
+  if (at === 'remove_series_item') {
+    const s = cast<RemoveSeriesPayload>(payload)
+    return (
+      <div>
+        <p className="text-sm text-[var(--text-muted)]">
+          Remove from series <span className="font-medium text-[var(--text)]">{s.series_name ?? ''}</span>
+        </p>
+        <WorkLink uuid={workUUID(tid)} />
+      </div>
+    )
+  }
+
+  if (at === 'add_franchise_member') {
+    const f = cast<FranchiseMemberPayload>(payload)
+    return (
+      <div>
+        <div className="flex flex-wrap items-center gap-2">
+          {f.franchise_name && <span className="text-sm font-medium text-[var(--text)]">{f.franchise_name}</span>}
+          {f.order != null && <span className="text-xs text-[var(--text-muted)]">order {f.order}</span>}
+        </div>
+        <WorkLink uuid={workUUID(tid)} />
+      </div>
+    )
+  }
+
+  if (at === 'remove_franchise_member') {
+    const f = cast<RemoveFranchisePayload>(payload)
+    return (
+      <div>
+        <p className="text-sm text-[var(--text-muted)]">
+          Remove from universe <span className="font-medium text-[var(--text)]">{f.franchise_name ?? ''}</span>
+        </p>
+        <WorkLink uuid={workUUID(tid)} />
+      </div>
+    )
+  }
+
+  return (
+    <pre className="max-h-40 overflow-auto rounded-lg bg-[var(--surface)] p-3 text-xs text-[var(--text)]">
+      {JSON.stringify(payload, null, 2)}
+    </pre>
+  )
+}
+
+function SuggestionsTab() {
+  const [items, setItems] = useState<Suggestion[]>([])
+  const [total, setTotal] = useState(0)
+  const [loading, setLoading] = useState(true)
+  const [busy, setBusy] = useState<number | null>(null)
+  const [error, setError] = useState('')
+  const [toast, setToast] = useState('')
+  const [rejectingId, setRejectingId] = useState<number | null>(null)
+  const [rejectNote, setRejectNote] = useState('')
+  const [statusFilter, setStatusFilter] = useState<'pending' | 'approved' | 'rejected'>('pending')
+
+  const flash = (msg: string) => {
+    setToast(msg)
+    setTimeout(() => setToast(''), 3000)
+  }
+
+  const load = () => {
+    setLoading(true)
+    suggestionService
+      .list({ status: statusFilter, limit: 50 })
+      .then(({ items: s, total: t }) => { setItems(s); setTotal(t) })
+      .catch(() => setError('Failed to load suggestions'))
+      .finally(() => setLoading(false))
+  }
+
+  useEffect(() => { load() }, [statusFilter]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const approve = async (id: number) => {
+    setBusy(id)
+    setError('')
+    try {
+      await suggestionService.approve(id)
+      flash('Suggestion approved and applied')
+      load()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  const reject = async () => {
+    if (!rejectingId) return
+    setBusy(rejectingId)
+    setError('')
+    try {
+      await suggestionService.reject(rejectingId, rejectNote)
+      setRejectingId(null)
+      setRejectNote('')
+      flash('Suggestion rejected')
+      load()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  return (
+    <div>
+      {/* Status filter */}
+      <div className="mb-4 inline-flex rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] p-1">
+        {(['pending', 'approved', 'rejected'] as const).map((s) => (
+          <button
+            key={s}
+            onClick={() => setStatusFilter(s)}
+            className={`rounded-lg px-3 py-1.5 text-xs font-medium capitalize transition-colors ${
+              statusFilter === s
+                ? 'bg-[var(--surface-active)] text-[var(--text)]'
+                : 'text-[var(--text-muted)] hover:text-[var(--text)]'
+            }`}
+          >
+            {s}
+          </button>
+        ))}
+      </div>
+
+      {error && (
+        <p className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-500">
+          {error}
+        </p>
+      )}
+      {toast && (
+        <p className="mb-4 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-600">
+          {toast}
+        </p>
+      )}
+
+      {loading ? (
+        <div className="flex justify-center py-10">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-nonsprimary border-t-transparent" />
+        </div>
+      ) : items.length === 0 ? (
+        <p className="py-16 text-center text-sm text-[var(--text-muted)]">
+          No {statusFilter} suggestions
+        </p>
+      ) : (
+        <div className="flex flex-col gap-3">
+          <p className="text-xs text-[var(--text-muted)]">{total} suggestion{total !== 1 ? 's' : ''}</p>
+          {items.map((sg) => (
+            <div
+              key={sg.id}
+              className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--container)] p-4"
+            >
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-2">
+                  {sg.user_handle && (
+                    <Link
+                      to={`/u/${sg.user_handle}`}
+                      className="flex-shrink-0 text-xs font-semibold text-nonsprimary hover:underline"
+                    >
+                      @{sg.user_handle}
+                    </Link>
+                  )}
+                  <span className="rounded-md bg-[var(--surface)] px-2 py-0.5 text-xs font-medium text-[var(--text-muted)]">
+                    {ACTION_LABELS[sg.action_type] ?? sg.action_type}
+                  </span>
+                </div>
+                <span className="flex flex-shrink-0 items-center gap-1 text-xs text-[var(--text-muted)]">
+                  <IoTimeOutline className="h-3 w-3" />
+                  {new Date(sg.created_at * 1000).toLocaleString(undefined, {
+                    year: 'numeric', month: 'short', day: 'numeric',
+                    hour: '2-digit', minute: '2-digit',
+                  })}
+                </span>
+              </div>
+
+              <div className="mb-3">
+                <SuggestionBody sg={sg} />
+              </div>
+
+              {sg.note && (
+                <p className="mb-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] px-3 py-2 text-sm italic text-[var(--text-muted)]">
+                  "{sg.note}"
+                </p>
+              )}
+
+              {sg.status === 'pending' && (
+                rejectingId === sg.id ? (
+                  <div className="flex flex-col gap-2">
+                    <textarea
+                      className="h-16 w-full resize-none rounded-xl border border-[var(--border-subtle)] bg-[var(--input)] px-3 py-2 text-sm text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-ring)]"
+                      placeholder="Optional rejection reason…"
+                      value={rejectNote}
+                      onChange={(e) => setRejectNote(e.target.value)}
+                    />
+                    <div className="flex gap-2">
+                      <button
+                        onClick={reject}
+                        disabled={busy === sg.id}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-1.5 text-xs font-medium text-red-500 hover:bg-red-500/20 disabled:opacity-50"
+                      >
+                        <IoCloseCircleOutline className="h-4 w-4" />
+                        {busy === sg.id ? 'Rejecting…' : 'Confirm reject'}
+                      </button>
+                      <button
+                        onClick={() => setRejectingId(null)}
+                        className="rounded-lg border border-[var(--border-subtle)] px-3 py-1.5 text-xs text-[var(--text-muted)] hover:text-[var(--text)]"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => approve(sg.id)}
+                      disabled={busy === sg.id}
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-nonsprimary px-3 py-1.5 text-xs font-medium text-white hover:bg-nonsprimaryfocus disabled:opacity-50"
+                    >
+                      <IoCheckmarkCircleOutline className="h-4 w-4" />
+                      {busy === sg.id ? 'Applying…' : 'Approve & apply'}
+                    </button>
+                    <button
+                      onClick={() => { setRejectingId(sg.id); setRejectNote('') }}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] px-3 py-1.5 text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text)]"
+                    >
+                      <IoCloseCircleOutline className="h-4 w-4" />
+                      Reject
+                    </button>
+                  </div>
+                )
+              )}
+
+              {sg.status !== 'pending' && (
+                <div className="flex items-center gap-1.5 text-xs">
+                  {sg.status === 'approved' ? (
+                    <IoCheckmarkCircleOutline className="h-4 w-4 text-emerald-500" />
+                  ) : (
+                    <IoCloseCircleOutline className="h-4 w-4 text-red-400" />
+                  )}
+                  <span className={sg.status === 'approved' ? 'text-emerald-600' : 'text-red-400'}>
+                    {sg.status === 'approved' ? 'Approved' : 'Rejected'}
+                  </span>
+                  {sg.review_note && (
+                    <span className="text-[var(--text-muted)]"> — {sg.review_note}</span>
+                  )}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   )
 }
