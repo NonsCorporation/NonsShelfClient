@@ -275,6 +275,21 @@ export default function Header() {
                   </select>
                 </div>
 
+                {/* renders librarian link for authorized accounts */}
+                {isLibrarian(user?.role) && (
+                  <>
+                    <div className="h-px bg-[var(--border-subtle)]" />
+                    <Link
+                      to="/librarians"
+                      onClick={() => setProfileOpen(false)}
+                      className="flex w-full items-center gap-3 px-4 py-3 text-sm text-[var(--text-muted)] transition-colors hover:bg-[var(--surface)] hover:text-[var(--text)]"
+                    >
+                      <FaCrown className="h-[18px] w-[18px]" />
+                      {t('librarians') || 'Librarians'}
+                    </Link>
+                  </>
+                )}
+
                 <div className="h-px bg-[var(--border-subtle)]" />
 
                 {isAuthenticated ? (
