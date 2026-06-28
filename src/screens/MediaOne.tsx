@@ -699,6 +699,24 @@ export default function MediaOnePage({
                   <span>{t('pagesCount', { count: item.pages })}</span>
                 </>
               ) : null}
+              {!isBook && altLangs.length > 0 && (
+                <>
+                  <span className="text-[var(--border-strong)]">·</span>
+                  <span className="relative inline-flex items-center">
+                    <select
+                      value={mediaLang}
+                      onChange={(e) => setMediaLang(e.target.value)}
+                      className="appearance-none bg-transparent pr-3 text-xs uppercase tracking-widest text-[var(--text-muted)] focus:outline-none cursor-pointer hover:text-[var(--text)] transition-colors"
+                    >
+                      <option value="">Default</option>
+                      {altLangs.map((lang) => (
+                        <option key={lang.code} value={lang.code}>{lang.label}</option>
+                      ))}
+                    </select>
+                    <IoChevronDown className="pointer-events-none absolute right-0 h-3 w-3" />
+                  </span>
+                </>
+              )}
             </div>
 
             <div className="mb-2">
@@ -731,38 +749,6 @@ export default function MediaOnePage({
           </div>
 
           <hr className="border-[var(--divider)]" />
-
-          {/* Language switcher — movies/series only, when alt titles exist */}
-          {!isBook && altLangs.length > 0 && (
-            <div>
-              <h3 className="mb-2 text-[10px] uppercase tracking-widest text-[var(--text-muted)]">Display language</h3>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  onClick={() => setMediaLang('')}
-                  className={`rounded-full px-3 py-1 text-xs transition-colors ${
-                    !mediaLang
-                      ? 'bg-[var(--primary-soft)] text-nonsprimary'
-                      : 'border border-[var(--border-subtle)] text-[var(--text-muted)] hover:border-[var(--border)] hover:text-[var(--text)]'
-                  }`}
-                >
-                  Default
-                </button>
-                {altLangs.map((lang) => (
-                  <button
-                    key={lang.code}
-                    onClick={() => setMediaLang(lang.code)}
-                    className={`rounded-full px-3 py-1 text-xs transition-colors ${
-                      mediaLang === lang.code
-                        ? 'bg-[var(--primary-soft)] text-nonsprimary'
-                        : 'border border-[var(--border-subtle)] text-[var(--text-muted)] hover:border-[var(--border)] hover:text-[var(--text)]'
-                    }`}
-                  >
-                    {lang.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
 
           <div>
             <h3 className="mb-2 text-[10px] uppercase tracking-widest text-[var(--text-muted)]">{t('synopsis')}</h3>
