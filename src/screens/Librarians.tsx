@@ -26,6 +26,8 @@ import {
   IoCheckmarkCircleOutline,
   IoCloseCircleOutline,
   IoTimeOutline,
+  IoCheckmark,
+  IoClose,
 } from 'react-icons/io5'
 import type { BulkJob } from '../services/librarianService'
 import PersonModal from '../components/PersonModal'
@@ -79,8 +81,6 @@ export default function LibrariansPage() {
 
 function CatalogTab() {
   const { t } = useLanguage()
-  // Local state (not the URL ?q=) so the librarian search doesn't drive the
-  // global top-bar search, and so spaces aren't trimmed away while typing.
   const [q, setQ] = useState('')
   const [results, setResults] = useState<CatalogItem[]>([])
   const [loading, setLoading] = useState(false)
@@ -88,71 +88,161 @@ function CatalogTab() {
   const [importing, setImporting] = useState(false)
   const [editItem, setEditItem] = useState<MediaItem | null>(null)
 
+  // Bulk-merge state
+  const [mergeMode, setMergeMode] = useState(false)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [merging, setMerging] = useState(false)
+  const [mergeError, setMergeError] = useState('')
+
   useEffect(() => {
-    if (!q.trim()) {
-      setResults([])
-      return
-    }
+    if (!q.trim()) { setResults([]); return }
     setLoading(true)
     const timer = setTimeout(() => {
-      catalogService.getCatalog(q.trim()).then((data) => {
-        setResults(data)
-        setLoading(false)
-      })
+      catalogService.getCatalog(q.trim()).then((data) => { setResults(data); setLoading(false) })
     }, 300)
     return () => clearTimeout(timer)
   }, [q])
 
-  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => setQ(e.target.value)
+  const refresh = () => { if (q.trim()) catalogService.getCatalog(q.trim()).then(setResults) }
 
-  // Re-run the catalog search to reflect edits/deletes.
-  const refresh = () => {
-    if (q.trim()) catalogService.getCatalog(q.trim()).then(setResults)
-  }
-
-  // Open the full edit modal for a catalog id (fetches the complete record).
   const openEdit = async (id: string) => {
     const full = await libraryService.getItem(id)
     if (full) setEditItem(full)
   }
 
-  // Create a catalog row (no shelving), then open its full editor (author + editions).
   const handleAdd = async (data: Partial<MediaItem>) => {
     const id = await librarianService.createMedia(data)
     setAdding(false)
     openEdit(String(id))
   }
 
+  const toggleSelect = (id: string) =>
+    setSelected((prev) => { const c = new Set(prev); c.has(id) ? c.delete(id) : c.add(id); return c })
+
+  const exitMergeMode = () => { setMergeMode(false); setSelected(new Set()); setMergeError('') }
+
+  const executeMerge = async (keepId: string) => {
+    const dups = [...selected].filter((id) => id !== keepId)
+    setMerging(true)
+    setMergeError('')
+    try {
+      for (const dupId of dups) await librarianService.mergeMedia(keepId, { id: dupId })
+      exitMergeMode()
+      refresh()
+    } catch (e) {
+      setMergeError(e instanceof Error ? e.message : 'Merge failed')
+    } finally {
+      setMerging(false)
+    }
+  }
+
+  const selectedItems = results.filter((r) => selected.has(r.id))
+
   return (
     <>
       <BulkImportPanel />
 
-      <div className="mb-8 flex flex-col gap-3 sm:flex-row">
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row">
         <div className="relative flex-1">
           <IoSearch className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-[var(--text-muted)]" />
           <input
             type="text"
             value={q}
-            onChange={handleSearch}
+            onChange={(e) => setQ(e.target.value)}
             placeholder={t('searchCatalogPlaceholder')}
             className="w-full rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface)] py-3 pl-12 pr-4 text-base text-[var(--text)] focus:border-nonsprimary focus:outline-none"
           />
         </div>
         <button
           onClick={() => setImporting(true)}
-          className="inline-flex h-12 flex-shrink-0 items-center justify-center gap-2 rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface)] px-5 text-sm font-semibold text-[var(--text)] transition-colors hover:bg-[var(--border-subtle)]"
+          disabled={mergeMode}
+          className="inline-flex h-12 flex-shrink-0 items-center justify-center gap-2 rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface)] px-5 text-sm font-semibold text-[var(--text)] transition-colors hover:bg-[var(--border-subtle)] disabled:opacity-40"
         >
           <IoCloudDownloadOutline className="h-5 w-5" />
           {t('importEntry')}
         </button>
         <button
+          onClick={() => (mergeMode ? exitMergeMode() : setMergeMode(true))}
+          className={`inline-flex h-12 flex-shrink-0 items-center justify-center gap-2 rounded-2xl border px-5 text-sm font-semibold transition-colors ${
+            mergeMode
+              ? 'border-nonsprimary bg-[var(--primary-soft)] text-nonsprimary hover:bg-nonsprimary/20'
+              : 'border-[var(--border-subtle)] bg-[var(--surface)] text-[var(--text)] hover:bg-[var(--border-subtle)]'
+          }`}
+        >
+          <IoGitMergeOutline className="h-5 w-5" />
+          {mergeMode ? 'Exit merge' : 'Merge'}
+        </button>
+        <button
           onClick={() => setAdding(true)}
-          className="inline-flex h-12 flex-shrink-0 items-center justify-center gap-2 rounded-2xl bg-nonsprimary px-5 text-sm font-semibold text-white transition-colors hover:bg-nonsprimaryfocus"
+          disabled={mergeMode}
+          className="inline-flex h-12 flex-shrink-0 items-center justify-center gap-2 rounded-2xl bg-nonsprimary px-5 text-sm font-semibold text-white transition-colors hover:bg-nonsprimaryfocus disabled:opacity-40"
         >
           <IoAdd className="h-5 w-5" />
           {t('addEntry')}
         </button>
       </div>
+
+      {/* Merge mode: instruction banner */}
+      {mergeMode && (
+        <div className="mb-4 flex items-center justify-between gap-3 rounded-xl border border-nonsprimary/40 bg-[var(--primary-soft)] px-4 py-3">
+          <p className="text-sm text-[var(--text)]">
+            {selected.size < 2
+              ? 'Click entries to select duplicates (need 2+)'
+              : `${selected.size} selected — choose which entry to keep below`}
+          </p>
+          {selected.size > 0 && (
+            <button
+              onClick={() => setSelected(new Set())}
+              className="flex-shrink-0 text-xs text-[var(--text-muted)] hover:text-[var(--text)]"
+            >
+              Clear
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Merge mode: "keep which?" panel */}
+      {mergeMode && selected.size >= 2 && (
+        <div className="mb-6 rounded-2xl border border-[var(--border-subtle)] bg-[var(--container)] p-4">
+          <p className="mb-3 text-sm font-semibold text-[var(--text)]">
+            Keep which entry? The rest will be merged into it and deleted.
+          </p>
+          {mergeError && (
+            <p className="mb-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-500">
+              {mergeError}
+            </p>
+          )}
+          <div className="flex flex-col gap-2">
+            {selectedItems.map((item) => (
+              <div
+                key={item.id}
+                className="flex items-center justify-between gap-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] px-3 py-2.5"
+              >
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="h-12 w-8 flex-shrink-0 overflow-hidden rounded bg-[var(--container-2)]">
+                    {item.coverUrl && <img src={item.coverUrl} alt="" className="h-full w-full object-cover" />}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-[var(--text)]">{item.title}</p>
+                    <p className="truncate text-xs text-[var(--text-muted)]">
+                      {(item.type === 'book' ? item.author : item.director || item.author) || ''}
+                      {item.year ? ` · ${item.year}` : ''}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => executeMerge(item.id)}
+                  disabled={merging}
+                  className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-lg bg-nonsprimary px-3 py-1.5 text-xs font-semibold text-white hover:bg-nonsprimaryfocus disabled:opacity-50"
+                >
+                  <IoGitMergeOutline className="h-3.5 w-3.5" />
+                  {merging ? 'Merging…' : 'Keep'}
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {loading ? (
         <div className="flex justify-center py-10">
@@ -164,63 +254,79 @@ function CatalogTab() {
         <p className="py-16 text-center text-sm text-[var(--text-muted)]">{t('noResults')}</p>
       ) : (
         <div className="flex flex-col gap-3 animate-fade-up">
-          {results.map((item) => (
-            <div
-              key={item.id}
-              className="flex items-center justify-between rounded-2xl border border-[var(--border-subtle)] bg-[var(--container)] p-4 transition-colors hover:border-[var(--border)] sm:p-5"
-            >
-              <div className="flex min-w-0 items-center gap-4 sm:gap-6">
-                <div className="relative aspect-[2/3] w-14 flex-shrink-0 sm:w-16">
-                  {item.coverUrl ? (
-                    <img
-                      src={item.coverUrl}
-                      alt={item.title}
-                      className="h-full w-full rounded-lg object-cover"
-                    />
-                  ) : (
-                    <div className="h-full w-full rounded-lg bg-[var(--surface)]" />
-                  )}
-                  <TypeBadge type={item.type} position="top-1 right-1" size="h-6 w-6" iconSize="h-3 w-3" />
-                </div>
-                <div className="flex min-w-0 flex-col">
-                  <div className="mb-1 flex items-center gap-2 text-[10px] uppercase tracking-widest text-[var(--text-muted)] sm:text-[11px]">
-                    <span>{item.type === 'book' ? t('book') : item.type === 'series' ? t('series') : t('film')}</span>
-                    {item.year && (
-                      <>
-                        <span className="text-[var(--border-strong)]">·</span>
-                        <span>{item.year}</span>
-                      </>
-                    )}
+          {results.map((item) => {
+            const isSelected = selected.has(item.id)
+            return (
+              <div
+                key={item.id}
+                onClick={mergeMode ? () => toggleSelect(item.id) : undefined}
+                className={`flex items-center justify-between rounded-2xl border bg-[var(--container)] p-4 transition-colors sm:p-5 ${
+                  mergeMode
+                    ? isSelected
+                      ? 'cursor-pointer border-nonsprimary bg-[var(--primary-soft)]'
+                      : 'cursor-pointer border-[var(--border-subtle)] hover:border-nonsprimary/50'
+                    : 'border-[var(--border-subtle)] hover:border-[var(--border)]'
+                }`}
+              >
+                {/* Checkbox indicator in merge mode */}
+                {mergeMode && (
+                  <div className={`mr-3 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded border-2 transition-colors ${
+                    isSelected ? 'border-nonsprimary bg-nonsprimary' : 'border-[var(--border-strong)] bg-transparent'
+                  }`}>
+                    {isSelected && <IoCheckmark className="h-3 w-3 text-white" />}
                   </div>
-                  <h3 className="truncate text-base font-bold text-[var(--text)] sm:text-lg">{item.title}</h3>
-                  <p className="truncate text-sm text-[var(--text-muted)]">
-                    {item.type === 'book' ? item.author : item.director || item.author}
-                  </p>
-                </div>
-              </div>
+                )}
 
-              <div className="ml-4 flex flex-shrink-0 items-center gap-2">
-                <Link
-                  to={mediaPath(item)}
-                  className="flex h-10 items-center justify-center gap-2 rounded-xl bg-[var(--surface)] px-4 text-sm font-semibold text-[var(--text)] transition-colors hover:bg-[var(--border-subtle)]"
-                >
-                  <IoOpenOutline className="h-5 w-5" />
-                  <span className="hidden sm:inline">{t('open') || 'Open'}</span>
-                </Link>
-                <button
-                  onClick={() => openEdit(item.id)}
-                  className="flex h-10 items-center justify-center gap-2 rounded-xl bg-[var(--surface)] px-4 text-sm font-semibold text-[var(--text)] transition-colors hover:bg-[var(--border-subtle)]"
-                >
-                  <IoCreateOutline className="h-5 w-5" />
-                  <span className="hidden sm:inline">{t('edit')}</span>
-                </button>
+                <div className="flex min-w-0 flex-1 items-center gap-4 sm:gap-6">
+                  <div className="relative aspect-[2/3] w-14 flex-shrink-0 sm:w-16">
+                    {item.coverUrl ? (
+                      <img src={item.coverUrl} alt={item.title} className="h-full w-full rounded-lg object-cover" />
+                    ) : (
+                      <div className="h-full w-full rounded-lg bg-[var(--surface)]" />
+                    )}
+                    <TypeBadge type={item.type} position="top-1 right-1" size="h-6 w-6" iconSize="h-3 w-3" />
+                  </div>
+                  <div className="flex min-w-0 flex-col">
+                    <div className="mb-1 flex items-center gap-2 text-[10px] uppercase tracking-widest text-[var(--text-muted)] sm:text-[11px]">
+                      <span>{item.type === 'book' ? t('book') : item.type === 'series' ? t('series') : t('film')}</span>
+                      {item.year && (
+                        <>
+                          <span className="text-[var(--border-strong)]">·</span>
+                          <span>{item.year}</span>
+                        </>
+                      )}
+                    </div>
+                    <h3 className="truncate text-base font-bold text-[var(--text)] sm:text-lg">{item.title}</h3>
+                    <p className="truncate text-sm text-[var(--text-muted)]">
+                      {item.type === 'book' ? item.author : item.director || item.author}
+                    </p>
+                  </div>
+                </div>
+
+                {!mergeMode && (
+                  <div className="ml-4 flex flex-shrink-0 items-center gap-2">
+                    <Link
+                      to={mediaPath(item)}
+                      className="flex h-10 items-center justify-center gap-2 rounded-xl bg-[var(--surface)] px-4 text-sm font-semibold text-[var(--text)] transition-colors hover:bg-[var(--border-subtle)]"
+                    >
+                      <IoOpenOutline className="h-5 w-5" />
+                      <span className="hidden sm:inline">{t('open') || 'Open'}</span>
+                    </Link>
+                    <button
+                      onClick={() => openEdit(item.id)}
+                      className="flex h-10 items-center justify-center gap-2 rounded-xl bg-[var(--surface)] px-4 text-sm font-semibold text-[var(--text)] transition-colors hover:bg-[var(--border-subtle)]"
+                    >
+                      <IoCreateOutline className="h-5 w-5" />
+                      <span className="hidden sm:inline">{t('edit')}</span>
+                    </button>
+                  </div>
+                )}
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
 
-      {/* Add new */}
       <MediaModal
         isOpen={adding}
         initialType="book"
@@ -229,7 +335,6 @@ function CatalogTab() {
         onSave={handleAdd}
       />
 
-      {/* Full edit (metadata + editions + author) */}
       <MediaModal
         isOpen={!!editItem}
         catalogOnly

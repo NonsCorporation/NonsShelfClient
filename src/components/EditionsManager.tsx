@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { IoTrashOutline, IoCreateOutline, IoAdd, IoCheckmark, IoClose, IoLanguageOutline, IoCloudDownloadOutline, IoSparklesOutline, IoSwapHorizontalOutline, IoSearch } from 'react-icons/io5'
+import { IoTrashOutline, IoCreateOutline, IoAdd, IoCheckmark, IoClose, IoLanguageOutline, IoCloudDownloadOutline, IoSparklesOutline, IoSwapHorizontalOutline, IoSearch, IoGitMergeOutline } from 'react-icons/io5'
 import { authedFetch, downloadCoverToB2 } from '../lib/api'
 import { librarianService } from '../services/librarianService'
 import type { Edition } from '../services/librarianService'
@@ -114,6 +114,16 @@ export default function EditionsManager({
   const [searching, setSearching] = useState(false)
   const [suggestionToast, setSuggestionToast] = useState('')
 
+  // Dedup (edition merge) state
+  const [dedupMode, setDedupMode] = useState(false)
+  const [dedupSelected, setDedupSelected] = useState<Set<number>>(new Set())
+  const [deduping, setDeduping] = useState(false)
+  const [dedupError, setDedupError] = useState('')
+
+  // ISBN auto-dedup state
+  const [isbnDeduping, setIsbnDeduping] = useState(false)
+  const [isbnDedupResult, setIsbnDedupResult] = useState<string | null>(null)
+
   const targetRef = mediaUuid ?? mediaId
 
   const reload = useCallback(() => {
@@ -206,6 +216,58 @@ export default function EditionsManager({
       }
     })
 
+  const exitDedupMode = () => { setDedupMode(false); setDedupSelected(new Set()); setDedupError('') }
+
+  const handleIsbnDedup = async () => {
+    setIsbnDeduping(true)
+    setIsbnDedupResult(null)
+    try {
+      const removed = await librarianService.deduplicateEditions(mediaId)
+      setIsbnDedupResult(removed > 0 ? `Removed ${removed} duplicate${removed === 1 ? '' : 's'}` : 'No duplicates found')
+      if (removed > 0) reload()
+    } catch (e) {
+      setIsbnDedupResult(e instanceof Error ? e.message : 'Failed')
+    } finally {
+      setIsbnDeduping(false)
+    }
+  }
+
+  const toggleDedupSelect = (id: number) =>
+    setDedupSelected((prev) => { const c = new Set(prev); c.has(id) ? c.delete(id) : c.add(id); return c })
+
+  const executeEditionMerge = async (keepId: number) => {
+    const selected = editions.filter((e) => dedupSelected.has(e.id))
+    const keep = selected.find((e) => e.id === keepId)!
+    const dups = selected.filter((e) => e.id !== keepId)
+    // Merge fields: keep's values have priority; fill gaps from dups in order.
+    const all = [keep, ...dups]
+    const pick = <T,>(fn: (e: Edition) => T | undefined | null): T | undefined =>
+      all.map(fn).find((v) => v != null && v !== '' && v !== 0) as T | undefined
+    const merged: Partial<Edition> = {
+      title: pick((e) => e.title),
+      publisher: pick((e) => e.publisher),
+      language: pick((e) => e.language),
+      published_year: pick((e) => e.published_year),
+      pages: pick((e) => e.pages),
+      isbn13: pick((e) => e.isbn13),
+      isbn10: pick((e) => e.isbn10),
+      cover_url: pick((e) => e.cover_url),
+      description: pick((e) => e.description),
+    }
+    setDeduping(true)
+    setDedupError('')
+    try {
+      await librarianService.updateEdition(mediaId, keepId, merged)
+      for (const dup of dups) await librarianService.deleteEdition(mediaId, dup.id)
+      exitDedupMode()
+      reload()
+    } catch (e) {
+      setDedupError(e instanceof Error ? e.message : 'Merge failed')
+    } finally {
+      setDeduping(false)
+    }
+  }
+
   if (loading) return <p className="text-sm text-[var(--text-muted)]">{t('loading')}</p>
 
   return (
@@ -223,31 +285,109 @@ export default function EditionsManager({
         </span>
         {!isSuggestionMode && (
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => setSearching((v) => !v)}
-              className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors ${
-                searching
-                  ? 'border-nonsprimary bg-[var(--primary-soft)] text-nonsprimary'
-                  : 'border-[var(--border-subtle)] bg-[var(--surface)] text-[var(--text)] hover:border-nonsprimary hover:text-nonsprimary'
-              }`}
-            >
-              <IoSearch className="h-3.5 w-3.5" />
-              {t('autoFindEditions')}
-            </button>
-            {editions.some((e) => !hasCyrillic(e.title)) && (
-              <button
-                onClick={handleRusifyAll}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] px-2.5 py-1 text-xs font-medium text-[var(--text)] transition-colors hover:border-nonsprimary hover:text-nonsprimary"
-              >
-                <IoLanguageOutline className="h-3.5 w-3.5 text-nonsprimary" />
-                {t('rusifyAll')}
-              </button>
+            {!dedupMode && (
+              <>
+                <button
+                  onClick={() => setSearching((v) => !v)}
+                  className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors ${
+                    searching
+                      ? 'border-nonsprimary bg-[var(--primary-soft)] text-nonsprimary'
+                      : 'border-[var(--border-subtle)] bg-[var(--surface)] text-[var(--text)] hover:border-nonsprimary hover:text-nonsprimary'
+                  }`}
+                >
+                  <IoSearch className="h-3.5 w-3.5" />
+                  {t('autoFindEditions')}
+                </button>
+                {editions.some((e) => !hasCyrillic(e.title)) && (
+                  <button
+                    onClick={handleRusifyAll}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] px-2.5 py-1 text-xs font-medium text-[var(--text)] transition-colors hover:border-nonsprimary hover:text-nonsprimary"
+                  >
+                    <IoLanguageOutline className="h-3.5 w-3.5 text-nonsprimary" />
+                    {t('rusifyAll')}
+                  </button>
+                )}
+              </>
+            )}
+            {editions.length >= 2 && (
+              <>
+                <button
+                  onClick={handleIsbnDedup}
+                  disabled={isbnDeduping || dedupMode}
+                  title="Auto-deduplicate editions by ISBN / OL key"
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] px-2.5 py-1 text-xs font-medium text-[var(--text)] transition-colors hover:border-nonsprimary hover:text-nonsprimary disabled:opacity-50"
+                >
+                  <IoGitMergeOutline className="h-3.5 w-3.5" />
+                  {isbnDeduping ? 'Deduping…' : 'Dedup ISBNs'}
+                </button>
+                <button
+                  onClick={() => dedupMode ? exitDedupMode() : (setDedupMode(true), setEditingId(null), setMovingId(null), setAdding(false))}
+                  className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors ${
+                    dedupMode
+                      ? 'border-nonsprimary bg-[var(--primary-soft)] text-nonsprimary'
+                      : 'border-[var(--border-subtle)] bg-[var(--surface)] text-[var(--text)] hover:border-nonsprimary hover:text-nonsprimary'
+                  }`}
+                >
+                  <IoGitMergeOutline className="h-3.5 w-3.5" />
+                  {dedupMode ? 'Exit dedup' : 'Dedup'}
+                </button>
+              </>
+            )}
+            {isbnDedupResult && (
+              <span className="text-xs text-[var(--text-muted)]">{isbnDedupResult}</span>
             )}
           </div>
         )}
       </div>
 
-      {searching && (
+      {/* Dedup instruction banner */}
+      {dedupMode && (
+        <div className="flex items-center justify-between gap-2 rounded-lg border border-nonsprimary/40 bg-[var(--primary-soft)] px-3 py-2 text-xs text-[var(--text)]">
+          {dedupSelected.size < 2
+            ? 'Select 2 or more editions to merge'
+            : `${dedupSelected.size} selected — choose which one to keep`}
+          {dedupSelected.size > 0 && (
+            <button onClick={() => setDedupSelected(new Set())} className="text-[var(--text-muted)] hover:text-[var(--text)]">
+              Clear
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Dedup "keep which?" panel */}
+      {dedupMode && dedupSelected.size >= 2 && (
+        <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--container)] p-3">
+          <p className="mb-2 text-xs font-semibold text-[var(--text)]">Keep which edition? The rest will be merged into it.</p>
+          {dedupError && <p className="mb-2 text-xs text-red-500">{dedupError}</p>}
+          <div className="flex flex-col gap-1.5">
+            {editions.filter((e) => dedupSelected.has(e.id)).map((e) => (
+              <div key={e.id} className="flex items-center justify-between gap-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] px-2.5 py-2">
+                <div className="flex min-w-0 items-center gap-2">
+                  <div className="h-10 w-7 flex-shrink-0 overflow-hidden rounded bg-[var(--container-2)]">
+                    {e.cover_url && <img src={e.cover_url} alt="" className="h-full w-full object-cover" />}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate text-xs font-medium text-[var(--text)]">{e.title || fallbackTitle}</p>
+                    <p className="truncate text-[10px] text-[var(--text-muted)]">
+                      {[e.publisher, e.published_year, (e.language || '').toUpperCase() || undefined, e.isbn13 || e.isbn10].filter(Boolean).join(' · ')}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => executeEditionMerge(e.id)}
+                  disabled={deduping}
+                  className="inline-flex flex-shrink-0 items-center gap-1 rounded-lg bg-nonsprimary px-2.5 py-1 text-xs font-semibold text-white hover:bg-nonsprimaryfocus disabled:opacity-50"
+                >
+                  <IoGitMergeOutline className="h-3 w-3" />
+                  {deduping ? '…' : 'Keep'}
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {searching && !dedupMode && (
         <EditionSearchPanel
           mediaId={mediaId}
           initialTitle={fallbackTitle ?? ''}
@@ -278,56 +418,82 @@ export default function EditionsManager({
               onMove={(targetId) => handleMove(e.id, targetId)}
               onCancel={() => setMovingId(null)}
             />
-          ) : (
-            <div key={e.id} className="flex items-center gap-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] p-2.5">
-              <div className="h-14 w-10 flex-shrink-0 overflow-hidden rounded bg-[var(--container-2)]">
-                {e.cover_url ? <img src={e.cover_url} alt="" loading="lazy" className="h-full w-full object-cover" /> : null}
+          ) : (() => {
+            const isSelected = dedupSelected.has(e.id)
+            return (
+              <div
+                key={e.id}
+                onClick={dedupMode ? () => toggleDedupSelect(e.id) : undefined}
+                className={`flex items-center gap-3 rounded-xl border p-2.5 transition-colors ${
+                  dedupMode
+                    ? isSelected
+                      ? 'cursor-pointer border-nonsprimary bg-[var(--primary-soft)]'
+                      : 'cursor-pointer border-[var(--border-subtle)] bg-[var(--surface)] hover:border-nonsprimary/50'
+                    : 'border-[var(--border-subtle)] bg-[var(--surface)]'
+                }`}
+              >
+                {dedupMode && (
+                  <div className={`flex h-4 w-4 flex-shrink-0 items-center justify-center rounded border-2 transition-colors ${
+                    isSelected ? 'border-nonsprimary bg-nonsprimary' : 'border-[var(--border-strong)]'
+                  }`}>
+                    {isSelected && <IoCheckmark className="h-2.5 w-2.5 text-white" />}
+                  </div>
+                )}
+                <div className="h-14 w-10 flex-shrink-0 overflow-hidden rounded bg-[var(--container-2)]">
+                  {e.cover_url ? <img src={e.cover_url} alt="" loading="lazy" className="h-full w-full object-cover" /> : null}
+                </div>
+                <div className="min-w-0 flex-1 text-sm">
+                  <p className="truncate text-[var(--text)]">{e.title || fallbackTitle}</p>
+                  <p className="truncate text-xs text-[var(--text-muted)]">
+                    {[
+                      e.publisher,
+                      e.published_year || undefined,
+                      (e.language || '').toUpperCase() || undefined,
+                      e.pages ? t('pagesCount', { count: e.pages }) : undefined,
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </p>
+                  {(e.isbn13 || e.isbn10) && <p className="text-xs text-[var(--text-muted)]">ISBN {e.isbn13 || e.isbn10}</p>}
+                </div>
+                {!dedupMode && !isSuggestionMode && !hasCyrillic(e.title) && (
+                  <button onClick={() => handleRusify(e.id)} title={t('rusify')} className="flex-shrink-0 rounded-lg p-2 text-[var(--text-muted)] hover:bg-[var(--primary-soft)] hover:text-nonsprimary">
+                    <IoLanguageOutline className="h-4 w-4" />
+                  </button>
+                )}
+                {!dedupMode && !isSuggestionMode && (
+                  <button onClick={() => setMovingId(e.id)} title={t('moveEditionTitle')} className="flex-shrink-0 rounded-lg p-2 text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]">
+                    <IoSwapHorizontalOutline className="h-4 w-4" />
+                  </button>
+                )}
+                {!dedupMode && (
+                  <button onClick={() => setEditingId(e.id)} title={t('edit')} className="flex-shrink-0 rounded-lg p-2 text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]">
+                    <IoCreateOutline className="h-4 w-4" />
+                  </button>
+                )}
+                {!dedupMode && (
+                  <button onClick={() => handleDelete(e.id)} title={t('delete')} className="flex-shrink-0 rounded-lg p-2 text-[var(--text-muted)] hover:bg-red-500/10 hover:text-red-500">
+                    <IoTrashOutline className="h-4 w-4" />
+                  </button>
+                )}
               </div>
-              <div className="min-w-0 flex-1 text-sm">
-                <p className="truncate text-[var(--text)]">{e.title || fallbackTitle}</p>
-                <p className="truncate text-xs text-[var(--text-muted)]">
-                  {[
-                    e.publisher,
-                    e.published_year || undefined,
-                    (e.language || '').toUpperCase() || undefined,
-                    e.pages ? t('pagesCount', { count: e.pages }) : undefined,
-                  ]
-                    .filter(Boolean)
-                    .join(' · ')}
-                </p>
-                {(e.isbn13 || e.isbn10) && <p className="text-xs text-[var(--text-muted)]">ISBN {e.isbn13 || e.isbn10}</p>}
-              </div>
-              {!isSuggestionMode && !hasCyrillic(e.title) && (
-                <button onClick={() => handleRusify(e.id)} title={t('rusify')} className="flex-shrink-0 rounded-lg p-2 text-[var(--text-muted)] hover:bg-[var(--primary-soft)] hover:text-nonsprimary">
-                  <IoLanguageOutline className="h-4 w-4" />
-                </button>
-              )}
-              {!isSuggestionMode && (
-                <button onClick={() => setMovingId(e.id)} title={t('moveEditionTitle')} className="flex-shrink-0 rounded-lg p-2 text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]">
-                  <IoSwapHorizontalOutline className="h-4 w-4" />
-                </button>
-              )}
-              <button onClick={() => setEditingId(e.id)} title={t('edit')} className="flex-shrink-0 rounded-lg p-2 text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]">
-                <IoCreateOutline className="h-4 w-4" />
-              </button>
-              <button onClick={() => handleDelete(e.id)} title={t('delete')} className="flex-shrink-0 rounded-lg p-2 text-[var(--text-muted)] hover:bg-red-500/10 hover:text-red-500">
-                <IoTrashOutline className="h-4 w-4" />
-              </button>
-            </div>
-          ),
+            )
+          })(),
         )}
       </div>
 
-      {adding ? (
-        <EditionRowForm initial={empty} submitLabel={t('addEdition')} onSubmit={handleAdd} onCancel={() => setAdding(false)} />
-      ) : (
-        <button
-          onClick={() => setAdding(true)}
-          className="inline-flex w-fit items-center gap-2 rounded-lg bg-[var(--surface)] px-4 py-2 text-sm font-semibold text-[var(--text)] hover:bg-[var(--border-subtle)]"
-        >
-          <IoAdd className="h-4 w-4" />
-          {t('addEdition')}
-        </button>
+      {!dedupMode && (
+        adding ? (
+          <EditionRowForm initial={empty} submitLabel={t('addEdition')} onSubmit={handleAdd} onCancel={() => setAdding(false)} />
+        ) : (
+          <button
+            onClick={() => setAdding(true)}
+            className="inline-flex w-fit items-center gap-2 rounded-lg bg-[var(--surface)] px-4 py-2 text-sm font-semibold text-[var(--text)] hover:bg-[var(--border-subtle)]"
+          >
+            <IoAdd className="h-4 w-4" />
+            {t('addEdition')}
+          </button>
+        )
       )}
     </div>
   )

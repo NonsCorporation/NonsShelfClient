@@ -245,6 +245,13 @@ export const librarianService = {
     )
   },
 
+  async deduplicateEditions(mediaId: string): Promise<number> {
+    const data = await jsonOrThrow(
+      await authedFetch(`/api/media/${mediaId}/editions/dedup`, { method: 'POST' }),
+    ) as { removed: number }
+    return data.removed
+  },
+
   // Reassign an edition from one book work to another (e.g. it was filed under
   // the wrong book). `targetMediaId` is the destination book's numeric id.
   async moveEdition(mediaId: string, editionId: number, targetMediaId: number): Promise<void> {
