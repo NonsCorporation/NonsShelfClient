@@ -47,7 +47,7 @@ type ProfileView = {
 
 type Tab = 'all' | ShelfStatus
 
-type Friend = { uuid: string; username: string; name: string }
+type Friend = { uuid: string; username: string; name: string; avatarUrl?: string }
 
 // Reviews are paginated server-side; this many cards per page.
 const REVIEWS_PER_PAGE = 10
@@ -123,10 +123,11 @@ export default function ProfilePage() {
             const data = await res.json()
             const fs: Friend[] = (data.friendships ?? [])
               .filter((f: { uuid?: string }) => f.uuid)
-              .map((f: { uuid: string; username: string; name: string }) => ({
+              .map((f: { uuid: string; username: string; name: string; avatar_url?: string; avatarUrl?: string }) => ({
                 uuid: f.uuid,
                 username: f.username,
                 name: f.name || f.username,
+                avatarUrl: f.avatar_url || f.avatarUrl,
               }))
             setFriends(fs)
           }
@@ -343,8 +344,11 @@ export default function ProfilePage() {
                   className="group/friend flex flex-shrink-0 flex-col items-center gap-1.5"
                   title={f.name}
                 >
-                  <span className="overflow-hidden rounded-full ring-2 ring-transparent transition-colors group-hover/friend:ring-nonsprimary">
-                    <BoringAvatar size={40} name={f.username} />
+                  <span className="overflow-hidden rounded-full ring-2 ring-transparent transition-colors group-hover/friend:ring-nonsprimary" style={{ width: 40, height: 40 }}>
+                    {f.avatarUrl
+                      ? <img src={f.avatarUrl} alt={f.name} className="h-full w-full object-cover" />
+                      : <BoringAvatar size={40} name={f.username} />
+                    }
                   </span>
                   <span className="max-w-[52px] truncate text-[10px] text-[var(--text-muted)] group-hover/friend:text-[var(--text)]">
                     {f.name}

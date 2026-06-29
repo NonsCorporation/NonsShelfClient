@@ -145,7 +145,7 @@ export default function ActivityCard({
           <Link to={userPath(a.user.handle || a.user.uuid || '')} className="font-semibold hover:underline">
             {a.user.name}
           </Link>
-          {isLibrarian(a.user.role) && <LibrarianBadge />}
+          {isLibrarian(a.user.role) && <LibrarianBadge className="h-4 w-4" />}
           <span className="text-[var(--text-muted)]">{t(VERB_KEY[a.type])}</span>
           <Link to={to} className="font-semibold hover:text-nonsprimary">
             {a.mediaTitle}

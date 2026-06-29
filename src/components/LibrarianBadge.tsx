@@ -1,10 +1,14 @@
-import { IoSchoolOutline } from 'react-icons/io5'
+import { HiOutlineLibrary } from 'react-icons/hi'
 
-export default function LibrarianBadge() {
+interface Props {
+  className?: string
+}
+
+export default function LibrarianBadge({ className }: Props) {
   return (
-    <IoSchoolOutline
+    <HiOutlineLibrary
       title="Librarian"
-      className="h-5 w-5 flex-shrink-0 text-[var(--color-nonslibrarian)]"
+      className={`flex-shrink-0 text-[#c23f6b] ${className ?? 'h-4 w-4'}`}
     />
   )
 }
