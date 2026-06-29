@@ -142,7 +142,10 @@ export default function ShareModal({ isOpen, item, coverUrl, title, author, tota
   const [copied, setCopied] = useState(false)
   const [accent, setAccent] = useState<{ r: number; g: number; b: number } | null>(null)
   const [accentReady, setAccentReady] = useState(false)
-  const [showDates, setShowDates] = useState(false)
+  const [showDates, setShowDates] = useState(true)
+  const [showGradient, setShowGradient] = useState(true)
+  const [showHeader, setShowHeader] = useState(true)
+  const [confirmRemove, setConfirmRemove] = useState(false)
 
   // On open: reset and (for a book being read) fetch the latest page.
   useEffect(() => {
@@ -179,7 +182,7 @@ export default function ShareModal({ isOpen, item, coverUrl, title, author, tota
   // Regenerate PNG when the user toggles options that affect the card layout.
   useEffect(() => {
     if (isOpen) setImgUrl(null)
-  }, [showDates, isOpen])
+  }, [showDates, showHeader, showGradient, isOpen])
 
   // Render the hidden card to a PNG so the preview *is* the downloadable image.
   // Wait for accent extraction to finish so the gradient is baked in.
@@ -229,7 +232,7 @@ export default function ShareModal({ isOpen, item, coverUrl, title, author, tota
   // The dark share card — horizontal: a 2:3 cover on the left, details on the
   // right, logo across the top. Rendered (visibly) while the PNG is being built,
   // then swapped for the captured <img> so what you see is exactly what saves.
-  const accentGradient = accent
+  const accentGradient = accent && showGradient
     ? `linear-gradient(to left, rgba(${accent.r},${accent.g},${accent.b},0.38) 0%, transparent 65%)`
     : undefined
 
@@ -244,14 +247,16 @@ export default function ShareModal({ isOpen, item, coverUrl, title, author, tota
       }}
     >
       {/* logo, top */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 18 }}>
-        <span style={{ color: INK, display: 'inline-flex' }}>
-          <ShelfLogo className="h-5 w-5" />
-        </span>
-        <span style={{ fontWeight: 700, fontSize: 11, letterSpacing: '0.18em', textTransform: 'uppercase' }}>
-          Nons Library
-        </span>
-      </div>
+      {showHeader && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 18 }}>
+          <span style={{ color: INK, display: 'inline-flex' }}>
+            <ShelfLogo className="h-5 w-5" />
+          </span>
+          <span style={{ fontWeight: 300, fontSize: 11, letterSpacing: '0.18em', textTransform: 'uppercase' }}>
+            shelf.nonsapp.com
+          </span>
+        </div>
+      )}
 
       {/* body: cover (2:3) left, details right */}
       <div style={{ display: 'flex', gap: 18, alignItems: 'flex-start' }}>
@@ -330,7 +335,7 @@ export default function ShareModal({ isOpen, item, coverUrl, title, author, tota
             const end = fmtDate(item.finishedAt)
             return (
               <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: MUTED }}>
-                <span style={{ opacity: 0.6, fontSize: 12 }}>⏱</span>
+                <IoTimeOutline style={{ width: 13, height: 13, flexShrink: 0, color: INK, opacity: 0.8 }} />
                 <span>
                   {start && end ? `${start} → ${end}` : start ? `Started ${start}` : `Finished ${end}`}
                 </span>
@@ -339,6 +344,7 @@ export default function ShareModal({ isOpen, item, coverUrl, title, author, tota
           })()}
         </div>
       </div>
+
     </div>
   )
 
@@ -374,8 +380,34 @@ export default function ShareModal({ isOpen, item, coverUrl, title, author, tota
         </div>
 
         {/* card options */}
-        {(item.startedAt || item.finishedAt) && (
-          <div className="flex items-center gap-2">
+        <div className="relative flex flex-wrap items-center gap-2">
+          {/* branding toggle */}
+          <button
+            onClick={() => showHeader ? setConfirmRemove(true) : setShowHeader(true)}
+            className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
+              showHeader
+                ? 'border-nonsprimary bg-[var(--primary-soft)] text-nonsprimary'
+                : 'border-[var(--border-subtle)] bg-[var(--surface)] text-[var(--text-muted)] hover:text-[var(--text)]'
+            }`}
+          >
+            <ShelfLogo className="h-3.5 w-3.5" />
+            Show branding
+          </button>
+
+          {/* gradient toggle */}
+          <button
+            onClick={() => setShowGradient((v) => !v)}
+            className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
+              showGradient
+                ? 'border-nonsprimary bg-[var(--primary-soft)] text-nonsprimary'
+                : 'border-[var(--border-subtle)] bg-[var(--surface)] text-[var(--text-muted)] hover:text-[var(--text)]'
+            }`}
+          >
+            Show gradient
+          </button>
+
+          {/* dates toggle */}
+          {(item.startedAt || item.finishedAt) && (
             <button
               onClick={() => setShowDates((v) => !v)}
               className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
@@ -387,8 +419,32 @@ export default function ShareModal({ isOpen, item, coverUrl, title, author, tota
               <IoTimeOutline className="h-3.5 w-3.5" />
               Show dates
             </button>
-          </div>
-        )}
+          )}
+
+          {/* confirm-remove popup */}
+          {confirmRemove && (
+            <div className="absolute left-0 top-full z-10 mt-2 w-72 rounded-2xl border border-[var(--border-subtle)] bg-[var(--container)] p-4 shadow-xl">
+              <p className="mb-1 text-sm font-semibold text-[var(--text)]">Remove branding?</p>
+              <p className="mb-4 text-xs leading-snug text-[var(--text-muted)]">
+                Keeping it helps <span className="font-medium text-[var(--text)]">Nons&nbsp;&amp;&nbsp;Shelf</span> grow.
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setConfirmRemove(false)}
+                  className="flex-1 rounded-xl bg-[var(--primary-soft)] py-2 text-xs font-semibold text-nonsprimary transition-colors hover:bg-[var(--primary-ring)]"
+                >
+                  Keep
+                </button>
+                <button
+                  onClick={() => { setShowHeader(false); setConfirmRemove(false) }}
+                  className="flex-1 rounded-xl bg-[var(--surface)] py-2 text-xs font-medium text-[var(--text-muted)] transition-colors hover:text-[var(--text)]"
+                >
+                  Remove
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* link + copy */}
         <div className="flex items-center gap-2 overflow-hidden rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] py-1.5 pl-3 pr-1.5">
