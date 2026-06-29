@@ -142,6 +142,7 @@ export default function ShareModal({ isOpen, item, coverUrl, title, author, tota
   const [copied, setCopied] = useState(false)
   const [accent, setAccent] = useState<{ r: number; g: number; b: number } | null>(null)
   const [accentReady, setAccentReady] = useState(false)
+  const [progressReady, setProgressReady] = useState(false)
   const [showDates, setShowDates] = useState(true)
   const [showGradient, setShowGradient] = useState(true)
   const [showHeader, setShowHeader] = useState(true)
@@ -155,8 +156,14 @@ export default function ShareModal({ isOpen, item, coverUrl, title, author, tota
     setCopied(false)
     setAccent(null)
     setAccentReady(false)
+    setProgressReady(false)
     if (item.type === 'book' && status === 'active') {
-      libraryService.getProgress(String(item.id)).then((rows) => setCurrentPage(rows[0]?.page ?? 0)).catch(() => {})
+      libraryService.getProgress(String(item.id))
+        .then((rows) => setCurrentPage(rows[0]?.page ?? 0))
+        .catch(() => {})
+        .finally(() => setProgressReady(true))
+    } else {
+      setProgressReady(true)
     }
   }, [isOpen, item.id, item.type, status])
 
@@ -187,7 +194,7 @@ export default function ShareModal({ isOpen, item, coverUrl, title, author, tota
   // Render the hidden card to a PNG so the preview *is* the downloadable image.
   // Wait for accent extraction to finish so the gradient is baked in.
   useEffect(() => {
-    if (!isOpen || !accentReady || imgUrl || !cardRef.current) return
+    if (!isOpen || !accentReady || !progressReady || imgUrl || !cardRef.current) return
     const node = cardRef.current
     let cancelled = false
     ;(async () => {
@@ -203,7 +210,7 @@ export default function ShareModal({ isOpen, item, coverUrl, title, author, tota
       }
     })()
     return () => { cancelled = true }
-  }, [isOpen, accentReady, imgUrl])
+  }, [isOpen, accentReady, progressReady, imgUrl])
 
   if (!isOpen || typeof document === 'undefined') return null
 
@@ -235,6 +242,16 @@ export default function ShareModal({ isOpen, item, coverUrl, title, author, tota
   const accentGradient = accent && showGradient
     ? `linear-gradient(to left, rgba(${accent.r},${accent.g},${accent.b},0.38) 0%, transparent 65%)`
     : undefined
+
+  // Choose a progress-bar colour that reads well on the dark card. Use the
+  // accent when it's bright enough (luminance > 0.12), otherwise fall back to
+  // white so it's always legible.
+  const progressColor = (() => {
+    if (!accent) return INK
+    const lin = (c: number) => { const s = c / 255; return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4 }
+    const lum = 0.2126 * lin(accent.r) + 0.7152 * lin(accent.g) + 0.0722 * lin(accent.b)
+    return lum > 0.12 ? `rgb(${accent.r},${accent.g},${accent.b})` : INK
+  })()
 
   const card = (
     <div
@@ -304,10 +321,10 @@ export default function ShareModal({ isOpen, item, coverUrl, title, author, tota
             <div style={{ marginTop: 14 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: MUTED, marginBottom: 6 }}>
                 <span>Page {currentPage}{totalPages > 0 ? ` / ${totalPages}` : ''}</span>
-                <span style={{ fontWeight: 700, color: PRIMARY }}>{pct}%</span>
+                <span style={{ fontWeight: 700, color: progressColor }}>{pct}%</span>
               </div>
               <div style={{ height: 6, borderRadius: 999, background: LINE, overflow: 'hidden' }}>
-                <div style={{ height: '100%', width: `${pct}%`, background: PRIMARY, borderRadius: 999 }} />
+                <div style={{ height: '100%', width: `${pct}%`, background: progressColor, borderRadius: 999 }} />
               </div>
             </div>
           )}
