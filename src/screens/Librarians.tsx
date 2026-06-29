@@ -13,6 +13,8 @@ import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
 import { suggestionService } from '../services/suggestionService'
 import type { Suggestion } from '../services/suggestionService'
+import { adminService } from '../services/adminService'
+import type { AdminUser } from '../services/adminService'
 import {
   IoSearch,
   IoCreateOutline,
@@ -34,12 +36,13 @@ import PersonModal from '../components/PersonModal'
 import TypeBadge from '../components/TypeBadge'
 import { mediaPath } from '../lib/paths'
 
-type Tab = 'catalog' | 'authors' | 'suggestions'
+type Tab = 'catalog' | 'authors' | 'suggestions' | 'users'
 
 export default function LibrariansPage() {
   const { t } = useLanguage()
   const { user } = useAuth()
   const [tab, setTab] = useState<Tab>('catalog')
+  const isAdmin = user?.role === 'admin'
 
   if (!isLibrarian(user?.role)) {
     return (
@@ -49,6 +52,13 @@ export default function LibrariansPage() {
     )
   }
 
+  const tabs = [
+    { key: 'catalog' as Tab, label: t('tabCatalog') },
+    { key: 'authors' as Tab, label: t('tabAuthors') },
+    { key: 'suggestions' as Tab, label: 'Suggestions' },
+    ...(isAdmin ? [{ key: 'users' as Tab, label: 'Users' }] : []),
+  ]
+
   return (
     <Layout>
       <div className="mb-6">
@@ -57,7 +67,7 @@ export default function LibrariansPage() {
       </div>
 
       <div className="mb-6 inline-flex rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] p-1">
-        {(['catalog', 'authors', 'suggestions'] as Tab[]).map((key) => (
+        {tabs.map(({ key, label }) => (
           <button
             key={key}
             onClick={() => setTab(key)}
@@ -67,12 +77,12 @@ export default function LibrariansPage() {
                 : 'text-[var(--text-muted)] hover:text-[var(--text)]'
             }`}
           >
-            {key === 'catalog' ? t('tabCatalog') : key === 'authors' ? t('tabAuthors') : 'Suggestions'}
+            {label}
           </button>
         ))}
       </div>
 
-      {tab === 'catalog' ? <CatalogTab /> : tab === 'authors' ? <AuthorsTab /> : <SuggestionsTab />}
+      {tab === 'catalog' ? <CatalogTab /> : tab === 'authors' ? <AuthorsTab /> : tab === 'suggestions' ? <SuggestionsTab /> : <UsersTab />}
     </Layout>
   )
 }
@@ -1205,6 +1215,139 @@ function SuggestionsTab() {
           ))}
         </div>
       )}
+    </div>
+  )
+}
+
+// ── Users tab: assign / revoke the librarian role (admin only) ────────────────
+
+function UsersTab() {
+  const [q, setQ] = useState('')
+  const [results, setResults] = useState<AdminUser[]>([])
+  const [loading, setLoading] = useState(false)
+  const [pending, setPending] = useState<Record<number, boolean>>({})
+  const [error, setError] = useState<string | null>(null)
+  const [toast, setToast] = useState<string | null>(null)
+
+  const showToast = (msg: string) => {
+    setToast(msg)
+    setTimeout(() => setToast(null), 3000)
+  }
+
+  const search = async () => {
+    if (!q.trim()) return
+    setLoading(true)
+    setError(null)
+    try {
+      setResults(await adminService.searchUsers(q))
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const toggle = async (user: AdminUser) => {
+    const isLibrarianNow = user.roles.includes('librarian')
+    setPending((p) => ({ ...p, [user.id]: true }))
+    try {
+      if (isLibrarianNow) {
+        await adminService.revokeLibrarian(user)
+        showToast(`Removed librarian from @${user.username}`)
+      } else {
+        await adminService.grantLibrarian(user)
+        showToast(`@${user.username} is now a librarian`)
+      }
+      setResults((prev) =>
+        prev.map((u) =>
+          u.id === user.id
+            ? { ...u, roles: isLibrarianNow ? u.roles.filter((r) => r !== 'librarian') : [...u.roles, 'librarian'] }
+            : u,
+        ),
+      )
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setPending((p) => ({ ...p, [user.id]: false }))
+    }
+  }
+
+  return (
+    <div>
+      <div className="mb-4 flex gap-2">
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && search()}
+          placeholder="Search by username…"
+          className="flex-1 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] px-4 py-2 text-sm text-[var(--text)] placeholder:text-[var(--placeholder)] focus:border-nonsprimary focus:outline-none"
+        />
+        <button
+          onClick={search}
+          disabled={loading}
+          className="rounded-xl bg-nonsprimary px-4 py-2 text-sm font-semibold text-white disabled:opacity-50 hover:bg-nonsprimaryfocus"
+        >
+          {loading ? '…' : 'Search'}
+        </button>
+      </div>
+
+      {error && (
+        <p className="mb-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm text-red-500">{error}</p>
+      )}
+      {toast && (
+        <p className="mb-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-sm text-emerald-500">{toast}</p>
+      )}
+
+      <div className="flex flex-col gap-2">
+        {results.map((u) => {
+          const isLib = u.roles.includes('librarian')
+          const busy = !!pending[u.id]
+          return (
+            <div
+              key={u.id}
+              className="flex items-center justify-between gap-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--container)] px-4 py-3"
+            >
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-[var(--text)]">@{u.username}</p>
+                <p className="truncate text-xs text-[var(--text-muted)]">{u.email}</p>
+                <div className="mt-1 flex flex-wrap gap-1">
+                  {u.roles.map((r) => (
+                    <span
+                      key={r}
+                      className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+                        r === 'librarian'
+                          ? 'bg-[#c23f6b]/15 text-[#c23f6b]'
+                          : r === 'admin' || r === 'super_admin'
+                          ? 'bg-nonsprimary/15 text-nonsprimary'
+                          : 'bg-[var(--surface)] text-[var(--text-muted)]'
+                      }`}
+                    >
+                      {r}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <button
+                onClick={() => toggle(u)}
+                disabled={busy}
+                className={`flex-shrink-0 rounded-xl px-3 py-1.5 text-xs font-semibold transition-colors disabled:opacity-50 ${
+                  isLib
+                    ? 'border border-red-500/30 bg-red-500/10 text-red-500 hover:bg-red-500/20'
+                    : 'bg-[#c23f6b] text-white hover:opacity-90'
+                }`}
+              >
+                {busy ? '…' : isLib ? 'Revoke librarian' : 'Make librarian'}
+              </button>
+            </div>
+          )
+        })}
+        {!loading && results.length === 0 && q.trim() && (
+          <p className="py-12 text-center text-sm text-[var(--text-muted)]">No users found</p>
+        )}
+        {!q.trim() && (
+          <p className="py-12 text-center text-sm text-[var(--text-muted)]">Search for a user to manage their library role</p>
+        )}
+      </div>
     </div>
   )
 }
