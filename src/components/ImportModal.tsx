@@ -6,14 +6,16 @@ import { libraryService, type ImportSummary } from '../services/libraryService'
 import { useLanguage } from '../contexts/LanguageContext'
 
 type Props = { isOpen: boolean; onClose: () => void; onImported: () => void }
-type Step = 'choose' | 'books' | 'upload'
-type SourceKey = 'goodreads' | 'bookdiary' | 'storygraph'
+type Step = 'choose' | 'books' | 'bookdiary' | 'upload'
+type SourceKey = 'goodreads' | 'bookdiarycsv' | 'bookdiarydb' | 'storygraph'
 
 // Book import sources: how to get the file + which endpoint to send it to.
-const SOURCES: Record<SourceKey, { name: string; sub: string; steps: ReactNode[]; run: (f: File) => Promise<ImportSummary> }> = {
+const SOURCES: Record<SourceKey, { name: string; sub: string; accept: string; fileLabel: string; steps: ReactNode[]; run: (f: File) => Promise<ImportSummary> }> = {
   goodreads: {
     name: 'Goodreads',
     sub: 'CSV export',
+    accept: '.csv,text/csv',
+    fileLabel: 'Choose CSV file',
     run: (f) => libraryService.importGoodreads(f),
     steps: [
       <>Go to <a href="https://www.goodreads.com/review/import" target="_blank" rel="noreferrer" className="text-nonsprimary underline">Goodreads → My Books → Import/Export</a>.</>,
@@ -21,9 +23,11 @@ const SOURCES: Record<SourceKey, { name: string; sub: string; steps: ReactNode[]
       <>Download the file, then upload it here.</>,
     ],
   },
-  bookdiary: {
+  bookdiarycsv: {
     name: 'Book Diary Pro',
     sub: 'CSV export',
+    accept: '.csv,text/csv',
+    fileLabel: 'Choose CSV file',
     run: (f) => libraryService.importBookDiary(f),
     steps: [
       <>Open <b className="text-[var(--text)]">Book Diary Pro</b> → Settings → Export.</>,
@@ -31,9 +35,23 @@ const SOURCES: Record<SourceKey, { name: string; sub: string; steps: ReactNode[]
       <>Save/share the file, then upload it here.</>,
     ],
   },
+  bookdiarydb: {
+    name: 'Book Diary Pro',
+    sub: '.db file',
+    accept: '.db',
+    fileLabel: 'Choose .db file',
+    run: (f) => libraryService.importBookDiaryDB(f),
+    steps: [
+      <>On your device, locate the <b className="text-[var(--text)]">Book Diary Pro</b> database — usually named <b className="text-[var(--text)]">book-diary-pro.db</b>.</>,
+      <>On iOS you can share it via Files; on Android it's under the app's data folder.</>,
+      <>Upload the <b className="text-[var(--text)]">.db</b> file here — no export step needed.</>,
+    ],
+  },
   storygraph: {
     name: 'StoryGraph',
     sub: 'CSV export',
+    accept: '.csv,text/csv',
+    fileLabel: 'Choose CSV file',
     run: (f) => libraryService.importStoryGraph(f),
     steps: [
       <>Go to <a href="https://app.thestorygraph.com/profile/settings" target="_blank" rel="noreferrer" className="text-nonsprimary underline">StoryGraph → Profile → Settings</a>.</>,
@@ -59,7 +77,14 @@ export default function ImportModal({ isOpen, onClose, onImported }: Props) {
   const close = () => { reset(); onClose() }
   const back = () => {
     setError(null); setResult(null); setFile(null)
-    setStep(step === 'upload' ? 'books' : 'choose')
+    if (step === 'upload') {
+      const isBookDiary = source === 'bookdiarycsv' || source === 'bookdiarydb'
+      setStep(isBookDiary ? 'bookdiary' : 'books')
+    } else if (step === 'bookdiary') {
+      setStep('books')
+    } else {
+      setStep('choose')
+    }
   }
 
   const pick = (key: SourceKey) => { setSource(key); setStep('upload') }
@@ -72,13 +97,14 @@ export default function ImportModal({ isOpen, onClose, onImported }: Props) {
       setResult(sum)
       onImported()
     } catch (e) {
-      setError((e as Error)?.message || t('importFailed') || 'Import failed — make sure it’s the right CSV export.')
+      setError((e as Error)?.message || t('importFailed') || 'Import failed — make sure the file is correct.')
     } finally {
       setBusy(false)
     }
   }
 
   const card = 'flex flex-col items-center justify-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] p-5 text-sm font-medium text-[var(--text)] transition-colors'
+  const row = 'flex items-center justify-between rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] px-4 py-3 text-left transition-colors hover:border-nonsprimary hover:bg-[var(--primary-soft)]'
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={close}>
@@ -114,37 +140,69 @@ export default function ImportModal({ isOpen, onClose, onImported }: Props) {
         {/* Step 2 — book sources */}
         {step === 'books' && (
           <div className="flex flex-col gap-2">
-            {(Object.keys(SOURCES) as SourceKey[]).map((key) => (
-              <button
-                key={key}
-                onClick={() => pick(key)}
-                className="flex items-center justify-between rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] px-4 py-3 text-left transition-colors hover:border-nonsprimary hover:bg-[var(--primary-soft)]"
-              >
-                <span>
-                  <span className="block font-medium text-[var(--text)]">{SOURCES[key].name}</span>
-                  <span className="text-xs text-[var(--text-muted)]">{SOURCES[key].sub}</span>
-                </span>
-                <IoChevronForward className="h-4 w-4 text-[var(--text-muted)]" />
-              </button>
-            ))}
+            <button onClick={() => pick('goodreads')} className={row}>
+              <span>
+                <span className="block font-medium text-[var(--text)]">Goodreads</span>
+                <span className="text-xs text-[var(--text-muted)]">CSV export</span>
+              </span>
+              <IoChevronForward className="h-4 w-4 text-[var(--text-muted)]" />
+            </button>
+            <button onClick={() => setStep('bookdiary')} className={row}>
+              <span>
+                <span className="block font-medium text-[var(--text)]">Book Diary Pro</span>
+                <span className="text-xs text-[var(--text-muted)]">CSV export or .db file</span>
+              </span>
+              <IoChevronForward className="h-4 w-4 text-[var(--text-muted)]" />
+            </button>
+            <button onClick={() => pick('storygraph')} className={row}>
+              <span>
+                <span className="block font-medium text-[var(--text)]">StoryGraph</span>
+                <span className="text-xs text-[var(--text-muted)]">CSV export</span>
+              </span>
+              <IoChevronForward className="h-4 w-4 text-[var(--text-muted)]" />
+            </button>
+          </div>
+        )}
+
+        {/* Step 2b — Book Diary Pro format submenu */}
+        {step === 'bookdiary' && (
+          <div className="flex flex-col gap-2">
+            <p className="mb-1 text-xs font-medium uppercase tracking-wide text-[var(--text-muted)]">Book Diary Pro</p>
+            <button onClick={() => pick('bookdiarycsv')} className={row}>
+              <span>
+                <span className="block font-medium text-[var(--text)]">CSV export</span>
+                <span className="text-xs text-[var(--text-muted)]">Settings → Export → CSV</span>
+              </span>
+              <IoChevronForward className="h-4 w-4 text-[var(--text-muted)]" />
+            </button>
+            <button onClick={() => pick('bookdiarydb')} className={row}>
+              <span>
+                <span className="block font-medium text-[var(--text)]">.db file</span>
+                <span className="text-xs text-[var(--text-muted)]">Native database — no export needed</span>
+              </span>
+              <IoChevronForward className="h-4 w-4 text-[var(--text-muted)]" />
+            </button>
           </div>
         )}
 
         {/* Step 3 — upload (per source) */}
         {step === 'upload' && !result && (
           <div className="flex flex-col gap-4">
-            <p className="text-sm font-medium text-[var(--text)]">{SOURCES[source].name}</p>
+            <p className="text-sm font-medium text-[var(--text)]">
+              {SOURCES[source].name}
+              <span className="ml-2 text-xs font-normal text-[var(--text-muted)]">{SOURCES[source].sub}</span>
+            </p>
             <ol className="flex list-decimal flex-col gap-1.5 pl-5 text-sm text-[var(--text-muted)]">
               {SOURCES[source].steps.map((s, i) => <li key={i}>{s}</li>)}
             </ol>
 
-            <input ref={fileRef} type="file" accept=".csv,text/csv" className="hidden" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+            <input ref={fileRef} type="file" accept={SOURCES[source].accept} className="hidden" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
             <button
               onClick={() => fileRef.current?.click()}
               className="flex items-center justify-center gap-2 rounded-xl border border-dashed border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--text)] transition-colors hover:border-nonsprimary"
             >
               <IoCloudUploadOutline className="h-5 w-5" />
-              {file ? file.name : (t('chooseFile') || 'Choose CSV file')}
+              {file ? file.name : (t('chooseFile') || SOURCES[source].fileLabel)}
             </button>
 
             {error && <p className="text-sm text-nonslightred">{error}</p>}

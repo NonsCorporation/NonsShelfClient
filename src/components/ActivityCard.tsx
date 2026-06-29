@@ -15,6 +15,8 @@ import TypeBadge from './TypeBadge'
 import CommentThread from './CommentThread'
 import DropdownMenu from './DropdownMenu'
 import ConfirmModal from './ConfirmModal'
+import LibrarianBadge from './LibrarianBadge'
+import { isLibrarian } from '../services/librarianService'
 
 const VERB_KEY: Record<ActivityType, string> = {
   rated: 'verbRated',
@@ -143,6 +145,7 @@ export default function ActivityCard({
           <Link to={userPath(a.user.handle || a.user.uuid || '')} className="font-semibold hover:underline">
             {a.user.name}
           </Link>
+          {isLibrarian(a.user.role) && <LibrarianBadge />}
           <span className="text-[var(--text-muted)]">{t(VERB_KEY[a.type])}</span>
           <Link to={to} className="font-semibold hover:text-nonsprimary">
             {a.mediaTitle}

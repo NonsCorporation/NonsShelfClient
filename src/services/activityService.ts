@@ -9,7 +9,7 @@ export type Activity = {
   postId: number
   /** The subject's nons user id — who performed the action (the comment target). */
   userId: number
-  user: { name: string; handle: string; color: string; uuid?: string; avatarUrl?: string }
+  user: { name: string; handle: string; color: string; uuid?: string; avatarUrl?: string; role?: string }
   type: ActivityType
   mediaId: number
   mediaUuid?: string
@@ -54,6 +54,7 @@ type ActivityEvent = {
   progress_pct?: number // progress: 0..100
   page?: number // progress: current page (books)
   at: number // unix seconds
+  user_role?: string // librarian role, when the server includes it
   media?: { id: number; uuid?: string; type: MediaType; title: string; author?: string; year?: number; description?: string; cover_url: string }
   // The subject user's chosen edition (when set) — overrides the work's cover/
   // title so the feed matches their library/reading list.
@@ -63,7 +64,7 @@ type ActivityEvent = {
 
 // The current user, so their own activity (shelf state changes, ratings) shows
 // in the feed alongside friends'.
-export type FeedSelf = { id: number; name: string; handle: string; uuid?: string; avatar?: string }
+export type FeedSelf = { id: number; name: string; handle: string; uuid?: string; avatar?: string; role?: string }
 
 /** Absolutize a nons-relative avatar path so it loads from any origin. */
 function nonsAvatar(url?: string): string | undefined {
@@ -94,7 +95,7 @@ export async function getFriendUsers(me: FeedSelf): Promise<Map<number, Activity
     /* nons-server unreachable — fall back to just the caller */
   }
   const friends = new Map<number, Activity['user']>()
-  friends.set(me.id, { name: me.name, handle: me.handle, color: colorFor(me.handle), uuid: me.uuid, avatarUrl: nonsAvatar(me.avatar) })
+  friends.set(me.id, { name: me.name, handle: me.handle, color: colorFor(me.handle), uuid: me.uuid, avatarUrl: nonsAvatar(me.avatar), role: me.role })
   for (const f of friendships) {
     const friendId = f.requester_id === me.id ? f.addressee_id : f.requester_id
     friends.set(friendId, {
@@ -142,7 +143,7 @@ class ApiActivityService implements IActivityService {
         id: `p-${e.post_id}`,
         postId: e.post_id,
         userId: e.user_id,
-        user: friends.get(e.user_id)!,
+        user: { ...friends.get(e.user_id)!, ...(e.user_role ? { role: e.user_role } : {}) },
         type: e.type,
         mediaId: e.media!.id,
         mediaUuid: e.media!.uuid || undefined,

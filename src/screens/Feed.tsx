@@ -41,7 +41,7 @@ export default function FeedPage() {
   const activityRef = useRef<HTMLElement>(null)
 
   const me = useMemo(
-    () => (user ? { id: user.id, name: user.name || user.username, handle: user.username, uuid: user.uuid, avatar: user.avatar_url } : null),
+    () => (user ? { id: user.id, name: user.name || user.username, handle: user.username, uuid: user.uuid, avatar: user.avatar_url, role: user.role } : null),
     [user],
   )
 

@@ -7,12 +7,14 @@ import SettingsModal from '../components/SettingsModal'
 import { libraryService } from '../services/libraryService'
 import Pagination from '../components/Pagination'
 import { fetchPublicProfile } from '../services/userService'
-import { nonsProfileUrl, nonsFetch } from '../lib/api'
+import { nonsProfileUrl, nonsFetch, authedFetch } from '../lib/api'
 import type { MediaItem, ShelfStatus } from '../types'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
 import { useCollections } from '../contexts/CollectionContext'
 import { currentUser } from '../lib/user'
+import { isLibrarian } from '../services/librarianService'
+import LibrarianBadge from '../components/LibrarianBadge'
 import BoringAvatar from '../components/BoringAvatar'
 import { mediaPath } from '../lib/paths'
 import { STATUS_COLOR, statusLabel } from '../lib/shelf'
@@ -40,6 +42,7 @@ type ProfileView = {
   name: string
   handle: string
   avatar: string
+  role?: string
 }
 
 type Tab = 'all' | ShelfStatus
@@ -110,6 +113,7 @@ export default function ProfilePage() {
           name: authUser?.name || authUser?.username || currentUser.name,
           handle: authUser?.username ?? currentUser.handle,
           avatar: authUser?.avatar_url || '',
+          role: authUser?.role,
         })
         setItems(its)
         // Import friends from nons (best-effort — silently ignored if unreachable).
@@ -136,7 +140,15 @@ export default function ProfilePage() {
           return
         }
         setIsSelf(false)
-        setProfile({ id: p.id, name: p.name, handle: p.username, avatar: p.avatarUrl || '' })
+        let userRole: string | undefined
+        try {
+          const res = await authedFetch(`/api/users/${p.id}`)
+          if (res.ok) {
+            const data = await res.json()
+            userRole = data.role
+          }
+        } catch { /* library server unreachable — no badge */ }
+        setProfile({ id: p.id, name: p.name, handle: p.username, avatar: p.avatarUrl || '', role: userRole })
         const its = await libraryService.getUserItems(p.id)
         if (cancelled) return
         setItems(its)
@@ -241,7 +253,10 @@ export default function ProfilePage() {
           )}
 
           <div className="min-w-0 flex-1">
-            <h1 className="truncate text-2xl font-bold tracking-tight text-[var(--text)]">{profile.name}</h1>
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="truncate text-2xl font-bold tracking-tight text-[var(--text)]">{profile.name}</h1>
+              {isLibrarian(profile.role) && <LibrarianBadge />}
+            </div>
             <p className="text-sm text-[var(--text-muted)]">@{profile.handle}</p>
             {profile.handle && (
               <a
