@@ -1331,6 +1331,7 @@ export default function MediaOnePage({
           isOpen={shareOpen}
           item={item}
           coverUrl={coverUrl}
+          title={displayTitle}
           author={displayAuthor}
           totalPages={totalPages}
           rating={userRating}

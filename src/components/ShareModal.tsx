@@ -3,7 +3,7 @@
 import { useRef, useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { toPng } from 'html-to-image'
-import { IoClose, IoCopyOutline, IoCheckmark, IoDownloadOutline } from 'react-icons/io5'
+import { IoClose, IoCopyOutline, IoCheckmark, IoDownloadOutline, IoTimeOutline } from 'react-icons/io5'
 import { IoMdStar, IoMdStarHalf, IoMdStarOutline } from 'react-icons/io'
 import type { MediaItem, MediaType, ShelfStatus } from '../types'
 import { libraryService } from '../services/libraryService'
@@ -12,6 +12,12 @@ import { mediaPath } from '../lib/paths'
 import { useLanguage } from '../contexts/LanguageContext'
 
 type TFn = (key: string, vars?: Record<string, string | number>) => string
+
+function fmtDate(iso?: string): string {
+  if (!iso) return ''
+  const d = new Date(iso)
+  return isNaN(d.getTime()) ? '' : d.toLocaleDateString('en', { month: 'short', day: 'numeric', year: 'numeric' })
+}
 
 // Friendly, first-person status line for the share card ("I'm finished!"),
 // rather than the neutral shelf label used elsewhere.
@@ -34,6 +40,8 @@ type Props = {
   item: MediaItem
   /** Resolved cover URL (edition-aware). */
   coverUrl?: string
+  /** Resolved title (edition-aware), e.g. a translated printing's title. */
+  title?: string
   /** Resolved byline (edition-language–aware), e.g. the author localized to the
    *  selected edition. Falls back to the work's author when absent. */
   author?: string
@@ -90,13 +98,51 @@ function Stars({ rating }: { rating: number }) {
   )
 }
 
-export default function ShareModal({ isOpen, item, coverUrl, author, totalPages = 0, rating, review, status, onClose }: Props) {
+// Sample pixels from an image (via canvas) and return the most vibrant RGB.
+async function extractAccentColor(src: string): Promise<{ r: number; g: number; b: number } | null> {
+  return new Promise((resolve) => {
+    const img = new Image()
+    img.crossOrigin = 'anonymous'
+    img.onload = () => {
+      try {
+        const size = 60
+        const canvas = document.createElement('canvas')
+        canvas.width = size
+        canvas.height = size
+        const ctx = canvas.getContext('2d')
+        if (!ctx) { resolve(null); return }
+        ctx.drawImage(img, 0, 0, size, size)
+        const { data } = ctx.getImageData(0, 0, size, size)
+        let bestScore = -1
+        let bestR = 0, bestG = 0, bestB = 0
+        for (let i = 0; i < data.length; i += 4) {
+          const r = data[i], g = data[i + 1], b = data[i + 2], a = data[i + 3]
+          if (a < 128) continue
+          const max = Math.max(r, g, b), min = Math.min(r, g, b)
+          const sat = max === 0 ? 0 : (max - min) / max
+          const score = sat * (max / 255)
+          if (score > bestScore) { bestScore = score; bestR = r; bestG = g; bestB = b }
+        }
+        resolve(bestScore > 0.1 ? { r: bestR, g: bestG, b: bestB } : null)
+      } catch {
+        resolve(null)
+      }
+    }
+    img.onerror = () => resolve(null)
+    img.src = src
+  })
+}
+
+export default function ShareModal({ isOpen, item, coverUrl, title, author, totalPages = 0, rating, review, status, onClose }: Props) {
   const { t } = useLanguage()
   const cardRef = useRef<HTMLDivElement>(null)
   const [currentPage, setCurrentPage] = useState(0)
   const [imgUrl, setImgUrl] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [accent, setAccent] = useState<{ r: number; g: number; b: number } | null>(null)
+  const [accentReady, setAccentReady] = useState(false)
+  const [showDates, setShowDates] = useState(false)
 
   // On open: reset and (for a book being read) fetch the latest page.
   useEffect(() => {
@@ -104,6 +150,8 @@ export default function ShareModal({ isOpen, item, coverUrl, author, totalPages 
     setImgUrl(null)
     setCurrentPage(0)
     setCopied(false)
+    setAccent(null)
+    setAccentReady(false)
     if (item.type === 'book' && status === 'active') {
       libraryService.getProgress(String(item.id)).then((rows) => setCurrentPage(rows[0]?.page ?? 0)).catch(() => {})
     }
@@ -114,9 +162,29 @@ export default function ShareModal({ isOpen, item, coverUrl, author, totalPages 
     if (isOpen) setImgUrl(null)
   }, [currentPage, isOpen])
 
-  // Render the hidden card to a PNG so the preview *is* the downloadable image.
+  // Extract accent color from the cover; signal ready when done (with or without a color).
   useEffect(() => {
-    if (!isOpen || imgUrl || !cardRef.current) return
+    if (!isOpen) return
+    const src = corsCover(coverUrl || item.coverUrl)
+    setAccent(null)
+    setAccentReady(false)
+    setImgUrl(null)
+    if (!src) { setAccentReady(true); return }
+    extractAccentColor(src).then((color) => {
+      setAccent(color)
+      setAccentReady(true)
+    })
+  }, [isOpen, coverUrl, item.coverUrl])
+
+  // Regenerate PNG when the user toggles options that affect the card layout.
+  useEffect(() => {
+    if (isOpen) setImgUrl(null)
+  }, [showDates, isOpen])
+
+  // Render the hidden card to a PNG so the preview *is* the downloadable image.
+  // Wait for accent extraction to finish so the gradient is baked in.
+  useEffect(() => {
+    if (!isOpen || !accentReady || imgUrl || !cardRef.current) return
     const node = cardRef.current
     let cancelled = false
     ;(async () => {
@@ -132,7 +200,7 @@ export default function ShareModal({ isOpen, item, coverUrl, author, totalPages 
       }
     })()
     return () => { cancelled = true }
-  }, [isOpen, imgUrl])
+  }, [isOpen, accentReady, imgUrl])
 
   if (!isOpen || typeof document === 'undefined') return null
 
@@ -153,7 +221,7 @@ export default function ShareModal({ isOpen, item, coverUrl, author, totalPages 
   const saveImage = () => {
     if (!imgUrl) return
     const a = document.createElement('a')
-    a.download = `${item.title.replace(/[^\w\s-]/g, '').trim() || 'share'}.png`
+    a.download = `${(title || item.title).replace(/[^\w\s-]/g, '').trim() || 'share'}.png`
     a.href = imgUrl
     a.click()
   }
@@ -161,11 +229,15 @@ export default function ShareModal({ isOpen, item, coverUrl, author, totalPages 
   // The dark share card — horizontal: a 2:3 cover on the left, details on the
   // right, logo across the top. Rendered (visibly) while the PNG is being built,
   // then swapped for the captured <img> so what you see is exactly what saves.
+  const accentGradient = accent
+    ? `linear-gradient(to left, rgba(${accent.r},${accent.g},${accent.b},0.38) 0%, transparent 65%)`
+    : undefined
+
   const card = (
     <div
       ref={cardRef}
       style={{
-        background: BG,
+        background: accentGradient ? `${accentGradient}, ${BG}` : BG,
         color: INK,
         padding: 22,
         fontFamily: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
@@ -192,7 +264,7 @@ export default function ShareModal({ isOpen, item, coverUrl, author, totalPages 
         </div>
 
         <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={{ margin: 0, fontSize: 18, fontWeight: 700, lineHeight: 1.25 }}>{item.title}</p>
+          <p style={{ margin: 0, fontSize: 18, fontWeight: 700, lineHeight: 1.25 }}>{title || item.title}</p>
           {byline && <p style={{ margin: '4px 0 0', fontSize: 13, color: MUTED }}>{byline}</p>}
           <p style={{ margin: '6px 0 0', fontSize: 10.5, letterSpacing: '0.1em', textTransform: 'uppercase', color: MUTED }}>
             {typeLabel}{item.year ? ` · ${item.year}` : ''}
@@ -252,6 +324,19 @@ export default function ShareModal({ isOpen, item, coverUrl, author, totalPages 
               “{review}”
             </p>
           )}
+
+          {showDates && (item.startedAt || item.finishedAt) && (() => {
+            const start = fmtDate(item.startedAt)
+            const end = fmtDate(item.finishedAt)
+            return (
+              <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: MUTED }}>
+                <span style={{ opacity: 0.6, fontSize: 12 }}>⏱</span>
+                <span>
+                  {start && end ? `${start} → ${end}` : start ? `Started ${start}` : `Finished ${end}`}
+                </span>
+              </div>
+            )
+          })()}
         </div>
       </div>
     </div>
@@ -287,6 +372,23 @@ export default function ShareModal({ isOpen, item, coverUrl, author, totalPages 
             </div>
           )}
         </div>
+
+        {/* card options */}
+        {(item.startedAt || item.finishedAt) && (
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowDates((v) => !v)}
+              className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
+                showDates
+                  ? 'border-nonsprimary bg-[var(--primary-soft)] text-nonsprimary'
+                  : 'border-[var(--border-subtle)] bg-[var(--surface)] text-[var(--text-muted)] hover:text-[var(--text)]'
+              }`}
+            >
+              <IoTimeOutline className="h-3.5 w-3.5" />
+              Show dates
+            </button>
+          </div>
+        )}
 
         {/* link + copy */}
         <div className="flex items-center gap-2 overflow-hidden rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] py-1.5 pl-3 pr-1.5">
