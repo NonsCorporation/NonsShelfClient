@@ -66,7 +66,7 @@ async function items<T>(res: Response): Promise<T[]> {
   return (data.items ?? []) as T[]
 }
 
-// Result of a Goodreads import (mirrors importer_service.Summary).
+// Result of a library import (mirrors importer_service.Summary).
 export interface ImportSummary {
   total: number
   created: number
@@ -75,6 +75,19 @@ export interface ImportSummary {
   rated: number
   skipped: number
 }
+
+// Live progress of a background import job (mirrors importer_service.ImportJob).
+// A superset of ImportSummary, so it can be shown directly as the final result.
+export interface ImportJob extends ImportSummary {
+  id: string
+  source: string
+  processed: number
+  status: 'running' | 'done' | 'error'
+  error?: string
+}
+
+// Called with each progress snapshot while an import job runs.
+export type ImportProgress = (job: ImportJob) => void
 
 // One reading/watching progress update. `eventDate` is unix seconds (0 = now),
 // so progress can be backdated like on Goodreads.
@@ -177,10 +190,10 @@ export interface ILibraryService {
   deleteItem(id: string): Promise<void>
   /** Permanently delete the whole personal library (shelf, ratings, favorites, activity, feed posts). */
   wipeLibrary(): Promise<void>
-  importGoodreads(file: File): Promise<ImportSummary>
-  importBookDiary(file: File): Promise<ImportSummary>
-  importBookDiaryDB(file: File): Promise<ImportSummary>
-  importStoryGraph(file: File): Promise<ImportSummary>
+  importGoodreads(file: File, onProgress?: ImportProgress): Promise<ImportJob>
+  importBookDiary(file: File, onProgress?: ImportProgress): Promise<ImportJob>
+  importBookDiaryDB(file: File, onProgress?: ImportProgress): Promise<ImportJob>
+  importStoryGraph(file: File, onProgress?: ImportProgress): Promise<ImportJob>
 }
 
 class ApiLibraryService implements ILibraryService {
@@ -543,9 +556,12 @@ class ApiLibraryService implements ILibraryService {
     ])
   }
 
-  // Upload a CSV export; the backend creates/matches books and shelves + rates
-  // them. Don't set Content-Type — the browser adds the multipart boundary.
-  private async uploadCsv(path: string, file: File): Promise<ImportSummary> {
+  // Upload a library export and run it as a background job. The backend parses the
+  // file up front (a bad file fails here) and returns a job id; a full library is
+  // dozens of external lookups per book, far too slow to hold one request open
+  // without a proxy/browser timeout, so we poll the job for progress instead.
+  // Don't set Content-Type — the browser adds the multipart boundary.
+  private async uploadImport(path: string, file: File, onProgress?: ImportProgress): Promise<ImportJob> {
     const form = new FormData()
     form.append('file', file)
     const res = await authedFetch(path, { method: 'POST', body: form })
@@ -557,7 +573,22 @@ class ApiLibraryService implements ILibraryService {
       } catch { /* non-JSON error body (e.g. a 404 route) — keep the status */ }
       throw new Error(msg)
     }
-    return res.json() as Promise<ImportSummary>
+    const { job_id: jobId } = await res.json() as { job_id: string }
+    return this.pollImportJob(jobId, onProgress)
+  }
+
+  // Poll an import job until it finishes, reporting each snapshot to onProgress.
+  // Resolves with the final job on success; rejects on an error status.
+  private async pollImportJob(jobId: string, onProgress?: ImportProgress): Promise<ImportJob> {
+    for (;;) {
+      const res = await authedFetch(`/api/import/jobs/${jobId}`)
+      if (!res.ok) throw new Error('Lost track of the import — please check your library.')
+      const job = await res.json() as ImportJob
+      onProgress?.(job)
+      if (job.status === 'done') return job
+      if (job.status === 'error') throw new Error(job.error || 'Import failed')
+      await new Promise((r) => setTimeout(r, 800))
+    }
   }
 
   // Permanently delete the user's entire personal library. The shared catalog
@@ -567,20 +598,20 @@ class ApiLibraryService implements ILibraryService {
     if (!res.ok) throw new Error('Failed to delete library')
   }
 
-  importGoodreads(file: File): Promise<ImportSummary> {
-    return this.uploadCsv('/api/import/goodreads', file)
+  importGoodreads(file: File, onProgress?: ImportProgress): Promise<ImportJob> {
+    return this.uploadImport('/api/import/goodreads', file, onProgress)
   }
 
-  importBookDiary(file: File): Promise<ImportSummary> {
-    return this.uploadCsv('/api/import/bookdiary', file)
+  importBookDiary(file: File, onProgress?: ImportProgress): Promise<ImportJob> {
+    return this.uploadImport('/api/import/bookdiary', file, onProgress)
   }
 
-  importBookDiaryDB(file: File): Promise<ImportSummary> {
-    return this.uploadCsv('/api/import/bookdiary-db', file)
+  importBookDiaryDB(file: File, onProgress?: ImportProgress): Promise<ImportJob> {
+    return this.uploadImport('/api/import/bookdiary-db', file, onProgress)
   }
 
-  importStoryGraph(file: File): Promise<ImportSummary> {
-    return this.uploadCsv('/api/import/storygraph', file)
+  importStoryGraph(file: File, onProgress?: ImportProgress): Promise<ImportJob> {
+    return this.uploadImport('/api/import/storygraph', file, onProgress)
   }
 
   private setFavorite(mediaId: number, on: boolean) {

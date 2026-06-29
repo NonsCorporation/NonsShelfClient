@@ -2,7 +2,7 @@ import { useRef, useState, type ReactNode } from 'react'
 import {
   IoClose, IoBookOutline, IoFilmOutline, IoCloudUploadOutline, IoArrowBack, IoCheckmarkCircle, IoChevronForward,
 } from 'react-icons/io5'
-import { libraryService, type ImportSummary } from '../services/libraryService'
+import { libraryService, type ImportJob, type ImportProgress } from '../services/libraryService'
 import { useLanguage } from '../contexts/LanguageContext'
 
 type Props = { isOpen: boolean; onClose: () => void; onImported: () => void }
@@ -10,13 +10,13 @@ type Step = 'choose' | 'books' | 'bookdiary' | 'upload'
 type SourceKey = 'goodreads' | 'bookdiarycsv' | 'bookdiarydb' | 'storygraph'
 
 // Book import sources: how to get the file + which endpoint to send it to.
-const SOURCES: Record<SourceKey, { name: string; sub: string; accept: string; fileLabel: string; steps: ReactNode[]; run: (f: File) => Promise<ImportSummary> }> = {
+const SOURCES: Record<SourceKey, { name: string; sub: string; accept: string; fileLabel: string; steps: ReactNode[]; run: (f: File, onProgress?: ImportProgress) => Promise<ImportJob> }> = {
   goodreads: {
     name: 'Goodreads',
     sub: 'CSV export',
     accept: '.csv,text/csv',
     fileLabel: 'Choose CSV file',
-    run: (f) => libraryService.importGoodreads(f),
+    run: (f, p) => libraryService.importGoodreads(f, p),
     steps: [
       <>Go to <a href="https://www.goodreads.com/review/import" target="_blank" rel="noreferrer" className="text-nonsprimary underline">Goodreads → My Books → Import/Export</a>.</>,
       <>Click <b className="text-[var(--text)]">Export Library</b> and wait for the CSV to generate.</>,
@@ -28,7 +28,7 @@ const SOURCES: Record<SourceKey, { name: string; sub: string; accept: string; fi
     sub: 'CSV export',
     accept: '.csv,text/csv',
     fileLabel: 'Choose CSV file',
-    run: (f) => libraryService.importBookDiary(f),
+    run: (f, p) => libraryService.importBookDiary(f, p),
     steps: [
       <>Open <b className="text-[var(--text)]">Book Diary Pro</b> → Settings → Export.</>,
       <>Export your books as a <b className="text-[var(--text)]">CSV</b> file.</>,
@@ -40,7 +40,7 @@ const SOURCES: Record<SourceKey, { name: string; sub: string; accept: string; fi
     sub: '.db file',
     accept: '.db',
     fileLabel: 'Choose .db file',
-    run: (f) => libraryService.importBookDiaryDB(f),
+    run: (f, p) => libraryService.importBookDiaryDB(f, p),
     steps: [
       <>On your device, locate the <b className="text-[var(--text)]">Book Diary Pro</b> database — usually named <b className="text-[var(--text)]">book-diary-pro.db</b>.</>,
       <>On iOS you can share it via Files; on Android it's under the app's data folder.</>,
@@ -52,7 +52,7 @@ const SOURCES: Record<SourceKey, { name: string; sub: string; accept: string; fi
     sub: 'CSV export',
     accept: '.csv,text/csv',
     fileLabel: 'Choose CSV file',
-    run: (f) => libraryService.importStoryGraph(f),
+    run: (f, p) => libraryService.importStoryGraph(f, p),
     steps: [
       <>Go to <a href="https://app.thestorygraph.com/profile/settings" target="_blank" rel="noreferrer" className="text-nonsprimary underline">StoryGraph → Profile → Settings</a>.</>,
       <>Scroll to <b className="text-[var(--text)]">Export Your Data</b> and click <b className="text-[var(--text)]">Export your books</b>.</>,
@@ -67,16 +67,17 @@ export default function ImportModal({ isOpen, onClose, onImported }: Props) {
   const [source, setSource] = useState<SourceKey>('goodreads')
   const [file, setFile] = useState<File | null>(null)
   const [busy, setBusy] = useState(false)
-  const [result, setResult] = useState<ImportSummary | null>(null)
+  const [progress, setProgress] = useState<ImportJob | null>(null)
+  const [result, setResult] = useState<ImportJob | null>(null)
   const [error, setError] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
   if (!isOpen) return null
 
-  const reset = () => { setStep('choose'); setFile(null); setResult(null); setError(null); setBusy(false) }
+  const reset = () => { setStep('choose'); setFile(null); setResult(null); setError(null); setBusy(false); setProgress(null) }
   const close = () => { reset(); onClose() }
   const back = () => {
-    setError(null); setResult(null); setFile(null)
+    setError(null); setResult(null); setFile(null); setProgress(null)
     if (step === 'upload') {
       const isBookDiary = source === 'bookdiarycsv' || source === 'bookdiarydb'
       setStep(isBookDiary ? 'bookdiary' : 'books')
@@ -91,15 +92,15 @@ export default function ImportModal({ isOpen, onClose, onImported }: Props) {
 
   const doImport = async () => {
     if (!file) return
-    setBusy(true); setError(null)
+    setBusy(true); setError(null); setProgress(null)
     try {
-      const sum = await SOURCES[source].run(file)
+      const sum = await SOURCES[source].run(file, setProgress)
       setResult(sum)
       onImported()
     } catch (e) {
       setError((e as Error)?.message || t('importFailed') || 'Import failed — make sure the file is correct.')
     } finally {
-      setBusy(false)
+      setBusy(false); setProgress(null)
     }
   }
 
@@ -206,6 +207,24 @@ export default function ImportModal({ isOpen, onClose, onImported }: Props) {
             </button>
 
             {error && <p className="text-sm text-nonslightred">{error}</p>}
+
+            {/* Live progress: the import runs as a background job we poll, so a big
+                library shows a moving bar instead of timing out the request. */}
+            {busy && (
+              <div className="flex flex-col gap-1.5">
+                <div className="h-2 w-full overflow-hidden rounded-full bg-[var(--surface)]">
+                  <div
+                    className="h-full rounded-full bg-nonsprimary transition-all duration-300"
+                    style={{ width: `${progress && progress.total > 0 ? Math.round((progress.processed / progress.total) * 100) : 5}%` }}
+                  />
+                </div>
+                <p className="text-xs text-[var(--text-muted)]">
+                  {progress && progress.total > 0
+                    ? `${progress.processed} / ${progress.total} ${t('booksImported') || 'books imported'}`
+                    : (t('importing') || 'Importing…')}
+                </p>
+              </div>
+            )}
 
             <button
               onClick={doImport}
