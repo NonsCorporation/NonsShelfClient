@@ -167,3 +167,42 @@ class ApiActivityService implements IActivityService {
 }
 
 export const activityService: IActivityService = new ApiActivityService()
+
+/** Fetch one page of a single user's public activity posts. */
+export async function getUserActivity(
+  userId: number,
+  userInfo: Activity['user'],
+  page = 0,
+  perPage = 10,
+): Promise<ActivityPage> {
+  const params = new URLSearchParams({ user_ids: String(userId), limit: String(perPage), offset: String(page * perPage) })
+  const res = await authedFetch(`/api/activity?${params}`)
+  if (!res.ok) return { items: [], total: 0 }
+  const body = await res.json()
+  const events: ActivityEvent[] = body.items ?? []
+  return {
+    items: events
+      .filter((e) => e.media)
+      .map((e) => ({
+        id: `p-${e.post_id}`,
+        postId: e.post_id,
+        userId: e.user_id,
+        user: { ...userInfo, ...(e.user_role ? { role: e.user_role } : {}) },
+        type: e.type,
+        mediaId: e.media!.id,
+        mediaUuid: e.media!.uuid || undefined,
+        mediaTitle: e.edition_title || e.media!.title,
+        mediaType: e.media!.type,
+        mediaAuthor: e.media!.author || undefined,
+        mediaYear: e.media!.year || undefined,
+        mediaDescription: e.media!.description || undefined,
+        coverUrl: e.edition_cover || e.media!.cover_url || undefined,
+        rating: e.value || undefined,
+        text: e.note || undefined,
+        progressPct: e.progress_pct || undefined,
+        page: e.page || undefined,
+        timeAgo: timeAgo(e.at),
+      })),
+    total: body.total ?? 0,
+  }
+}

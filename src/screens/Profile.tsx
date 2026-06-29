@@ -19,7 +19,9 @@ import BoringAvatar from '../components/BoringAvatar'
 import { mediaPath } from '../lib/paths'
 import { STATUS_COLOR, statusLabel } from '../lib/shelf'
 import TypeBadge from '../components/TypeBadge'
-import StarsSelector from '../StarsSelector'
+import ActivityCard from '../components/ActivityCard'
+import { getUserActivity, colorFor, type Activity } from '../services/activityService'
+import { getCommentCounts } from '../services/commentService'
 import {
   IoOpenOutline,
   IoSettingsOutline,
@@ -27,8 +29,6 @@ import {
   IoBookOutline,
   IoFilmOutline,
   IoTvOutline,
-  IoChatbubbleOutline,
-  IoStarOutline,
   IoStar,
   IoFolderOutline,
   IoPeopleOutline,
@@ -49,8 +49,6 @@ type Tab = 'all' | ShelfStatus
 
 type Friend = { uuid: string; username: string; name: string; avatarUrl?: string }
 
-// Reviews are paginated server-side; this many cards per page.
-const REVIEWS_PER_PAGE = 10
 
 // Per-type identity used across the cards: an icon, a label key and an accent
 // colour. Gives books, films and series a distinct, recognisable look instead of
@@ -79,27 +77,22 @@ export default function ProfilePage() {
   const [importOpen, setImportOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [friends, setFriends] = useState<Friend[]>([])
-  // Ratings & reviews — paginated server-side (separate from the shelf items).
-  const [reviews, setReviews] = useState<MediaItem[]>([])
-  const [reviewsTotal, setReviewsTotal] = useState(0)
-  const [reviewsPage, setReviewsPage] = useState(0) // zero-based
-  const [reviewsLoading, setReviewsLoading] = useState(false)
-  const reviewsRef = useRef<HTMLElement>(null)
+  // Activity posts — feed-style cards with comments, replaces the custom reviews section.
+  const [posts, setPosts] = useState<Activity[]>([])
+  const [postsTotal, setPostsTotal] = useState(0)
+  const [postsPage, setPostsPage] = useState(0) // zero-based
+  const [postsLoading, setPostsLoading] = useState(false)
+  const [postCommentCounts, setPostCommentCounts] = useState<Record<string, number>>({})
+  const postsRef = useRef<HTMLElement>(null)
   const { collections } = useCollections()
 
-  // Jump to the top of the reviews list, then load the page. Used on page
-  // change so the user lands at the first card instead of mid-scroll.
-  const goToReviewsPage = (page: number) => {
-    reviewsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    setReviewsPage(page)
-  }
 
   useEffect(() => {
     if (authLoading) return
     let cancelled = false
     setLoading(true)
     setNotFound(false)
-    setReviewsPage(0) // new profile → back to the first page of reviews
+    setPostsPage(0)
 
     const mine = !routeId || routeId === authUser?.username || routeId === authUser?.uuid
 
@@ -164,28 +157,33 @@ export default function ProfilePage() {
 
   const byNewest = (a: MediaItem, b: MediaItem) => (b.dateAdded ?? '').localeCompare(a.dateAdded ?? '')
 
-  // Rated OR reviewed items, fetched one page at a time from the server (the
-  // list can grow large, so we don't load it all with the shelf items).
+
+  const POSTS_PER_PAGE = 10
   useEffect(() => {
     if (!profile) return
     let cancelled = false
-    setReviewsLoading(true)
-    libraryService
-      .getReviews(isSelf ? undefined : profile.id, reviewsPage, REVIEWS_PER_PAGE)
+    setPostsLoading(true)
+    const userInfo: Activity['user'] = {
+      name: profile.name,
+      handle: profile.handle,
+      color: colorFor(profile.handle),
+      avatarUrl: profile.avatar || undefined,
+      role: profile.role,
+    }
+    getUserActivity(profile.id, userInfo, postsPage, POSTS_PER_PAGE)
       .then((res) => {
         if (cancelled) return
-        setReviews(res.items)
-        setReviewsTotal(res.total)
+        setPosts(res.items)
+        setPostsTotal(res.total)
+        getCommentCounts(res.items.map((a) => a.postId))
+          .then((counts) => { if (!cancelled) setPostCommentCounts(counts) })
+          .catch(() => {})
       })
-      .finally(() => {
-        if (!cancelled) setReviewsLoading(false)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [profile, isSelf, reviewsPage])
+      .finally(() => { if (!cancelled) setPostsLoading(false) })
+    return () => { cancelled = true }
+  }, [profile, postsPage])
 
-  const reviewsPageCount = Math.ceil(reviewsTotal / REVIEWS_PER_PAGE)
+  const postsPageCount = Math.ceil(postsTotal / POSTS_PER_PAGE)
 
   const counts = useMemo(
     () => ({
@@ -202,6 +200,13 @@ export default function ProfilePage() {
     if (collectionFilter !== null) list = list.filter((it) => it.collectionIds?.includes(collectionFilter))
     return list.sort(byNewest)
   }, [items, tab, collectionFilter])
+
+  const myByMedia = useMemo(() => {
+    if (!isSelf) return new Map<number, MediaItem>()
+    const m = new Map<number, MediaItem>()
+    for (const it of items) m.set(Number(it.id), it)
+    return m
+  }, [isSelf, items])
 
   const ratedAvg = useMemo(() => {
     const rated = items.filter((it) => typeof it.rating === 'number' && it.rating > 0)
@@ -444,91 +449,40 @@ export default function ProfilePage() {
         </Link>
       </div>
 
-      {/* Ratings & reviews — below the shelves, Goodreads-style */}
-      <section ref={reviewsRef} className="-mx-4 mt-8 scroll-mt-4 sm:mx-0">
-        <h2 className="mb-3 flex items-baseline gap-2 px-4 text-base font-semibold text-[var(--text)] sm:px-0">
+      {/* Ratings & reviews — feed-style ActivityCards with comment threads */}
+      <section ref={postsRef} className="mt-8 scroll-mt-4">
+        <h2 className="mb-2 text-base font-semibold text-[var(--text)]">
           {t('ratingsReviewsTitle')}
-          {reviewsTotal > 0 && <span className="text-sm font-normal text-[var(--text-muted)]">{reviewsTotal}</span>}
+          {postsTotal > 0 && <span className="ml-2 text-sm font-normal text-[var(--text-muted)]">{postsTotal}</span>}
         </h2>
-        {reviewsTotal === 0 ? (
-          !reviewsLoading && (
-            <p className="mx-4 rounded-xl border border-dashed border-[var(--border-subtle)] px-4 py-6 text-sm text-[var(--text-muted)] sm:mx-0">
+        {postsTotal === 0 ? (
+          !postsLoading && (
+            <p className="rounded-xl border border-dashed border-[var(--border-subtle)] px-4 py-6 text-sm text-[var(--text-muted)]">
               {t('noRatingsReviews')}
             </p>
           )
         ) : (
-          <div className={`flex flex-col gap-3 transition-opacity sm:gap-4 ${reviewsLoading ? 'opacity-60' : ''}`}>
-            {reviews.map((it) => {
-              const meta = typeMeta(it.type)
-              const TypeIcon = meta.icon
-              const rated = typeof it.rating === 'number' && it.rating > 0
-              const hasReview = !!(it.review && it.review.trim())
-              return (
-                <article
-                  key={it.id}
-                  className="group border-b border-[var(--border-subtle)] bg-[var(--container)] px-4 py-4 transition-colors hover:border-[var(--border)] sm:rounded-2xl sm:border sm:p-5"
-                >
-                  {/* cover + details, single aligned column on the right */}
-                  <div className="flex gap-4">
-                    <Link to={mediaPath(it)} className="block w-[68px] flex-shrink-0 sm:w-[84px]" title={it.title}>
-                      <Cover item={it} />
-                    </Link>
-                    <div className="min-w-0 flex-1">
-                      {/* type chip + year — colour-coded per media kind */}
-                      <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide">
-                        <span
-                          className="inline-flex items-center gap-1 rounded-full px-2 py-0.5"
-                          style={{ backgroundColor: `${meta.color}1f`, color: meta.color }}
-                        >
-                          <TypeIcon className="h-3 w-3" />
-                          {t(meta.labelKey)}
-                        </span>
-                        {it.year && <span className="text-[var(--text-muted)]">{it.year}</span>}
-                      </div>
-
-                      <Link
-                        to={mediaPath(it)}
-                        className="mt-1.5 block text-base font-bold leading-snug text-[var(--text)] hover:text-nonsprimary"
-                      >
-                        {it.title}
-                      </Link>
-                      {(it.author || it.director) && (
-                        <p className="text-sm text-[var(--text-muted)]">
-                          {t('by')} <span className="text-[var(--text)]">{it.author || it.director}</span>
-                        </p>
-                      )}
-
-                      {/* action line: stars, then what the user did + when —
-                          packed together (no stretched gap before the date). */}
-                      <div className="mt-2 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-[var(--text-muted)]">
-                        {rated && (
-                          <span className="flex items-center gap-1.5">
-                            <StarsSelector initialValue={it.rating} isEditable={false} size="sm" />
-                            <span className="font-semibold text-[var(--text)]">{(it.rating! / 2).toFixed(1)}</span>
-                          </span>
-                        )}
-                        <span className="inline-flex items-center gap-1">
-                          {hasReview ? <IoChatbubbleOutline className="h-3.5 w-3.5" /> : <IoStarOutline className="h-3.5 w-3.5" />}
-                          {hasReview ? t('verbReviewed') : t('verbRated')}
-                          {it.dateAdded && ` · ${formatDate(it.dateAdded)}`}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* review text sits below, divided from the meta */}
-                  {hasReview && (
-                    <p className="mt-3 whitespace-pre-line border-t border-[var(--border-subtle)] pt-3 text-sm leading-6 text-[var(--text)]">
-                      {it.review}
-                    </p>
-                  )}
-                </article>
-              )
-            })}
+          <div className={`flex flex-col gap-4 transition-opacity ${postsLoading ? 'opacity-60' : ''}`}>
+            {posts.map((a) => (
+              <ActivityCard
+                key={a.id}
+                a={a}
+                commentCount={postCommentCounts[String(a.postId)] ?? 0}
+                myItem={myByMedia.get(a.mediaId)}
+                onDeleted={(postId) => {
+                  setPosts((prev) => prev.filter((x) => x.postId !== postId))
+                  setPostsTotal((n) => Math.max(0, n - 1))
+                }}
+                onCountChange={(postId, n) => setPostCommentCounts((m) => ({ ...m, [String(postId)]: n }))}
+              />
+            ))}
             <Pagination
-              currentPage={reviewsPage + 1}
-              totalPages={reviewsPageCount}
-              onPageChange={(p) => goToReviewsPage(p - 1)}
+              currentPage={postsPage + 1}
+              totalPages={postsPageCount}
+              onPageChange={(p) => {
+                postsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                setPostsPage(p - 1)
+              }}
               t={t}
             />
           </div>
@@ -560,10 +514,4 @@ function Cover({ item, children }: { item: MediaItem; children?: ReactNode }) {
       {children}
     </div>
   )
-}
-
-function formatDate(iso: string): string {
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return ''
-  return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
 }
