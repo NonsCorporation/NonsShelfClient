@@ -24,15 +24,19 @@ export async function buildMediaMetadata(id: string): Promise<Metadata> {
   const description = (
     m.description || `${m.title} on Nons Shelf — track it, rate it, and see what your friends think.`
   ).slice(0, 200)
-  const images = m.cover_url ? [m.cover_url] : []
   const url = `${SITE_URL}${canonicalPath(m)}`
+
+  // Force HTTPS — Google Books covers come back as http:// which Telegram rejects.
+  // Always include an image: Telegram won't render a preview card without og:image.
+  const rawCover = m.cover_url ? m.cover_url.replace(/^http:\/\//i, 'https://') : null
+  const ogImage = { url: rawCover ?? `${SITE_URL}/logo.png`, alt: m.title }
 
   return {
     title,
     description,
     alternates: { canonical: url },
-    openGraph: { title, description, url, images, type: 'website' },
-    twitter: { card: 'summary_large_image', title, description, images },
+    openGraph: { title, description, url, siteName: 'Nons Shelf', images: [ogImage], type: 'website' },
+    twitter: { card: 'summary_large_image', title, description, images: [ogImage] },
   }
 }
 
