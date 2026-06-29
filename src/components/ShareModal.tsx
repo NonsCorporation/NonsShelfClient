@@ -257,6 +257,7 @@ export default function ShareModal({ isOpen, item, coverUrl, title, author, tota
     <div
       ref={cardRef}
       style={{
+        width: 480,
         background: accentGradient ? `${accentGradient}, ${BG}` : BG,
         color: INK,
         padding: 22,
