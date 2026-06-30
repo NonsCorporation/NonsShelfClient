@@ -10,9 +10,11 @@ interface Props {
   min?: string
   max?: string
   placeholder?: string
+  openUp?: boolean       // open panel above trigger (default: true)
 }
 
 const DAYS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su']
+const TOTAL_CELLS = 42  // always 6 rows so the panel height never changes
 
 function parseDate(s: string): Date | null {
   if (!s) return null
@@ -33,17 +35,27 @@ function dow(d: Date): number {
   return (d.getUTCDay() + 6) % 7
 }
 
-export default function DatePicker({ value, onChange, min, max, placeholder }: Props) {
+// Base year for the year-grid view: the nearest multiple of 12 below `year`
+function yearGridBase(y: number): number {
+  return Math.floor(y / 12) * 12
+}
+
+export default function DatePicker({ value, onChange, min, max, placeholder, openUp = true }: Props) {
   const { language } = useLanguage()
+  const locale = language === 'ru' ? 'ru-RU' : 'en-US'
   const selected = parseDate(value)
 
   const today = new Date()
+  const todayYmd = ymd(today)
   const initYear = selected?.getUTCFullYear() ?? today.getFullYear()
   const initMonth = selected?.getUTCMonth() ?? today.getMonth()
 
   const [open, setOpen] = useState(false)
+  const [view, setView] = useState<'days' | 'years'>('days')
   const [year, setYear] = useState(initYear)
   const [month, setMonth] = useState(initMonth)
+  // Base of the 12-year block shown in year-grid view
+  const [yearBase, setYearBase] = useState(() => yearGridBase(initYear))
   const ref = useRef<HTMLDivElement>(null)
 
   // Sync viewport when value changes externally
@@ -58,12 +70,16 @@ export default function DatePicker({ value, onChange, min, max, placeholder }: P
   useEffect(() => {
     if (!open) return
     function handler(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false)
+        setView('days')
+      }
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
   }, [open])
 
+  // ── Month navigation (days view) ──────────────────────────────────────────
   function prevMonth() {
     if (month === 0) { setMonth(11); setYear(y => y - 1) }
     else setMonth(m => m - 1)
@@ -73,10 +89,25 @@ export default function DatePicker({ value, onChange, min, max, placeholder }: P
     else setMonth(m => m + 1)
   }
 
+  // ── Year-grid navigation ──────────────────────────────────────────────────
+  function prevYearBlock() { setYearBase(b => b - 12) }
+  function nextYearBlock() { setYearBase(b => b + 12) }
+
+  function openYearView() {
+    setYearBase(yearGridBase(year))
+    setView('years')
+  }
+
+  function pickYear(y: number) {
+    setYear(y)
+    setView('days')
+  }
+
+  // ── Day selection ─────────────────────────────────────────────────────────
   function select(d: Date) {
-    const s = ymd(d)
-    onChange(s)
+    onChange(ymd(d))
     setOpen(false)
+    setView('days')
   }
 
   function clear(e: React.MouseEvent) {
@@ -84,7 +115,7 @@ export default function DatePicker({ value, onChange, min, max, placeholder }: P
     onChange('')
   }
 
-  // Build calendar grid
+  // ── Calendar grid (always 42 cells = 6 rows) ──────────────────────────────
   const firstDay = monthStart(year, month)
   const offset = dow(firstDay)
   const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate()
@@ -103,23 +134,30 @@ export default function DatePicker({ value, onChange, min, max, placeholder }: P
     ...Array(offset).fill(null),
     ...Array.from({ length: daysInMonth }, (_, i) => new Date(Date.UTC(year, month, i + 1))),
   ]
-  // Pad to full weeks
-  while (cells.length % 7 !== 0) cells.push(null)
+  while (cells.length < TOTAL_CELLS) cells.push(null)
 
-  const monthLabel = new Date(Date.UTC(year, month, 1)).toLocaleString(
-    language === 'ru' ? 'ru-RU' : 'en-US',
-    { month: 'long', timeZone: 'UTC' }
-  )
+  // ── Year grid (12 years per block) ────────────────────────────────────────
+  const yearCells = Array.from({ length: 12 }, (_, i) => yearBase + i)
+
+  // ── Labels ────────────────────────────────────────────────────────────────
+  const monthLabel = new Date(Date.UTC(year, month, 1)).toLocaleString(locale, {
+    month: 'short', timeZone: 'UTC',
+  })
 
   const displayValue = selected
-    ? selected.toLocaleDateString(language === 'ru' ? 'ru-RU' : 'en-US', {
+    ? selected.toLocaleDateString(locale, {
         day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC',
       })
     : ''
 
+  const panelPosition = openUp
+    ? 'bottom-[calc(100%+6px)] left-0'
+    : 'top-[calc(100%+6px)] left-0'
+
   return (
     <div ref={ref} className="relative flex-1">
-      {/* Trigger */}
+
+      {/* ── Trigger button ─────────────────────────────────────────────────── */}
       <button
         type="button"
         onClick={() => setOpen(o => !o)}
@@ -144,67 +182,129 @@ export default function DatePicker({ value, onChange, min, max, placeholder }: P
         )}
       </button>
 
-      {/* Calendar panel */}
+      {/* ── Calendar panel ─────────────────────────────────────────────────── */}
       {open && (
-        <div className="absolute bottom-[calc(100%+6px)] left-0 z-50 w-64 overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--container)] shadow-xl">
-          {/* Month nav */}
-          <div className="flex items-center justify-between px-4 py-3">
-            <button
-              type="button"
-              onClick={prevMonth}
-              className="flex h-7 w-7 items-center justify-center rounded-lg text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] transition-colors"
-            >
-              <IoChevronBack className="h-4 w-4" />
-            </button>
-            <span className="text-sm font-semibold capitalize text-[var(--text)]">
-              {monthLabel} {year}
-            </span>
-            <button
-              type="button"
-              onClick={nextMonth}
-              className="flex h-7 w-7 items-center justify-center rounded-lg text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] transition-colors"
-            >
-              <IoChevronForward className="h-4 w-4" />
-            </button>
-          </div>
+        <div className={`absolute ${panelPosition} z-50 w-64 overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--container)] shadow-xl`}>
 
-          {/* Day labels */}
-          <div className="grid grid-cols-7 px-3 pb-1">
-            {DAYS.map(d => (
-              <div key={d} className="py-1 text-center text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">
-                {d}
-              </div>
-            ))}
-          </div>
-
-          {/* Day cells */}
-          <div className="grid grid-cols-7 gap-y-0.5 px-3 pb-3">
-            {cells.map((d, i) => {
-              if (!d) return <div key={i} />
-              const isSelected = selected && ymd(d) === ymd(selected)
-              const disabled = isDisabled(d)
-              const isToday = ymd(d) === ymd(today)
-              return (
+          {view === 'days' ? (
+            <>
+              {/* Month nav */}
+              <div className="flex items-center justify-between px-4 py-3">
                 <button
-                  key={i}
                   type="button"
-                  disabled={disabled}
-                  onClick={() => select(d)}
-                  className={`mx-auto flex h-8 w-8 items-center justify-center rounded-xl text-sm font-medium transition-colors
-                    ${isSelected
-                      ? 'bg-nonsprimary text-white shadow-sm'
-                      : isToday
-                        ? 'bg-[var(--surface-active)] text-[var(--text)] ring-1 ring-[var(--border)]'
-                        : disabled
-                          ? 'cursor-not-allowed text-[var(--text-muted)] opacity-30'
-                          : 'text-[var(--text)] hover:bg-[var(--surface-hover)]'
-                    }`}
+                  onClick={prevMonth}
+                  className="flex h-7 w-7 items-center justify-center rounded-lg text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] transition-colors"
                 >
-                  {d.getUTCDate()}
+                  <IoChevronBack className="h-4 w-4" />
                 </button>
-              )
-            })}
-          </div>
+
+                <button
+                  type="button"
+                  onClick={openYearView}
+                  className="rounded-lg px-2 py-1 text-sm font-semibold capitalize text-[var(--text)] hover:bg-[var(--surface-hover)] transition-colors"
+                  title="Pick year"
+                >
+                  {monthLabel} {year}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={nextMonth}
+                  className="flex h-7 w-7 items-center justify-center rounded-lg text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] transition-colors"
+                >
+                  <IoChevronForward className="h-4 w-4" />
+                </button>
+              </div>
+
+              {/* Day-of-week labels */}
+              <div className="grid grid-cols-7 px-3 pb-1">
+                {DAYS.map(d => (
+                  <div key={d} className="py-1 text-center text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+                    {d}
+                  </div>
+                ))}
+              </div>
+
+              {/* Day cells — always 42 so height is constant */}
+              <div className="grid grid-cols-7 gap-y-0.5 px-3 pb-3">
+                {cells.map((d, i) => {
+                  if (!d) return <div key={i} className="h-8 w-8" />
+                  const isSelected = selected && ymd(d) === ymd(selected)
+                  const disabled = isDisabled(d)
+                  const isToday = ymd(d) === todayYmd
+                  return (
+                    <button
+                      key={i}
+                      type="button"
+                      disabled={disabled}
+                      onClick={() => select(d)}
+                      className={`mx-auto flex h-8 w-8 items-center justify-center rounded-xl text-sm font-medium transition-colors
+                        ${isSelected
+                          ? 'bg-nonsprimary/5 text-[var(--text)] ring-1 ring-nonsprimary/60'
+                          : isToday
+                            ? 'bg-[var(--surface-active)] text-[var(--text)] ring-1 ring-[var(--border)]'
+                            : disabled
+                              ? 'cursor-not-allowed text-[var(--text-muted)] opacity-30'
+                              : 'text-[var(--text)] hover:bg-[var(--surface-hover)]'
+                        }`}
+                    >
+                      {d.getUTCDate()}
+                    </button>
+                  )
+                })}
+              </div>
+            </>
+          ) : (
+            <>
+              {/* Year-block nav */}
+              <div className="flex items-center justify-between px-4 py-3">
+                <button
+                  type="button"
+                  onClick={prevYearBlock}
+                  className="flex h-7 w-7 items-center justify-center rounded-lg text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] transition-colors"
+                >
+                  <IoChevronBack className="h-4 w-4" />
+                </button>
+
+                <span className="text-sm font-semibold text-[var(--text)]">
+                  {yearBase} – {yearBase + 11}
+                </span>
+
+                <button
+                  type="button"
+                  onClick={nextYearBlock}
+                  className="flex h-7 w-7 items-center justify-center rounded-lg text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] transition-colors"
+                >
+                  <IoChevronForward className="h-4 w-4" />
+                </button>
+              </div>
+
+              {/* Year grid — 3 columns × 4 rows to roughly match panel height */}
+              <div className="grid grid-cols-3 gap-1.5 px-3 pb-4 pt-1">
+                {yearCells.map(y => {
+                  const isCurrent = y === year
+                  const isThisYear = y === today.getFullYear()
+                  return (
+                    <button
+                      key={y}
+                      type="button"
+                      onClick={() => pickYear(y)}
+                      className={`rounded-xl py-2 text-sm font-medium transition-colors ${
+                        isCurrent
+                          ? 'bg-nonsprimary/5 text-[var(--text)] ring-1 ring-nonsprimary/60'
+                          : isThisYear
+                            ? 'bg-[var(--surface-active)] text-[var(--text)] ring-1 ring-[var(--border)]'
+                            : 'text-[var(--text)] hover:bg-[var(--surface-hover)]'
+                      }`}
+                    >
+                      {y}
+                    </button>
+                  )
+                })}
+              </div>
+            </>
+          )}
+
         </div>
       )}
     </div>

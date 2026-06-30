@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useRef } from 'react'
-import { IoCalendarOutline, IoClose } from 'react-icons/io5'
+import { useState } from 'react'
+import { IoCalendarOutline } from 'react-icons/io5'
 import { libraryService } from '../services/libraryService'
 import type { MediaItem } from '../types'
 import { useLanguage } from '../contexts/LanguageContext'
+import DatePicker from './DatePicker'
 
 function toDateInput(v?: string | number): string {
   if (!v) return ''
@@ -16,85 +17,6 @@ function toUnix(v: string): number {
   if (!v) return 0
   const t = new Date(v).getTime()
   return isNaN(t) ? 0 : Math.floor(t / 1000)
-}
-
-function formatDate(iso: string): string {
-  if (!iso) return ''
-  // noon to avoid DST off-by-one on the day boundary
-  return new Date(iso + 'T12:00:00').toLocaleDateString('en', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  })
-}
-
-interface DateRowProps {
-  label: string
-  value: string
-  min?: string
-  max?: string
-  onChange: (v: string) => void
-  onClear: () => void
-  saving: boolean
-}
-
-function DateRow({ label, value, min, max, onChange, onClear, saving }: DateRowProps) {
-  const inputRef = useRef<HTMLInputElement>(null)
-
-  const openPicker = () => {
-    const el = inputRef.current
-    if (!el) return
-    try {
-      // showPicker() is the spec-compliant way; requires a user-gesture context
-      ;(el as HTMLInputElement & { showPicker?: () => void }).showPicker?.()
-    } catch {
-      el.click()
-    }
-  }
-
-  return (
-    <div
-      role="button"
-      tabIndex={0}
-      onClick={openPicker}
-      onKeyDown={(e) => e.key === 'Enter' && openPicker()}
-      className="relative flex cursor-pointer items-center gap-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--container)] px-3 py-2.5 transition-colors hover:bg-[var(--surface-hover)] select-none"
-    >
-      <IoCalendarOutline className="h-4 w-4 flex-shrink-0 text-[var(--text-muted)]" />
-
-      <div className="min-w-0 flex-1">
-        <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--text-muted)]">{label}</p>
-        <p className={`mt-0.5 text-sm font-medium ${value ? 'text-[var(--text)]' : 'text-[var(--text-muted)]'}`}>
-          {value ? formatDate(value) : '—'}
-        </p>
-      </div>
-
-      {value && (
-        <button
-          onClick={(e) => { e.stopPropagation(); onClear() }}
-          disabled={saving}
-          aria-label="Clear date"
-          className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-[var(--text-muted)] transition-colors hover:bg-[var(--surface)] hover:text-[var(--text)] disabled:opacity-40"
-        >
-          <IoClose className="h-3.5 w-3.5" />
-        </button>
-      )}
-
-      {/* Anchors the picker near this row — absolute within the relative container,
-          full-width but 1 px tall at the bottom edge, invisible to the user. */}
-      <input
-        ref={inputRef}
-        type="date"
-        value={value}
-        min={min}
-        max={max}
-        onChange={(e) => onChange(e.target.value)}
-        tabIndex={-1}
-        aria-hidden="true"
-        style={{ position: 'absolute', bottom: 0, left: 0, width: '100%', height: 1, opacity: 0, pointerEvents: 'none' }}
-      />
-    </div>
-  )
 }
 
 export default function ReadingDates({ item, onSaved }: { item: MediaItem; onSaved?: () => void }) {
@@ -119,8 +41,6 @@ export default function ReadingDates({ item, onSaved }: { item: MediaItem; onSav
 
   const onStarted  = (v: string) => { setStarted(v);  save(v, finished) }
   const onFinished = (v: string) => { setFinished(v); save(started, v) }
-  const clearStarted  = () => { setStarted('');  save('', finished) }
-  const clearFinished = () => { setFinished(''); save(started, '') }
 
   return (
     <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface)] p-3">
@@ -129,23 +49,29 @@ export default function ReadingDates({ item, onSaved }: { item: MediaItem; onSav
         {isBook ? t('readingDates') : t('watchingDates')}
         {saving && <span className="ml-auto normal-case tracking-normal">{t('saving')}</span>}
       </div>
-      <div className="flex flex-col gap-1.5">
-        <DateRow
-          label={isBook ? t('dateStarted') : t('dateStartedWatching')}
-          value={started}
-          max={finished || undefined}
-          onChange={onStarted}
-          onClear={clearStarted}
-          saving={saving}
-        />
-        <DateRow
-          label={isBook ? t('dateFinished') : t('dateFinishedWatching')}
-          value={finished}
-          min={started || undefined}
-          onChange={onFinished}
-          onClear={clearFinished}
-          saving={saving}
-        />
+      <div className="flex flex-col gap-2">
+        <div>
+          <p className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-[var(--text-muted)]">
+            {isBook ? t('dateStarted') : t('dateStartedWatching')}
+          </p>
+          <DatePicker
+            value={started}
+            onChange={onStarted}
+            max={finished || undefined}
+            placeholder="—"
+          />
+        </div>
+        <div>
+          <p className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-[var(--text-muted)]">
+            {isBook ? t('dateFinished') : t('dateFinishedWatching')}
+          </p>
+          <DatePicker
+            value={finished}
+            onChange={onFinished}
+            min={started || undefined}
+            placeholder="—"
+          />
+        </div>
       </div>
     </div>
   )

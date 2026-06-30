@@ -4,6 +4,7 @@ import StarsSelector from '../StarsSelector'
 import { libraryService } from '../services/libraryService'
 import type { MediaItem } from '../types'
 import { useLanguage } from '../contexts/LanguageContext'
+import DatePicker from './DatePicker'
 
 type Props = {
   isOpen: boolean
@@ -74,9 +75,6 @@ export default function FinishModal({ isOpen, item, onClose, onFinished }: Props
     }
   }
 
-  const dateInput =
-    'h-11 px-3 rounded-lg bg-[var(--input)] border border-[var(--border-subtle)] text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-ring)] disabled:opacity-60'
-
   return (
     <div onClick={onClose} className="fixed inset-0 z-[70] flex items-center justify-center bg-[var(--overlay)] p-4">
       <div
@@ -120,14 +118,30 @@ export default function FinishModal({ isOpen, item, onClose, onFinished }: Props
         </label>
 
         <div className="grid grid-cols-2 gap-3">
-          <label className="flex flex-col gap-1.5 text-sm font-medium text-[var(--text)]">
-            {t('dateStarted') || 'Date started'}
-            <input type="date" value={started} onChange={(e) => setStarted(e.target.value)} className={dateInput} />
-          </label>
-          <label className="flex flex-col gap-1.5 text-sm font-medium text-[var(--text)]">
-            {finishedLabel}
-            <input type="date" value={finished} onChange={(e) => setFinished(e.target.value)} className={dateInput} />
-          </label>
+          <div className="flex flex-col gap-1">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--text-muted)]">
+              {t('dateStarted') || 'Date started'}
+            </p>
+            <DatePicker
+              value={started}
+              onChange={setStarted}
+              max={finished || undefined}
+              placeholder="—"
+              openUp={true}
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--text-muted)]">
+              {finishedLabel}
+            </p>
+            <DatePicker
+              value={finished}
+              onChange={setFinished}
+              min={started || undefined}
+              placeholder="—"
+              openUp={true}
+            />
+          </div>
         </div>
 
         <label className="flex cursor-pointer items-center gap-2 text-sm text-[var(--text)]">
