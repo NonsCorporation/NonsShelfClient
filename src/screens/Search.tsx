@@ -8,6 +8,7 @@ import { libraryService } from '../services/libraryService'
 import type { MediaItem, MediaType } from '../types'
 import { useLanguage } from '../contexts/LanguageContext'
 import { IoSearchOutline } from 'react-icons/io5'
+import InfinityLoader from '../components/InfinityLoader'
 
 const keyOf = (it: { type: string; title: string }) => `${it.type}:${it.title.trim().toLowerCase()}`
 
@@ -158,9 +159,8 @@ export default function SearchPage() {
           ))}
         </div>
       ) : importing ? (
-        <div className="flex flex-col items-center gap-3 py-16">
-          <div className="h-7 w-7 animate-spin rounded-full border-4 border-nonsprimary border-t-transparent" />
-          <p className="text-sm text-[var(--text-muted)]">{t('searchingExternal')}</p>
+        <div className="flex justify-center py-16">
+          <InfinityLoader size={100} hint={t('searchingExternal')} />
         </div>
       ) : catalog.length === 0 ? (
         <p className="py-16 text-center text-sm text-[var(--text-muted)]">{t('noResults')}</p>
