@@ -58,6 +58,7 @@ export default function ActivityCard({
   onDeleted,
   onCountChange,
   onShelfChange,
+  openComments: initialOpenComments,
 }: {
   a: Activity
   commentCount?: number
@@ -71,11 +72,13 @@ export default function ActivityCard({
   /** Persisted shelf change for this media — lifted so the parent feed updates
    *  its own library state (and the in-progress row). */
   onShelfChange?: (item: MediaItem) => void
+  /** When true, the comment thread is expanded on mount (deep-link from notifications). */
+  openComments?: boolean
 }) {
   const { t } = useLanguage()
   const { user } = useAuth()
   const [liked, setLiked] = useState(false)
-  const [showComments, setShowComments] = useState(false)
+  const [showComments, setShowComments] = useState(initialOpenComments ?? false)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
 

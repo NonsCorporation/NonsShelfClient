@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import { AuthProvider } from '@/contexts/AuthContext'
 import { LanguageProvider } from '@/contexts/LanguageContext'
+import { NotificationProvider } from '@/contexts/NotificationContext'
 import { PreferencesProvider } from '@/contexts/PreferencesContext'
 import { CollectionProvider } from '@/contexts/CollectionContext'
 import RequireAuth from '@/components/RequireAuth'
@@ -26,9 +27,11 @@ export default function Providers({ children }: { children: ReactNode }) {
       <CollectionProvider>
         <LanguageProvider>
           <PreferencesProvider>
-            <RequireAuth>
-              {children}
-            </RequireAuth>
+            <NotificationProvider>
+              <RequireAuth>
+                {children}
+              </RequireAuth>
+            </NotificationProvider>
           </PreferencesProvider>
         </LanguageProvider>
       </CollectionProvider>

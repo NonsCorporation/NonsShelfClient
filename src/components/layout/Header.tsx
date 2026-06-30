@@ -13,11 +13,13 @@ import {
   IoLogOutOutline,
   IoLogInOutline,
   IoPersonOutline,
+  IoNotificationsOutline,
 } from 'react-icons/io5'
 import type { IconType } from 'react-icons'
 import { FaCrown } from 'react-icons/fa6'
 import { useLanguage, type Language } from '../../contexts/LanguageContext'
 import { useAuth } from '../../contexts/AuthContext'
+import { useNotifications } from '../../contexts/NotificationContext'
 import { redirectToNonsLogin, NONS_LOGIN_URL } from '../../lib/api'
 import BoringAvatar from '../BoringAvatar'
 import { userPath, mediaPath } from '../../lib/paths'
@@ -34,6 +36,7 @@ export default function Header() {
   const [params] = useSearchParams()
   const { language, setLanguage, t } = useLanguage()
   const { user, logout, isAuthenticated, loading } = useAuth()
+  const { totalUnread, unreadCount } = useNotifications()
 
   const [accountOpen, setAccountOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
@@ -128,6 +131,20 @@ export default function Header() {
 
           {/* Right cluster */}
           <div className="ml-auto flex items-center gap-2">
+            {isAuthenticated && (
+              <Link
+                to="/notifications"
+                aria-label="Notifications"
+                className="relative flex h-9 w-9 items-center justify-center rounded-full text-[var(--text-muted)] transition-colors hover:bg-[var(--surface)] hover:text-[var(--text)]"
+              >
+                <IoNotificationsOutline className="h-[19px] w-[19px]" />
+                {totalUnread > 0 && (
+                  <span className="absolute right-1 top-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-nonsprimary px-1 text-[10px] font-bold leading-none text-white">
+                    {totalUnread > 99 ? '99+' : totalUnread}
+                  </span>
+                )}
+              </Link>
+            )}
             <HeaderSearch />
 
             {/* Account — desktop only; mobile uses the bottom-nav profile sheet */}
@@ -309,6 +326,22 @@ export default function Header() {
                     </Link>
                   </>
                 )}
+
+                <div className="h-px bg-[var(--border-subtle)]" />
+
+                <Link
+                  to="/notifications"
+                  onClick={() => setProfileOpen(false)}
+                  className={`relative flex w-full items-center gap-3 px-4 py-3 text-sm transition-colors hover:bg-[var(--surface)] hover:text-[var(--text)] ${path === '/notifications' ? 'text-[var(--text)]' : 'text-[var(--text-muted)]'}`}
+                >
+                  <IoNotificationsOutline className="h-[18px] w-[18px]" />
+                  {t('notifications') || 'Notifications'}
+                  {totalUnread > 0 && (
+                    <span className="ml-auto flex h-5 min-w-[20px] items-center justify-center rounded-full bg-nonsprimary px-1.5 text-[10px] font-bold text-white">
+                      {totalUnread > 99 ? '99+' : totalUnread}
+                    </span>
+                  )}
+                </Link>
 
                 <div className="h-px bg-[var(--border-subtle)]" />
 

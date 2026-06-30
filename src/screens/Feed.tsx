@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useNavigate } from '@/lib/router'
+import { Link, useNavigate, useSearchParams } from '@/lib/router'
 import Layout from '../components/layout/Layout'
 import ActivityCard from '../components/ActivityCard'
 import ProgressModal from '../components/ProgressModal'
@@ -30,6 +30,8 @@ const ACTIVITY_PER_PAGE = 10
 export default function FeedPage() {
   const { t } = useLanguage()
   const { user } = useAuth()
+  const [searchParams] = useSearchParams()
+  const focusPostId = searchParams.get('post') ? Number(searchParams.get('post')) : null
   const [items, setItems] = useState<MediaItem[]>([])
   const [activity, setActivity] = useState<Activity[]>([])
   const [commentCounts, setCommentCounts] = useState<Record<string, number>>({})
@@ -39,6 +41,7 @@ export default function FeedPage() {
   const [activityLoading, setActivityLoading] = useState(false)
   const [finishItem, setFinishItem] = useState<MediaItem | null>(null)
   const activityRef = useRef<HTMLElement>(null)
+  const focusCardRef = useRef<HTMLDivElement>(null)
 
   const me = useMemo(
     () => (user ? { id: user.id, name: user.name || user.username, handle: user.username, uuid: user.uuid, avatar: user.avatar_url, role: user.role } : null),
@@ -71,6 +74,13 @@ export default function FeedPage() {
   useEffect(() => {
     load()
   }, [load])
+
+  // When arriving via a ?post= deep-link, scroll to and highlight that card.
+  useEffect(() => {
+    if (!focusPostId || loading) return
+    const t = setTimeout(() => focusCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 150)
+    return () => clearTimeout(t)
+  }, [focusPostId, loading])
 
   // Jump to the top of the feed, then load the chosen activity page.
   const goToActivityPage = (page: number) => {
@@ -160,20 +170,29 @@ export default function FeedPage() {
           </div>
         ) : (
           <div className={`animate-fade-up flex flex-col gap-4 transition-opacity ${activityLoading ? 'opacity-60' : ''}`}>
-            {activity.map((a) => (
-              <ActivityCard
-                key={a.id}
-                a={a}
-                commentCount={commentCounts[String(a.postId)] ?? 0}
-                myItem={myByMedia.get(a.mediaId)}
-                onShelfChange={applyShelfChange}
-                onDeleted={(postId) => {
-                  setActivity((prev) => prev.filter((x) => x.postId !== postId))
-                  setActivityTotal((n) => Math.max(0, n - 1))
-                }}
-                onCountChange={(postId, n) => setCommentCounts((m) => ({ ...m, [String(postId)]: n }))}
-              />
-            ))}
+            {activity.map((a) => {
+              const isFocused = focusPostId != null && a.postId === focusPostId
+              return (
+                <div
+                  key={a.id}
+                  ref={isFocused ? focusCardRef : undefined}
+                  className={isFocused ? 'ring-2 ring-nonsprimary/60 rounded-2xl' : undefined}
+                >
+                  <ActivityCard
+                    a={a}
+                    commentCount={commentCounts[String(a.postId)] ?? 0}
+                    myItem={myByMedia.get(a.mediaId)}
+                    openComments={isFocused}
+                    onShelfChange={applyShelfChange}
+                    onDeleted={(postId) => {
+                      setActivity((prev) => prev.filter((x) => x.postId !== postId))
+                      setActivityTotal((n) => Math.max(0, n - 1))
+                    }}
+                    onCountChange={(postId, n) => setCommentCounts((m) => ({ ...m, [String(postId)]: n }))}
+                  />
+                </div>
+              )
+            })}
             <Pagination
               currentPage={activityPage + 1}
               totalPages={activityPageCount}
