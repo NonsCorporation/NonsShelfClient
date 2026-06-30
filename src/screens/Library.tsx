@@ -23,6 +23,7 @@ import {
   IoCheckmark,
   IoDownloadOutline,
 } from 'react-icons/io5'
+import { BsSortDown, BsSortUp } from 'react-icons/bs'
 import Layout from '../components/layout/Layout.tsx'
 import MediaCard, { type ItemProgress } from '../components/MediaCard.tsx'
 import MediaModal from '../components/MediaModal.tsx'
@@ -30,6 +31,7 @@ import ImportModal from '../components/ImportModal.tsx'
 import ExportModal from '../components/ExportModal.tsx'
 import MediaDetailModal from '../components/MediaDetailModal.tsx'
 import CollectionSettingsModal from '../components/CollectionSettingsModal.tsx'
+import Pagination from '../components/Pagination.tsx'
 import { libraryService } from '../services/libraryService.ts'
 import { fetchPublicProfile } from '../services/userService.ts'
 import type { MediaItem, Collection } from '../types.ts'
@@ -38,7 +40,7 @@ import { useAuth } from '../contexts/AuthContext.tsx'
 import { useCollections } from '../contexts/CollectionContext.tsx'
 
 type ShelfKey = 'all' | 'wishlist' | 'active' | 'done' | 'dnf' | 'favorites'
-type SortKey = 'added' | 'rating' | 'title' | 'year' | 'reviewed'
+type SortKey = 'added' | 'rating' | 'title' | 'year' | 'reviewed' | 'date_end'
 
 export default function LibraryScreen() {
   const { t } = useLanguage()
@@ -71,7 +73,10 @@ export default function LibraryScreen() {
   const [progressMap, setProgressMap] = useState<Map<string, ItemProgress>>(new Map())
 
   const [typeFilter, setTypeFilter] = useState<'all' | 'book' | 'movie' | 'series'>('all')
-  const [sort, setSort] = useState<SortKey>('added')
+  const sort = (params.get('sort') as SortKey) || 'added'
+  const sortDir = (params.get('dir') as 'asc' | 'desc') || 'desc'
+  const page = Math.max(1, Number(params.get('page') || '1'))
+  const PAGE_SIZE = 25
   const [view, setView] = useState<'grid' | 'list'>('grid')
 
   const [showExport, setShowExport] = useState(false)
@@ -254,13 +259,26 @@ export default function LibraryScreen() {
         sorted.sort((a, b) => has(b) - has(a) || (b.dateAdded ?? '').localeCompare(a.dateAdded ?? ''))
         break
       }
+      case 'date_end': {
+        // Most recently finished first; items without a finished date fall to the bottom.
+        sorted.sort((a, b) => {
+          const aDate = a.finishedAt ?? ''
+          const bDate = b.finishedAt ?? ''
+          if (!aDate && !bDate) return 0
+          if (!aDate) return 1
+          if (!bDate) return -1
+          return bDate.localeCompare(aDate)
+        })
+        break
+      }
       default:
         sorted.sort((a, b) => (b.dateAdded ?? '').localeCompare(a.dateAdded ?? ''))
     }
+    if (sortDir === 'asc') sorted.reverse()
     return sorted
   }, [
     items, shelf, collectionFilter, typeFilter, query, yearFilter, genreFilter, authorFilter, directorFilter,
-    actorFilter, sort, hasRating, hasReview, addedFrom, addedTo, readOnly, compareFilter, myByMediaId,
+    actorFilter, sort, sortDir, hasRating, hasReview, addedFrom, addedTo, readOnly, compareFilter, myByMediaId,
   ])
 
   const hasAdvanced = !!(
@@ -299,7 +317,11 @@ export default function LibraryScreen() {
     reviewed: t('sortReviewed'),
     title: t('sortTitle'),
     year: t('sortYear'),
+    date_end: t('sortDateEnd'),
   }
+
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
+  const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
   const statCards = [
     { label: t('statTotal'), value: stats.total },
@@ -330,14 +352,48 @@ export default function LibraryScreen() {
     const next = new URLSearchParams(params)
     if (key === 'all') next.delete('shelf')
     else next.set('shelf', key)
+    next.delete('page')
     setParams(next, { replace: true })
   }
   const setCollectionParam = (id: number | null) => {
     const next = new URLSearchParams(params)
     if (id == null) next.delete('collection')
     else next.set('collection', String(id))
+    next.delete('page')
     setParams(next, { replace: true })
   }
+  const setSortParam = (k: SortKey) => {
+    const next = new URLSearchParams(params)
+    if (k === 'added') next.delete('sort')
+    else next.set('sort', k)
+    next.delete('page')
+    setParams(next, { replace: true })
+  }
+  const toggleDir = () => {
+    const next = new URLSearchParams(params)
+    if (sortDir === 'desc') next.set('dir', 'asc')
+    else next.delete('dir')
+    next.delete('page')
+    setParams(next, { replace: true })
+  }
+  const setPage = useCallback((p: number) => {
+    const next = new URLSearchParams(params)
+    if (p === 1) next.delete('page')
+    else next.set('page', String(p))
+    setParams(next, { replace: true })
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }, [params, setParams])
+
+  // Reset to page 1 whenever local filter states change (sort/shelf/collection
+  // already reset page inside their URL-param setters).
+  useEffect(() => {
+    const cur = Number(params.get('page') || '1')
+    if (cur <= 1) return
+    const next = new URLSearchParams(params)
+    next.delete('page')
+    setParams(next, { replace: true })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query, typeFilter, genreFilter, yearFilter, authorFilter, directorFilter, actorFilter, hasRating, hasReview, addedFrom, addedTo, compareFilter])
 
   if (notFound) {
     return (
@@ -632,7 +688,8 @@ export default function LibraryScreen() {
           <span className="hidden sm:inline">{t('hasReview')}</span>
         </button>
 
-        {/* Sort */}
+        {/* Sort + direction */}
+        <div className="flex items-center gap-1">
         <div className="relative">
           <button
             onClick={() => {
@@ -648,14 +705,29 @@ export default function LibraryScreen() {
           {showSortMenu && (
             <>
               <div className="fixed inset-0 z-30" onClick={() => setShowSortMenu(false)} />
-              <div className="absolute right-0 top-full z-40 mt-2 w-48 overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--container-2)] p-1">
+              {/* Mobile: bottom sheet */}
+              <div className="fixed bottom-0 left-0 right-0 z-40 rounded-t-2xl border-t border-[var(--border)] bg-[var(--container-2)] pb-8 pt-3 sm:hidden">
+                <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-[var(--border-subtle)]" />
+                <p className="mb-1 px-4 text-[10px] font-semibold uppercase tracking-widest text-[var(--text-muted)]">{t('sortBy')}</p>
                 {(Object.keys(sortLabels) as SortKey[]).map((k) => (
                   <button
                     key={k}
-                    onClick={() => {
-                      setSort(k)
-                      setShowSortMenu(false)
-                    }}
+                    onClick={() => { setSortParam(k); setShowSortMenu(false) }}
+                    className={`flex w-full items-center gap-3 px-4 py-3.5 text-sm transition-colors ${
+                      sort === k ? 'font-medium text-[var(--text)]' : 'text-[var(--text-muted)]'
+                    }`}
+                  >
+                    <span className="flex-1 text-left">{sortLabels[k]}</span>
+                    {sort === k && <IoCheckmark className="h-4 w-4 text-nonsprimary" />}
+                  </button>
+                ))}
+              </div>
+              {/* Desktop: dropdown */}
+              <div className="absolute right-0 top-full z-40 mt-2 hidden w-48 overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--container-2)] p-1 sm:block">
+                {(Object.keys(sortLabels) as SortKey[]).map((k) => (
+                  <button
+                    key={k}
+                    onClick={() => { setSortParam(k); setShowSortMenu(false) }}
                     className={`block w-full rounded-lg px-3 py-2 text-left text-sm transition-colors ${
                       sort === k
                         ? 'bg-[var(--surface-active)] text-[var(--text)]'
@@ -668,6 +740,18 @@ export default function LibraryScreen() {
               </div>
             </>
           )}
+        </div>
+        <button
+          onClick={toggleDir}
+          title={sortDir === 'desc' ? 'Sort ascending' : 'Sort descending'}
+          className={`flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border-subtle)] transition-colors ${
+            sortDir === 'asc'
+              ? 'bg-[var(--surface-active)] text-[var(--text)]'
+              : 'bg-[var(--surface)] text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]'
+          }`}
+        >
+          {sortDir === 'asc' ? <BsSortUp className="h-4 w-4" /> : <BsSortDown className="h-4 w-4" />}
+        </button>
         </div>
 
         {/* Advanced filters */}
@@ -874,40 +958,47 @@ export default function LibraryScreen() {
           <p className="text-sm text-[var(--text-muted)]">{t('noResultsHint')}</p>
         </div>
       ) : view === 'grid' ? (
-        <div className="grid animate-fade-up grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-          {filtered.map((it) => (
-            <MediaCard
-              key={it.id}
-              item={it}
-              view="grid"
-              onToggleFavorite={readOnly ? undefined : () => toggleFavorite(it)}
-              onOpenDetail={setDetailItem}
-              onFilterStatus={(s) => {
-                const next = new URLSearchParams(params)
-                next.set('shelf', s)
-                setParams(next, { replace: true })
-              }}
-              onFilterType={setTypeFilter}
-              progress={progressMap.get(it.id)}
-            />
-          ))}
-        </div>
+        <>
+          <div className="grid animate-fade-up grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+            {paged.map((it) => (
+              <MediaCard
+                key={it.id}
+                item={it}
+                view="grid"
+                onToggleFavorite={readOnly ? undefined : () => toggleFavorite(it)}
+                onOpenDetail={setDetailItem}
+                onFilterStatus={(s) => {
+                  const next = new URLSearchParams(params)
+                  next.set('shelf', s)
+                  next.delete('page')
+                  setParams(next, { replace: true })
+                }}
+                onFilterType={setTypeFilter}
+                progress={progressMap.get(it.id)}
+              />
+            ))}
+          </div>
+          <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} t={t} />
+        </>
       ) : (
-        <div className="flex animate-fade-up flex-col gap-2">
-          {filtered.map((it) => (
-            <MediaCard
-              key={it.id}
-              item={it}
-              view="list"
-              onToggleFavorite={readOnly ? undefined : () => toggleFavorite(it)}
-              showReview
-              onOpenDetail={setDetailItem}
-              compareName={readOnly ? ownerName : undefined}
-              myEntry={readOnly ? myByMediaId.get(it.id) : undefined}
-              progress={progressMap.get(it.id)}
-            />
-          ))}
-        </div>
+        <>
+          <div className="flex animate-fade-up flex-col gap-2">
+            {paged.map((it) => (
+              <MediaCard
+                key={it.id}
+                item={it}
+                view="list"
+                onToggleFavorite={readOnly ? undefined : () => toggleFavorite(it)}
+                showReview
+                onOpenDetail={setDetailItem}
+                compareName={readOnly ? ownerName : undefined}
+                myEntry={readOnly ? myByMediaId.get(it.id) : undefined}
+                progress={progressMap.get(it.id)}
+              />
+            ))}
+          </div>
+          <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} t={t} />
+        </>
       )}
       </div>{/* end main content */}
       </div>{/* end 2-col flex */}

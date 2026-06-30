@@ -24,7 +24,7 @@ export const SHELF_META: Record<ShelfStatus, { key: string; dot: string }> = {
 // Next.js server can reuse them for the public /b and /m pages.
 
 type EditionRef = { id: number; title?: string; cover_url?: string; pages?: number; language?: string }
-type ShelfEntry = { media_id: number; status: ShelfStatus; edition_id?: number; note?: string; created_at: number; collection_ids?: number[]; media?: BackendMedia; edition?: EditionRef }
+type ShelfEntry = { media_id: number; status: ShelfStatus; edition_id?: number; note?: string; created_at: number; finished_at?: number; collection_ids?: number[]; media?: BackendMedia; edition?: EditionRef }
 type FavoriteEntry = { media_id: number; media?: BackendMedia }
 type RatingEntry = { media_id: number; value: number; review?: string; updated_at?: number; media?: BackendMedia }
 
@@ -224,6 +224,7 @@ class ApiLibraryService implements ILibraryService {
           review: ratMap.get(e.media_id)?.review,
           note: e.note,
           createdAt: e.created_at,
+          finishedAt: e.finished_at || undefined,
           editionId: e.edition_id,
           editionTitle: e.edition?.title,
           editionCover: e.edition?.cover_url,
@@ -253,6 +254,7 @@ class ApiLibraryService implements ILibraryService {
           rating: ratMap.get(e.media_id)?.value,
           review: ratMap.get(e.media_id)?.review,
           createdAt: e.created_at,
+          finishedAt: e.finished_at || undefined,
           editionTitle: e.edition?.title,
           editionCover: e.edition?.cover_url,
           editionPages: e.edition?.pages,

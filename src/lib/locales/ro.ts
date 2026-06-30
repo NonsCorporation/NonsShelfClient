@@ -342,6 +342,7 @@ export const ro = {
   sortAdded: 'Adăugate recent',
   sortRating: 'Cu nota cea mai mare',
   sortReviewed: 'Cu recenzie primul',
+  sortDateEnd: 'Data finalizării',
   viewReview: 'Vezi recenzia',
   sortTitle: 'Titlu (A–Z)',
   sortYear: 'Cele mai noi',

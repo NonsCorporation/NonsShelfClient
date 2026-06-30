@@ -342,6 +342,7 @@ export const en = {
   sortAdded: 'Recently added',
   sortRating: 'Highest rated',
   sortReviewed: 'Reviewed first',
+  sortDateEnd: 'Date finished',
   viewReview: 'View review',
   sortTitle: 'Title (A–Z)',
   sortYear: 'Newest',

@@ -342,6 +342,7 @@ export const ru = {
   sortAdded: 'Недавно добавленные',
   sortRating: 'По рейтингу',
   sortReviewed: 'Сначала с отзывом',
+  sortDateEnd: 'По дате завершения',
   viewReview: 'Посмотреть отзыв',
   sortTitle: 'Название (А–Я)',
   sortYear: 'По году',
