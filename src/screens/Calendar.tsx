@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Link } from '@/lib/router';
 import Layout from '../components/layout/Layout.tsx';
 import {
@@ -117,6 +117,26 @@ export default function CalendarPage() {
             return { month, col };
         });
     }, [currentYear]);
+
+    const GITHUB_GAP = 2;
+    const GITHUB_NUM_COLS = 53;
+    const GITHUB_LEFT = 28;
+
+    const [githubCellSize, setGithubCellSize] = useState(14);
+    const githubObsRef = useRef<ResizeObserver | null>(null);
+
+    const githubContainerRef = useCallback((el: HTMLDivElement | null) => {
+        githubObsRef.current?.disconnect();
+        if (!el) return;
+        const obs = new ResizeObserver(([entry]) => {
+            const w = entry.contentRect.width;
+            const available = w - GITHUB_LEFT - (GITHUB_NUM_COLS - 1) * GITHUB_GAP;
+            const size = Math.min(14, Math.max(6, Math.floor(available / GITHUB_NUM_COLS)));
+            setGithubCellSize(size);
+        });
+        obs.observe(el);
+        githubObsRef.current = obs;
+    }, []);
 
     // map out every day of the selected year plus empty offset days
     const githubGridDays = useMemo(() => {
@@ -328,41 +348,45 @@ export default function CalendarPage() {
                             </div>
                         </>
                     ) : (
-                        <div className="w-full overflow-x-auto pb-2">
+                        <div ref={githubContainerRef} className="w-full overflow-x-auto pb-2">
                             <div className="inline-flex flex-col gap-2">
                                 {/* Month labels */}
-                                <div className="relative h-4" style={{ marginLeft: '28px' }}>
+                                <div className="relative h-4" style={{ marginLeft: `${GITHUB_LEFT}px` }}>
                                     {githubMonthPositions.map(({ month, col }) => (
                                         <span
                                             key={month}
                                             className="absolute text-[10px] font-medium leading-none text-[var(--text-muted)]"
-                                            style={{ left: `${col * 18}px` }}
+                                            style={{ left: `${col * (githubCellSize + GITHUB_GAP)}px` }}
                                         >
                                             {month}
                                         </span>
                                     ))}
                                 </div>
                                 {/* Day labels + heat grid */}
-                                <div className="flex gap-1">
+                                <div className="flex" style={{ gap: `${GITHUB_GAP}px` }}>
                                     {/* Day of week labels */}
-                                    <div className="flex w-6 shrink-0 flex-col gap-1">
+                                    <div className="flex w-6 shrink-0 flex-col" style={{ gap: `${GITHUB_GAP}px` }}>
                                         {['Mo', '', 'We', '', 'Fr', '', 'Su'].map((label, i) => (
-                                            <div key={i} className="flex h-3.5 items-center justify-end pr-0.5">
+                                            <div key={i} className="flex items-center justify-end pr-0.5" style={{ height: `${githubCellSize}px` }}>
                                                 <span className="text-[9px] leading-none text-[var(--text-muted)]">{label}</span>
                                             </div>
                                         ))}
                                     </div>
                                     {/* Heat grid */}
-                                    <div className="inline-grid grid-rows-7 grid-flow-col gap-1">
+                                    <div
+                                        className="inline-grid grid-rows-7 grid-flow-col"
+                                        style={{ gap: `${GITHUB_GAP}px` }}
+                                    >
                                         {githubGridDays.map((date, i) => {
-                                            if (!date) return <div key={`empty-git-${i}`} className="h-3.5 w-3.5" />;
+                                            if (!date) return <div key={`empty-git-${i}`} style={{ width: githubCellSize, height: githubCellSize }} />;
                                             const dateString = new Date(date.getTime() - (date.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
                                             const count = yearlyActivity[dateString] || 0;
                                             return (
                                                 <div
                                                     key={dateString}
                                                     title={`${dateString}: ${count} items`}
-                                                    className={`h-3.5 w-3.5 rounded-sm transition-colors ${getActivityColor(count)}`}
+                                                    className={`rounded-sm transition-colors ${getActivityColor(count)}`}
+                                                    style={{ width: githubCellSize, height: githubCellSize }}
                                                 />
                                             );
                                         })}

@@ -18,7 +18,7 @@ import type { IconType } from 'react-icons'
 import { FaCrown } from 'react-icons/fa6'
 import { useLanguage, type Language } from '../../contexts/LanguageContext'
 import { useAuth } from '../../contexts/AuthContext'
-import { redirectToNonsLogin } from '../../lib/api'
+import { redirectToNonsLogin, NONS_LOGIN_URL } from '../../lib/api'
 import BoringAvatar from '../BoringAvatar'
 import { userPath, mediaPath } from '../../lib/paths'
 import { isLibrarian } from '../../services/librarianService'
@@ -160,6 +160,16 @@ export default function Header() {
                       </span>
                     </Link>
 
+                    <a
+                      href={NONS_LOGIN_URL}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => setAccountOpen(false)}
+                      className="flex items-center px-4 py-2 text-xs text-[var(--text-muted)] transition-colors hover:text-[var(--text)]"
+                    >
+                      Go to Nons&nbsp;↗
+                    </a>
+
                     <div className="h-px bg-[var(--border-subtle)]" />
 
                     <div className="p-2">
@@ -261,6 +271,16 @@ export default function Header() {
                   </Link>
                 ) : null}
 
+                <a
+                  href={NONS_LOGIN_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => setProfileOpen(false)}
+                  className="flex items-center px-4 py-2 text-xs text-[var(--text-muted)] transition-colors hover:text-[var(--text)]"
+                >
+                  Go to Nons&nbsp;↗
+                </a>
+
                 <div className="h-px bg-[var(--border-subtle)]" />
 
                 <div className="p-3">
@@ -289,6 +309,17 @@ export default function Header() {
                     </Link>
                   </>
                 )}
+
+                <div className="h-px bg-[var(--border-subtle)]" />
+
+                <Link
+                  to="/calendar"
+                  onClick={() => setProfileOpen(false)}
+                  className={`flex w-full items-center gap-3 px-4 py-3 text-sm transition-colors hover:bg-[var(--surface)] hover:text-[var(--text)] ${path === '/calendar' ? 'text-[var(--text)]' : 'text-[var(--text-muted)]'}`}
+                >
+                  <IoCalendarOutline className="h-[18px] w-[18px]" />
+                  {t('calendar') || 'Calendar'}
+                </Link>
 
                 <div className="h-px bg-[var(--border-subtle)]" />
 
