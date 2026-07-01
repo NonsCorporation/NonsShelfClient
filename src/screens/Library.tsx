@@ -31,6 +31,7 @@ import ImportModal from '../components/ImportModal.tsx'
 import ExportModal from '../components/ExportModal.tsx'
 import MediaDetailModal from '../components/MediaDetailModal.tsx'
 import CollectionSettingsModal from '../components/CollectionSettingsModal.tsx'
+import DatePicker from '../components/DatePicker.tsx'
 import Pagination from '../components/Pagination.tsx'
 import { libraryService } from '../services/libraryService.ts'
 import { fetchPublicProfile } from '../services/userService.ts'
@@ -311,6 +312,11 @@ export default function LibraryScreen() {
             ? t('shelfActive')
             : t('shelfDone')
 
+  const currentCollection = useMemo(
+    () => collections.find((col) => col.id === collectionFilter) ?? null,
+    [collections, collectionFilter],
+  )
+
   const sortLabels: Record<SortKey, string> = {
     added: t('sortAdded'),
     rating: t('sortRating'),
@@ -468,15 +474,6 @@ export default function LibraryScreen() {
                     <span className="min-w-0 truncate">{col.name}</span>
                     <span className="ml-auto flex-shrink-0 text-[11px] text-[var(--text-muted)]">{col.count}</span>
                   </button>
-                  {active && (
-                    <button
-                      onClick={() => setSettingsCol(col)}
-                      title="Settings"
-                      className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded text-[var(--text-muted)] hover:bg-[var(--surface)] hover:text-[var(--text)]"
-                    >
-                      <IoSettingsOutline className="h-3.5 w-3.5" />
-                    </button>
-                  )}
                 </div>
               )
             })}
@@ -574,14 +571,6 @@ export default function LibraryScreen() {
                     {col.name}
                     <span className="opacity-50">{col.count}</span>
                   </button>
-                  {active && (
-                    <button
-                      onClick={() => setSettingsCol(col)}
-                      className="flex items-center border-l border-[var(--border)] px-2 text-[var(--text-muted)] transition-colors hover:text-[var(--text)]"
-                    >
-                      <IoSettingsOutline className="h-3 w-3" />
-                    </button>
-                  )}
                 </div>
               )
             })}
@@ -705,8 +694,8 @@ export default function LibraryScreen() {
           {showSortMenu && (
             <>
               <div className="fixed inset-0 z-30" onClick={() => setShowSortMenu(false)} />
-              {/* Mobile: bottom sheet */}
-              <div className="fixed bottom-0 left-0 right-0 z-40 rounded-t-2xl border-t border-[var(--border)] bg-[var(--container-2)] pb-8 pt-3 sm:hidden">
+              {/* Mobile: bottom sheet, offset above the floating bottom nav pill */}
+              <div className="fixed inset-x-4 bottom-24 z-40 rounded-2xl border border-[var(--border)] bg-[var(--container-2)] pb-3 pt-3 shadow-2xl sm:hidden">
                 <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-[var(--border-subtle)]" />
                 <p className="mb-1 px-4 text-[10px] font-semibold uppercase tracking-widest text-[var(--text-muted)]">{t('sortBy')}</p>
                 {(Object.keys(sortLabels) as SortKey[]).map((k) => (
@@ -754,6 +743,18 @@ export default function LibraryScreen() {
         </button>
         </div>
 
+        {/* Collection settings — own library only, shown in the toolbar so it stays visible on mobile. */}
+        {!readOnly && currentCollection && (
+          <button
+            onClick={() => setSettingsCol(currentCollection)}
+            title={`${t('settings') || 'Settings'}: ${currentCollection.name}`}
+            className="flex h-10 items-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] px-3 text-sm text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
+          >
+            <IoSettingsOutline className="h-4 w-4" />
+            <span>{t('settings') || 'Settings'}</span>
+          </button>
+        )}
+
         {/* Advanced filters */}
         <div className="relative">
           <button
@@ -770,10 +771,9 @@ export default function LibraryScreen() {
           >
             <IoOptionsOutline className="h-5 w-5" />
           </button>
-          {showFilterMenu && (
-            <>
-              <div className="fixed inset-0 z-30" onClick={() => setShowFilterMenu(false)} />
-              <div className="absolute right-0 top-full z-40 mt-2 flex max-h-[70vh] w-72 flex-col gap-3 overflow-y-auto rounded-xl border border-[var(--border)] bg-[var(--container-2)] p-3">
+          {showFilterMenu && (() => {
+            const filterFields = (
+              <>
                 {hasAdvanced && (
                   <button
                     onClick={() => {
@@ -832,14 +832,14 @@ export default function LibraryScreen() {
                 )}
 
                 {/* Date added range */}
-                <label className="flex items-center justify-between gap-2 text-xs text-[var(--text-muted)]">
+                <div className="flex items-center justify-between gap-2 text-xs text-[var(--text-muted)]">
                   {t('addedAfter')}
-                  <input type="date" value={addedFrom} onChange={(e) => setAddedFrom(e.target.value)} className={`${filterInput} w-36`} />
-                </label>
-                <label className="flex items-center justify-between gap-2 text-xs text-[var(--text-muted)]">
+                  <DatePicker value={addedFrom} onChange={setAddedFrom} max={addedTo || undefined} placeholder="—" />
+                </div>
+                <div className="flex items-center justify-between gap-2 text-xs text-[var(--text-muted)]">
                   {t('addedBefore')}
-                  <input type="date" value={addedTo} onChange={(e) => setAddedTo(e.target.value)} className={`${filterInput} w-36`} />
-                </label>
+                  <DatePicker value={addedTo} onChange={setAddedTo} min={addedFrom || undefined} placeholder="—" />
+                </div>
 
                 {/* Comparison vs your shelf — only when browsing another user's library */}
                 {readOnly && (
@@ -863,9 +863,23 @@ export default function LibraryScreen() {
                     ))}
                   </div>
                 )}
-              </div>
-            </>
-          )}
+              </>
+            )
+            return (
+              <>
+                <div className="fixed inset-0 z-30" onClick={() => setShowFilterMenu(false)} />
+                {/* Mobile: bottom sheet, offset above the floating bottom nav pill */}
+                <div className="fixed inset-x-4 bottom-24 z-40 flex max-h-[65vh] flex-col gap-3 overflow-y-auto rounded-2xl border border-[var(--border)] bg-[var(--container-2)] p-4 shadow-2xl sm:hidden">
+                  <div className="mx-auto mb-1 h-1 w-10 rounded-full bg-[var(--border-subtle)]" />
+                  {filterFields}
+                </div>
+                {/* Desktop: dropdown */}
+                <div className="absolute right-0 top-full z-40 mt-2 hidden max-h-[70vh] w-72 flex-col gap-3 overflow-y-auto rounded-xl border border-[var(--border)] bg-[var(--container-2)] p-3 sm:flex">
+                  {filterFields}
+                </div>
+              </>
+            )
+          })()}
         </div>
 
         {/* View toggle */}
