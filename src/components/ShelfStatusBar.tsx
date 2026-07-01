@@ -15,9 +15,6 @@ type Props = {
   currentStatus: ShelfStatus | null
   onStatusChange: (status: ShelfStatus) => void
   onEditProgress?: () => void
-  /** 'bar' (default) is the slim left-accent row used in the in-progress
-   *  carousel; 'button' is a more prominent bordered pill (chevron leading the
-   *  label) for standalone use, e.g. in a feed card. */
   variant?: 'bar' | 'button'
 }
 
@@ -26,9 +23,10 @@ export default function ShelfStatusBar({ item, currentStatus, onStatusChange, on
   const { collections, createCollection, refresh } = useCollections()
   const isBook = item.type === 'book'
 
-  // Latest progress label for active items — enriches the status label.
+  // enriches the status label with the latest progress for active items
   const [latestPage, setLatestPage] = useState<number>(0)
   const [episodeStats, setEpisodeStats] = useState<{ watched: number; total: number } | null>(null)
+  
   useEffect(() => {
     if (currentStatus !== 'active') { setLatestPage(0); setEpisodeStats(null); return }
     if (isBook) {
@@ -63,19 +61,18 @@ export default function ShelfStatusBar({ item, currentStatus, onStatusChange, on
     return baseLabel
   })()
 
-  // Which of the user's collections contain this item.
+  // tracks which user collections contain this item
   const [itemCollectionIds, setItemCollectionIds] = useState<number[]>(item.collectionIds ?? [])
   const [colLoading, setColLoading] = useState(false)
   const [anchor, setAnchor] = useState<{ top: number; left: number; width: number } | null>(null)
   const btnRef = useRef<HTMLDivElement>(null)
 
-  // New-collection inline form state.
+  // holds state for the inline new-collection form
   const [creatingNew, setCreatingNew] = useState(false)
   const [newName, setNewName] = useState('')
   const newInputRef = useRef<HTMLInputElement>(null)
 
-  // When the item's collectionIds prop changes (e.g. after a parent reload),
-  // sync local state.
+  // syncs local state when the item's collectionids prop changes
   useEffect(() => {
     setItemCollectionIds(item.collectionIds ?? [])
   }, [item.collectionIds])
@@ -86,7 +83,8 @@ export default function ShelfStatusBar({ item, currentStatus, onStatusChange, on
     if (!r) return
     const extraWidth = onEditProgress ? 36 : 0
     setAnchor({ top: r.bottom + 6, left: r.left, width: Math.max(r.width + extraWidth, 260) })
-    // Lazily fetch which collections this item is in (in case it changed elsewhere).
+    
+    // lazily fetches collections containing this item
     setColLoading(true)
     collectionService.getItemCollections(item.id).then((ids) => {
       setItemCollectionIds(ids)
@@ -123,7 +121,8 @@ export default function ShelfStatusBar({ item, currentStatus, onStatusChange, on
       : [...itemCollectionIds, id]
     setItemCollectionIds(next)
     await collectionService.setItemCollections(item.id, next)
-    // Update the count in the sidebar.
+    
+    // updates the collection count in the sidebar
     refresh()
   }
 
@@ -133,7 +132,8 @@ export default function ShelfStatusBar({ item, currentStatus, onStatusChange, on
     const col = await createCollection(name)
     setNewName('')
     setCreatingNew(false)
-    // Auto-add this item to the new collection.
+    
+    // automatically adds the item to the newly created collection
     const next = [...itemCollectionIds, col.id]
     setItemCollectionIds(next)
     await collectionService.setItemCollections(item.id, next)
@@ -142,9 +142,7 @@ export default function ShelfStatusBar({ item, currentStatus, onStatusChange, on
   return (
     <>
       {variant === 'button' ? (
-        // Prominent pill: a neutral bordered button (chevron leading the label)
-        // with the status shown as a small accent dot, so it reads as a clear,
-        // tappable action without the saturated colour shouting.
+        // renders a prominent pill for standalone use
         <div ref={btnRef} className="inline-flex max-w-full">
           <button
             data-shelf-popover
@@ -203,7 +201,7 @@ export default function ShelfStatusBar({ item, currentStatus, onStatusChange, on
           className="animate-fade-up overflow-hidden rounded-2xl border border-[var(--border)] bg-[color-mix(in_srgb,var(--container)_96%,transparent)] shadow-2xl backdrop-blur-xl"
         >
           <div className="p-3">
-            {/* Shelf status */}
+            {/* renders the shelf status options */}
             <div className="flex flex-wrap gap-1.5">
               {statusOptions.map((opt) => {
                 const color = STATUS_COLOR[opt.key]
@@ -212,8 +210,13 @@ export default function ShelfStatusBar({ item, currentStatus, onStatusChange, on
                   <button
                     key={opt.key}
                     onClick={() => handleStatus(opt.key)}
-                    style={{ borderLeftColor: color, color }}
-                    className="flex items-center gap-1.5 rounded-r-lg border-l-[3px] px-3 py-1.5 text-xs font-medium transition-opacity hover:opacity-70"
+                    // sets pill colors dynamically based on status and active state
+                    style={{
+                      borderColor: color,
+                      color: color,
+                      backgroundColor: isCurrent ? `color-mix(in srgb, ${color} 15%, transparent)` : 'transparent',
+                    }}
+                    className="flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-opacity hover:opacity-70"
                   >
                     {isCurrent && <IoCheckmark className="h-3 w-3" />}
                     {opt.label}
@@ -222,7 +225,7 @@ export default function ShelfStatusBar({ item, currentStatus, onStatusChange, on
               })}
             </div>
 
-            {/* Collections */}
+            {/* renders the collection list */}
             <div className="mt-3 border-t border-[var(--border-subtle)] pt-3">
               <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-[var(--text-muted)]">
                 {t('collections') || 'Collections'}
@@ -258,7 +261,7 @@ export default function ShelfStatusBar({ item, currentStatus, onStatusChange, on
                 </div>
               )}
 
-              {/* Inline create form */}
+              {/* renders the inline form to create a new collection */}
               {creatingNew ? (
                 <div className="mt-2 flex items-center gap-1.5">
                   <input
