@@ -359,7 +359,7 @@ export default function MediaCard({
                 </span>
               )}
               {latest && (
-                <span className="flex items-center gap-1 rounded-full bg-black/55 px-1.5 py-0.5 text-[10px] font-medium text-white/90">
+                <span className="flex items-center gap-1 rounded-full bg-black/55 px-1.5 py-0.5 text-[10px] font-medium text-white/90 w-max">
                   <IoTimeOutline className="h-3 w-3" />
                   {shortDate(latest.date)}
                 </span>
@@ -367,9 +367,9 @@ export default function MediaCard({
             </button>
           )
         })()}
-        <span className="absolute bottom-2.5 right-2.5 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-black/40">
-          {favBtn}
-        </span>
+        <p className="absolute bottom-2.5 right-2.5 z-10 flex items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] bg-black/55">
+          {item.year ?? '—'}
+        </p>
       </div>
 
       <div className="relative flex flex-1 flex-col gap-1 p-3">
@@ -377,9 +377,7 @@ export default function MediaCard({
           {item.title}
         </h3>
         {byline}
-        {genres.length > 0 && (
-          <p className="mt-0.5 truncate text-[11px] text-[var(--text-muted)]/70">{genres.slice(0, 3).join(' · ')}</p>
-        )}
+
       </div>
     </Link>
   )
