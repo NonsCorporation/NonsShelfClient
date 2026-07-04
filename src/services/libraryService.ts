@@ -179,6 +179,10 @@ export interface ILibraryService {
    *  fetches everything for client-side filtering). Pass userId to search
    *  another user's public shelf instead of the caller's own. */
   searchLibrary(q?: LibrarySearchQuery, userId?: number): Promise<LibraryPage>
+  /** Just the match count for a searchLibrary()-style query — a cheap `total`-only
+   *  read (limit=1, item bodies discarded) for header stats that shouldn't force
+   *  a full library fetch. */
+  countLibrary(q?: Omit<LibrarySearchQuery, 'page' | 'perPage'>, userId?: number): Promise<number>
   /** One page of a user's rated-or-reviewed items, newest first. Pass the numeric
    *  user id for another user, or undefined for the signed-in user. `page` is
    *  zero-based. Powers the profile's paginated "Ratings & reviews" section. */
@@ -345,6 +349,30 @@ class ApiLibraryService implements ILibraryService {
           }),
         ),
       total: shelfData.total ?? 0,
+    }
+  }
+
+  // Just the total for a searchLibrary()-style query — limit=1 so the server
+  // does the same filtered COUNT it would for a real page, but no favorites/
+  // ratings join and no item bodies are fetched. Used for header stats that
+  // need an accurate count (e.g. "Books: 42") without pulling the whole
+  // library just to .length the result.
+  async countLibrary(q: Omit<LibrarySearchQuery, 'page' | 'perPage'> = {}, userId?: number): Promise<number> {
+    const params = new URLSearchParams({ limit: '1', offset: '0' })
+    if (q.status) params.set('status', q.status)
+    if (q.type) params.set('type', q.type)
+    if (q.collectionId) params.set('collection_id', String(q.collectionId))
+    if (q.query) params.set('q', q.query)
+    if (q.ratedOnly) params.set('rated_only', '1')
+    if (q.reviewedOnly) params.set('reviewed_only', '1')
+    const path = userId ? `/api/users/${userId}/shelf?${params}` : `/api/shelf?${params}`
+    try {
+      const res = await authedFetch(path)
+      if (!res.ok) return 0
+      const data: { total?: number } = await res.json()
+      return data.total ?? 0
+    } catch {
+      return 0
     }
   }
 
