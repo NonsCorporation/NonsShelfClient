@@ -34,6 +34,7 @@ import CollectionSettingsModal from '../components/CollectionSettingsModal.tsx'
 import DatePicker from '../components/DatePicker.tsx'
 import Pagination from '../components/Pagination.tsx'
 import { libraryService } from '../services/libraryService.ts'
+import type { LibrarySearchQuery } from '../services/libraryService.ts'
 import { fetchPublicProfile } from '../services/userService.ts'
 import type { MediaItem, Collection } from '../types.ts'
 import { useLanguage } from '../contexts/LanguageContext.tsx'
@@ -42,6 +43,24 @@ import { useCollections } from '../contexts/CollectionContext.tsx'
 
 type ShelfKey = 'all' | 'wishlist' | 'active' | 'done' | 'dnf' | 'favorites'
 type SortKey = 'added' | 'rating' | 'title' | 'year' | 'reviewed' | 'date_end'
+
+// Maps this screen's SortKey onto searchLibrary's server-side sort — a
+// straight passthrough except 'date_end' (this screen's "date finished"
+// label for what the server calls 'finished'). 'reviewed' has no server
+// equivalent (it's a two-level "reviewed first, then by date added" order
+// the server can't express) and is never actually passed here — callers gate
+// on canUseServerSearch, which excludes sort === 'reviewed' — but the switch
+// stays total so this compiles without an unsafe cast.
+function toServerSort(sort: SortKey): NonNullable<LibrarySearchQuery['sort']> {
+  switch (sort) {
+    case 'date_end':
+      return 'finished'
+    case 'reviewed':
+      return 'added'
+    default:
+      return sort
+  }
+}
 
 export default function LibraryScreen() {
   const { t } = useLanguage()
@@ -65,11 +84,23 @@ export default function LibraryScreen() {
   const [ownerName, setOwnerName] = useState('')
   const [notFound, setNotFound] = useState(false)
 
-  // Local search — filters the user's own library client-side. The global
-  // top-bar search goes to Discover and searches the whole catalog instead.
+  // Local search — filters the user's own library. The global top-bar search
+  // goes to Discover and searches the whole catalog instead. Debounced before
+  // it reaches the server (see canUseServerSearch below) so typing doesn't
+  // fire a request per keystroke; the input itself still tracks every
+  // keystroke immediately via `query`.
   const [query, setQuery] = useState('')
+  const [debouncedQuery, setDebouncedQuery] = useState('')
+  useEffect(() => {
+    const id = setTimeout(() => setDebouncedQuery(query.trim()), 300)
+    return () => clearTimeout(id)
+  }, [query])
 
   const [items, setItems] = useState<MediaItem[]>([])
+  // Total match count from the server when canUseServerSearch is active (see
+  // below) — items then holds just the current page, not the whole library,
+  // so pagination/stats can't be derived from items.length any more.
+  const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
   const [progressMap, setProgressMap] = useState<Map<string, ItemProgress>>(new Map())
 
@@ -100,8 +131,31 @@ export default function LibraryScreen() {
   const [showImport, setShowImport] = useState(false)
   const [detailItem, setDetailItem] = useState<MediaItem | null>(null)
 
+  // Whether the current filters can be pushed down to searchLibrary() (real
+  // server-side filter/sort/pagination) instead of the old getItems() (fetch
+  // everything, filter/sort/paginate client-side). Excludes:
+  //  - genre/year/author/director/actor/date-range text filters — the server
+  //    doesn't understand any of these yet.
+  //  - sort === 'reviewed' — a two-level order ("reviewed first, then by date
+  //    added") the server can't express.
+  //  - shelf === 'favorites' — favorites is a separate resource, not
+  //    filterable via /api/shelf.
+  //  - readOnly (viewing someone else's library) — that path always needs the
+  //    cross-referenced "compare vs mine" data anyway, so it keeps the old
+  //    full-fetch behavior unconditionally rather than partially optimizing it.
+  // hasRating/hasReview are deliberately NOT in this list — the server
+  // supports rated_only/reviewed_only directly, unlike the filters above.
+  const hasUnsupportedFilter = !!(
+    genreFilter || yearFilter || authorFilter || directorFilter || actorFilter || addedFrom || addedTo
+  )
+  const canUseServerSearch = !readOnly && !hasUnsupportedFilter && shelf !== 'favorites' && sort !== 'reviewed'
+
+  // Full-fetch path: a read-only view of someone else's library (always), or
+  // the signed-in user's own library when it can't be server-searched (see
+  // canUseServerSearch above). Unchanged from before this had server search.
   useEffect(() => {
     if (authLoading) return // wait so self-vs-other is decided correctly
+    if (!readOnly && canUseServerSearch) return // the server-search effect below owns this case
     let cancelled = false
     setLoading(true)
     setNotFound(false)
@@ -121,12 +175,14 @@ export default function LibraryScreen() {
         if (cancelled) return
         setMyByMediaId(new Map(mine.map((m) => [m.id, { status: m.status, rating: m.rating }])))
         setItems(theirs)
+        setTotal(theirs.length)
       } else {
         setOwnerName('')
         setMyByMediaId(new Map())
         const its = await libraryService.getItems()
         if (cancelled) return
         setItems(its)
+        setTotal(its.length)
       }
       if (!cancelled) setLoading(false)
     }
@@ -134,7 +190,45 @@ export default function LibraryScreen() {
     return () => {
       cancelled = true
     }
-  }, [authLoading, readOnly, userParam])
+  }, [authLoading, readOnly, userParam, canUseServerSearch])
+
+  // Server-search path: the signed-in user's own library, only server-
+  // supported filters active. Refetches the current page whenever any of
+  // them change (including `page` itself, driving Pagination's clicks) — a
+  // narrower dependency list than the effect above on purpose, so tweaking an
+  // unsupported filter (which forces the *other* effect's full fetch instead)
+  // doesn't also trigger a redundant page fetch here.
+  useEffect(() => {
+    if (authLoading || readOnly || !canUseServerSearch) return
+    let cancelled = false
+    setLoading(true)
+    ;(async () => {
+      const result = await libraryService.searchLibrary({
+        status: shelf === 'all' ? undefined : shelf,
+        type: typeFilter === 'all' ? undefined : typeFilter,
+        collectionId: collectionFilter ?? undefined,
+        query: debouncedQuery || undefined,
+        ratedOnly: hasRating,
+        reviewedOnly: hasReview,
+        sort: toServerSort(sort),
+        dir: sortDir,
+        page: page - 1,
+        perPage: PAGE_SIZE,
+      })
+      if (cancelled) return
+      setOwnerName('')
+      setMyByMediaId(new Map())
+      setItems(result.items)
+      setTotal(result.total)
+      setLoading(false)
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [
+    authLoading, readOnly, canUseServerSearch, shelf, typeFilter, collectionFilter,
+    debouncedQuery, hasRating, hasReview, sort, sortDir, page,
+  ])
 
   // Fetch progress for all active items and build a label map for MediaCard badges.
   useEffect(() => {
