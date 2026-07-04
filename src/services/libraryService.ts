@@ -148,10 +148,37 @@ export interface FinishOptions {
   share?: boolean
 }
 
+// Query for searchLibrary — mirrors nons-library-server's GET /api/shelf
+// filters (status/type/collection/q/rated_only/reviewed_only/sort/dir) plus
+// client-side pagination (page is zero-based, like getReviews).
+export interface LibrarySearchQuery {
+  status?: ShelfStatus
+  type?: MediaType
+  collectionId?: number
+  query?: string
+  ratedOnly?: boolean
+  reviewedOnly?: boolean
+  sort?: 'added' | 'rating' | 'title' | 'year' | 'finished'
+  dir?: 'asc' | 'desc'
+  page?: number
+  perPage?: number
+}
+
+// One page of a server-filtered/sorted library search.
+export interface LibraryPage {
+  items: MediaItem[]
+  total: number
+}
+
 export interface ILibraryService {
   getItems(): Promise<MediaItem[]>
   /** Another user's public library (shelf + ratings), for their profile page. */
   getUserItems(userId: number): Promise<MediaItem[]>
+  /** One page of the signed-in user's shelf, filtered/sorted server-side —
+   *  the search/pagination-capable alternative to getItems() (which always
+   *  fetches everything for client-side filtering). Pass userId to search
+   *  another user's public shelf instead of the caller's own. */
+  searchLibrary(q?: LibrarySearchQuery, userId?: number): Promise<LibraryPage>
   /** One page of a user's rated-or-reviewed items, newest first. Pass the numeric
    *  user id for another user, or undefined for the signed-in user. `page` is
    *  zero-based. Powers the profile's paginated "Ratings & reviews" section. */
@@ -260,6 +287,65 @@ class ApiLibraryService implements ILibraryService {
           editionPages: e.edition?.pages,
         }),
       )
+  }
+
+  // One page of a shelf (the signed-in user's own, or another user's public
+  // one when userId is given), filtered/sorted server-side via nons-library-
+  // server's GET /api/shelf query params. Favorites/ratings are still fetched
+  // in full and joined client-side (same as getItems/getUserItems) since
+  // those are separate resources the shelf endpoint doesn't return inline —
+  // favorites in particular is normally small (only liked items), so fetching
+  // it whole alongside one shelf page is cheap.
+  async searchLibrary(q: LibrarySearchQuery = {}, userId?: number): Promise<LibraryPage> {
+    const perPage = q.perPage ?? 25
+    const params = new URLSearchParams({ limit: String(perPage), offset: String((q.page ?? 0) * perPage) })
+    if (q.status) params.set('status', q.status)
+    if (q.type) params.set('type', q.type)
+    if (q.collectionId) params.set('collection_id', String(q.collectionId))
+    if (q.query) params.set('q', q.query)
+    if (q.ratedOnly) params.set('rated_only', '1')
+    if (q.reviewedOnly) params.set('reviewed_only', '1')
+    if (q.sort) params.set('sort', q.sort)
+    if (q.dir) params.set('dir', q.dir)
+
+    const shelfPath = userId ? `/api/users/${userId}/shelf?${params}` : `/api/shelf?${params}`
+    const ratingsPath = userId ? `/api/users/${userId}/ratings` : '/api/ratings'
+    const [shelfRes, favRes, ratRes] = await Promise.all([
+      authedFetch(shelfPath),
+      userId ? Promise.resolve(undefined) : authedFetch('/api/favorites'),
+      authedFetch(ratingsPath),
+    ])
+    if (!shelfRes.ok) return { items: [], total: 0 }
+    const shelfData: { items?: ShelfEntry[]; total?: number } = await shelfRes.json()
+    const [favs, ratings] = await Promise.all([
+      favRes ? items<FavoriteEntry>(favRes) : Promise.resolve([]),
+      items<RatingEntry>(ratRes),
+    ])
+    const favSet = new Set(favs.map((f) => f.media_id))
+    const ratMap = new Map(ratings.map((r) => [r.media_id, r] as const))
+
+    const shelf = shelfData.items ?? []
+    return {
+      items: shelf
+        .filter((e) => e.media)
+        .map((e) =>
+          toItem(e.media!, {
+            status: e.status,
+            favorite: favSet.has(e.media_id),
+            rating: ratMap.get(e.media_id)?.value,
+            review: ratMap.get(e.media_id)?.review,
+            note: e.note,
+            createdAt: e.created_at,
+            finishedAt: e.finished_at || undefined,
+            editionId: e.edition_id,
+            editionTitle: e.edition?.title,
+            editionCover: e.edition?.cover_url,
+            editionPages: e.edition?.pages,
+            collectionIds: e.collection_ids,
+          }),
+        ),
+      total: shelfData.total ?? 0,
+    }
   }
 
   // One page of a user's ratings & reviews (rated or reviewed items), newest
