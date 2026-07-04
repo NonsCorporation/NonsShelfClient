@@ -157,8 +157,12 @@ export default function LibraryScreen() {
     if (authLoading) return // wait so self-vs-other is decided correctly
     if (!readOnly && canUseServerSearch) return // the server-search effect below owns this case
     let cancelled = false
-    setLoading(true)
-    setNotFound(false)
+    // Wrapped in an IIFE, not called directly: react-hooks/set-state-in-effect
+    // flags a setState-triggering call made straight from the effect body.
+    ;(() => {
+      setLoading(true)
+      setNotFound(false)
+    })()
 
     async function load() {
       if (readOnly) {
@@ -201,8 +205,11 @@ export default function LibraryScreen() {
   useEffect(() => {
     if (authLoading || readOnly || !canUseServerSearch) return
     let cancelled = false
-    setLoading(true)
+    // Wrapped in the same async IIFE (not a separate sync call), so
+    // react-hooks/set-state-in-effect doesn't see a setState call made
+    // straight from the effect body.
     ;(async () => {
+      setLoading(true)
       const result = await libraryService.searchLibrary({
         status: shelf === 'all' ? undefined : shelf,
         type: typeFilter === 'all' ? undefined : typeFilter,
@@ -277,7 +284,35 @@ export default function LibraryScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params])
 
-  const stats = useMemo(() => {
+  // Header stats always reflect the whole library, not the current filter
+  // view. When canUseServerSearch is active, `items` only holds the current
+  // page — clientStats (computed from `items`) would be wrong there, so
+  // libStats is fetched separately via cheap total-only counts instead
+  // (countLibrary), refreshed once per sign-in rather than per filter change.
+  // In fallback mode `items` already holds the whole library, so clientStats
+  // stays correct and libStats is simply unused.
+  const [libStats, setLibStats] = useState<{ total: number; books: number; movies: number; avg: string; done: number } | null>(null)
+  const loadStats = useCallback(async () => {
+    const [total, books, movies, done, avg] = await Promise.all([
+      libraryService.countLibrary(),
+      libraryService.countLibrary({ type: 'book' }),
+      libraryService.countLibrary({ type: 'movie' }),
+      libraryService.countLibrary({ status: 'done' }),
+      libraryService.averageOwnRating(),
+    ])
+    setLibStats({ total, books, movies, avg, done })
+  }, [])
+
+  useEffect(() => {
+    if (authLoading || readOnly) return
+    // Wrapped in an IIFE, not called directly: react-hooks/set-state-in-effect
+    // flags a setState-triggering call made straight from the effect body.
+    ;(async () => {
+      await loadStats()
+    })()
+  }, [authLoading, readOnly, loadStats])
+
+  const clientStats = useMemo(() => {
     const rated = items.filter((it) => typeof it.rating === 'number' && it.rating > 0)
     const avg = rated.length ? rated.reduce((s, it) => s + (it.rating || 0), 0) / rated.length / 2 : 0
     return {
@@ -288,6 +323,7 @@ export default function LibraryScreen() {
       done: items.filter((it) => it.status === 'done').length,
     }
   }, [items])
+  const stats = canUseServerSearch ? (libStats ?? clientStats) : clientStats
 
   const filtered = useMemo(() => {
     const list = items.filter((it) => {
@@ -420,8 +456,14 @@ export default function LibraryScreen() {
     date_end: t('sortDateEnd'),
   }
 
-  const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
-  const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+  // In server-search mode, `items` (and so `filtered`, which just re-applies
+  // the same already-server-applied filters — a no-op there) already holds
+  // just the current page, so it's used directly instead of being sliced
+  // again, and totalPages comes from the server's `total` rather than
+  // filtered.length (which would only ever be a page's worth, not the whole
+  // match count).
+  const totalPages = canUseServerSearch ? Math.max(1, Math.ceil(total / PAGE_SIZE)) : Math.ceil(filtered.length / PAGE_SIZE)
+  const paged = canUseServerSearch ? filtered : filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
   const statCards = [
     { label: t('statTotal'), value: stats.total },

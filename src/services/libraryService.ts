@@ -183,6 +183,10 @@ export interface ILibraryService {
    *  read (limit=1, item bodies discarded) for header stats that shouldn't force
    *  a full library fetch. */
   countLibrary(q?: Omit<LibrarySearchQuery, 'page' | 'perPage'>, userId?: number): Promise<number>
+  /** Average of the signed-in user's own ratings (1..10 scale, halved to a
+   *  /5 display value), formatted to one decimal, or '—' if they haven't
+   *  rated anything. Powers Library's header stat card. */
+  averageOwnRating(): Promise<string>
   /** One page of a user's rated-or-reviewed items, newest first. Pass the numeric
    *  user id for another user, or undefined for the signed-in user. `page` is
    *  zero-based. Powers the profile's paginated "Ratings & reviews" section. */
@@ -373,6 +377,19 @@ class ApiLibraryService implements ILibraryService {
       return data.total ?? 0
     } catch {
       return 0
+    }
+  }
+
+  async averageOwnRating(): Promise<string> {
+    try {
+      const res = await authedFetch('/api/ratings')
+      if (!res.ok) return '—'
+      const data: { items?: { value?: number }[] } = await res.json()
+      const values = (data.items ?? []).map((r) => r.value ?? 0).filter((v) => v > 0)
+      if (!values.length) return '—'
+      return (values.reduce((s, v) => s + v, 0) / values.length / 2).toFixed(1)
+    } catch {
+      return '—'
     }
   }
 
