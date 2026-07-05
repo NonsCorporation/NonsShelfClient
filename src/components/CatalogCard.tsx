@@ -5,6 +5,8 @@ import { compactCount } from '../services/catalogService'
 import { useLanguage } from '../contexts/LanguageContext'
 import { mediaPath } from '../lib/paths'
 import TypeBadge from './TypeBadge'
+import ShelfStatusBar from './ShelfStatusBar'
+import type { MediaItem, ShelfStatus } from '../types'
 
 type CatalogCardProps = {
   item: CatalogItem
@@ -12,9 +14,13 @@ type CatalogCardProps = {
   /** Omitted for anonymous visitors — the add button is then hidden. */
   onAdd?: () => void
   showReason?: boolean
+  /** When set, renders the full shelf-status bar (status picker + collections,
+   *  same as the library/media pages) instead of the plain "Add to library"
+   *  button. Takes precedence over onAdd/inLibrary. */
+  shelfStatus?: { current: ShelfStatus | null; onChange: (status: ShelfStatus) => void }
 }
 
-export default function CatalogCard({ item, inLibrary, onAdd, showReason }: CatalogCardProps) {
+export default function CatalogCard({ item, inLibrary, onAdd, showReason, shelfStatus }: CatalogCardProps) {
   const { t } = useLanguage()
   const isBook = item.type === 'book'
   const TypeIcon = isBook ? IoBookOutline : item.type === 'series' ? IoTvOutline : IoFilmOutline
@@ -66,29 +72,57 @@ export default function CatalogCard({ item, inLibrary, onAdd, showReason }: Cata
         </div>
       </Link>
 
-      {onAdd && (
-        <button
-          onClick={onAdd}
-          disabled={inLibrary}
-          className={`mt-2.5 inline-flex h-9 items-center justify-center gap-1.5 rounded-lg text-xs font-semibold transition-colors ${
-            inLibrary
-              ? 'cursor-default border border-[var(--border-subtle)] text-[var(--text-muted)]'
-              : 'border border-nonsprimary/40 text-nonsprimaryfocus hover:bg-[var(--primary-soft)]'
-          }`}
-        >
-          {inLibrary ? (
-            <>
-              <IoCheckmark className="h-4 w-4" />
-              {t('inLibrary')}
-            </>
-          ) : (
-            <>
-              <IoAdd className="h-4 w-4" />
-              {t('addToLibrary')}
-            </>
-          )}
-        </button>
+      {shelfStatus ? (
+        <div className="mt-2.5">
+          <ShelfStatusBar
+            item={shelfItemOf(item)}
+            currentStatus={shelfStatus.current}
+            onStatusChange={shelfStatus.onChange}
+            variant="bar"
+          />
+        </div>
+      ) : (
+        onAdd && (
+          <button
+            onClick={onAdd}
+            disabled={inLibrary}
+            className={`mt-2.5 inline-flex h-9 items-center justify-center gap-1.5 rounded-lg text-xs font-semibold transition-colors ${
+              inLibrary
+                ? 'cursor-default border border-[var(--border-subtle)] text-[var(--text-muted)]'
+                : 'border border-nonsprimary/40 text-nonsprimaryfocus hover:bg-[var(--primary-soft)]'
+            }`}
+          >
+            {inLibrary ? (
+              <>
+                <IoCheckmark className="h-4 w-4" />
+                {t('inLibrary')}
+              </>
+            ) : (
+              <>
+                <IoAdd className="h-4 w-4" />
+                {t('addToLibrary')}
+              </>
+            )}
+          </button>
+        )
       )}
     </div>
   )
+}
+
+// Builds the minimal MediaItem shape ShelfStatusBar needs from a catalog row
+// (fields it doesn't have — pages, rating, etc. — are simply absent/optional).
+function shelfItemOf(item: CatalogItem): MediaItem {
+  return {
+    id: item.id,
+    uuid: item.uuid,
+    type: item.type,
+    title: item.title,
+    author: item.author,
+    director: item.director,
+    coverUrl: item.coverUrl,
+    year: item.year,
+    genre: item.genre,
+    description: item.description,
+  }
 }

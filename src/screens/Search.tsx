@@ -5,7 +5,7 @@ import CatalogCard from '../components/CatalogCard'
 import { catalogService } from '../services/catalogService'
 import type { CatalogItem } from '../services/catalogService'
 import { libraryService } from '../services/libraryService'
-import type { MediaItem, MediaType } from '../types'
+import type { MediaItem, MediaType, ShelfStatus } from '../types'
 import { useLanguage } from '../contexts/LanguageContext'
 import { IoSearchOutline } from 'react-icons/io5'
 import InfinityLoader from '../components/InfinityLoader'
@@ -29,8 +29,9 @@ export default function SearchPage() {
   const [params] = useSearchParams()
   const q = params.get('q')?.trim() ?? ''
   const [catalog, setCatalog] = useState<CatalogItem[]>([])
-  const [libKeys, setLibKeys] = useState<Set<string>>(new Set())
-  const [added, setAdded] = useState<Set<string>>(new Set())
+  // Shelf status per result (by keyOf), seeded from the user's library and
+  // updated in place as they change status from the shelf-status bar.
+  const [statusByKey, setStatusByKey] = useState<Map<string, ShelfStatus>>(new Map())
   const [loading, setLoading] = useState(true)
   const [importing, setImporting] = useState(false)
   const [filter, setFilter] = useState<Filter>('all')
@@ -54,7 +55,7 @@ export default function SearchPage() {
       setPage(0)
       setExhausted(false)
       const [cat, lib] = await Promise.all([catalogService.getCatalog(q), libraryService.getItems()])
-      setLibKeys(new Set(lib.map(keyOf)))
+      setStatusByKey(new Map(lib.filter((i) => i.status).map((i) => [keyOf(i), i.status as ShelfStatus])))
       if (cat.length > 0) {
         // Local hits exist — show them immediately. External results are pulled in
         // on demand via "Load more" so a single local match doesn't hide the rest.
@@ -96,25 +97,30 @@ export default function SearchPage() {
     }
   }
 
-  const inLibrary = (it: CatalogItem) => libKeys.has(keyOf(it)) || added.has(keyOf(it))
+  const inLibrary = (it: CatalogItem) => statusByKey.has(keyOf(it))
 
-  const handleAdd = async (it: CatalogItem) => {
-    // it.id is the backend media id — pass it so the item is added to the shelf
-    // against the existing catalog row instead of creating a duplicate.
-    const payload: Omit<MediaItem, 'id'> & { id?: string } = {
-      id: it.id,
-      type: it.type,
-      title: it.title,
-      author: it.author,
-      director: it.director,
-      coverUrl: it.coverUrl,
-      year: it.year,
-      genre: it.genre,
-      description: it.description,
-      status: 'wishlist',
+  // First status pick adds the item to the shelf (against the existing catalog
+  // row via it.id, never creating a duplicate); later picks just update it.
+  const handleStatusChange = async (it: CatalogItem, status: ShelfStatus) => {
+    const key = keyOf(it)
+    if (statusByKey.has(key)) {
+      await libraryService.updateItem(it.id, { status })
+    } else {
+      const payload: Omit<MediaItem, 'id'> & { id?: string } = {
+        id: it.id,
+        type: it.type,
+        title: it.title,
+        author: it.author,
+        director: it.director,
+        coverUrl: it.coverUrl,
+        year: it.year,
+        genre: it.genre,
+        description: it.description,
+        status,
+      }
+      await libraryService.addItem(payload)
     }
-    await libraryService.addItem(payload)
-    setAdded((prev) => new Set(prev).add(keyOf(it)))
+    setStatusByKey((prev) => new Map(prev).set(key, status))
   }
 
   // Per-type counts drive the filter tabs; the shown grid is filtered by the
@@ -206,7 +212,15 @@ export default function SearchPage() {
           ) : (
             <div className="animate-fade-up grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
               {shown.map((it) => (
-                <CatalogCard key={it.id} item={it} inLibrary={inLibrary(it)} onAdd={() => handleAdd(it)} />
+                <CatalogCard
+                  key={it.id}
+                  item={it}
+                  inLibrary={inLibrary(it)}
+                  shelfStatus={{
+                    current: statusByKey.get(keyOf(it)) ?? null,
+                    onChange: (status) => handleStatusChange(it, status),
+                  }}
+                />
               ))}
             </div>
           )}

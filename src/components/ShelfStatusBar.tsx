@@ -2,7 +2,7 @@
 
 import { createPortal } from 'react-dom'
 import { useEffect, useRef, useState } from 'react'
-import { IoChevronDown, IoCheckmark, IoAdd, IoTrendingUpOutline, IoClose } from 'react-icons/io5'
+import { IoChevronDown, IoCheckmark, IoAdd, IoTrendingUpOutline, IoClose, IoFolderOutline } from 'react-icons/io5'
 import type { MediaItem, ShelfStatus } from '../types'
 import { STATUS_COLOR, statusLabel } from '../lib/shelf'
 import { useLanguage } from '../contexts/LanguageContext'
@@ -74,7 +74,11 @@ export default function ShelfStatusBar({ item, currentStatus, onStatusChange, on
   // tracks which user collections contain this item
   const [itemCollectionIds, setItemCollectionIds] = useState<number[]>(item.collectionIds ?? [])
   const [colLoading, setColLoading] = useState(false)
-  const [anchor, setAnchor] = useState<{ top: number; left: number; width: number } | null>(null)
+  // placement 'up' anchors the popover's bottom edge above the trigger (grows
+  // upward) instead of the default 'down' (grows downward from the trigger) —
+  // picked per-open based on available viewport space so the collection list
+  // at the bottom of the popover isn't cut off when there isn't enough room below.
+  const [anchor, setAnchor] = useState<{ top?: number; bottom?: number; left: number; width: number; placement: 'up' | 'down' } | null>(null)
   const btnRef = useRef<HTMLDivElement>(null)
 
   // holds state for the inline new-collection form
@@ -87,13 +91,30 @@ export default function ShelfStatusBar({ item, currentStatus, onStatusChange, on
     setItemCollectionIds(item.collectionIds ?? [])
   }, [item.collectionIds])
 
+  // Rough popover height estimate (status pills + collections header + a
+  // handful of chips) used only to pick a placement — the popover itself still
+  // scrolls internally if it ends up taller than the room it got.
+  const ESTIMATED_POPOVER_HEIGHT = 320
+
   const handleToggle = () => {
     if (anchor) { setAnchor(null); return }
     const r = btnRef.current?.getBoundingClientRect()
     if (!r) return
     const extraWidth = onEditProgress ? 36 : 0
-    setAnchor({ top: r.bottom + 6, left: r.left, width: Math.max(r.width + extraWidth, 260) })
-    
+    const width = Math.max(r.width + extraWidth, 260)
+    const spaceBelow = window.innerHeight - r.bottom
+    const spaceAbove = r.top
+    // Prefer opening downward; flip upward only when there's clearly more (or
+    // enough) room above and not below, so the collections list at the bottom
+    // of the popover doesn't run off the bottom of the viewport.
+    const placement: 'up' | 'down' =
+      spaceBelow < ESTIMATED_POPOVER_HEIGHT && spaceAbove > spaceBelow ? 'up' : 'down'
+    setAnchor(
+      placement === 'up'
+        ? { bottom: window.innerHeight - r.top + 6, left: r.left, width, placement }
+        : { top: r.bottom + 6, left: r.left, width, placement },
+    )
+
     // lazily fetches collections containing this item
     setColLoading(true)
     collectionService.getItemCollections(item.id).then((ids) => {
@@ -203,7 +224,7 @@ export default function ShelfStatusBar({ item, currentStatus, onStatusChange, on
                       : 'border-[var(--border-subtle)] text-[var(--text-muted)] hover:border-[var(--border)] hover:text-[var(--text)]'
                   }`}
                 >
-                  {on ? <IoCheckmark className="h-3 w-3" /> : <IoAdd className="h-3 w-3" />}
+                  {on ? <IoCheckmark className="h-3 w-3" /> : <IoFolderOutline className="h-3 w-3" />}
                   {col.name}
                 </button>
               )
@@ -334,10 +355,18 @@ export default function ShelfStatusBar({ item, currentStatus, onStatusChange, on
         ) : (
         <div
           data-shelf-popover
-          style={{ position: 'fixed', top: anchor.top, left: anchor.left, width: anchor.width, zIndex: 60 }}
-          className="animate-fade-up overflow-hidden rounded-2xl border border-[var(--border)] bg-[color-mix(in_srgb,var(--container)_96%,transparent)] shadow-2xl backdrop-blur-xl"
+          style={{
+            position: 'fixed',
+            top: anchor.top,
+            bottom: anchor.bottom,
+            left: anchor.left,
+            width: anchor.width,
+            maxHeight: 'min(70vh, 480px)',
+            zIndex: 60,
+          }}
+          className="animate-fade-up flex flex-col overflow-hidden rounded-2xl border border-[var(--border)] bg-[color-mix(in_srgb,var(--container)_96%,transparent)] shadow-2xl backdrop-blur-xl"
         >
-          <div className="p-3">{popoverBody}</div>
+          <div className="overflow-y-auto p-3">{popoverBody}</div>
         </div>
         ),
         document.body,
