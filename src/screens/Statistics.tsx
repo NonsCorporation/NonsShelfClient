@@ -1,18 +1,23 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { IoChevronBack, IoChevronForward, IoBookOutline, IoFilmOutline, IoTvOutline, IoStar, IoHeartOutline, IoChatbubbleOutline, IoCheckmarkDoneOutline, IoLibraryOutline } from 'react-icons/io5'
+import { IoChevronBack, IoChevronForward, IoBookOutline, IoFilmOutline, IoTvOutline, IoStar, IoStarHalf, IoStarOutline, IoHeartOutline, IoChatbubbleOutline, IoCheckmarkDoneOutline, IoLibraryOutline, IoTimeOutline, IoSparklesOutline, IoPersonOutline } from 'react-icons/io5'
 import type { IconType } from 'react-icons'
 import { authedFetch } from '../lib/api'
 import { libraryService } from '../services/libraryService'
 import type { MediaItem, MediaType } from '../types'
 import { useLanguage } from '../contexts/LanguageContext'
+import { buildRecap, fmtInt, fmtDuration } from '../lib/recap'
+import RecapStories from '../components/RecapStories.tsx'
 
 // Per-type accent, matching the rest of the app (book amber, film indigo, series teal).
 const TYPE_COLOR: Record<MediaType, string> = { book: '#e0a458', movie: '#7c8cff', series: '#4fd1c5' }
 
 type CalEvent = { type: string; at: number; media?: { type: MediaType } }
 type Axis = 'all' | MediaType
+// Recap period selection: single month, span of months, whole year, or any range.
+type PMode = 'month' | 'months' | 'year' | 'custom'
+type YM = { y: number; m: number }
 
 export default function Statistics() {
   const { t, language } = useLanguage()
@@ -24,6 +29,19 @@ export default function Statistics() {
   const [axis, setAxis] = useState<Axis>('all')
   // Which media types feed the ratings breakdown (multi-select: books, films, series).
   const [ratingTypes, setRatingTypes] = useState<MediaType[]>(['book', 'movie', 'series'])
+
+  // Recap period: a single month, a span of months, a whole year, or any custom
+  // date range. Each resolves to a [from, to) unix window fed to buildRecap.
+  const now0 = new Date()
+  const [pmode, setPmode] = useState<PMode>('month')
+  const [pMonth, setPMonth] = useState<YM>({ y: now0.getFullYear(), m: now0.getMonth() })
+  const [pFrom, setPFrom] = useState<YM>({ y: now0.getFullYear(), m: 0 })
+  const [pTo, setPTo] = useState<YM>({ y: now0.getFullYear(), m: now0.getMonth() })
+  const [pYear, setPYear] = useState(now0.getFullYear())
+  const [cFrom, setCFrom] = useState(() => new Date(now0.getFullYear(), 0, 1).toISOString().slice(0, 10))
+  const [cTo, setCTo] = useState(() => now0.toISOString().slice(0, 10))
+  const [includeAuthor, setIncludeAuthor] = useState(true)
+  const [recapOpen, setRecapOpen] = useState(false)
 
   useEffect(() => {
     libraryService.getItems().then(setItems)
@@ -74,6 +92,35 @@ export default function Statistics() {
 
   const toggleRatingType = (k: MediaType) =>
     setRatingTypes((prev) => (prev.includes(k) ? prev.filter((x) => x !== k) : [...prev, k]))
+
+  // Resolve the selected period to a { from, to (unix seconds), label } window.
+  const period = useMemo(() => {
+    const startOf = (y: number, m: number) => Math.floor(new Date(y, m, 1).getTime() / 1000)
+    const mLabel = (y: number, m: number, opts: Intl.DateTimeFormatOptions) => new Date(y, m, 1).toLocaleString(locale, opts)
+    if (pmode === 'months') {
+      let [a, b] = [pFrom, pTo]
+      if (a.y * 12 + a.m > b.y * 12 + b.m) [a, b] = [b, a]
+      return {
+        from: startOf(a.y, a.m),
+        to: startOf(b.y, b.m + 1),
+        label: `${mLabel(a.y, a.m, { month: 'short', year: 'numeric' })} – ${mLabel(b.y, b.m, { month: 'short', year: 'numeric' })}`,
+      }
+    }
+    if (pmode === 'year') return { from: startOf(pYear, 0), to: startOf(pYear + 1, 0), label: String(pYear) }
+    if (pmode === 'custom') {
+      const fromD = new Date(cFrom + 'T00:00:00')
+      const toD = new Date(cTo + 'T00:00:00')
+      const df: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short', year: 'numeric' }
+      return {
+        from: Math.floor(fromD.getTime() / 1000),
+        to: Math.floor(toD.getTime() / 1000) + 86400, // include the whole end day
+        label: `${fromD.toLocaleDateString(locale, df)} – ${toD.toLocaleDateString(locale, df)}`,
+      }
+    }
+    return { from: startOf(pMonth.y, pMonth.m), to: startOf(pMonth.y, pMonth.m + 1), label: mLabel(pMonth.y, pMonth.m, { month: 'long', year: 'numeric' }) }
+  }, [pmode, pMonth, pFrom, pTo, pYear, cFrom, cTo, locale])
+
+  const recap = useMemo(() => buildRecap(items, period), [items, period])
 
   // Finished per month for the selected year, split by media type.
   const monthly = useMemo(() => {
@@ -132,8 +179,141 @@ export default function Statistics() {
   ]
   const axisColor = axis === 'all' ? 'var(--color-nonsprimary)' : TYPE_COLOR[axis]
 
+  const yearsRange = useMemo(() => {
+    const ys = items.map((i) => (i.finishedAt ? new Date(i.finishedAt).getFullYear() : NaN)).filter((y) => !Number.isNaN(y))
+    const cur = new Date().getFullYear()
+    return { min: ys.length ? Math.min(...ys, cur) : cur - 5, max: cur }
+  }, [items])
+
+  const modeTabs: { key: PMode; label: string }[] = [
+    { key: 'month', label: t('recapModeMonth') },
+    { key: 'months', label: t('recapModeMonths') },
+    { key: 'year', label: t('recapModeYear') },
+    { key: 'custom', label: t('recapModeCustom') },
+  ]
+
   return (
     <div className="flex flex-col gap-6">
+      {/* Recap — pick any period, see a detailed breakdown, generate story cards */}
+      <section className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--container)] p-4 sm:p-6">
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-base font-semibold text-[var(--text)]">{t('recapHeading')}</h2>
+            <p className="mt-0.5 text-xs text-[var(--text-muted)]">{period.label}</p>
+          </div>
+          <button
+            onClick={() => setRecapOpen(true)}
+            disabled={recap.counts.total === 0}
+            className="flex items-center justify-center gap-1.5 rounded-xl bg-[var(--color-nonsprimary)] px-3.5 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-40"
+          >
+            <IoSparklesOutline className="h-4 w-4" /> {t('recapCreateCards')}
+          </button>
+        </div>
+
+        {/* Mode tabs */}
+        <div className="mb-3 flex flex-wrap gap-1 rounded-xl bg-[var(--surface)] p-1">
+          {modeTabs.map((o) => (
+            <button
+              key={o.key}
+              onClick={() => setPmode(o.key)}
+              className={`flex-1 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                pmode === o.key ? 'bg-[var(--container)] text-[var(--text)] shadow-sm' : 'text-[var(--text-muted)] hover:text-[var(--text)]'
+              }`}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Period controls */}
+        <div className="mb-5 flex flex-wrap items-center gap-2">
+          {pmode === 'month' && <MonthPicker value={pMonth} onChange={setPMonth} min={yearsRange.min} max={yearsRange.max} locale={locale} />}
+          {pmode === 'months' && (
+            <>
+              <MonthPicker value={pFrom} onChange={setPFrom} min={yearsRange.min} max={yearsRange.max} locale={locale} />
+              <span className="text-[var(--text-muted)]">–</span>
+              <MonthPicker value={pTo} onChange={setPTo} min={yearsRange.min} max={yearsRange.max} locale={locale} />
+            </>
+          )}
+          {pmode === 'year' && (
+            <div className="flex items-center gap-1 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] px-1.5 py-1">
+              <button onClick={() => setPYear((y) => Math.max(yearsRange.min, y - 1))} disabled={pYear <= yearsRange.min} className="rounded-md p-1 text-[var(--text-muted)] hover:text-[var(--text)] disabled:opacity-30"><IoChevronBack className="h-4 w-4" /></button>
+              <span className="min-w-[3rem] text-center text-sm font-bold text-[var(--text)]">{pYear}</span>
+              <button onClick={() => setPYear((y) => Math.min(yearsRange.max, y + 1))} disabled={pYear >= yearsRange.max} className="rounded-md p-1 text-[var(--text-muted)] hover:text-[var(--text)] disabled:opacity-30"><IoChevronForward className="h-4 w-4" /></button>
+            </div>
+          )}
+          {pmode === 'custom' && (
+            <>
+              <input type="date" value={cFrom} max={cTo} onChange={(e) => setCFrom(e.target.value)} className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] px-2.5 py-1.5 text-sm text-[var(--text)]" />
+              <span className="text-[var(--text-muted)]">–</span>
+              <input type="date" value={cTo} min={cFrom} onChange={(e) => setCTo(e.target.value)} className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] px-2.5 py-1.5 text-sm text-[var(--text)]" />
+            </>
+          )}
+        </div>
+
+        {recap.counts.total === 0 ? (
+          <p className="py-8 text-center text-sm text-[var(--text-muted)]">{t('recapEmpty')}</p>
+        ) : (
+          <div className="flex flex-col gap-5">
+            {/* Headline period numbers */}
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+              <PeriodStat icon={IoCheckmarkDoneOutline} value={recap.counts.total} label={t('statFinished')} color="var(--text)" />
+              <PeriodStat icon={IoBookOutline} value={recap.counts.books} label={t('statBooks')} color={TYPE_COLOR.book} />
+              <PeriodStat icon={IoFilmOutline} value={recap.counts.movies} label={t('statMovies')} color={TYPE_COLOR.movie} />
+              <PeriodStat icon={IoTvOutline} value={recap.counts.series} label={t('seriesPlural')} color={TYPE_COLOR.series} />
+              <PeriodStat icon={IoLibraryOutline} value={fmtInt(recap.pages, locale)} label={t('statsPages')} color="#c2557a" />
+              <PeriodStat icon={IoTimeOutline} value={recap.minutes ? fmtDuration(recap.minutes) : '—'} label={t('recapTimeSpent')} color="#4fd1c5" />
+            </div>
+
+            {/* Most-read author (optional) */}
+            <label className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
+              <input type="checkbox" checked={includeAuthor} onChange={(e) => setIncludeAuthor(e.target.checked)} className="accent-[var(--color-nonsprimary)]" />
+              {t('recapIncludeAuthor')}
+            </label>
+            {includeAuthor && recap.authors.length > 0 && (
+              <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] p-4">
+                <p className="mb-3 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">
+                  <IoPersonOutline className="h-3.5 w-3.5" /> {t('recapMostReadAuthor')}
+                </p>
+                <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-lg font-bold text-[var(--text)]">{recap.authors[0].name}</span>
+                    <span className="text-sm text-[var(--text-muted)]">{t('recapAuthorCount', { n: recap.authors[0].count })}</span>
+                  </div>
+                  {recap.authors.slice(1, 4).map((a) => (
+                    <span key={a.name} className="text-xs text-[var(--text-muted)]">{a.name} · {a.count}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Detailed list of what was finished in the period */}
+            <div>
+              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">{t('recapWhatYouFinished')}</p>
+              <ul className="flex flex-col divide-y divide-[var(--border-subtle)] overflow-hidden rounded-xl border border-[var(--border-subtle)]">
+                {recap.items.map((i) => (
+                  <li key={i.id} className="flex items-center gap-3 bg-[var(--surface)] px-3 py-2">
+                    <span className="h-14 w-10 flex-shrink-0 overflow-hidden rounded bg-[var(--container-2)]">
+                      {i.coverUrl && <img src={i.coverUrl} alt="" className="h-full w-full object-cover" />}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium text-[var(--text)]">{i.title}</p>
+                      <p className="truncate text-xs text-[var(--text-muted)]">{i.author}</p>
+                    </div>
+                    {typeof i.rating === 'number' && i.rating > 0 && <MiniStars rating={i.rating} />}
+                    <span className="w-16 flex-shrink-0 text-right text-[11px] text-[var(--text-muted)]">
+                      {i.finishedAt ? new Date(i.finishedAt).toLocaleDateString(locale, { day: 'numeric', month: 'short' }) : ''}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        )}
+      </section>
+
+      {recapOpen && <RecapStories open={recapOpen} onClose={() => setRecapOpen(false)} recap={recap} label={period.label} locale={locale} t={t} />}
+
       {/* Summary cards */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {cards.map((c) => (
@@ -331,6 +511,47 @@ function Average({ value, label }: { value: string; label: string }) {
       <p className="text-xl font-bold leading-none text-[var(--text)]">{value}</p>
       <p className="mt-1 text-[11px] text-[var(--text-muted)]">{label}</p>
     </div>
+  )
+}
+
+// Month + year dropdowns for picking a single month within the finished range.
+function MonthPicker({ value, onChange, min, max, locale }: { value: YM; onChange: (v: YM) => void; min: number; max: number; locale: string }) {
+  const years = Array.from({ length: Math.max(1, max - min + 1) }, (_, i) => max - i)
+  const monthName = (m: number) => new Date(2020, m, 1).toLocaleString(locale, { month: 'long' })
+  return (
+    <div className="flex items-center gap-1.5">
+      <select value={value.m} onChange={(e) => onChange({ ...value, m: Number(e.target.value) })} className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] px-2 py-1.5 text-sm text-[var(--text)]">
+        {Array.from({ length: 12 }, (_, m) => <option key={m} value={m}>{monthName(m)}</option>)}
+      </select>
+      <select value={value.y} onChange={(e) => onChange({ ...value, y: Number(e.target.value) })} className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] px-2 py-1.5 text-sm text-[var(--text)]">
+        {years.map((y) => <option key={y} value={y}>{y}</option>)}
+      </select>
+    </div>
+  )
+}
+
+// A compact stat tile for the recap period headline.
+function PeriodStat({ icon: Icon, value, label, color }: { icon: IconType; value: string | number; label: string; color: string }) {
+  return (
+    <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] p-3">
+      <Icon className="h-4 w-4" style={{ color }} />
+      <p className="mt-1.5 text-xl font-bold leading-none text-[var(--text)]">{value}</p>
+      <p className="mt-1 text-[10px] uppercase tracking-wide text-[var(--text-muted)]">{label}</p>
+    </div>
+  )
+}
+
+// Five-star (half-step) rating for the finished list rows.
+function MiniStars({ rating }: { rating: number }) {
+  return (
+    <span className="flex flex-shrink-0 items-center gap-0.5" style={{ color: '#f5a623' }}>
+      {Array.from({ length: 5 }).map((_, i) => {
+        const v = (i + 1) * 2
+        if (rating >= v) return <IoStar key={i} className="h-3 w-3" />
+        if (rating === v - 1) return <IoStarHalf key={i} className="h-3 w-3" />
+        return <IoStarOutline key={i} className="h-3 w-3" style={{ color: 'var(--container-2)' }} />
+      })}
+    </span>
   )
 }
 
