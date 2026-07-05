@@ -1,14 +1,16 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useSearchParams } from '@/lib/router'
+import { useSearchParams, Link } from '@/lib/router'
 import Layout from '../components/layout/Layout'
 import CatalogCard from '../components/CatalogCard'
 import { catalogService } from '../services/catalogService'
-import type { CatalogItem } from '../services/catalogService'
+import type { CatalogItem, PersonHit } from '../services/catalogService'
 import { libraryService } from '../services/libraryService'
 import type { MediaItem, MediaType, ShelfStatus } from '../types'
 import { useLanguage } from '../contexts/LanguageContext'
-import { IoSearchOutline } from 'react-icons/io5'
+import { IoSearchOutline, IoPersonOutline, IoAppsOutline, IoBookOutline, IoFilmOutline, IoTvOutline } from 'react-icons/io5'
+import type { IconType } from 'react-icons'
 import InfinityLoader from '../components/InfinityLoader'
+import { initials, colorFor } from '../lib/user'
 
 const keyOf = (it: { type: string; title: string }) => `${it.type}:${it.title.trim().toLowerCase()}`
 
@@ -39,6 +41,11 @@ export default function SearchPage() {
   const [page, setPage] = useState(0)
   const [loadingMore, setLoadingMore] = useState(false)
   const [exhausted, setExhausted] = useState(false)
+  // People tab: a separate results mode (fuzzy name search, its own endpoint),
+  // toggled independently of the All/Books/Movies/Series catalog filter.
+  const [peopleMode, setPeopleMode] = useState(false)
+  const [people, setPeople] = useState<PersonHit[]>([])
+  const [peopleLoading, setPeopleLoading] = useState(false)
 
   useEffect(() => {
     // All setState happens inside the debounce callback (never synchronously in
@@ -72,6 +79,30 @@ export default function SearchPage() {
     }, q ? 300 : 0)
     return () => clearTimeout(timer)
   }, [q])
+
+  // People tab: debounced fuzzy name search against its own endpoint, only
+  // while active — no external-source import step, unlike the catalog search.
+  useEffect(() => {
+    if (!peopleMode || !q) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setPeople([])
+      setPeopleLoading(false)
+      return
+    }
+    let cancelled = false
+    setPeopleLoading(true)
+    const timer = setTimeout(async () => {
+      const res = await catalogService.searchPeople(q)
+      if (!cancelled) {
+        setPeople(res)
+        setPeopleLoading(false)
+      }
+    }, 300)
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
+  }, [peopleMode, q])
 
   // Import the next batch of books, movies and series from external sources and
   // append the ones not already shown. When a press brings nothing new, the
@@ -137,11 +168,11 @@ export default function SearchPage() {
     return [...list].sort((a, b) => b.popularity - a.popularity)
   }, [catalog, filter, sort])
 
-  const tabs: { key: Filter; label: string; count: number }[] = [
-    { key: 'all', label: t('filterAll'), count: catalog.length },
-    { key: 'book', label: t('books'), count: counts.book },
-    { key: 'movie', label: t('movies'), count: counts.movie },
-    { key: 'series', label: t('seriesPlural'), count: counts.series },
+  const tabs: { key: Filter; label: string; count: number; icon: IconType }[] = [
+    { key: 'all', label: t('filterAll'), count: catalog.length, icon: IoAppsOutline },
+    { key: 'book', label: t('books'), count: counts.book, icon: IoBookOutline },
+    { key: 'movie', label: t('movies'), count: counts.movie, icon: IoFilmOutline },
+    { key: 'series', label: t('seriesPlural'), count: counts.series, icon: IoTvOutline },
   ]
 
   return (
@@ -158,84 +189,142 @@ export default function SearchPage() {
           <IoSearchOutline className="h-8 w-8" />
           <p className="text-sm">{t('searchPrompt')}</p>
         </div>
-      ) : loading ? (
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-          {Array.from({ length: 10 }).map((_, i) => (
-            <div key={i} className="aspect-[2/3] animate-pulse rounded-xl bg-[var(--surface)]" />
-          ))}
-        </div>
-      ) : importing ? (
-        <div className="flex justify-center py-16">
-          <InfinityLoader size={100} hint={t('searchingExternal')} />
-        </div>
-      ) : catalog.length === 0 ? (
-        <p className="py-16 text-center text-sm text-[var(--text-muted)]">{t('noResults')}</p>
       ) : (
         <>
-          {/* Type filter + sort */}
+          {/* Type filter + People toggle + sort — always shown once there's a
+              query, so switching into/out of People mode doesn't wait on the
+              catalog fetch. */}
           <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-            <div className="inline-flex flex-wrap gap-1 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] p-1">
-              {tabs.map((tab) => (
-                <button
-                  key={tab.key}
-                  onClick={() => setFilter(tab.key)}
-                  className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
-                    filter === tab.key
-                      ? 'bg-[var(--surface-active)] text-[var(--text)]'
-                      : 'text-[var(--text-muted)] hover:bg-[var(--surface-hover)]'
-                  }`}
-                >
-                  {tab.label}
-                  <span className="ml-1.5 text-xs text-[var(--text-muted)]">{tab.count}</span>
-                </button>
-              ))}
-            </div>
-            <div className="inline-flex gap-1 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] p-1">
-              {(['relevance', 'popular'] as const).map((s) => (
-                <button
-                  key={s}
-                  onClick={() => setSort(s)}
-                  className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
-                    sort === s
-                      ? 'bg-[var(--surface-active)] text-[var(--text)]'
-                      : 'text-[var(--text-muted)] hover:bg-[var(--surface-hover)]'
-                  }`}
-                >
-                  {s === 'relevance' ? t('sortRelevance') : t('sortPopular')}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {shown.length === 0 ? (
-            <p className="py-16 text-center text-sm text-[var(--text-muted)]">{t('noResults')}</p>
-          ) : (
-            <div className="animate-fade-up grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-              {shown.map((it) => (
-                <CatalogCard
-                  key={it.id}
-                  item={it}
-                  inLibrary={inLibrary(it)}
-                  shelfStatus={{
-                    current: statusByKey.get(keyOf(it)) ?? null,
-                    onChange: (status) => handleStatusChange(it, status),
-                  }}
-                />
-              ))}
-            </div>
-          )}
-
-          {!exhausted && (
-            <div className="mt-8 flex justify-center">
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="inline-flex flex-wrap gap-1 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] p-1">
+                {tabs.map((tab) => (
+                  <button
+                    key={tab.key}
+                    onClick={() => { setFilter(tab.key); setPeopleMode(false) }}
+                    className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+                      !peopleMode && filter === tab.key
+                        ? 'bg-[var(--surface-active)] text-[var(--text)]'
+                        : 'text-[var(--text-muted)] hover:bg-[var(--surface-hover)]'
+                    }`}
+                  >
+                    <tab.icon className="h-4 w-4" />
+                    {tab.label}
+                    <span className="text-xs text-[var(--text-muted)]">{tab.count}</span>
+                  </button>
+                ))}
+              </div>
+              {/* People — a separate button, not part of the type-filter group
+                  (it searches a different endpoint, people by name), but styled
+                  identically to those tabs so it reads as one consistent set. */}
               <button
-                onClick={handleLoadMore}
-                disabled={loadingMore}
-                className="inline-flex items-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] px-5 py-2.5 text-sm font-semibold text-[var(--text)] transition-colors hover:bg-[var(--surface-hover)] disabled:opacity-60"
+                onClick={() => setPeopleMode((v) => !v)}
+                className={`flex items-center gap-1.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] px-3 py-1.5 text-sm font-medium transition-colors ${
+                  peopleMode
+                    ? 'bg-[var(--surface-active)] text-[var(--text)]'
+                    : 'text-[var(--text-muted)] hover:bg-[var(--surface-hover)]'
+                }`}
               >
-                {loadingMore && <span className="h-4 w-4 animate-spin rounded-full border-2 border-nonsprimary border-t-transparent" />}
-                {loadingMore ? t('searchingExternal') : t('searchLoadMore')}
+                <IoPersonOutline className="h-4 w-4" />
+                {t('people')}
               </button>
             </div>
+            {!peopleMode && (
+              <div className="inline-flex gap-1 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] p-1">
+                {(['relevance', 'popular'] as const).map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => setSort(s)}
+                    className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+                      sort === s
+                        ? 'bg-[var(--surface-active)] text-[var(--text)]'
+                        : 'text-[var(--text-muted)] hover:bg-[var(--surface-hover)]'
+                    }`}
+                  >
+                    {s === 'relevance' ? t('sortRelevance') : t('sortPopular')}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {peopleMode ? (
+            peopleLoading ? (
+              <div className="grid grid-cols-3 gap-4 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
+                {Array.from({ length: 12 }).map((_, i) => (
+                  <div key={i} className="flex flex-col items-center gap-2">
+                    <div className="aspect-square w-full animate-pulse rounded-full bg-[var(--surface)]" />
+                  </div>
+                ))}
+              </div>
+            ) : people.length === 0 ? (
+              <p className="py-16 text-center text-sm text-[var(--text-muted)]">{t('noResults')}</p>
+            ) : (
+              <div className="animate-fade-up grid grid-cols-3 gap-4 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
+                {people.map((p) => (
+                  <Link key={p.uuid} to={`/p/${p.uuid}`} className="group flex flex-col items-center text-center">
+                    <div className="aspect-square w-full overflow-hidden rounded-full border border-[var(--border-subtle)] bg-[var(--container-2)] transition-colors group-hover:border-[var(--border)]">
+                      {p.photoUrl ? (
+                        <img src={p.photoUrl} alt={p.name} loading="lazy" className="h-full w-full object-cover" />
+                      ) : (
+                        <span
+                          className="flex h-full w-full items-center justify-center text-lg font-semibold text-white"
+                          style={{ backgroundColor: colorFor(p.uuid || p.name) }}
+                        >
+                          {initials(p.name)}
+                        </span>
+                      )}
+                    </div>
+                    <p className="mt-2 line-clamp-2 text-xs font-medium leading-snug text-[var(--text)] group-hover:text-nonsprimary">{p.name}</p>
+                    <p className="text-[11px] text-[var(--text-muted)]">{t('nTitles', { n: p.creditCount })}</p>
+                  </Link>
+                ))}
+              </div>
+            )
+          ) : loading ? (
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+              {Array.from({ length: 10 }).map((_, i) => (
+                <div key={i} className="aspect-[2/3] animate-pulse rounded-xl bg-[var(--surface)]" />
+              ))}
+            </div>
+          ) : importing ? (
+            <div className="flex justify-center py-16">
+              <InfinityLoader size={100} hint={t('searchingExternal')} />
+            </div>
+          ) : catalog.length === 0 ? (
+            <p className="py-16 text-center text-sm text-[var(--text-muted)]">{t('noResults')}</p>
+          ) : (
+            <>
+              {shown.length === 0 ? (
+                <p className="py-16 text-center text-sm text-[var(--text-muted)]">{t('noResults')}</p>
+              ) : (
+                <div className="animate-fade-up grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+                  {shown.map((it) => (
+                    <CatalogCard
+                      key={it.id}
+                      item={it}
+                      inLibrary={inLibrary(it)}
+                      shelfStatus={{
+                        current: statusByKey.get(keyOf(it)) ?? null,
+                        onChange: (status) => handleStatusChange(it, status),
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
+
+              {!exhausted && (
+                <div className="mt-8 flex justify-center">
+                  <button
+                    onClick={handleLoadMore}
+                    disabled={loadingMore}
+                    className="inline-flex items-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] px-5 py-2.5 text-sm font-semibold text-[var(--text)] transition-colors hover:bg-[var(--surface-hover)] disabled:opacity-60"
+                  >
+                    {loadingMore && <span className="h-4 w-4 animate-spin rounded-full border-2 border-nonsprimary border-t-transparent" />}
+                    {loadingMore ? t('searchingExternal') : t('searchLoadMore')}
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </>
       )}

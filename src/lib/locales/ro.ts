@@ -252,6 +252,7 @@ export const ro = {
   seeAllResults: 'Vezi toate rezultatele',
   searchLoadMore: 'Încarcă mai mult',
   filterAll: 'Toate',
+  people: 'Persoane',
   sortRelevance: 'Relevanță',
   sortPopular: 'Populare',
   searchLibrary: 'Caută în biblioteca ta…',

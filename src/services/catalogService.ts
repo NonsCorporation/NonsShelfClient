@@ -91,6 +91,9 @@ export interface ICatalogService {
   recent(type: MediaType | undefined, limit: number): Promise<CatalogItem[]>
   /** Most-credited people (authors/actors/directors), for the notable-names row. */
   notablePeople(limit: number): Promise<PersonHit[]>
+  /** Fuzzy, typo-tolerant search for people by name — the "People" tab on the
+   *  main search page. Empty query returns no results. */
+  searchPeople(q: string, limit?: number): Promise<PersonHit[]>
   /** Search externally and auto-import up to `limit` books and films (and series
    *  if requested), then return the rows. By default this only imports when `q`
    *  has no local results; pass `force` to import even when locals exist (the
@@ -152,6 +155,23 @@ class ApiCatalogService implements ICatalogService {
   async notablePeople(limit: number): Promise<PersonHit[]> {
     try {
       const res = await authedFetch(`/api/people/popular?limit=${limit}`)
+      if (!res.ok) return []
+      const data: { items?: { uuid: string; name: string; photo_url?: string; credit_count?: number }[] } = await res.json()
+      return (data.items ?? []).map((p) => ({
+        uuid: p.uuid,
+        name: p.name,
+        photoUrl: p.photo_url || undefined,
+        creditCount: p.credit_count ?? 0,
+      }))
+    } catch {
+      return []
+    }
+  }
+
+  async searchPeople(q: string, limit = 30): Promise<PersonHit[]> {
+    if (!q.trim()) return []
+    try {
+      const res = await authedFetch(`/api/people/search?q=${encodeURIComponent(q.trim())}&limit=${limit}`)
       if (!res.ok) return []
       const data: { items?: { uuid: string; name: string; photo_url?: string; credit_count?: number }[] } = await res.json()
       return (data.items ?? []).map((p) => ({

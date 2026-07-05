@@ -252,6 +252,7 @@ export const en = {
   seeAllResults: 'See all results',
   searchLoadMore: 'Load more',
   filterAll: 'All',
+  people: 'People',
   sortRelevance: 'Relevance',
   sortPopular: 'Popular',
   searchLibrary: 'Search your library…',

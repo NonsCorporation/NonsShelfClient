@@ -252,6 +252,7 @@ export const ru = {
   seeAllResults: 'Все результаты',
   searchLoadMore: 'Загрузить ещё',
   filterAll: 'Все',
+  people: 'Люди',
   sortRelevance: 'Релевантность',
   sortPopular: 'Популярные',
   searchLibrary: 'Поиск в библиотеке…',
