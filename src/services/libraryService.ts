@@ -1,4 +1,4 @@
-import { authedFetch } from '../lib/api'
+import { authedFetch, nonsFetch } from '../lib/api'
 import { toMediaItem as toItem, type BackendMedia, type Signals } from '../lib/mediaMap'
 import type { MediaItem, MediaType, ShelfStatus } from '../types.ts'
 
@@ -148,6 +148,14 @@ export interface FinishOptions {
   share?: boolean
 }
 
+// What the "Post to Nons" cross-post collects — a real post title + body,
+// distinct from the shelf review (which the FinishModal preview seeds it from
+// but the user can edit before it's sent to nons-server).
+export interface NonsPostOptions {
+  title: string
+  content: string
+}
+
 // Query for searchLibrary — mirrors nons-library-server's GET /api/shelf
 // filters (status/type/collection/q/rated_only/reviewed_only/sort/dir) plus
 // client-side pagination (page is zero-based, like getReviews).
@@ -222,6 +230,10 @@ export interface ILibraryService {
   setEpisodeWatched(episodeId: number, watched: boolean): Promise<void>
   /** Finish an item: shelf → done, save rating/review, log a (backdatable) finished event. */
   finish(mediaId: string, opts: FinishOptions): Promise<void>
+  /** Cross-post a finished item to the main nons feed (a real post on
+   *  nons-server/nons-client) mentioning it, independent of the shelf's own
+   *  internal feed (`share` above). Throws if the post couldn't be created. */
+  postToNons(item: { uuid?: string; type: MediaType }, opts: NonsPostOptions): Promise<void>
   deleteItem(id: string): Promise<void>
   /** Permanently delete the whole personal library (shelf, ratings, favorites, activity, feed posts). */
   wipeLibrary(): Promise<void>
@@ -600,6 +612,24 @@ class ApiLibraryService implements ILibraryService {
       // (the shelf "finished" event above already represents the finish).
       await this.logProgress(mediaId, { pct: 100, eventDate: opts.finishedAt, note: 'finished', share: false })
     }
+  }
+
+  // Cross-post to the main nons feed: creates a real post on nons-server
+  // mentioning this item. Independent of finish()'s own `share` flag, which
+  // only controls the library's internal activity feed.
+  async postToNons(item: { uuid?: string; type: MediaType }, opts: NonsPostOptions): Promise<void> {
+    if (!item.uuid) throw new Error('This item has no public link yet')
+    const res = await nonsFetch('/api/posts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: opts.title,
+        content: opts.content,
+        post_type: 'blog',
+        media: [{ uuid: item.uuid, type: item.type }],
+      }),
+    })
+    if (!res.ok) throw new Error('Failed to post to nons')
   }
 
   // Set (or clear, with 0) which book edition the user is reading on their shelf.

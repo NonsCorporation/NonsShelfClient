@@ -513,7 +513,7 @@ export default function Login() {
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-6 sm:flex-row">
           <div className="flex items-center gap-2">
             <ShelfLogo className="h-5 w-5 text-[var(--text-muted)]" />
-            <p className="text-xs uppercase tracking-widest text-[var(--text-muted)]">© Nons Company</p>
+            <p className="text-xs uppercase tracking-widest text-[var(--text-muted)]">© Nons Corporation</p>
           </div>
           <a href="https://nonsapp.com" className="text-xs text-[var(--text-muted)] transition-colors hover:text-nonsprimary">
             {t('landingFooterNons')}
