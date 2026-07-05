@@ -7,6 +7,7 @@ import { IoClose, IoDownloadOutline, IoChevronBack, IoChevronForward, IoBookOutl
 import type { MediaType } from '../types'
 import type { Recap } from '../lib/recap'
 import { fmtInt, fmtDuration } from '../lib/recap'
+import { mediaPath } from '../lib/paths'
 import ShelfLogo from './ShelfLogo'
 
 type TFn = (key: string, vars?: Record<string, string | number>) => string
@@ -16,6 +17,7 @@ const BG = '#0b0b12'
 const INK = '#ffffff'
 const MUTED = '#9aa0ad'
 const FAINT = '#3a3a45'
+const PRIMARY = '#6768ab' // nons primary — theme-invariant, matches --color-nonsprimary
 const CARD_W = 360
 const CARD_H = 640
 const TYPE_COLOR: Record<MediaType, string> = { book: '#e0a458', movie: '#7c8cff', series: '#4fd1c5' }
@@ -70,6 +72,60 @@ function PersonPhoto({ url, size = 84 }: { url?: string; size?: number }) {
   )
 }
 
+// Builds a smooth cubic-bezier path through a series of points — a lightweight
+// "wave" curve (control points sit at each segment's horizontal midpoint, at
+// each endpoint's own height) with no charting dependency.
+function smoothPath(points: { x: number; y: number }[]): string {
+  if (points.length === 0) return ''
+  let d = `M ${points[0].x} ${points[0].y}`
+  for (let i = 0; i < points.length - 1; i++) {
+    const p0 = points[i]
+    const p1 = points[i + 1]
+    const midX = (p0.x + p1.x) / 2
+    d += ` C ${midX} ${p0.y}, ${midX} ${p1.y}, ${p1.x} ${p1.y}`
+  }
+  return d
+}
+
+// Rating distribution as a continuous wave (smooth filled area) across the
+// 10 half-star buckets, with each bucket's count labelled above its point.
+function RatingWave({ counts }: { counts: number[] }) {
+  const W = 300
+  const H = 130
+  const TOP_PAD = 22 // room for the count label above the tallest peak
+  const max = Math.max(1, ...counts.slice(1))
+  const n = 10
+  const points = Array.from({ length: n }, (_, i) => {
+    const value = counts[i + 1] || 0
+    const x = (i / (n - 1)) * W
+    const y = TOP_PAD + (1 - value / max) * (H - TOP_PAD)
+    return { x, y, value }
+  })
+  const linePath = smoothPath(points)
+  const areaPath = `${linePath} L ${points[n - 1].x} ${H} L ${points[0].x} ${H} Z`
+  const gradId = 'recapWaveFill'
+
+  return (
+    <svg viewBox={`0 0 ${W} ${H + 16}`} width="100%" style={{ display: 'block', overflow: 'visible' }}>
+      <defs>
+        <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={PRIMARY} stopOpacity={0.55} />
+          <stop offset="100%" stopColor={PRIMARY} stopOpacity={0} />
+        </linearGradient>
+      </defs>
+      <path d={areaPath} fill={`url(#${gradId})`} />
+      <path d={linePath} fill="none" stroke={PRIMARY} strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" />
+      {points.map((p, i) => (
+        <g key={i}>
+          <circle cx={p.x} cy={p.y} r={3} fill={PRIMARY} />
+          <text x={p.x} y={p.y - 9} fontSize={9} fontWeight={700} fill={INK} textAnchor="middle">{p.value}</text>
+          <text x={p.x} y={H + 13} fontSize={9} fill={MUTED} textAnchor="middle">{((i + 1) / 2).toFixed(1)}</text>
+        </g>
+      ))}
+    </svg>
+  )
+}
+
 // One 9:16 slide shell with a consistent header/footer chrome.
 function Slide({ children, accent, footer }: { children: React.ReactNode; accent: string; footer: string }) {
   return (
@@ -99,45 +155,39 @@ function statRow(icon: React.ReactNode, value: string | number, label: string, c
 
 type Slide = { key: string; accent: string; render: () => React.ReactNode }
 
-function buildSlides(r: Recap, label: string, locale: string, t: TFn, authorPhotoUrl?: string): Slide[] {
+function buildSlides(r: Recap, label: string, locale: string, t: TFn, authorPhotoUrl?: string, userName?: string): Slide[] {
   const footer = label
   const slides: Slide[] = []
 
-  // 1) Intro / headline
+  // 1) Intro + breakdown, combined — headline total plus the per-type/volume
+  // rows on the same card, opened with a personalized "Recap for {name}".
   slides.push({
     key: 'intro',
     accent: '#7c8cff',
     render: () => (
       <Slide accent="#7c8cff" footer={footer}>
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-          <p style={{ fontSize: 13, textTransform: 'uppercase', letterSpacing: 2, color: MUTED, margin: 0 }}>{t('recapTitle')}</p>
-          <p style={{ fontSize: 30, fontWeight: 800, margin: '6px 0 22px' }}>{label}</p>
-          <p style={{ fontSize: 84, fontWeight: 900, lineHeight: 0.95, margin: 0 }}>{r.counts.total}</p>
-          <p style={{ fontSize: 18, color: MUTED, margin: '4px 0 0' }}>{t('recapFinishedTotal')}</p>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 26 }}>
+          <div>
+            <p style={{ fontSize: 13, textTransform: 'uppercase', letterSpacing: 2, color: MUTED, margin: 0 }}>{label}</p>
+            <p style={{ fontSize: 26, fontWeight: 800, margin: '6px 0 16px' }}>
+              {userName ? t('recapForName', { name: userName }) : t('recapTitle')}
+            </p>
+            <p style={{ fontSize: 64, fontWeight: 900, lineHeight: 0.95, margin: 0 }}>{r.counts.total}</p>
+            <p style={{ fontSize: 16, color: MUTED, margin: '4px 0 0' }}>{t('recapFinishedTotal')}</p>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {r.counts.books > 0 && statRow(<IoBookOutline size={18} />, r.counts.books, t('books'), TYPE_COLOR.book)}
+            {r.counts.movies > 0 && statRow(<IoFilmOutline size={18} />, r.counts.movies, t('movies'), TYPE_COLOR.movie)}
+            {r.counts.series > 0 && statRow(<IoTvOutline size={18} />, r.counts.series, t('seriesPlural'), TYPE_COLOR.series)}
+            {r.pages > 0 && statRow(<IoLibraryOutline size={18} />, fmtInt(r.pages, locale), t('statsPages'), '#c2557a')}
+            {r.minutes > 0 && statRow(<IoTimeOutline size={18} />, fmtDuration(r.minutes), t('recapTimeSpent'), '#4fd1c5')}
+          </div>
         </div>
       </Slide>
     ),
   })
 
-  // 2) Breakdown by type + volume
-  slides.push({
-    key: 'breakdown',
-    accent: '#e0a458',
-    render: () => (
-      <Slide accent="#e0a458" footer={footer}>
-        <p style={{ fontSize: 20, fontWeight: 800, margin: '2px 0 20px' }}>{t('recapBreakdown')}</p>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {r.counts.books > 0 && statRow(<IoBookOutline size={20} />, r.counts.books, t('books'), TYPE_COLOR.book)}
-          {r.counts.movies > 0 && statRow(<IoFilmOutline size={20} />, r.counts.movies, t('movies'), TYPE_COLOR.movie)}
-          {r.counts.series > 0 && statRow(<IoTvOutline size={20} />, r.counts.series, t('seriesPlural'), TYPE_COLOR.series)}
-          {r.pages > 0 && statRow(<IoLibraryOutline size={20} />, fmtInt(r.pages, locale), t('statsPages'), '#c2557a')}
-          {r.minutes > 0 && statRow(<IoTimeOutline size={20} />, fmtDuration(r.minutes), t('recapTimeSpent'), '#4fd1c5')}
-        </div>
-      </Slide>
-    ),
-  })
-
-  // 3) Most-read author
+  // 2) Most-read author
   if (r.authors.length) {
     const top = r.authors[0]
     slides.push({
@@ -166,7 +216,7 @@ function buildSlides(r: Recap, label: string, locale: string, t: TFn, authorPhot
     })
   }
 
-  // 4) Top rated
+  // 3) Top rated
   if (r.topRated.length) {
     slides.push({
       key: 'toprated',
@@ -191,46 +241,68 @@ function buildSlides(r: Recap, label: string, locale: string, t: TFn, authorPhot
     })
   }
 
-  // 5) The full list (cover wall)
-  if (r.items.length) {
-    const shown = r.items.slice(0, 12)
-    const more = r.items.length - shown.length
-    slides.push({
-      key: 'list',
-      accent: '#4fd1c5',
-      render: () => (
-        <Slide accent="#4fd1c5" footer={footer}>
-          <p style={{ fontSize: 20, fontWeight: 800, margin: '2px 0 16px' }}>{t('recapEverything')}</p>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
-            {shown.map((i) => <Cover key={i.id} url={i.coverUrl} w={72} h={108} />)}
-          </div>
-          {more > 0 && <p style={{ fontSize: 14, color: MUTED, margin: '16px 0 0', textAlign: 'center' }}>{t('recapAndMore', { n: more })}</p>}
-        </Slide>
-      ),
-    })
-  }
-
-  // 6) Ratings distribution
+  // 4) Ratings distribution — a continuous wave across the 10 half-star
+  // buckets, each point labelled with its count, plus how many reviews were
+  // written this period (only when there are any).
   if (r.ratedCount) {
-    const max = Math.max(1, ...r.ratingCounts)
     slides.push({
       key: 'ratings',
       accent: '#c2557a',
       render: () => (
         <Slide accent="#c2557a" footer={footer}>
           <p style={{ fontSize: 20, fontWeight: 800, margin: '2px 0 6px' }}>{t('statsRatings')}</p>
-          <p style={{ fontSize: 40, fontWeight: 900, margin: '0 0 18px' }}>{r.avgRating.toFixed(2)}<span style={{ fontSize: 16, color: MUTED, fontWeight: 600 }}> {t('recapAvg')}</span></p>
-          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 5, height: 180 }}>
-            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
-              <div key={n} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', gap: 5 }}>
-                <div style={{ width: '100%', borderRadius: 4, height: `${(r.ratingCounts[n] / max) * 100}%`, minHeight: r.ratingCounts[n] ? 4 : 0, background: `hsl(${Math.round(((n - 1) / 9) * 120)}, 62%, 52%)` }} />
-                <span style={{ fontSize: 9, color: MUTED }}>{(n / 2).toFixed(1)}</span>
-              </div>
-            ))}
-          </div>
+          <p style={{ fontSize: 40, fontWeight: 900, margin: '0 0 8px' }}>{r.avgRating.toFixed(2)}<span style={{ fontSize: 16, color: MUTED, fontWeight: 600 }}> {t('recapAvg')}</span></p>
+          <RatingWave counts={r.ratingCounts} />
+          {r.reviewCount > 0 && (
+            <p style={{ fontSize: 14, color: MUTED, margin: '18px 0 0' }}>
+              {t('recapReviewsWritten')} <span style={{ color: INK, fontWeight: 700 }}>{r.reviewCount}</span>
+            </p>
+          )}
         </Slide>
       ),
     })
+  }
+
+  // 5) The full list (cover wall) — paginated across as many cards as needed
+  // (12 covers each) so every finished item is shown, rather than truncating
+  // with a "+N more" note. Each cover shows its rating below and, in the live
+  // preview, links out to the title's page (inert once exported to PNG).
+  if (r.items.length) {
+    const PER_PAGE = 12
+    const pageCount = Math.ceil(r.items.length / PER_PAGE)
+    for (let p = 0; p < pageCount; p++) {
+      const chunk = r.items.slice(p * PER_PAGE, (p + 1) * PER_PAGE)
+      slides.push({
+        key: `list-${p}`,
+        accent: '#4fd1c5',
+        render: () => (
+          <Slide accent="#4fd1c5" footer={footer}>
+            <p style={{ fontSize: 20, fontWeight: 800, margin: '2px 0 16px' }}>
+              {t('recapEverything')}
+              {pageCount > 1 && <span style={{ color: MUTED, fontWeight: 600 }}> {p + 1}/{pageCount}</span>}
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
+              {chunk.map((i) => (
+                <a
+                  key={i.id}
+                  href={mediaPath({ type: i.type, uuid: i.uuid, id: i.id })}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, textDecoration: 'none' }}
+                >
+                  <Cover url={i.coverUrl} w={72} h={108} />
+                  {typeof i.rating === 'number' && i.rating > 0 ? (
+                    <span style={{ fontSize: 11, fontWeight: 700, color: PRIMARY }}>★ {(i.rating / 2).toFixed(1)}</span>
+                  ) : (
+                    <span style={{ fontSize: 11, color: MUTED }}>—</span>
+                  )}
+                </a>
+              ))}
+            </div>
+          </Slide>
+        ),
+      })
+    }
   }
 
   return slides
@@ -246,7 +318,7 @@ async function downloadCard(node: HTMLElement, name: string) {
   a.click()
 }
 
-export default function RecapStories({ open, onClose, recap, label, locale, t, authorPhotoUrl }: {
+export default function RecapStories({ open, onClose, recap, label, locale, t, authorPhotoUrl, userName }: {
   open: boolean
   onClose: () => void
   recap: Recap
@@ -255,8 +327,13 @@ export default function RecapStories({ open, onClose, recap, label, locale, t, a
   t: TFn
   /** Photo of the most-read author (recap.authors[0]), shown on the author slide in place of a book cover. */
   authorPhotoUrl?: string
+  /** The signed-in user's display name, for the "Recap for {name}" header. */
+  userName?: string
 }) {
-  const slides = useMemo(() => buildSlides(recap, label, locale, t, authorPhotoUrl), [recap, label, locale, t, authorPhotoUrl])
+  const slides = useMemo(
+    () => buildSlides(recap, label, locale, t, authorPhotoUrl, userName),
+    [recap, label, locale, t, authorPhotoUrl, userName],
+  )
   const nodes = useRef<(HTMLDivElement | null)[]>([])
   const scroller = useRef<HTMLDivElement>(null)
   const [active, setActive] = useState(0)
@@ -409,7 +486,7 @@ export default function RecapStories({ open, onClose, recap, label, locale, t, a
               onClick={() => saveOne(i)}
               disabled={busy}
               title={t('recapSaveCard')}
-              className="absolute right-3 top-3 rounded-full bg-black/50 p-2 text-white opacity-0 transition-opacity hover:bg-black/70 group-hover:opacity-100 disabled:opacity-50"
+              className="absolute right-3 top-3 rounded-full bg-black/50 p-2 text-white opacity-100 transition-opacity hover:bg-black/70 disabled:opacity-50 lg:opacity-0 lg:group-hover:opacity-100"
             >
               <IoDownloadOutline className="h-4 w-4" />
             </button>

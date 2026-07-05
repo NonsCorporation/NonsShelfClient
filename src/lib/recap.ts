@@ -29,6 +29,8 @@ export type Recap = {
   ratedCount: number
   /** Rating histogram, indexed 1..10 (index 0 unused). */
   ratingCounts: number[]
+  /** Finished items with a non-empty written review. */
+  reviewCount: number
   /** Highest-rated finished items, best first (max 5). */
   topRated: MediaItem[]
   /** Most-read authors within the period, most first (books only, or all if no books). */
@@ -122,6 +124,7 @@ export function buildRecap(all: MediaItem[], p: Period): Recap {
     avgRating: rated.length ? rated.reduce((s, i) => s + (i.rating || 0), 0) / rated.length / 2 : 0,
     ratedCount: rated.length,
     ratingCounts,
+    reviewCount: items.filter((i) => i.review && i.review.trim()).length,
     topRated: [...rated].sort((a, b) => (b.rating || 0) - (a.rating || 0)).slice(0, 5),
     authors,
     byMonth,

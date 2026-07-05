@@ -7,8 +7,10 @@ import { authedFetch } from '../lib/api'
 import { libraryService } from '../services/libraryService'
 import type { MediaItem, MediaType } from '../types'
 import { useLanguage } from '../contexts/LanguageContext'
+import { useAuth } from '../contexts/AuthContext'
 import { buildRecap, fmtInt, fmtDuration } from '../lib/recap'
 import RecapStories from '../components/RecapStories.tsx'
+import DatePicker from '../components/DatePicker.tsx'
 
 // Per-type accent, matching the rest of the app (book amber, film indigo, series teal).
 const TYPE_COLOR: Record<MediaType, string> = { book: '#e0a458', movie: '#7c8cff', series: '#4fd1c5' }
@@ -22,6 +24,8 @@ type YM = { y: number; m: number }
 export default function Statistics() {
   const { t, language } = useLanguage()
   const locale = language === 'ru' ? 'ru-RU' : 'en-US'
+  const { user } = useAuth()
+  const userName = user?.name || user?.username || ''
 
   const [items, setItems] = useState<MediaItem[]>([])
   const [events, setEvents] = useState<CalEvent[]>([])
@@ -275,9 +279,9 @@ export default function Statistics() {
           )}
           {pmode === 'custom' && (
             <>
-              <input type="date" value={cFrom} max={cTo} onChange={(e) => setCFrom(e.target.value)} className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] px-2.5 py-1.5 text-sm text-[var(--text)]" />
+              <DatePicker value={cFrom} onChange={setCFrom} max={cTo || undefined} placeholder="—" />
               <span className="text-[var(--text-muted)]">–</span>
-              <input type="date" value={cTo} min={cFrom} onChange={(e) => setCTo(e.target.value)} className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] px-2.5 py-1.5 text-sm text-[var(--text)]" />
+              <DatePicker value={cTo} onChange={setCTo} min={cFrom || undefined} placeholder="—" />
             </>
           )}
 
@@ -378,6 +382,7 @@ export default function Statistics() {
           locale={locale}
           t={t}
           authorPhotoUrl={topAuthorPhoto}
+          userName={userName}
         />
       )}
 
