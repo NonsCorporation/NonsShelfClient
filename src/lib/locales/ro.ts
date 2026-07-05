@@ -513,6 +513,7 @@ export const ro = {
   autoFindEditions: 'Găsește ediții automat',
   autoFindCredits: 'Găsește actori și echipă (TMDB)',
   by: 'de',
+  inCollection: 'în',
   rating: 'Notă',
 
   // Reading / watching dates

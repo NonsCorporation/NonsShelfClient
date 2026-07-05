@@ -513,6 +513,7 @@ export const ru = {
   autoFindEditions: 'Найти издания',
   autoFindCredits: 'Найти актёров и команду (TMDB)',
   by: 'от',
+  inCollection: 'в',
   rating: 'Оценка',
 
   // Reading / watching dates

@@ -475,7 +475,13 @@ export default function LibraryScreen() {
           ? t('shelfWishlist')
           : shelf === 'active'
             ? t('shelfActive')
-            : t('shelfDone')
+            : shelf === 'dnf'
+              ? t('shelfDNF')
+              : t('shelfDone')
+
+  // The active collection, when filtering by one — shown next to the shelf
+  // title as "in 📁 CollectionName".
+  const activeCollection = collectionFilter !== null ? collections.find((c) => c.id === collectionFilter) ?? null : null
 
   const sortLabels: Record<SortKey, string> = {
     added: t('sortAdded'),
@@ -693,8 +699,15 @@ export default function LibraryScreen() {
 
       {/* Header */}
       <div className="mb-4">
-        <h1 className="text-xl font-bold tracking-tight text-[var(--text)]">
+        <h1 className="flex flex-wrap items-center gap-2 text-xl font-bold tracking-tight text-[var(--text)]">
           {readOnly && ownerName ? t('libraryOf', { name: ownerName }) : shelfTitle}
+          {activeCollection && (
+            <span className="inline-flex items-center gap-1.5 text-base font-medium text-[var(--text-muted)]">
+              {t('inCollection')}
+              <IoFolderOutline className="h-4 w-4" />
+              {activeCollection.name}
+            </span>
+          )}
         </h1>
         <p className="mt-1 text-sm text-[var(--text-muted)]">{t('librarySubtitle')}</p>
       </div>

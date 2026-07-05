@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { IoClose, IoCheckmark } from 'react-icons/io5'
 import { useCollections } from '../contexts/CollectionContext'
 import { collectionService } from '../services/collectionService'
+import ConfirmModal from './ConfirmModal'
 import type { Collection, MediaItem } from '../types'
 
 interface Props {
@@ -26,9 +27,9 @@ export default function CollectionSettingsModal({
 }: Props) {
   const { renameCollection, deleteCollection, createCollection, refresh } = useCollections()
 
-  // ── Rename ──────────────────────────────────────────────────────────────────
-  const [newName, setNewName] = useState(collection.name)
-  const [renameError, setRenameError] = useState('')
+  // ── Name — edited inline in the header, no separate "Rename" form. ─────────
+  const [name, setName] = useState(collection.name)
+  const nameInputRef = useRef<HTMLInputElement>(null)
 
   // ── Move all items ───────────────────────────────────────────────────────────
   const [moveMode, setMoveMode] = useState<'existing' | 'new'>('existing')
@@ -49,6 +50,7 @@ export default function CollectionSettingsModal({
   // Default target to the first other collection.
   useEffect(() => {
     if (others.length > 0 && targetColId === null) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setTargetColId(others[0].id)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -56,17 +58,20 @@ export default function CollectionSettingsModal({
 
   // ── Handlers ─────────────────────────────────────────────────────────────────
 
-  async function handleRename() {
-    const name = newName.trim()
-    if (!name || name === collection.name) return
-    setRenameError('')
+  // Commits on blur/Enter — the modal stays open so the name reads as a plain
+  // editable title rather than a save-this-form step.
+  async function commitRename() {
+    const trimmed = name.trim()
+    if (!trimmed || trimmed === collection.name) {
+      setName(collection.name)
+      return
+    }
     setBusy(true)
     try {
-      await renameCollection(collection.id, name)
+      await renameCollection(collection.id, trimmed)
       onDone()
-      onClose()
-    } catch (e) {
-      setRenameError(e instanceof Error ? e.message : 'Failed to rename')
+    } catch {
+      setName(collection.name)
     } finally {
       setBusy(false)
     }
@@ -80,9 +85,9 @@ export default function CollectionSettingsModal({
 
       if (itemCount > 0) {
         if (moveMode === 'new') {
-          const name = newColName.trim()
-          if (!name) { setMoveError('Enter a name for the new collection'); setBusy(false); return }
-          const col = await createCollection(name)
+          const colName = newColName.trim()
+          if (!colName) { setMoveError('Enter a name for the new collection'); setBusy(false); return }
+          const col = await createCollection(colName)
           targetId = col.id
         } else {
           if (!targetColId) { setMoveError('Select a target collection'); setBusy(false); return }
@@ -120,8 +125,8 @@ export default function CollectionSettingsModal({
       await deleteCollection(collection.id)
       onDone()
       onClose()
-    } catch (e) {
-      setMoveError(e instanceof Error ? e.message : 'Delete failed')
+    } catch {
+      setConfirmDelete(false)
       setBusy(false)
     }
   }
@@ -143,13 +148,23 @@ export default function CollectionSettingsModal({
         onClick={(e) => e.stopPropagation()}
         className="animate-fade-up flex max-h-[92vh] w-full flex-col overflow-hidden rounded-t-2xl border border-[var(--border)] bg-[var(--container)] shadow-2xl sm:max-w-md sm:rounded-2xl"
       >
-        {/* Header */}
-        <div className="flex flex-shrink-0 items-start justify-between border-b border-[var(--border-subtle)] px-5 py-4">
-          <div className="min-w-0 pr-4">
-            <h2 className="text-base font-semibold text-[var(--text)]">Collection settings</h2>
-            <p className="mt-0.5 truncate text-xs text-[var(--text-muted)]">
-              {collection.name}
-              {itemCount > 0 && ` · ${itemCount} item${itemCount !== 1 ? 's' : ''}`}
+        {/* Header — the name itself is the editable title. */}
+        <div className="flex flex-shrink-0 items-start justify-between gap-3 border-b border-[var(--border-subtle)] px-5 py-4">
+          <div className="min-w-0 flex-1">
+            <input
+              ref={nameInputRef}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              onBlur={commitRename}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') nameInputRef.current?.blur()
+                if (e.key === 'Escape') { setName(collection.name); nameInputRef.current?.blur() }
+              }}
+              maxLength={80}
+              className="w-full min-w-0 rounded-md bg-[var(--surface)] px-2 py-1 -ml-2 text-base font-semibold text-[var(--text)] outline-none focus:bg-[var(--surface-hover)]"
+            />
+            <p className="mt-1 text-xs text-[var(--text-muted)]">
+              {itemCount} item{itemCount !== 1 ? 's' : ''}
             </p>
           </div>
           <button
@@ -163,36 +178,10 @@ export default function CollectionSettingsModal({
         {/* Scrollable body */}
         <div className="flex-1 overflow-y-auto divide-y divide-[var(--border-subtle)]">
 
-          {/* ── Rename ── */}
-          <section className="px-5 py-5">
-            <p className="mb-3 text-[10px] font-semibold uppercase tracking-widest text-[var(--text-muted)]">
-              Rename
-            </p>
-            <div className="flex gap-2">
-              <input
-                value={newName}
-                onChange={(e) => { setNewName(e.target.value); setRenameError('') }}
-                onKeyDown={(e) => { if (e.key === 'Enter') handleRename() }}
-                maxLength={80}
-                className="h-10 min-w-0 flex-1 rounded-xl border border-[var(--border-subtle)] bg-[var(--input)] px-3 text-sm text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-ring)]"
-              />
-              <button
-                onClick={handleRename}
-                disabled={busy || !newName.trim() || newName.trim() === collection.name}
-                className="h-10 rounded-xl bg-nonsprimary px-4 text-sm font-medium text-white transition-colors hover:bg-nonsprimaryfocus disabled:opacity-40"
-              >
-                Save
-              </button>
-            </div>
-            {renameError && <p className="mt-2 text-xs text-red-400">{renameError}</p>}
-          </section>
-
           {/* ── Move all items ── */}
           <section className="px-5 py-5">
             <div className="mb-3 flex items-center gap-2">
-              <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--text-muted)]">
-                Move all items
-              </p>
+              <p className="text-sm font-medium text-[var(--text)]">Move items</p>
               {itemCount > 0 && (
                 <span className="rounded-full bg-[var(--surface)] px-2 py-0.5 text-[11px] text-[var(--text-muted)]">
                   {itemCount}
@@ -272,7 +261,7 @@ export default function CollectionSettingsModal({
                 checked={removeAfterMove}
                 onChange={(v) => { setRemoveAfterMove(v); if (!v) setDeleteAfterMove(false) }}
                 label={
-                  <>Remove from <span className="font-medium">"{collection.name}"</span> after moving</>
+                  <>Remove from <span className="font-medium">&quot;{collection.name}&quot;</span> after moving</>
                 }
               />
               <Checkbox
@@ -280,7 +269,7 @@ export default function CollectionSettingsModal({
                 onChange={setDeleteAfterMove}
                 disabled={!removeAfterMove}
                 label={
-                  <>Delete <span className="font-medium">"{collection.name}"</span> after moving</>
+                  <>Delete <span className="font-medium">&quot;{collection.name}&quot;</span> after moving</>
                 }
               />
             </div>
@@ -300,45 +289,31 @@ export default function CollectionSettingsModal({
             </button>
           </section>
 
-          {/* ── Delete ── */}
-          <section className="px-5 py-5">
-            <p className="mb-3 text-[10px] font-semibold uppercase tracking-widest text-[var(--text-muted)]">
-              Danger zone
-            </p>
-            {!confirmDelete ? (
-              <button
-                onClick={() => setConfirmDelete(true)}
-                className="w-full rounded-xl border border-red-500/30 bg-red-500/10 py-3 text-sm font-medium text-red-400 transition-colors hover:border-red-500/50 hover:bg-red-500/20"
-              >
-                Delete collection
-              </button>
-            ) : (
-              <div className="rounded-xl border border-red-500/30 bg-red-500/5 p-4">
-                <p className="mb-1 font-medium text-[var(--text)]">Delete "{collection.name}"?</p>
-                <p className="mb-4 text-sm leading-relaxed text-[var(--text-muted)]">
-                  Items stay in your library — they just won't be in this collection anymore.
-                </p>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setConfirmDelete(false)}
-                    className="flex-1 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] py-2.5 text-sm font-medium text-[var(--text-muted)] transition-colors hover:text-[var(--text)]"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleDelete}
-                    disabled={busy}
-                    className="flex-1 rounded-lg border border-red-500/30 bg-red-500/10 py-2.5 text-sm font-medium text-red-400 transition-colors hover:border-red-500/50 hover:bg-red-500/20 disabled:opacity-50"
-                  >
-                    {busy ? 'Deleting…' : 'Delete'}
-                  </button>
-                </div>
-              </div>
-            )}
+          {/* ── Delete — a plain link, not a boxed-off "danger zone". ── */}
+          <section className="px-5 py-4">
+            <button
+              onClick={() => setConfirmDelete(true)}
+              className="text-sm font-medium text-red-400 hover:underline"
+            >
+              Delete this collection
+            </button>
           </section>
 
         </div>
       </div>
+
+      {confirmDelete && (
+        <ConfirmModal
+          title={`Delete "${collection.name}"?`}
+          message="Items stay in your library — they just won't be in this collection anymore."
+          confirmText={busy ? 'Deleting…' : 'Delete'}
+          cancelText="Cancel"
+          variant="danger"
+          busy={busy}
+          onConfirm={handleDelete}
+          onCancel={() => setConfirmDelete(false)}
+        />
+      )}
     </div>,
     document.body,
   )

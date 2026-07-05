@@ -513,6 +513,7 @@ export const en = {
   autoFindEditions: 'Auto-find editions',
   autoFindCredits: 'Auto-find cast & crew (TMDB)',
   by: 'by',
+  inCollection: 'in',
   rating: 'Rating',
 
   // Reading / watching dates
