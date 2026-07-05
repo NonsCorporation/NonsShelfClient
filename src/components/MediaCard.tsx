@@ -154,34 +154,43 @@ export default function MediaCard({
         to={mediaPath(item)}
         className="group flex flex-col gap-2.5 rounded-2xl border border-[var(--border-subtle)] bg-[var(--container)] p-3 transition-colors hover:border-[var(--border)] hover:bg-[var(--surface-hover)]"
       >
-        <div className="flex items-center gap-4">
-          <div className="relative h-20 w-14 flex-shrink-0 overflow-hidden rounded-lg">
+        <div className="flex items-start gap-4">
+          <div className="relative h-28 w-[74px] flex-shrink-0 overflow-hidden rounded-lg">
             <Cover item={item} fill className="rounded-lg" />
+            {/* Type + year sit on the cover itself, like the grid card's corner badges. */}
+            <span className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/55 text-white/90">
+              <TypeIcon className="h-3 w-3" />
+            </span>
+            {item.year ? (
+              <span className="absolute bottom-1 right-1 rounded-full bg-black/55 px-1.5 py-0.5 text-[9px] font-medium text-white/90">
+                {item.year}
+              </span>
+            ) : null}
           </div>
           <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2 text-[11px] text-[var(--text-muted)]">
-              <TypeIcon className="h-3.5 w-3.5" />
-              <span>{item.year ?? '—'}</span>
-              <span
-                className="ml-1 inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-medium"
-                style={{ backgroundColor: `${STATUS_COLOR[status]}22`, color: STATUS_COLOR[status] }}
-              >
-                {statusLabel(item.type, status, t)}
-              </span>
-              {/* Latest event — clickable to open the detail modal (rating/review + history). */}
-              {latest && (
-                <button
-                  onClick={openDetail}
-                  className="inline-flex items-center gap-1 text-[var(--text-muted)] transition-colors hover:text-nonsprimary"
-                >
-                  <IoTimeOutline className="h-3.5 w-3.5" />
-                  {t(latest.key)}
-                  <span>· {shortDate(latest.date)}</span>
-                </button>
-              )}
-            </div>
+            {/* Status — its own line above the title, not crowded into a meta row. */}
+            <span
+              className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-medium"
+              style={{ backgroundColor: `${STATUS_COLOR[status]}22`, color: STATUS_COLOR[status] }}
+            >
+              {statusLabel(item.type, status, t)}
+            </span>
             <h3 className="mt-1 truncate text-[15px] font-semibold text-[var(--text)]">{item.title}</h3>
             {byline}
+            {item.description && (
+              <p className="mt-1 line-clamp-2 text-xs leading-5 text-[var(--text-muted)]">{item.description}</p>
+            )}
+            {/* Latest event — clickable to open the detail modal (rating/review + history). */}
+            {latest && (
+              <button
+                onClick={openDetail}
+                className="mt-1 inline-flex items-center gap-1 text-[11px] text-[var(--text-muted)] transition-colors hover:text-nonsprimary"
+              >
+                <IoTimeOutline className="h-3.5 w-3.5" />
+                {t(latest.key)}
+                <span>· {shortDate(latest.date)}</span>
+              </button>
+            )}
             {progress && (
               <div className="mt-1.5">
                 <div className="mb-1 flex items-center gap-2 text-[11px]">
