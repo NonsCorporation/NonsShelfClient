@@ -58,7 +58,7 @@ export default function Header() {
     { to: '/', label: t('home'), icon: IoHomeOutline, match: (p) => p === '/' },
     { to: '/library', label: t('library'), icon: IoLibraryOutline, match: (p) => p === '/library' },
     { to: '/discover', label: t('discover'), icon: IoCompassOutline, match: (p) => p === '/discover' },
-    { to: '/calendar', label: t('calendar'), icon: IoCalendarOutline, match: (p) => p === '/calendar' },
+    { to: '/statistics', label: t('statistics'), icon: IoCalendarOutline, match: (p) => p === '/statistics' },
   ]
   if (isLibrarian(user?.role)) {
     nav.push({ to: '/librarians', label: t('librarians'), icon: FaCrown, match: (p) => p.startsWith('/librarian') })
@@ -346,12 +346,12 @@ export default function Header() {
                 <div className="h-px bg-[var(--border-subtle)]" />
 
                 <Link
-                  to="/calendar"
+                  to="/statistics"
                   onClick={() => setProfileOpen(false)}
-                  className={`flex w-full items-center gap-3 px-4 py-3 text-sm transition-colors hover:bg-[var(--surface)] hover:text-[var(--text)] ${path === '/calendar' ? 'text-[var(--text)]' : 'text-[var(--text-muted)]'}`}
+                  className={`flex w-full items-center gap-3 px-4 py-3 text-sm transition-colors hover:bg-[var(--surface)] hover:text-[var(--text)] ${path === '/statistics' ? 'text-[var(--text)]' : 'text-[var(--text-muted)]'}`}
                 >
                   <IoCalendarOutline className="h-[18px] w-[18px]" />
-                  {t('calendar') || 'Calendar'}
+                  {t('statistics') || 'Statistics'}
                 </Link>
 
                 <div className="h-px bg-[var(--border-subtle)]" />

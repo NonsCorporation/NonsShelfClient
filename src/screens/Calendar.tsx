@@ -24,8 +24,8 @@ export default function CalendarPage() {
     const [items, setItems] = useState<MediaItem[]>([]);
     const [spans, setSpans] = useState<ReadingSpan[]>([]);
 
-    // Top-level page tab: the existing calendar, or the statistics dashboard.
-    const [tab, setTab] = useState<'calendar' | 'stats'>('calendar');
+    // Top-level page tab: the statistics dashboard (default), or the calendar view.
+    const [tab, setTab] = useState<'calendar' | 'stats'>('stats');
     // tracks the active view style
     const [viewMode, setViewMode] = useState<'calendar' | 'github'>('calendar');
     // Filter the calendar by media type (books / films / series).
@@ -183,9 +183,9 @@ export default function CalendarPage() {
 
     return (
         <Layout>
-                {/* Page tabs: Calendar | Statistics */}
+                {/* Page tabs: Statistics | Calendar */}
                 <div className="mb-6 flex gap-1 border-b border-[var(--border-subtle)]">
-                    {([['calendar', t('calendar')], ['stats', t('statistics')]] as const).map(([key, label]) => (
+                    {([['stats', t('statistics')], ['calendar', t('calendar')]] as const).map(([key, label]) => (
                         <button
                             key={key}
                             onClick={() => setTab(key)}
