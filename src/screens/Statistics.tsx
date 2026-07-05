@@ -44,6 +44,8 @@ export default function Statistics() {
   const [recapOpen, setRecapOpen] = useState(false)
   // Media-type filter for the recap: 'all' or a single type (books / films / series).
   const [recapType, setRecapType] = useState<Axis>('all')
+  // Photo of the recap's top author (fetched by uuid), shown instead of a book cover.
+  const [topAuthorPhoto, setTopAuthorPhoto] = useState<string | undefined>(undefined)
 
   useEffect(() => {
     libraryService.getItems().then(setItems)
@@ -134,6 +136,22 @@ export default function Statistics() {
   // Period label, suffixed with the media type when filtered (shown in the header
   // and carried onto the story cards).
   const recapLabel = recapType === 'all' ? period.label : `${period.label} · ${typeName(recapType)}`
+
+  // Fetch the top author's photo (person record) whenever the recap's leading
+  // author changes. Cleared immediately so a stale photo never lingers under a
+  // new name while the fetch is in flight.
+  const topAuthorUuid = recap.authors[0]?.makerUuid
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setTopAuthorPhoto(undefined)
+    if (!topAuthorUuid) return
+    let cancelled = false
+    authedFetch(`/api/people/${topAuthorUuid}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (!cancelled) setTopAuthorPhoto(d?.person?.photo_url || undefined) })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [topAuthorUuid])
 
   // Finished per month for the selected year, split by media type.
   const monthly = useMemo(() => {
@@ -306,9 +324,18 @@ export default function Statistics() {
                   <IoPersonOutline className="h-3.5 w-3.5" /> {t('recapMostReadAuthor')}
                 </p>
                 <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-lg font-bold text-[var(--text)]">{recap.authors[0].name}</span>
-                    <span className="text-sm text-[var(--text-muted)]">{t('recapAuthorCount', { n: recap.authors[0].count })}</span>
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-[var(--container-2)]">
+                      {topAuthorPhoto ? (
+                        <img src={topAuthorPhoto} alt="" className="h-full w-full object-cover" />
+                      ) : (
+                        <IoPersonOutline className="h-5 w-5 text-[var(--placeholder)]" />
+                      )}
+                    </span>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-lg font-bold text-[var(--text)]">{recap.authors[0].name}</span>
+                      <span className="text-sm text-[var(--text-muted)]">{t('recapAuthorCount', { n: recap.authors[0].count })}</span>
+                    </div>
                   </div>
                   {recap.authors.slice(1, 4).map((a) => (
                     <span key={a.name} className="text-xs text-[var(--text-muted)]">{a.name} · {a.count}</span>
@@ -342,7 +369,17 @@ export default function Statistics() {
         )}
       </section>
 
-      {recapOpen && <RecapStories open={recapOpen} onClose={() => setRecapOpen(false)} recap={recap} label={recapLabel} locale={locale} t={t} />}
+      {recapOpen && (
+        <RecapStories
+          open={recapOpen}
+          onClose={() => setRecapOpen(false)}
+          recap={recap}
+          label={recapLabel}
+          locale={locale}
+          t={t}
+          authorPhotoUrl={topAuthorPhoto}
+        />
+      )}
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">

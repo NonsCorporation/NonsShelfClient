@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { toPng } from 'html-to-image'
-import { IoClose, IoDownloadOutline, IoChevronBack, IoChevronForward, IoBookOutline, IoFilmOutline, IoTvOutline, IoStar, IoStarHalf, IoStarOutline, IoTimeOutline, IoLibraryOutline } from 'react-icons/io5'
+import { IoClose, IoDownloadOutline, IoChevronBack, IoChevronForward, IoBookOutline, IoFilmOutline, IoTvOutline, IoStar, IoStarHalf, IoStarOutline, IoTimeOutline, IoLibraryOutline, IoPersonOutline } from 'react-icons/io5'
 import type { MediaType } from '../types'
 import type { Recap } from '../lib/recap'
 import { fmtInt, fmtDuration } from '../lib/recap'
@@ -55,6 +55,21 @@ function Cover({ url, w = 44, h = 66 }: { url?: string; w?: number; h?: number }
   )
 }
 
+// Circular author/person photo — falls back to a muted disc with a person
+// glyph (matching the card's own dark palette) when no photo is known.
+function PersonPhoto({ url, size = 84 }: { url?: string; size?: number }) {
+  const src = corsCover(url)
+  return (
+    <span style={{ width: size, height: size, borderRadius: '50%', overflow: 'hidden', flexShrink: 0, background: FAINT, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+      {src ? (
+        <img src={src} crossOrigin="anonymous" alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+      ) : (
+        <IoPersonOutline size={Math.round(size * 0.45)} color={MUTED} />
+      )}
+    </span>
+  )
+}
+
 // One 9:16 slide shell with a consistent header/footer chrome.
 function Slide({ children, accent, footer }: { children: React.ReactNode; accent: string; footer: string }) {
   return (
@@ -84,7 +99,7 @@ function statRow(icon: React.ReactNode, value: string | number, label: string, c
 
 type Slide = { key: string; accent: string; render: () => React.ReactNode }
 
-function buildSlides(r: Recap, label: string, locale: string, t: TFn): Slide[] {
+function buildSlides(r: Recap, label: string, locale: string, t: TFn, authorPhotoUrl?: string): Slide[] {
   const footer = label
   const slides: Slide[] = []
 
@@ -131,8 +146,8 @@ function buildSlides(r: Recap, label: string, locale: string, t: TFn): Slide[] {
       render: () => (
         <Slide accent="#e0a458" footer={footer}>
           <p style={{ fontSize: 20, fontWeight: 800, margin: '2px 0 18px' }}>{t('recapMostReadAuthor')}</p>
-          <div style={{ display: 'flex', gap: 6, marginBottom: 18 }}>
-            {top.covers.slice(0, 4).map((c, i) => <Cover key={i} url={c} w={56} h={84} />)}
+          <div style={{ marginBottom: 18 }}>
+            <PersonPhoto url={authorPhotoUrl} size={96} />
           </div>
           <p style={{ fontSize: 30, fontWeight: 800, margin: 0 }}>{top.name}</p>
           <p style={{ fontSize: 15, color: MUTED, margin: '6px 0 0' }}>{t('recapAuthorCount', { n: top.count })}</p>
@@ -231,15 +246,17 @@ async function downloadCard(node: HTMLElement, name: string) {
   a.click()
 }
 
-export default function RecapStories({ open, onClose, recap, label, locale, t }: {
+export default function RecapStories({ open, onClose, recap, label, locale, t, authorPhotoUrl }: {
   open: boolean
   onClose: () => void
   recap: Recap
   label: string
   locale: string
   t: TFn
+  /** Photo of the most-read author (recap.authors[0]), shown on the author slide in place of a book cover. */
+  authorPhotoUrl?: string
 }) {
-  const slides = useMemo(() => buildSlides(recap, label, locale, t), [recap, label, locale, t])
+  const slides = useMemo(() => buildSlides(recap, label, locale, t, authorPhotoUrl), [recap, label, locale, t, authorPhotoUrl])
   const nodes = useRef<(HTMLDivElement | null)[]>([])
   const scroller = useRef<HTMLDivElement>(null)
   const [active, setActive] = useState(0)

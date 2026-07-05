@@ -10,9 +10,8 @@ export type Period = { from: number; to: number }
 export type AuthorCount = {
   name: string
   count: number
-  /** Public uuid of the author, for linking to /p/<uuid> when known. */
+  /** Public uuid of the author, for linking to /p/<uuid> and fetching their photo when known. */
   makerUuid?: string
-  covers: string[]
 }
 
 export type Recap = {
@@ -84,9 +83,8 @@ export function buildRecap(all: MediaItem[], p: Period): Recap {
   for (const i of authorPool) {
     const name = (i.author || '').trim()
     if (!name) continue
-    const a = authorMap.get(name) || { name, count: 0, makerUuid: i.makerUuid, covers: [] }
+    const a = authorMap.get(name) || { name, count: 0, makerUuid: i.makerUuid }
     a.count++
-    if (i.coverUrl && a.covers.length < 4) a.covers.push(i.coverUrl)
     if (!a.makerUuid && i.makerUuid) a.makerUuid = i.makerUuid
     authorMap.set(name, a)
   }
