@@ -477,11 +477,6 @@ export default function LibraryScreen() {
             ? t('shelfActive')
             : t('shelfDone')
 
-  const currentCollection = useMemo(
-    () => collections.find((col) => col.id === collectionFilter) ?? null,
-    [collections, collectionFilter],
-  )
-
   const sortLabels: Record<SortKey, string> = {
     added: t('sortAdded'),
     rating: t('sortRating'),
@@ -632,7 +627,7 @@ export default function LibraryScreen() {
             {collections.map((col) => {
               const active = collectionFilter === col.id
               return (
-                <div key={col.id} className="flex items-center gap-0.5">
+                <div key={col.id} className="group flex items-center gap-0.5">
                   <button
                     onClick={() => setCollectionParam(active ? null : col.id)}
                     className={`flex min-w-0 flex-1 items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm transition-colors ${
@@ -644,6 +639,15 @@ export default function LibraryScreen() {
                     <IoFolderOutline className="h-3.5 w-3.5 flex-shrink-0" />
                     <span className="min-w-0 truncate">{col.name}</span>
                     <span className="ml-auto flex-shrink-0 text-[11px] text-[var(--text-muted)]">{col.count}</span>
+                  </button>
+                  {/* Rename / move / delete — restored per-collection entry point
+                      (previously only reachable after filtering into the collection). */}
+                  <button
+                    onClick={() => setSettingsCol(col)}
+                    title={`${t('settings') || 'Settings'}: ${col.name}`}
+                    className="flex-shrink-0 rounded-lg p-1.5 text-[var(--text-muted)] opacity-0 transition-opacity hover:bg-[var(--surface-hover)] hover:text-[var(--text)] group-hover:opacity-100"
+                  >
+                    <IoSettingsOutline className="h-3.5 w-3.5" />
                   </button>
                 </div>
               )
@@ -741,6 +745,14 @@ export default function LibraryScreen() {
                     <IoFolderOutline className="h-3 w-3 flex-shrink-0" />
                     {col.name}
                     <span className="opacity-50">{col.count}</span>
+                  </button>
+                  {/* Rename / move / delete — no hover on touch, so always visible here. */}
+                  <button
+                    onClick={() => setSettingsCol(col)}
+                    title={`${t('settings') || 'Settings'}: ${col.name}`}
+                    className="flex flex-shrink-0 items-center border-l border-[var(--border-subtle)] px-2 text-[var(--text-muted)]"
+                  >
+                    <IoSettingsOutline className="h-3 w-3" />
                   </button>
                 </div>
               )
@@ -913,18 +925,6 @@ export default function LibraryScreen() {
           {sortDir === 'asc' ? <BsSortUp className="h-4 w-4" /> : <BsSortDown className="h-4 w-4" />}
         </button>
         </div>
-
-        {/* Collection settings — own library only, shown in the toolbar so it stays visible on mobile. */}
-        {!readOnly && currentCollection && (
-          <button
-            onClick={() => setSettingsCol(currentCollection)}
-            title={`${t('settings') || 'Settings'}: ${currentCollection.name}`}
-            className="flex h-10 items-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] px-3 text-sm text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
-          >
-            <IoSettingsOutline className="h-4 w-4" />
-            <span>{t('settings') || 'Settings'}</span>
-          </button>
-        )}
 
         {/* Advanced filters */}
         <div className="relative">
