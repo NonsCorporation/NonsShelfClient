@@ -32,6 +32,7 @@ import ExportModal from '../components/ExportModal.tsx'
 import MediaDetailModal from '../components/MediaDetailModal.tsx'
 import CollectionSettingsModal from '../components/CollectionSettingsModal.tsx'
 import DatePicker from '../components/DatePicker.tsx'
+import PersonSelectFilter from '../components/PersonSelectFilter.tsx'
 import Pagination from '../components/Pagination.tsx'
 import { libraryService } from '../services/libraryService.ts'
 import type { LibrarySearchQuery } from '../services/libraryService.ts'
@@ -123,6 +124,8 @@ export default function LibraryScreen() {
   const [hasReview, setHasReview] = useState(false)
   const [addedFrom, setAddedFrom] = useState('')
   const [addedTo, setAddedTo] = useState('')
+  const [finishedFrom, setFinishedFrom] = useState('')
+  const [finishedTo, setFinishedTo] = useState('')
   // Comparison vs the viewer's own shelf, only when browsing another user's library.
   const [compareFilter, setCompareFilter] = useState<'all' | 'shared' | 'onlyTheirs'>('all')
   const [myByMediaId, setMyByMediaId] = useState<Map<string, { status?: MediaItem['status']; rating?: number }>>(new Map())
@@ -146,7 +149,8 @@ export default function LibraryScreen() {
   // hasRating/hasReview are deliberately NOT in this list — the server
   // supports rated_only/reviewed_only directly, unlike the filters above.
   const hasUnsupportedFilter = !!(
-    genreFilter || yearFilter || authorFilter || directorFilter || actorFilter || addedFrom || addedTo
+    genreFilter || yearFilter || authorFilter || directorFilter || actorFilter ||
+    addedFrom || addedTo || finishedFrom || finishedTo
   )
   const canUseServerSearch = !readOnly && !hasUnsupportedFilter && shelf !== 'favorites' && sort !== 'reviewed'
 
@@ -364,6 +368,15 @@ export default function LibraryScreen() {
       if (addedFrom && (it.dateAdded ?? '').slice(0, 10) < addedFrom) return false
       if (addedTo && (it.dateAdded ?? '').slice(0, 10) > addedTo) return false
 
+      // Date finished range (it.finishedAt is an ISO string; compare by date
+      // prefix). An item with no finish date never matches either bound.
+      if (finishedFrom || finishedTo) {
+        const fd = (it.finishedAt ?? '').slice(0, 10)
+        if (!fd) return false
+        if (finishedFrom && fd < finishedFrom) return false
+        if (finishedTo && fd > finishedTo) return false
+      }
+
       // Comparison vs the viewer's own shelf (read-only other-user libraries).
       if (readOnly && compareFilter !== 'all') {
         const mine = myByMediaId.has(it.id)
@@ -409,13 +422,35 @@ export default function LibraryScreen() {
     return sorted
   }, [
     items, shelf, collectionFilter, typeFilter, query, yearFilter, genreFilter, authorFilter, directorFilter,
-    actorFilter, sort, sortDir, hasRating, hasReview, addedFrom, addedTo, readOnly, compareFilter, myByMediaId,
+    actorFilter, sort, sortDir, hasRating, hasReview, addedFrom, addedTo, finishedFrom, finishedTo,
+    readOnly, compareFilter, myByMediaId,
   ])
 
   const hasAdvanced = !!(
     genreFilter || yearFilter || authorFilter || directorFilter || actorFilter ||
-    hasRating || hasReview || addedFrom || addedTo
+    hasRating || hasReview || addedFrom || addedTo || finishedFrom || finishedTo
   )
+
+  // Distinct people already in this library, for the author/director filter
+  // pickers — the filter only ever needs to suggest names that can actually
+  // match something, and this needs no server search (or the librarian-only
+  // /api/people search endpoint a regular user can't call).
+  const authorOptions = useMemo(() => {
+    const seen = new Map<string, { name: string; makerUuid?: string }>()
+    for (const it of items) {
+      if (it.type !== 'book' || !it.author?.trim()) continue
+      if (!seen.has(it.author)) seen.set(it.author, { name: it.author, makerUuid: it.makerUuid })
+    }
+    return [...seen.values()].sort((a, b) => a.name.localeCompare(b.name))
+  }, [items])
+  const directorOptions = useMemo(() => {
+    const seen = new Map<string, { name: string; makerUuid?: string }>()
+    for (const it of items) {
+      if (it.type === 'book' || !it.director?.trim()) continue
+      if (!seen.has(it.director)) seen.set(it.director, { name: it.director, makerUuid: it.makerUuid })
+    }
+    return [...seen.values()].sort((a, b) => a.name.localeCompare(b.name))
+  }, [items])
 
   const filterInput =
     'h-9 rounded-lg border border-[var(--border-subtle)] bg-[var(--input)] px-3 text-sm text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-ring)]'
@@ -535,7 +570,7 @@ export default function LibraryScreen() {
     next.delete('page')
     setParams(next, { replace: true })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query, typeFilter, genreFilter, yearFilter, authorFilter, directorFilter, actorFilter, hasRating, hasReview, addedFrom, addedTo, compareFilter])
+  }, [query, typeFilter, genreFilter, yearFilter, authorFilter, directorFilter, actorFilter, hasRating, hasReview, addedFrom, addedTo, finishedFrom, finishedTo, compareFilter])
 
   if (notFound) {
     return (
@@ -922,6 +957,8 @@ export default function LibraryScreen() {
                       setHasReview(false)
                       setAddedFrom('')
                       setAddedTo('')
+                      setFinishedFrom('')
+                      setFinishedTo('')
                     }}
                     className="self-end text-xs text-nonsprimaryfocus hover:underline"
                   >
@@ -941,20 +978,24 @@ export default function LibraryScreen() {
                   placeholder={t('year')}
                   className={filterInput}
                 />
-                {/* Per-type: author for books, director/actor for screen media. */}
+                {/* Per-type: author for books, director/actor for screen media. Author
+                    and director use a person selector (matching the media edit modal)
+                    backed by the people already in this library. */}
                 {(typeFilter === 'book' || typeFilter === 'all') && (
-                  <input
+                  <PersonSelectFilter
                     value={authorFilter}
-                    onChange={(e) => setAuthorFilter(e.target.value)}
+                    onChange={setAuthorFilter}
+                    options={authorOptions}
                     placeholder={t('author')}
                     className={filterInput}
                   />
                 )}
                 {(typeFilter === 'movie' || typeFilter === 'series' || typeFilter === 'all') && (
                   <>
-                    <input
+                    <PersonSelectFilter
                       value={directorFilter}
-                      onChange={(e) => setDirectorFilter(e.target.value)}
+                      onChange={setDirectorFilter}
+                      options={directorOptions}
                       placeholder={t('director')}
                       className={filterInput}
                     />
@@ -975,6 +1016,16 @@ export default function LibraryScreen() {
                 <div className="flex items-center justify-between gap-2 text-xs text-[var(--text-muted)]">
                   {t('addedBefore')}
                   <DatePicker value={addedTo} onChange={setAddedTo} min={addedFrom || undefined} placeholder="—" />
+                </div>
+
+                {/* Date finished range */}
+                <div className="flex items-center justify-between gap-2 text-xs text-[var(--text-muted)]">
+                  {t('finishedAfter')}
+                  <DatePicker value={finishedFrom} onChange={setFinishedFrom} max={finishedTo || undefined} placeholder="—" />
+                </div>
+                <div className="flex items-center justify-between gap-2 text-xs text-[var(--text-muted)]">
+                  {t('finishedBefore')}
+                  <DatePicker value={finishedTo} onChange={setFinishedTo} min={finishedFrom || undefined} placeholder="—" />
                 </div>
 
                 {/* Comparison vs your shelf — only when browsing another user's library */}

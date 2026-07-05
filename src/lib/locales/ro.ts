@@ -95,6 +95,8 @@ export const ro = {
   hasReview: 'Cu recenzie',
   addedAfter: 'Adăugat după',
   addedBefore: 'Adăugat înainte de',
+  finishedAfter: 'Finalizat după',
+  finishedBefore: 'Finalizat înainte de',
   addedOn: 'Adăugat {date}',
   author: 'Autor',
   compareAll: 'Toate',

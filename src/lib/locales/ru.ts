@@ -95,6 +95,8 @@ export const ru = {
   hasReview: 'С отзывом',
   addedAfter: 'Добавлено после',
   addedBefore: 'Добавлено до',
+  finishedAfter: 'Завершено после',
+  finishedBefore: 'Завершено до',
   addedOn: 'Добавлено {date}',
   author: 'Автор',
   compareAll: 'Все',

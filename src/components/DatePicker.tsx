@@ -1,8 +1,10 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { IoCalendarOutline, IoChevronBack, IoChevronForward } from 'react-icons/io5'
 import { useLanguage } from '../contexts/LanguageContext'
+import { useFloatingPosition } from '../hooks/useFloatingPosition'
 
 interface Props {
   value: string          // YYYY-MM-DD or ""
@@ -56,7 +58,11 @@ export default function DatePicker({ value, onChange, min, max, placeholder, ope
   const [month, setMonth] = useState(initMonth)
   // Base of the 12-year block shown in year-grid view
   const [yearBase, setYearBase] = useState(() => yearGridBase(initYear))
+  // `ref` anchors the trigger (position + outside-click); `panelRef` is the
+  // portalled calendar panel (also needed for outside-click, since it's no
+  // longer a DOM descendant of `ref` once portalled).
   const ref = useRef<HTMLDivElement>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
 
   // Sync viewport when value changes externally
   useEffect(() => {
@@ -70,14 +76,20 @@ export default function DatePicker({ value, onChange, min, max, placeholder, ope
   useEffect(() => {
     if (!open) return
     function handler(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false)
-        setView('days')
-      }
+      const t = e.target as Node
+      if (ref.current?.contains(t)) return
+      if (panelRef.current?.contains(t)) return
+      setOpen(false)
+      setView('days')
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
   }, [open])
+
+  // Fixed-viewport coordinates for the portalled panel, so an ancestor with
+  // `overflow-hidden`/`overflow-auto` (e.g. a scrollable filter dropdown)
+  // never crops the calendar.
+  const coords = useFloatingPosition(ref, open, openUp)
 
   // ── Month navigation (days view) ──────────────────────────────────────────
   function prevMonth() {
@@ -150,10 +162,6 @@ export default function DatePicker({ value, onChange, min, max, placeholder, ope
       })
     : ''
 
-  const panelPosition = openUp
-    ? 'bottom-[calc(100%+6px)] left-0'
-    : 'top-[calc(100%+6px)] left-0'
-
   return (
     <div ref={ref} className="relative flex-1">
 
@@ -182,9 +190,14 @@ export default function DatePicker({ value, onChange, min, max, placeholder, ope
         )}
       </button>
 
-      {/* ── Calendar panel ─────────────────────────────────────────────────── */}
-      {open && (
-        <div className={`absolute ${panelPosition} z-50 w-64 overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--container)] shadow-xl`}>
+      {/* ── Calendar panel — portalled to document.body with fixed viewport
+          coordinates, so a scrollable/overflow-hidden ancestor never crops it ── */}
+      {open && coords && typeof document !== 'undefined' && createPortal(
+        <div
+          ref={panelRef}
+          style={{ position: 'fixed', left: coords.left, top: coords.top, bottom: coords.bottom }}
+          className="z-[110] w-64 overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--container)] shadow-xl"
+        >
 
           {view === 'days' ? (
             <>
@@ -305,7 +318,8 @@ export default function DatePicker({ value, onChange, min, max, placeholder, ope
             </>
           )}
 
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   )

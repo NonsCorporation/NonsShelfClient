@@ -95,6 +95,8 @@ export const en = {
   hasReview: 'Has review',
   addedAfter: 'Added after',
   addedBefore: 'Added before',
+  finishedAfter: 'Finished after',
+  finishedBefore: 'Finished before',
   addedOn: 'Added {date}',
   author: 'Author',
   compareAll: 'All',
