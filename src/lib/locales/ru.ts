@@ -256,6 +256,8 @@ export const ru = {
   searchLibrary: 'Поиск в библиотеке…',
   viewProfile: 'Открыть профиль',
   logout: 'Выйти',
+  goToNons: 'Перейти в Nons',
+  notifications: 'Уведомления',
   login: 'Войти',
   loginSubtitle: 'Войдите с аккаунтом nons.',
   loginEmailOrUsername: 'Эл. почта или имя пользователя',

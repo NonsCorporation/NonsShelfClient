@@ -16,7 +16,7 @@ import {
   IoNotificationsOutline,
 } from 'react-icons/io5'
 import type { IconType } from 'react-icons'
-import { FaCrown } from 'react-icons/fa6'
+import { HiOutlineLibrary } from 'react-icons/hi'
 import { useLanguage, type Language } from '../../contexts/LanguageContext'
 import { useAuth } from '../../contexts/AuthContext'
 import { useNotifications } from '../../contexts/NotificationContext'
@@ -27,6 +27,7 @@ import { isLibrarian } from '../../services/librarianService'
 import { catalogService, type CatalogItem } from '../../services/catalogService'
 import TypeBadge from '../TypeBadge'
 import ShelfLogo from '../ShelfLogo'
+import NonsLogo from '../NonsLogo'
 import InfinityLoader from '../InfinityLoader'
 
 type NavItem = { to: string; label: string; icon: IconType; match: (p: string) => boolean }
@@ -61,7 +62,7 @@ export default function Header() {
     { to: '/statistics', label: t('statistics'), icon: IoCalendarOutline, match: (p) => p === '/statistics' },
   ]
   if (isLibrarian(user?.role)) {
-    nav.push({ to: '/librarians', label: t('librarians'), icon: FaCrown, match: (p) => p.startsWith('/librarian') })
+    nav.push({ to: '/librarians', label: t('librarians'), icon: HiOutlineLibrary, match: (p) => p.startsWith('/librarian') })
   }
 
   const accountRef = useRef<HTMLDivElement>(null)
@@ -288,16 +289,6 @@ export default function Header() {
                   </Link>
                 ) : null}
 
-                <a
-                  href={NONS_LOGIN_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={() => setProfileOpen(false)}
-                  className="flex items-center px-4 py-2 text-xs text-[var(--text-muted)] transition-colors hover:text-[var(--text)]"
-                >
-                  Go to Nons&nbsp;↗
-                </a>
-
                 <div className="h-px bg-[var(--border-subtle)]" />
 
                 <div className="p-3">
@@ -321,7 +312,7 @@ export default function Header() {
                       onClick={() => setProfileOpen(false)}
                       className="flex w-full items-center gap-3 px-4 py-3 text-sm text-[var(--text-muted)] transition-colors hover:bg-[var(--surface)] hover:text-[var(--text)]"
                     >
-                      <FaCrown className="h-[18px] w-[18px]" />
+                      <HiOutlineLibrary className="h-[18px] w-[18px]" />
                       {t('librarians') || 'Librarians'}
                     </Link>
                   </>
@@ -353,6 +344,19 @@ export default function Header() {
                   <IoCalendarOutline className="h-[18px] w-[18px]" />
                   {t('statistics') || 'Statistics'}
                 </Link>
+
+                <div className="h-px bg-[var(--border-subtle)]" />
+
+                <a
+                  href={NONS_LOGIN_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => setProfileOpen(false)}
+                  className="flex w-full items-center gap-3 px-4 py-3 text-sm text-[var(--text-muted)] transition-colors hover:bg-[var(--surface)] hover:text-[var(--text)]"
+                >
+                  <NonsLogo className="h-[18px] w-[18px]" />
+                  {t('goToNons') || 'Go to Nons'}
+                </a>
 
                 <div className="h-px bg-[var(--border-subtle)]" />
 

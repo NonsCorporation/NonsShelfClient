@@ -256,6 +256,8 @@ export const ro = {
   searchLibrary: 'Caută în biblioteca ta…',
   viewProfile: 'Vezi profilul',
   logout: 'Deconectează-te',
+  goToNons: 'Mergi la Nons',
+  notifications: 'Notificări',
   login: 'Conectează-te',
   loginSubtitle: 'Conectează-te cu contul tău nons.',
   loginEmailOrUsername: 'Email sau nume de utilizator',

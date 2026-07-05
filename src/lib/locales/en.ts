@@ -256,6 +256,8 @@ export const en = {
   searchLibrary: 'Search your library…',
   viewProfile: 'View profile',
   logout: 'Log out',
+  goToNons: 'Go to Nons',
+  notifications: 'Notifications',
   login: 'Sign in',
   loginSubtitle: 'Sign in with your nons account.',
   loginEmailOrUsername: 'Email or username',
