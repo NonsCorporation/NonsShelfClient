@@ -42,6 +42,8 @@ export default function Statistics() {
   const [cTo, setCTo] = useState(() => now0.toISOString().slice(0, 10))
   const [includeAuthor, setIncludeAuthor] = useState(true)
   const [recapOpen, setRecapOpen] = useState(false)
+  // Media-type filter for the recap: 'all' or a single type (books / films / series).
+  const [recapType, setRecapType] = useState<Axis>('all')
 
   useEffect(() => {
     libraryService.getItems().then(setItems)
@@ -120,7 +122,18 @@ export default function Statistics() {
     return { from: startOf(pMonth.y, pMonth.m), to: startOf(pMonth.y, pMonth.m + 1), label: mLabel(pMonth.y, pMonth.m, { month: 'long', year: 'numeric' }) }
   }, [pmode, pMonth, pFrom, pTo, pYear, cFrom, cTo, locale])
 
-  const recap = useMemo(() => buildRecap(items, period), [items, period])
+  // Recap runs over items narrowed to the selected media type (or all types).
+  const recapItems = useMemo(
+    () => (recapType === 'all' ? items : items.filter((i) => i.type === recapType)),
+    [items, recapType],
+  )
+  const recap = useMemo(() => buildRecap(recapItems, period), [recapItems, period])
+
+  const typeName = (a: Axis) =>
+    a === 'book' ? t('books') : a === 'movie' ? t('movies') : a === 'series' ? t('seriesPlural') : t('filterAll')
+  // Period label, suffixed with the media type when filtered (shown in the header
+  // and carried onto the story cards).
+  const recapLabel = recapType === 'all' ? period.label : `${period.label} · ${typeName(recapType)}`
 
   // Finished per month for the selected year, split by media type.
   const monthly = useMemo(() => {
@@ -199,7 +212,7 @@ export default function Statistics() {
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-base font-semibold text-[var(--text)]">{t('recapHeading')}</h2>
-            <p className="mt-0.5 text-xs text-[var(--text-muted)]">{period.label}</p>
+            <p className="mt-0.5 text-xs text-[var(--text-muted)]">{recapLabel}</p>
           </div>
           <button
             onClick={() => setRecapOpen(true)}
@@ -249,19 +262,36 @@ export default function Statistics() {
               <input type="date" value={cTo} min={cFrom} onChange={(e) => setCTo(e.target.value)} className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] px-2.5 py-1.5 text-sm text-[var(--text)]" />
             </>
           )}
+
+          {/* Media-type filter — narrows the whole recap to one type. */}
+          <div className="flex gap-1 rounded-xl bg-[var(--surface)] p-1 sm:ml-auto">
+            {axisOptions.map((o) => (
+              <button
+                key={o.key}
+                onClick={() => setRecapType(o.key)}
+                style={recapType === o.key && o.key !== 'all' ? { backgroundColor: TYPE_COLOR[o.key], color: '#fff' } : undefined}
+                className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-colors ${
+                  recapType === o.key ? (o.key === 'all' ? 'bg-[var(--container)] text-[var(--text)] shadow-sm' : 'shadow-sm') : 'text-[var(--text-muted)] hover:text-[var(--text)]'
+                }`}
+              >
+                {o.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         {recap.counts.total === 0 ? (
           <p className="py-8 text-center text-sm text-[var(--text-muted)]">{t('recapEmpty')}</p>
         ) : (
           <div className="flex flex-col gap-5">
-            {/* Headline period numbers */}
+            {/* Headline period numbers — per-type tiles only when showing all types;
+                pages only when books are in scope. */}
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
               <PeriodStat icon={IoCheckmarkDoneOutline} value={recap.counts.total} label={t('statFinished')} color="var(--text)" />
-              <PeriodStat icon={IoBookOutline} value={recap.counts.books} label={t('statBooks')} color={TYPE_COLOR.book} />
-              <PeriodStat icon={IoFilmOutline} value={recap.counts.movies} label={t('statMovies')} color={TYPE_COLOR.movie} />
-              <PeriodStat icon={IoTvOutline} value={recap.counts.series} label={t('seriesPlural')} color={TYPE_COLOR.series} />
-              <PeriodStat icon={IoLibraryOutline} value={fmtInt(recap.pages, locale)} label={t('statsPages')} color="#c2557a" />
+              {recapType === 'all' && <PeriodStat icon={IoBookOutline} value={recap.counts.books} label={t('statBooks')} color={TYPE_COLOR.book} />}
+              {recapType === 'all' && <PeriodStat icon={IoFilmOutline} value={recap.counts.movies} label={t('statMovies')} color={TYPE_COLOR.movie} />}
+              {recapType === 'all' && <PeriodStat icon={IoTvOutline} value={recap.counts.series} label={t('seriesPlural')} color={TYPE_COLOR.series} />}
+              {(recapType === 'all' || recapType === 'book') && <PeriodStat icon={IoLibraryOutline} value={fmtInt(recap.pages, locale)} label={t('statsPages')} color="#c2557a" />}
               <PeriodStat icon={IoTimeOutline} value={recap.minutes ? fmtDuration(recap.minutes) : '—'} label={t('recapTimeSpent')} color="#4fd1c5" />
             </div>
 
@@ -312,7 +342,7 @@ export default function Statistics() {
         )}
       </section>
 
-      {recapOpen && <RecapStories open={recapOpen} onClose={() => setRecapOpen(false)} recap={recap} label={period.label} locale={locale} t={t} />}
+      {recapOpen && <RecapStories open={recapOpen} onClose={() => setRecapOpen(false)} recap={recap} label={recapLabel} locale={locale} t={t} />}
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
