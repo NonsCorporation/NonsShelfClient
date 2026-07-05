@@ -50,6 +50,12 @@ type Props = {
   rating: number | null
   review: string
   status: ShelfStatus | null
+  /** Known current page, bypassing the internal per-viewer progress fetch.
+   *  Needed when sharing *someone else's* activity (e.g. from the feed) —
+   *  libraryService.getProgress is scoped to the signed-in viewer, so calling
+   *  it there would show the viewer's own reading position instead of the
+   *  post author's. Omit to keep the normal own-item behavior (MediaOne). */
+  currentPage?: number
   onClose: () => void
 }
 
@@ -98,42 +104,69 @@ function Stars({ rating }: { rating: number }) {
   )
 }
 
-// Sample pixels from an image (via canvas) and return the most vibrant RGB.
-async function extractAccentColor(src: string): Promise<{ r: number; g: number; b: number } | null> {
+type CoverLoad = { color: { r: number; g: number; b: number } | null; dataUrl: string }
+
+// Loads the cover exactly once and derives both the accent color and a
+// same-origin data: URL from that single fetch, instead of the accent-extract
+// and the visible <img> each hitting the (third-party, occasionally flaky)
+// CORS proxy separately. That duplicate-fetch race was why the gradient
+// (extracted successfully) could be right while the visible cover still came
+// up blank — one of the two independent requests to images.weserv.nl failed
+// while the other succeeded. Retries once on a transient failure.
+async function loadCoverImage(src: string, attempt = 0): Promise<CoverLoad | null> {
   return new Promise((resolve) => {
     const img = new Image()
     img.crossOrigin = 'anonymous'
     img.onload = () => {
       try {
-        const size = 60
         const canvas = document.createElement('canvas')
-        canvas.width = size
-        canvas.height = size
+        canvas.width = img.naturalWidth
+        canvas.height = img.naturalHeight
         const ctx = canvas.getContext('2d')
         if (!ctx) { resolve(null); return }
-        ctx.drawImage(img, 0, 0, size, size)
-        const { data } = ctx.getImageData(0, 0, size, size)
-        let bestScore = -1
-        let bestR = 0, bestG = 0, bestB = 0
-        for (let i = 0; i < data.length; i += 4) {
-          const r = data[i], g = data[i + 1], b = data[i + 2], a = data[i + 3]
-          if (a < 128) continue
-          const max = Math.max(r, g, b), min = Math.min(r, g, b)
-          const sat = max === 0 ? 0 : (max - min) / max
-          const score = sat * (max / 255)
-          if (score > bestScore) { bestScore = score; bestR = r; bestG = g; bestB = b }
+        ctx.drawImage(img, 0, 0)
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.92)
+
+        // Sample a small region for the dominant accent color.
+        const size = 60
+        const sampleCanvas = document.createElement('canvas')
+        sampleCanvas.width = size
+        sampleCanvas.height = size
+        const sampleCtx = sampleCanvas.getContext('2d')
+        let color: { r: number; g: number; b: number } | null = null
+        if (sampleCtx) {
+          sampleCtx.drawImage(img, 0, 0, size, size)
+          const { data } = sampleCtx.getImageData(0, 0, size, size)
+          let bestScore = -1
+          let bestR = 0, bestG = 0, bestB = 0
+          for (let i = 0; i < data.length; i += 4) {
+            const r = data[i], g = data[i + 1], b = data[i + 2], a = data[i + 3]
+            if (a < 128) continue
+            const max = Math.max(r, g, b), min = Math.min(r, g, b)
+            const sat = max === 0 ? 0 : (max - min) / max
+            const score = sat * (max / 255)
+            if (score > bestScore) { bestScore = score; bestR = r; bestG = g; bestB = b }
+          }
+          color = bestScore > 0.1 ? { r: bestR, g: bestG, b: bestB } : null
         }
-        resolve(bestScore > 0.1 ? { r: bestR, g: bestG, b: bestB } : null)
+        resolve({ color, dataUrl })
       } catch {
         resolve(null)
       }
     }
-    img.onerror = () => resolve(null)
+    img.onerror = () => {
+      if (attempt < 1) {
+        const retrySrc = src + (src.includes('?') ? '&' : '?') + 'retry=1'
+        loadCoverImage(retrySrc, attempt + 1).then(resolve)
+      } else {
+        resolve(null)
+      }
+    }
     img.src = src
   })
 }
 
-export default function ShareModal({ isOpen, item, coverUrl, title, author, totalPages = 0, rating, review, status, onClose }: Props) {
+export default function ShareModal({ isOpen, item, coverUrl, title, author, totalPages = 0, rating, review, status, currentPage: currentPageProp, onClose }: Props) {
   const { t } = useLanguage()
   const cardRef = useRef<HTMLDivElement>(null)
   const [currentPage, setCurrentPage] = useState(0)
@@ -141,6 +174,7 @@ export default function ShareModal({ isOpen, item, coverUrl, title, author, tota
   const [busy, setBusy] = useState(false)
   const [copied, setCopied] = useState(false)
   const [accent, setAccent] = useState<{ r: number; g: number; b: number } | null>(null)
+  const [coverDataUrl, setCoverDataUrl] = useState<string | null>(null)
   const [accentReady, setAccentReady] = useState(false)
   const [progressReady, setProgressReady] = useState(false)
   const [showDates, setShowDates] = useState(true)
@@ -157,7 +191,11 @@ export default function ShareModal({ isOpen, item, coverUrl, title, author, tota
     setAccent(null)
     setAccentReady(false)
     setProgressReady(false)
-    if (item.type === 'book' && status === 'active') {
+    if (typeof currentPageProp === 'number') {
+      // Caller already knows the page — see the currentPage prop doc above.
+      setCurrentPage(currentPageProp)
+      setProgressReady(true)
+    } else if (item.type === 'book' && status === 'active') {
       libraryService.getProgress(String(item.id))
         .then((rows) => setCurrentPage(rows[0]?.page ?? 0))
         .catch(() => {})
@@ -165,23 +203,27 @@ export default function ShareModal({ isOpen, item, coverUrl, title, author, tota
     } else {
       setProgressReady(true)
     }
-  }, [isOpen, item.id, item.type, status])
+  }, [isOpen, item.id, item.type, status, currentPageProp])
 
   // Regenerate the image when the underlying data settles (e.g. page loaded in).
   useEffect(() => {
     if (isOpen) setImgUrl(null)
   }, [currentPage, isOpen])
 
-  // Extract accent color from the cover; signal ready when done (with or without a color).
+  // Load the cover once (see loadCoverImage) and derive both the accent color
+  // and the data: URL the card actually displays; signal ready when done
+  // (with or without a color/image — a failed load still unblocks rendering).
   useEffect(() => {
     if (!isOpen) return
     const src = corsCover(coverUrl || item.coverUrl)
     setAccent(null)
+    setCoverDataUrl(null)
     setAccentReady(false)
     setImgUrl(null)
     if (!src) { setAccentReady(true); return }
-    extractAccentColor(src).then((color) => {
-      setAccent(color)
+    loadCoverImage(src).then((result) => {
+      setAccent(result?.color ?? null)
+      setCoverDataUrl(result?.dataUrl ?? null)
       setAccentReady(true)
     })
   }, [isOpen, coverUrl, item.coverUrl])
@@ -217,7 +259,6 @@ export default function ShareModal({ isOpen, item, coverUrl, title, author, tota
   const url = `${window.location.origin}${mediaPath({ type: item.type, uuid: item.uuid, id: String(item.id) })}`
   const pct = currentPage > 0 && totalPages > 0 ? Math.min(100, Math.round((currentPage / totalPages) * 100)) : 0
   const typeLabel = item.type === 'book' ? t('book') : item.type === 'series' ? t('series') : t('film')
-  const cover = corsCover(coverUrl || item.coverUrl)
   const byline = author || item.author
 
   const copyLink = async () => {
@@ -279,8 +320,8 @@ export default function ShareModal({ isOpen, item, coverUrl, title, author, tota
       {/* body: cover (2:3) left, details right */}
       <div style={{ display: 'flex', gap: 18, alignItems: 'flex-start' }}>
         <div style={{ width: 116, aspectRatio: '2 / 3', flexShrink: 0, borderRadius: 8, overflow: 'hidden', border: `1px solid ${LINE}` }}>
-          {cover ? (
-            <img crossOrigin="anonymous" src={cover} alt={item.title} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+          {coverDataUrl ? (
+            <img src={coverDataUrl} alt={item.title} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
           ) : (
             <div style={{ width: '100%', height: '100%', background: LINE }} />
           )}

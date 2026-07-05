@@ -9,14 +9,25 @@ import { useLanguage } from '../contexts/LanguageContext'
 import { mediaPath, userPath } from '../lib/paths'
 import BoringAvatar from './BoringAvatar'
 import ShelfStatusBar from './ShelfStatusBar'
-import { IoHeart, IoHeartOutline, IoChatbubbleOutline, IoTrashOutline } from 'react-icons/io5'
+import { IoHeart, IoHeartOutline, IoChatbubbleOutline, IoTrashOutline, IoShareOutline } from 'react-icons/io5'
 import { IoMdStar, IoMdStarHalf, IoMdStarOutline } from 'react-icons/io'
 import TypeBadge from './TypeBadge'
 import CommentThread from './CommentThread'
 import DropdownMenu from './DropdownMenu'
 import ConfirmModal from './ConfirmModal'
+import ShareModal from './ShareModal'
 import LibrarianBadge from './LibrarianBadge'
 import { isLibrarian } from '../services/librarianService'
+
+// The shelf status a post's own event type unambiguously implies — used for
+// the share card's status pill. 'added'/'rated'/'reviewed' don't reliably
+// imply one (a rating can be left mid-read), so those show no status pill.
+const SHARE_STATUS: Partial<Record<ActivityType, ShelfStatus>> = {
+  started: 'active',
+  progress: 'active',
+  finished: 'done',
+  dnf: 'dnf',
+}
 
 const VERB_KEY: Record<ActivityType, string> = {
   rated: 'verbRated',
@@ -81,6 +92,10 @@ export default function ActivityCard({
   const [showComments, setShowComments] = useState(initialOpenComments ?? false)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [shareOpen, setShareOpen] = useState(false)
+  // The catalog's page count, fetched only when Share opens (Activity itself
+  // doesn't carry it) — needed for the share card's progress bar.
+  const [sharePages, setSharePages] = useState<number | undefined>(undefined)
 
   // The viewer's own shelf state for this media. When they haven't added it,
   // synthesize a minimal item from the activity so they can shelve it in place.
@@ -93,6 +108,36 @@ export default function ActivityCard({
     author: a.mediaAuthor ?? '',
     coverUrl: a.coverUrl,
     year: a.mediaYear,
+  }
+
+  // What THIS POST shows — deliberately built from the activity's own snapshot
+  // (rating/review/progress at post time), never from myItem/shelfItem, which
+  // is the *viewer's* own separate shelf entry and would misrepresent someone
+  // else's post.
+  const shareItem: MediaItem = {
+    id: String(a.mediaId),
+    uuid: a.mediaUuid,
+    type: a.mediaType,
+    title: a.mediaTitle,
+    author: a.mediaAuthor ?? '',
+    coverUrl: a.coverUrl,
+    year: a.mediaYear,
+    pages: sharePages,
+  }
+  const shareStatus = SHARE_STATUS[a.type] ?? null
+  const shareCurrentPage = a.type === 'progress' ? (a.page ?? 0) : 0
+
+  const openShare = async () => {
+    setShareOpen(true)
+    try {
+      const full = await libraryService.getItem(String(a.mediaId))
+      // Only the catalog's page count is used — full also carries the
+      // *viewer's* own rating/review/status, which must not leak into this
+      // post's share card.
+      setSharePages(full?.pages)
+    } catch {
+      setSharePages(undefined)
+    }
   }
 
   // Set the viewer's own shelf status from the feed. Optimistic, then persisted;
@@ -165,19 +210,26 @@ export default function ActivityCard({
           )}
         </div>
         <span className="flex-shrink-0 text-xs text-[var(--text-muted)]">{a.timeAgo}</span>
-        {canDelete && (
-          <DropdownMenu
-            className="flex-shrink-0"
-            items={[
-              {
-                label: t('removeFromFeed'),
-                icon: <IoTrashOutline className="h-4 w-4" />,
-                danger: true,
-                onClick: () => setConfirmingDelete(true),
-              },
-            ]}
-          />
-        )}
+        <DropdownMenu
+          className="flex-shrink-0"
+          items={[
+            {
+              label: t('share'),
+              icon: <IoShareOutline className="h-4 w-4" />,
+              onClick: openShare,
+            },
+            ...(canDelete
+              ? [
+                  {
+                    label: t('removeFromFeed'),
+                    icon: <IoTrashOutline className="h-4 w-4" />,
+                    danger: true,
+                    onClick: () => setConfirmingDelete(true),
+                  },
+                ]
+              : []),
+          ]}
+        />
       </div>
 
       {/* review text, above the media card when present */}
@@ -267,6 +319,20 @@ export default function ActivityCard({
           onCancel={() => setConfirmingDelete(false)}
         />
       )}
+
+      <ShareModal
+        isOpen={shareOpen}
+        item={shareItem}
+        coverUrl={a.coverUrl}
+        title={a.mediaTitle}
+        author={a.mediaAuthor}
+        totalPages={sharePages}
+        rating={a.rating ?? null}
+        review={a.text ?? ''}
+        status={shareStatus}
+        currentPage={shareCurrentPage}
+        onClose={() => setShareOpen(false)}
+      />
     </article>
   )
 }
