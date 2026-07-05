@@ -17,6 +17,7 @@ interface PersonResp {
     photo_url?: string
     bio?: string
     birth_year?: number
+    death_year?: number
   }
   aliases: { name: string; lang?: string }[]
   credits: {
@@ -131,14 +132,26 @@ export default function PersonPage() {
                 </button>
               )}
             </div>
-            {person.birth_year ? (
-              <p className="mt-1 text-sm text-[var(--text-muted)]">b. {person.birth_year}</p>
+            {(person.birth_year || person.death_year) ? (
+              <p className="mt-1 text-sm text-[var(--text-muted)]">
+                {person.birth_year ?? '?'}{person.death_year ? ` – ${person.death_year}` : ''}
+              </p>
             ) : null}
             {aliases.length > 0 && (
-              <p className="mt-2 text-sm text-[var(--text-muted)]">
-                {t('alsoKnownAs') || 'Also known as'}:{' '}
-                <span className="text-[var(--text)]">{aliases.map((a) => a.name).join(' · ')}</span>
-              </p>
+              <div className="mt-3">
+                <p className="mb-1.5 text-xs text-[var(--text-muted)]">{t('alsoKnownAs')}</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {aliases.map((a, i) => (
+                    <span
+                      key={i}
+                      className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border-subtle)] bg-[var(--surface)] px-2.5 py-1 text-xs text-[var(--text)]"
+                    >
+                      {a.name}
+                      {a.lang && <span className="text-[10px] font-semibold text-[var(--text-muted)]">{a.lang.toUpperCase()}</span>}
+                    </span>
+                  ))}
+                </div>
+              </div>
             )}
           </div>
 

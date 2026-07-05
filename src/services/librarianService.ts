@@ -20,6 +20,8 @@ export interface PersonSummary {
   bio?: string
   birth_year?: number
   birth_date?: string // YYYY-MM-DD
+  death_year?: number
+  death_date?: string // YYYY-MM-DD; absent = living or unknown
   credit_count: number
 }
 
@@ -30,6 +32,7 @@ export interface TmdbPersonSuggestion {
   biography: string
   photo_url: string
   birthday: string // YYYY-MM-DD
+  deathday: string // YYYY-MM-DD; empty = living or unknown
   also_known_as: string[]
 }
 
@@ -40,6 +43,7 @@ export interface OlPersonSuggestion {
   biography: string
   photo_url: string
   birth_date: string
+  death_date: string
   also_known_as: string[]
 }
 
@@ -57,6 +61,7 @@ export interface PersonInput {
   bio?: string
   photo_url?: string
   birth_date?: string
+  death_date?: string
   aliases?: PersonAlias[]
 }
 

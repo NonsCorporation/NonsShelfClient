@@ -45,7 +45,7 @@ type Props = {
 // Create or edit an author/person with full details: name, avatar, birth year, bio.
 export default function PersonModal({ isOpen, person, initialName, onClose, onSaved, suggestionMode, onSuggested }: Props) {
   const { t } = useLanguage()
-  const [form, setForm] = useState({ bio: '', birthDate: '', photoUrl: '' })
+  const [form, setForm] = useState({ bio: '', birthDate: '', deathDate: '', photoUrl: '' })
   // nameRows[0] is the canonical name (not deletable); the rest are aliases.
   const [nameRows, setNameRows] = useState<AliasRow[]>([{ name: '', lang: '' }])
   const [busy, setBusy] = useState(false)
@@ -64,6 +64,7 @@ export default function PersonModal({ isOpen, person, initialName, onClose, onSa
     setForm({
       bio: person?.bio ?? '',
       birthDate: person?.birth_date ?? '',
+      deathDate: person?.death_date ?? '',
       photoUrl: person?.photo_url ?? '',
     })
     setNameRows([{ name: person?.name ?? initialName ?? '', lang: person?.name_lang ?? '' }])
@@ -78,6 +79,7 @@ export default function PersonModal({ isOpen, person, initialName, onClose, onSa
             ...s,
             bio: p.bio ?? s.bio,
             birthDate: p.birth_date ?? s.birthDate,
+            deathDate: p.death_date ?? s.deathDate,
             photoUrl: p.photo_url ?? s.photoUrl,
           }))
           setNameRows([
@@ -126,6 +128,7 @@ export default function PersonModal({ isOpen, person, initialName, onClose, onSa
         name_lang: nameRows[0]?.lang || undefined,
         bio: form.bio.trim() || undefined,
         birth_date: form.birthDate.trim() || undefined,
+        death_date: form.deathDate.trim() || undefined,
         photo_url: form.photoUrl.trim() || undefined,
         aliases: nameRows
           .slice(1)
@@ -172,7 +175,7 @@ export default function PersonModal({ isOpen, person, initialName, onClose, onSa
     try {
       await librarianService.enrichPersonFromTMDB(person.uuid, suggestion.tmdb_id)
       const { person: p, aliases } = await librarianService.getPerson(person.uuid)
-      setForm({ bio: p.bio ?? '', birthDate: p.birth_date ?? '', photoUrl: p.photo_url ?? '' })
+      setForm({ bio: p.bio ?? '', birthDate: p.birth_date ?? '', deathDate: p.death_date ?? '', photoUrl: p.photo_url ?? '' })
       setNameRows([{ name: p.name, lang: p.name_lang ?? '' }, ...toAliasRows(aliases)])
       setSuggestion(null)
     } catch (e) {
@@ -202,7 +205,7 @@ export default function PersonModal({ isOpen, person, initialName, onClose, onSa
     try {
       await librarianService.enrichPersonFromOL(person.uuid, olSuggestion.ol_key)
       const { person: p, aliases } = await librarianService.getPerson(person.uuid)
-      setForm({ bio: p.bio ?? '', birthDate: p.birth_date ?? '', photoUrl: p.photo_url ?? '' })
+      setForm({ bio: p.bio ?? '', birthDate: p.birth_date ?? '', deathDate: p.death_date ?? '', photoUrl: p.photo_url ?? '' })
       setNameRows([{ name: p.name, lang: p.name_lang ?? '' }, ...toAliasRows(aliases)])
       setOlSuggestion(null)
     } catch (e) {
@@ -230,6 +233,7 @@ export default function PersonModal({ isOpen, person, initialName, onClose, onSa
         name_lang: nameRows[0]?.lang || undefined,
         bio,
         birth_date: form.birthDate.trim() || undefined,
+        death_date: form.deathDate.trim() || undefined,
         photo_url: form.photoUrl.trim() || undefined,
         aliases: freshAliases,
       })
@@ -375,10 +379,16 @@ export default function PersonModal({ isOpen, person, initialName, onClose, onSa
           </div>
         </div>
 
-        <label className="flex flex-col gap-1.5 text-sm font-medium text-[var(--text)]">
-          {t('birthDate')}
-          <input className={input} type="date" value={form.birthDate} onChange={(e) => setForm((s) => ({ ...s, birthDate: e.target.value }))} />
-        </label>
+        <div className="flex gap-3">
+          <label className="flex flex-1 flex-col gap-1.5 text-sm font-medium text-[var(--text)]">
+            {t('birthDate')}
+            <input className={input} type="date" value={form.birthDate} onChange={(e) => setForm((s) => ({ ...s, birthDate: e.target.value }))} />
+          </label>
+          <label className="flex flex-1 flex-col gap-1.5 text-sm font-medium text-[var(--text)]">
+            {t('deathDate')}
+            <input className={input} type="date" value={form.deathDate} onChange={(e) => setForm((s) => ({ ...s, deathDate: e.target.value }))} />
+          </label>
+        </div>
 
         <label className="flex flex-col gap-1.5 text-sm font-medium text-[var(--text)]">
           {t('bio')}
@@ -420,6 +430,7 @@ export default function PersonModal({ isOpen, person, initialName, onClose, onSa
             biography: olSuggestion.biography,
             photo_url: olSuggestion.photo_url,
             birthday: olSuggestion.birth_date,
+            deathday: olSuggestion.death_date,
             also_known_as: olSuggestion.also_known_as,
           }}
           busy={applyingOL}
@@ -663,7 +674,11 @@ function TmdbSuggestionModal({
           )}
           <div className="min-w-0 flex-1">
             <p className="font-semibold text-[var(--text)]">{suggestion.name}</p>
-            {suggestion.birthday && <p className="mt-0.5 text-xs text-[var(--text-muted)]">{suggestion.birthday}</p>}
+            {(suggestion.birthday || suggestion.deathday) && (
+              <p className="mt-0.5 text-xs text-[var(--text-muted)]">
+                {suggestion.birthday}{suggestion.birthday && suggestion.deathday ? ' – ' : ''}{suggestion.deathday}
+              </p>
+            )}
           </div>
         </div>
 
