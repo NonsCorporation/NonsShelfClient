@@ -261,6 +261,38 @@ export default function RecapStories({ open, onClose, recap, label, locale, t, a
   const scroller = useRef<HTMLDivElement>(null)
   const [active, setActive] = useState(0)
   const [busy, setBusy] = useState(false)
+  // On mobile the card (fixed 360×640, a full story-sized card) can be taller
+  // than the space left between the toolbar and the nav arrows, cropping its
+  // top/bottom. `scale` shrinks it to fit that space visually — applied to a
+  // wrapper *around* the captured node, never to the node itself, so the
+  // exported PNG is always captured at full native resolution regardless of
+  // how small it's shown on screen. 1 on desktop (the wrapped grid needs no fit).
+  const [scale, setScale] = useState(1)
+  // Below lg the layout is the single-card mobile carousel (needs the
+  // scale-to-fit + centering padding below); at/above lg it's the desktop
+  // wrapped grid, which needs neither.
+  const [isDesktop, setIsDesktop] = useState(false)
+
+  useEffect(() => {
+    if (!open) return
+    const el = scroller.current
+    if (!el) return
+    const update = () => {
+      const desktop = window.innerWidth >= 1024
+      setIsDesktop(desktop)
+      if (desktop) { setScale(1); return }
+      const s = Math.min(1, (el.clientHeight - 16) / CARD_H, (el.clientWidth - 32) / CARD_W)
+      setScale(Math.max(0.4, s))
+    }
+    update()
+    const ro = new ResizeObserver(update)
+    ro.observe(el)
+    window.addEventListener('resize', update)
+    return () => {
+      ro.disconnect()
+      window.removeEventListener('resize', update)
+    }
+  }, [open])
 
   // Step the carousel; scrolls the target card into view (mobile) after commit.
   const go = useCallback((d: number) => {
@@ -347,15 +379,31 @@ export default function RecapStories({ open, onClose, recap, label, locale, t, a
         ref={scroller}
         onScroll={onScroll}
         onClick={(e) => e.stopPropagation()}
-        className="flex flex-1 snap-x snap-mandatory items-center gap-4 overflow-x-auto overflow-y-hidden px-[calc(50vw-180px)] scrollbar-none lg:snap-none lg:flex-wrap lg:content-start lg:justify-center lg:overflow-y-auto lg:overflow-x-hidden lg:px-6 lg:py-4"
+        style={!isDesktop ? { paddingLeft: `calc(50vw - ${(CARD_W * scale) / 2}px)`, paddingRight: `calc(50vw - ${(CARD_W * scale) / 2}px)` } : undefined}
+        className="flex min-h-0 flex-1 snap-x snap-mandatory items-center gap-4 overflow-x-auto overflow-y-hidden scrollbar-none lg:snap-none lg:flex-wrap lg:content-start lg:justify-center lg:overflow-y-auto lg:overflow-x-hidden lg:px-6 lg:py-4"
       >
         {slides.map((s, i) => (
-          <div key={s.key} className="group relative shrink-0 snap-center">
+          <div
+            key={s.key}
+            className="group relative shrink-0 snap-center"
+            style={{ width: CARD_W * scale, height: CARD_H * scale }}
+          >
+            {/* Visual scaler — shrinks the card on screen only; the captured
+                node below it keeps its native 360×640 layout size untouched. */}
             <div
-              ref={(el) => { nodes.current[i] = el }}
-              style={{ width: CARD_W, height: CARD_H, borderRadius: 22, overflow: 'hidden', boxShadow: '0 10px 40px rgba(0,0,0,0.5)' }}
+              style={{
+                width: CARD_W,
+                height: CARD_H,
+                transform: `scale(${scale})`,
+                transformOrigin: 'top left',
+                borderRadius: 22,
+                overflow: 'hidden',
+                boxShadow: '0 10px 40px rgba(0,0,0,0.5)',
+              }}
             >
-              {s.render()}
+              <div ref={(el) => { nodes.current[i] = el }} style={{ width: CARD_W, height: CARD_H }}>
+                {s.render()}
+              </div>
             </div>
             <button
               onClick={() => saveOne(i)}
