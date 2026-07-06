@@ -148,6 +148,12 @@ export default function MediaOnePage({
   // edition isn't in the currently loaded slice. Initialized synchronously from
   // initialEditions + URL so the first credits fetch already has the right lang.
   const [selectedLang, setSelectedLang] = useState<string>(() => {
+    // Lazy useState initializers run during the server render too, where
+    // `window` is undefined — reading it there threw and 500'd the whole /m and
+    // /b page for no-JS clients (crawlers), killing their social-card preview.
+    // Server-render as '' (no ?e= edition deep-link is ever present for a crawler
+    // hit anyway); the client initializer below resolves the real language.
+    if (typeof window === 'undefined') return ''
     const eUuid = new URLSearchParams(window.location.search).get('e')
     if (eUuid && initialEditions.length) {
       const ed = initialEditions.find((e) => e.uuid === eUuid)
