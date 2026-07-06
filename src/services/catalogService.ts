@@ -12,6 +12,8 @@ export type CatalogItem = {
   title: string
   author: string
   director?: string
+  /** Public uuid of the primary maker (author/director) → links to /p/<uuid>. */
+  makerUuid?: string
   coverUrl?: string
   year?: number
   genre?: string[]
@@ -49,6 +51,7 @@ type BackendMedia = {
   director: string
   year: number
   genres: string // comma-separated
+  maker_uuid: string
   cover_url: string
   description: string
   duration_min: number
@@ -70,6 +73,7 @@ function mapMedia(m: BackendMedia): CatalogItem {
     title: m.title,
     author: m.author,
     director: m.director || undefined,
+    makerUuid: m.maker_uuid || undefined,
     coverUrl: m.cover_url || undefined,
     year: m.year || undefined,
     genre: m.genres ? m.genres.split(',').map((g) => g.trim()).filter(Boolean) : [],

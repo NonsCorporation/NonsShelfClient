@@ -59,7 +59,6 @@ export default function Header() {
     { to: '/', label: t('home'), icon: IoHomeOutline, match: (p) => p === '/' },
     { to: '/library', label: t('library'), icon: IoLibraryOutline, match: (p) => p === '/library' },
     { to: '/discover', label: t('discover'), icon: IoCompassOutline, match: (p) => p === '/discover' },
-    { to: '/discover2', label: t('discover2'), icon: IoCompassOutline, match: (p) => p === '/discover2' },
     { to: '/statistics', label: t('statistics'), icon: IoCalendarOutline, match: (p) => p === '/statistics' },
   ]
   if (isLibrarian(user?.role)) {
