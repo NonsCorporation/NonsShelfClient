@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from '@/lib/router'
 import Layout from '../components/layout/Layout'
 import CatalogCard from '../components/CatalogCard'
-import { catalogService, compactCount } from '../services/catalogService'
+import { catalogService } from '../services/catalogService'
 import type { CatalogItem } from '../services/catalogService'
 import { libraryService } from '../services/libraryService'
 import type { MediaItem, MediaType } from '../types'
@@ -10,7 +10,10 @@ import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
 import { redirectToNonsLogin } from '../lib/api'
 import { initials, colorFor } from '../lib/user'
-import { IoStar, IoFlame, IoPeopleOutline, IoLogInOutline, IoSparklesOutline, IoArrowForward } from 'react-icons/io5'
+import {
+  IoStar, IoFlame, IoPeopleOutline, IoLogInOutline, IoSparklesOutline, IoArrowForward,
+  IoChevronBack, IoChevronForward, IoAdd, IoCheckmark, IoTrendingUp,
+} from 'react-icons/io5'
 import { mediaPath } from '../lib/paths'
 import TypeBadge from '../components/TypeBadge'
 
@@ -21,6 +24,8 @@ const dedupe = (items: CatalogItem[]) => {
   const seen = new Set<string>()
   return items.filter((it) => (seen.has(it.id) ? false : (seen.add(it.id), true)))
 }
+const creditOf = (it: CatalogItem) => (it.type === 'book' ? it.author : it.director || it.author)
+const typeWord = (t: Translate, type: MediaType) => (type === 'book' ? t('book') : type === 'series' ? t('series') : t('film'))
 // A creator's role → localized label (falls back to the raw role).
 const roleLabel = (t: Translate, role: string) => {
   const key = 'role' + role.charAt(0).toUpperCase() + role.slice(1)
@@ -113,7 +118,9 @@ export default function DiscoverPage() {
   // Pass an add handler only to signed-in users; anonymous cards hide the button.
   const addProp = (it: CatalogItem) => (isAuthenticated ? () => handleAdd(it) : undefined)
 
-  const featured = popular[0]
+  // Top few, cover-bearing, for the cinematic hero carousel.
+  const heroItems = useMemo(() => popular.filter((p) => p.coverUrl).slice(0, 5), [popular])
+  const trending = useMemo(() => dedupe([...popular, ...recent]).slice(0, 10), [popular, recent])
 
   // Newest additions across the current scope — most recently added first. When
   // a single type is selected, `recent` already holds that type; when "all",
@@ -142,7 +149,7 @@ export default function DiscoverPage() {
     const pool = dedupe([...popular, ...recent])
     const map = new Map<string, Creator>()
     for (const it of pool) {
-      const name = (it.type === 'book' ? it.author : it.director || it.author)?.trim()
+      const name = creditOf(it)?.trim()
       if (!name) continue
       const role: Creator['role'] = it.type === 'book' ? 'author' : 'director'
       const key = it.makerUuid || `${role}:${name.toLowerCase()}`
@@ -184,12 +191,9 @@ export default function DiscoverPage() {
 
   return (
     <Layout>
-      <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-bold tracking-tight text-[var(--text)]">{t('discover')}</h1>
-          <p className="mt-1 text-sm text-[var(--text-muted)]">{t('discoverSubtitle')}</p>
-        </div>
-        {/* Type toggle — scopes every row below. */}
+      {/* Top bar — minimal, home-page feel: the scope segmented control leads. */}
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-lg font-bold tracking-tight text-[var(--text)]">{t('discover')}</h1>
         <div className="flex rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] p-1">
           {toggles.map((tg) => (
             <button
@@ -219,23 +223,25 @@ export default function DiscoverPage() {
       )}
 
       {loading ? (
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-6">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="aspect-[2/3] animate-pulse rounded-xl bg-[var(--surface)]" />
-          ))}
+        <div className="animate-pulse">
+          <div className="mb-10 h-80 rounded-3xl bg-[var(--surface)]" />
+          <div className="grid grid-cols-3 gap-4 sm:grid-cols-5 lg:grid-cols-6">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="aspect-[2/3] rounded-xl bg-[var(--surface)]" />
+            ))}
+          </div>
         </div>
       ) : (
         <div className="animate-fade-up">
-          {/* Newest additions — the headline feature. */}
-          <Row
-            title={t('newestAdditions')}
-            icon={<IoSparklesOutline className="h-4 w-4 text-nonsprimaryfocus" />}
-            items={newestAll}
-            inLibrary={inLibrary}
-            addProp={addProp}
-          />
+          {/* ── Cinematic hero carousel ── */}
+          <HeroCarousel items={heroItems} canAdd={isAuthenticated} inLibrary={inLibrary} onAdd={handleAdd} t={t} />
 
-          {/* When browsing everything, split newest by type so each stands out. */}
+          {/* ── Trending, with big IMDb-style rank numbers ── */}
+          <RankRail title={t('trendingNow')} icon={<IoTrendingUp className="h-4 w-4 text-nonslightred" />} items={trending} inLibrary={inLibrary} addProp={addProp} />
+
+          {/* ── Just added ── */}
+          <Row title={t('newestAdditions')} icon={<IoSparklesOutline className="h-4 w-4 text-nonsprimaryfocus" />} items={newestAll} inLibrary={inLibrary} addProp={addProp} />
+
           {typeFilter === 'all' && (
             <>
               <Row title={t('newestBooks')} items={newestBooks} inLibrary={inLibrary} addProp={addProp} />
@@ -243,14 +249,12 @@ export default function DiscoverPage() {
             </>
           )}
 
-          {featured && <Hero item={featured} canAdd={isAuthenticated} inLibrary={inLibrary(featured)} onAdd={() => handleAdd(featured)} t={t} />}
+          <Row title={t('popularNow')} icon={<IoFlame className="h-4 w-4 text-nonslightred" />} items={popular.slice(1)} inLibrary={inLibrary} addProp={addProp} />
 
-          <Row title={t('popularNow')} items={popular.slice(1)} inLibrary={inLibrary} addProp={addProp} />
-
-          {/* Popular people, each with a strip of their works. */}
+          {/* ── Popular people + their works ── */}
           <PeopleSpotlights creators={creators} t={t} />
 
-          {/* Explore by genre — a genre selector over a filterable grid. */}
+          {/* ── Explore by genre ── */}
           <GenreExplorer genres={genres} inLibrary={inLibrary} addProp={addProp} t={t} />
 
           <Row title={t('newReleases')} items={newReleases} inLibrary={inLibrary} addProp={addProp} />
@@ -265,6 +269,185 @@ export default function DiscoverPage() {
         </div>
       )}
     </Layout>
+  )
+}
+
+// ── Cinematic hero carousel (TMDB/IMDb style) ──────────────────────────────────
+// A full-bleed banner whose backdrop is the featured cover, blurred and faded
+// into the page background so it reads as one surface. Auto-advances through the
+// top titles; dots + arrows for manual control.
+function HeroCarousel({
+  items, canAdd, inLibrary, onAdd, t,
+}: {
+  items: CatalogItem[]
+  canAdd: boolean
+  inLibrary: (it: CatalogItem) => boolean
+  onAdd: (it: CatalogItem) => void
+  t: Translate
+}) {
+  const [idx, setIdx] = useState(0)
+  const [paused, setPaused] = useState(false)
+  const count = items.length
+
+  useEffect(() => {
+    if (count <= 1 || paused) return
+    const id = setInterval(() => setIdx((i) => (i + 1) % count), 6500)
+    return () => clearInterval(id)
+  }, [count, paused])
+
+  if (count === 0) return null
+  const active = idx % count
+  const item = items[active]
+  const added = inLibrary(item)
+  const go = (n: number) => setIdx((n + count) % count)
+
+  return (
+    <section
+      className="relative mb-12 overflow-hidden rounded-3xl border border-[var(--border-subtle)]"
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+    >
+      {/* Blurred backdrop that melts into the page. */}
+      <div className="absolute inset-0">
+        {item.coverUrl && (
+          <img key={item.id} src={item.coverUrl} alt="" className="h-full w-full scale-125 object-cover opacity-40 blur-2xl transition-opacity duration-700" />
+        )}
+        <div className="absolute inset-0 bg-gradient-to-t from-[var(--bg)] via-[var(--bg)]/85 to-[var(--bg)]/40" />
+        <div className="absolute inset-0 bg-gradient-to-r from-[var(--bg)] via-[var(--bg)]/60 to-transparent" />
+      </div>
+
+      <div className="relative flex items-center gap-5 p-5 sm:gap-8 sm:p-8">
+        <Link
+          to={mediaPath(item)}
+          className="group relative aspect-[2/3] w-32 flex-shrink-0 overflow-hidden rounded-2xl border border-[var(--border-subtle)] bg-[var(--container-2)] shadow-2xl transition-transform hover:scale-[1.02] sm:w-52"
+        >
+          {item.coverUrl && <img src={item.coverUrl} alt={item.title} className="h-full w-full object-cover" />}
+          <TypeBadge type={item.type} />
+        </Link>
+
+        <div className="flex min-w-0 flex-1 flex-col">
+          <div className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-nonsprimaryfocus">
+            <IoFlame className="h-3.5 w-3.5" />
+            {t('spotlight')}
+          </div>
+          <h2 className="text-2xl font-black leading-[1.05] tracking-tight text-[var(--text)] sm:text-4xl">
+            <Link to={mediaPath(item)} className="hover:underline">{item.title}</Link>
+          </h2>
+          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--text-muted)] sm:text-sm">
+            <span className="font-medium text-[var(--text)]">{typeWord(t, item.type)}</span>
+            {item.year && (<><span className="text-[var(--border-strong)]">·</span><span>{item.year}</span></>)}
+            {creditOf(item) && (<><span className="text-[var(--border-strong)]">·</span><span className="truncate">{creditOf(item)}</span></>)}
+            {item.communityRating > 0 && (
+              <span className="flex items-center gap-1 font-semibold text-[var(--text)]">
+                <IoStar className="h-3.5 w-3.5 text-nonsprimaryfocus" />{item.communityRating.toFixed(1)}
+              </span>
+            )}
+          </div>
+
+          {item.genre && item.genre.length > 0 && (
+            <div className="mt-3 hidden flex-wrap gap-1.5 sm:flex">
+              {item.genre.slice(0, 3).map((g) => (
+                <span key={g} className="rounded-full border border-[var(--border-subtle)] bg-[var(--surface)]/70 px-2.5 py-1 text-[11px] text-[var(--text-muted)] backdrop-blur-sm">{g}</span>
+              ))}
+            </div>
+          )}
+
+          {item.description && (
+            <p className="mt-3 hidden max-w-2xl text-sm leading-6 text-[var(--text-muted)] sm:line-clamp-3">{item.description}</p>
+          )}
+
+          <div className="mt-4 flex items-center gap-3">
+            {canAdd ? (
+              <button
+                onClick={() => onAdd(item)}
+                disabled={added}
+                className={`inline-flex h-11 items-center justify-center gap-2 rounded-xl px-5 text-sm font-semibold transition-colors ${
+                  added ? 'cursor-default border border-[var(--border-subtle)] text-[var(--text-muted)]' : 'bg-nonsprimary text-white hover:bg-nonsprimaryfocus'
+                }`}
+              >
+                {added ? <IoCheckmark className="h-4 w-4" /> : <IoAdd className="h-4 w-4" />}
+                {added ? t('inLibrary') : t('addToLibrary')}
+              </button>
+            ) : (
+              <button
+                onClick={redirectToNonsLogin}
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-nonsprimary px-5 text-sm font-semibold text-white hover:bg-nonsprimaryfocus"
+              >
+                <IoLogInOutline className="h-4 w-4" />{t('signInToAdd')}
+              </button>
+            )}
+            <Link
+              to={mediaPath(item)}
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)]/60 px-5 text-sm font-semibold text-[var(--text)] backdrop-blur-sm transition-colors hover:border-[var(--border)]"
+            >
+              {t('viewDetails')}
+              <IoArrowForward className="h-4 w-4" />
+            </Link>
+          </div>
+        </div>
+
+        {/* Prev / next arrows (desktop). */}
+        {count > 1 && (
+          <div className="pointer-events-none absolute inset-x-0 top-1/2 hidden -translate-y-1/2 justify-between px-3 sm:flex">
+            <button onClick={() => go(active - 1)} className="pointer-events-auto flex h-9 w-9 items-center justify-center rounded-full border border-[var(--border-subtle)] bg-[var(--bg)]/70 text-[var(--text)] backdrop-blur-sm transition-colors hover:bg-[var(--bg)]">
+              <IoChevronBack className="h-4 w-4" />
+            </button>
+            <button onClick={() => go(active + 1)} className="pointer-events-auto flex h-9 w-9 items-center justify-center rounded-full border border-[var(--border-subtle)] bg-[var(--bg)]/70 text-[var(--text)] backdrop-blur-sm transition-colors hover:bg-[var(--bg)]">
+              <IoChevronForward className="h-4 w-4" />
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Dots. */}
+      {count > 1 && (
+        <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 gap-1.5">
+          {items.map((it, i) => (
+            <button
+              key={it.id}
+              onClick={() => setIdx(i)}
+              aria-label={`Slide ${i + 1}`}
+              className={`h-1.5 rounded-full transition-all ${i === active ? 'w-6 bg-nonsprimary' : 'w-1.5 bg-[var(--border-strong)] hover:bg-[var(--text-muted)]'}`}
+            />
+          ))}
+        </div>
+      )}
+    </section>
+  )
+}
+
+// ── Trending rail with oversized rank numbers (IMDb "top" style) ───────────────
+function RankRail({
+  title, icon, items, inLibrary, addProp,
+}: {
+  title: string
+  icon?: React.ReactNode
+  items: CatalogItem[]
+  inLibrary: (it: CatalogItem) => boolean
+  addProp: (it: CatalogItem) => (() => void) | undefined
+}) {
+  if (items.length === 0) return null
+  return (
+    <section className="mb-12">
+      <h2 className="mb-4 flex items-center gap-2 text-lg font-bold tracking-tight text-[var(--text)]">
+        {icon}{title}
+      </h2>
+      <div className="no-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1 pb-2 sm:gap-4">
+        {items.map((it, i) => (
+          <div key={it.id} className="flex flex-shrink-0 items-end">
+            <span
+              className="select-none pr-0.5 text-[4.5rem] font-black leading-[0.72] sm:text-[6rem]"
+              style={{ WebkitTextStroke: '2px var(--border-strong)', color: 'transparent' }}
+            >
+              {i + 1}
+            </span>
+            <div className="-ml-3 w-28 sm:w-36">
+              <CatalogCard item={it} inLibrary={inLibrary(it)} onAdd={addProp(it)} />
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
   )
 }
 
@@ -283,98 +466,17 @@ function Row({
 }) {
   if (items.length === 0) return null
   return (
-    <section className="mb-10">
-      <h2 className="mb-3 flex items-center gap-2 text-base font-semibold text-[var(--text)]">
+    <section className="mb-11">
+      <h2 className="mb-4 flex items-center gap-2 text-lg font-bold tracking-tight text-[var(--text)]">
         {icon}
         {title}
       </h2>
       <div className="no-scrollbar -mx-1 flex gap-4 overflow-x-auto px-1 pb-1">
         {items.map((it) => (
-          <div key={it.id} className="w-36 flex-shrink-0 sm:w-40">
+          <div key={it.id} className="w-32 flex-shrink-0 sm:w-40">
             <CatalogCard item={it} inLibrary={inLibrary(it)} onAdd={addProp(it)} showReason={showReason} />
           </div>
         ))}
-      </div>
-    </section>
-  )
-}
-
-// Hero — the top-popular item, with an add (or sign-in) CTA.
-function Hero({
-  item, canAdd, inLibrary, onAdd, t,
-}: {
-  item: CatalogItem
-  canAdd: boolean
-  inLibrary: boolean
-  onAdd: () => void
-  t: Translate
-}) {
-  return (
-    <section className="mb-10">
-      <div className="mb-3 flex items-center gap-2">
-        <IoFlame className="h-4 w-4 text-nonslightred" />
-        <h2 className="text-base font-semibold text-[var(--text)]">{t('trendingNow')}</h2>
-      </div>
-      <div className="flex flex-col gap-5 rounded-2xl border border-[var(--border-subtle)] bg-[var(--container)] p-4 sm:flex-row sm:p-5">
-        <Link
-          to={mediaPath(item)}
-          className="relative aspect-[2/3] w-32 flex-shrink-0 overflow-hidden rounded-xl border border-[var(--border-subtle)] bg-[var(--container-2)] transition-colors hover:border-[var(--border)] sm:w-44"
-        >
-          {item.coverUrl && <img src={item.coverUrl} alt={item.title} className="h-full w-full object-cover" />}
-          <TypeBadge type={item.type} />
-        </Link>
-        <div className="flex min-w-0 flex-1 flex-col">
-          <div className="flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-widest text-[var(--text-muted)]">
-            <span>{item.type === 'book' ? t('book') : item.type === 'series' ? t('series') : t('film')}</span>
-            {item.year && (<><span className="text-[var(--border-strong)]">·</span><span>{item.year}</span></>)}
-            {item.genre && item.genre.length > 0 && (
-              <><span className="text-[var(--border-strong)]">·</span><span className="normal-case tracking-normal">{item.genre.slice(0, 3).join(', ')}</span></>
-            )}
-          </div>
-          <h3 className="mt-1.5 text-2xl font-bold leading-tight tracking-tight text-[var(--text)]">
-            <Link to={mediaPath(item)} className="hover:underline">{item.title}</Link>
-          </h3>
-          <p className="text-sm text-[var(--text-muted)]">{item.type === 'book' ? item.author : item.director || item.author}</p>
-
-          <div className="mt-3 flex flex-wrap items-center gap-4 text-sm">
-            {item.communityRating > 0 && (
-              <span className="flex items-center gap-1.5 font-semibold text-[var(--text)]">
-                <IoStar className="h-4 w-4 text-nonsprimaryfocus" />
-                {item.communityRating.toFixed(1)}
-              </span>
-            )}
-            {item.popularity > 0 && (
-              <span className="flex items-center gap-1.5 text-[var(--text-muted)]">
-                <IoPeopleOutline className="h-4 w-4" />
-                {t('inLibrariesLabel', { n: compactCount(item.popularity) })}
-              </span>
-            )}
-          </div>
-
-          {item.description && <p className="mt-3 line-clamp-3 text-sm leading-6 text-[var(--text-muted)]">{item.description}</p>}
-
-          <div className="mt-auto pt-4">
-            {canAdd ? (
-              <button
-                onClick={onAdd}
-                disabled={inLibrary}
-                className={`inline-flex h-10 items-center justify-center gap-2 rounded-xl px-5 text-sm font-semibold transition-colors ${
-                  inLibrary ? 'cursor-default border border-[var(--border-subtle)] text-[var(--text-muted)]' : 'bg-nonsprimary text-white hover:bg-nonsprimaryfocus'
-                }`}
-              >
-                {inLibrary ? t('inLibrary') : t('addToLibrary')}
-              </button>
-            ) : (
-              <button
-                onClick={redirectToNonsLogin}
-                className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-nonsprimary px-5 text-sm font-semibold text-white hover:bg-nonsprimaryfocus"
-              >
-                <IoLogInOutline className="h-4 w-4" />
-                {t('signInToAdd')}
-              </button>
-            )}
-          </div>
-        </div>
       </div>
     </section>
   )
@@ -386,70 +488,68 @@ function Hero({
 function PeopleSpotlights({ creators, t }: { creators: Creator[]; t: Translate }) {
   if (creators.length === 0) return null
   return (
-    <section className="mb-10">
+    <section className="mb-12">
       <div className="mb-1 flex items-center gap-2">
         <IoPeopleOutline className="h-4 w-4 text-nonsprimaryfocus" />
-        <h2 className="text-base font-semibold text-[var(--text)]">{t('popularPeople')}</h2>
+        <h2 className="text-lg font-bold tracking-tight text-[var(--text)]">{t('popularPeople')}</h2>
       </div>
       <p className="mb-4 text-sm text-[var(--text-muted)]">{t('popularPeopleSubtitle')}</p>
       <div className="grid gap-4 md:grid-cols-2">
-        {creators.map((p) => {
-          return (
-            <div
-              key={p.key}
-              className="flex flex-col gap-4 rounded-2xl border border-[var(--border-subtle)] bg-[var(--container)] p-4 transition-colors hover:border-[var(--border)]"
-            >
-              <div className="flex items-center gap-4">
-                <div className="h-14 w-14 flex-shrink-0 overflow-hidden rounded-full border border-[var(--border-subtle)]">
-                  <span
-                    className="flex h-full w-full items-center justify-center text-base font-semibold text-white"
-                    style={{ backgroundColor: colorFor(p.uuid || p.name) }}
-                  >
-                    {initials(p.name)}
-                  </span>
-                </div>
-                <div className="min-w-0 flex-1">
-                  {p.uuid ? (
-                    <Link to={`/p/${p.uuid}`} className="block truncate text-lg font-semibold text-[var(--text)] hover:text-nonsprimary">
-                      {p.name}
-                    </Link>
-                  ) : (
-                    <p className="truncate text-lg font-semibold text-[var(--text)]">{p.name}</p>
-                  )}
-                  <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-[var(--text-muted)]">
-                    <span className="font-medium text-[var(--text)]">{roleLabel(t, p.role)}</span>
-                    <span className="text-[var(--border-strong)]">·</span>
-                    <span>{t('nWorks', { n: p.works.length })}</span>
-                  </div>
-                </div>
-                {p.uuid && (
-                  <Link
-                    to={`/p/${p.uuid}`}
-                    className="hidden flex-shrink-0 items-center gap-1 self-start rounded-lg border border-[var(--border-subtle)] px-2.5 py-1.5 text-xs font-medium text-[var(--text-muted)] transition-colors hover:border-nonsprimary hover:text-nonsprimary sm:inline-flex"
-                  >
-                    {t('viewProfile')}
-                    <IoArrowForward className="h-3 w-3" />
+        {creators.map((p) => (
+          <div
+            key={p.key}
+            className="flex flex-col gap-4 rounded-2xl border border-[var(--border-subtle)] bg-[var(--container)] p-4 transition-colors hover:border-[var(--border)]"
+          >
+            <div className="flex items-center gap-4">
+              <div className="h-14 w-14 flex-shrink-0 overflow-hidden rounded-full border border-[var(--border-subtle)]">
+                <span
+                  className="flex h-full w-full items-center justify-center text-base font-semibold text-white"
+                  style={{ backgroundColor: colorFor(p.uuid || p.name) }}
+                >
+                  {initials(p.name)}
+                </span>
+              </div>
+              <div className="min-w-0 flex-1">
+                {p.uuid ? (
+                  <Link to={`/p/${p.uuid}`} className="block truncate text-lg font-semibold text-[var(--text)] hover:text-nonsprimary">
+                    {p.name}
                   </Link>
+                ) : (
+                  <p className="truncate text-lg font-semibold text-[var(--text)]">{p.name}</p>
                 )}
+                <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-[var(--text-muted)]">
+                  <span className="font-medium text-[var(--text)]">{roleLabel(t, p.role)}</span>
+                  <span className="text-[var(--border-strong)]">·</span>
+                  <span>{t('nWorks', { n: p.works.length })}</span>
+                </div>
               </div>
-
-              {/* Works strip — covers scroll horizontally, linking to each title. */}
-              <div className="no-scrollbar -mx-1 flex gap-3 overflow-x-auto px-1">
-                {p.works.map((w) => (
-                  <Link key={w.id} to={mediaPath(w)} className="group/w w-20 flex-shrink-0" title={w.title}>
-                    <div className="relative aspect-[2/3] w-full overflow-hidden rounded-lg border border-[var(--border-subtle)] bg-[var(--container-2)] transition-colors group-hover/w:border-[var(--border)]">
-                      {w.coverUrl
-                        ? <img src={w.coverUrl} alt={w.title} loading="lazy" className="h-full w-full object-cover transition-transform group-hover/w:scale-105" />
-                        : <span className="flex h-full w-full items-center justify-center px-1 text-center text-[10px] text-[var(--text-muted)]">{w.title}</span>}
-                      <TypeBadge type={w.type} />
-                    </div>
-                    <p className="mt-1 line-clamp-2 text-[11px] leading-tight text-[var(--text-muted)] group-hover/w:text-[var(--text)]">{w.title}</p>
-                  </Link>
-                ))}
-              </div>
+              {p.uuid && (
+                <Link
+                  to={`/p/${p.uuid}`}
+                  className="hidden flex-shrink-0 items-center gap-1 self-start rounded-lg border border-[var(--border-subtle)] px-2.5 py-1.5 text-xs font-medium text-[var(--text-muted)] transition-colors hover:border-nonsprimary hover:text-nonsprimary sm:inline-flex"
+                >
+                  {t('viewProfile')}
+                  <IoArrowForward className="h-3 w-3" />
+                </Link>
+              )}
             </div>
-          )
-        })}
+
+            {/* Works strip — covers scroll horizontally, linking to each title. */}
+            <div className="no-scrollbar -mx-1 flex gap-3 overflow-x-auto px-1">
+              {p.works.map((w) => (
+                <Link key={w.id} to={mediaPath(w)} className="group/w w-20 flex-shrink-0" title={w.title}>
+                  <div className="relative aspect-[2/3] w-full overflow-hidden rounded-lg border border-[var(--border-subtle)] bg-[var(--container-2)] transition-colors group-hover/w:border-[var(--border)]">
+                    {w.coverUrl
+                      ? <img src={w.coverUrl} alt={w.title} loading="lazy" className="h-full w-full object-cover transition-transform group-hover/w:scale-105" />
+                      : <span className="flex h-full w-full items-center justify-center px-1 text-center text-[10px] text-[var(--text-muted)]">{w.title}</span>}
+                    <TypeBadge type={w.type} />
+                  </div>
+                  <p className="mt-1 line-clamp-2 text-[11px] leading-tight text-[var(--text-muted)] group-hover/w:text-[var(--text)]">{w.title}</p>
+                </Link>
+              ))}
+            </div>
+          </div>
+        ))}
       </div>
     </section>
   )
@@ -471,10 +571,10 @@ function GenreExplorer({
   const active = selected ? genres.find((g) => g.genre === selected) : null
 
   return (
-    <section className="mb-10">
+    <section className="mb-12">
       <div className="mb-1 flex items-center gap-2">
         <IoSparklesOutline className="h-4 w-4 text-nonsprimaryfocus" />
-        <h2 className="text-base font-semibold text-[var(--text)]">{t('exploreByGenre')}</h2>
+        <h2 className="text-lg font-bold tracking-tight text-[var(--text)]">{t('exploreByGenre')}</h2>
       </div>
       <p className="mb-4 text-sm text-[var(--text-muted)]">{t('exploreByGenreSubtitle')}</p>
 
@@ -487,15 +587,15 @@ function GenreExplorer({
       </div>
 
       {active ? (
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-6">
+        <div className="grid grid-cols-3 gap-4 sm:grid-cols-5 lg:grid-cols-6">
           {active.items.slice(0, 18).map((it) => (
             <CatalogCard key={it.id} item={it} inLibrary={inLibrary(it)} onAdd={addProp(it)} />
           ))}
         </div>
       ) : (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-          {genres.slice(0, 8).map((g) => (
-            <GenreCard key={g.genre} genre={g.genre} items={g.items} onClick={() => setSelected(g.genre)} t={t} />
+          {genres.slice(0, 8).map((g, i) => (
+            <GenreCard key={g.genre} genre={g.genre} items={g.items} tint={i} onClick={() => setSelected(g.genre)} t={t} />
           ))}
         </div>
       )}
@@ -519,14 +619,20 @@ function GenrePill({ label, count, active, onClick }: { label: string; count?: n
   )
 }
 
-// A genre "cover" — a 2×2 collage of the genre's titles under a gradient, with
-// the genre name and count overlaid. Clicking selects the genre.
-function GenreCard({ genre, items, onClick, t }: { genre: string; items: CatalogItem[]; onClick: () => void; t: Translate }) {
+// A rotating set of tints so the genre tiles feel curated (Goodreads/TMDB).
+const GENRE_TINTS = [
+  'from-rose-500/30', 'from-amber-500/30', 'from-emerald-500/30', 'from-sky-500/30',
+  'from-violet-500/30', 'from-fuchsia-500/30', 'from-cyan-500/30', 'from-orange-500/30',
+]
+
+// A genre "cover" — a 2×2 collage of the genre's titles under a tinted gradient,
+// with the genre name and count overlaid. Clicking selects the genre.
+function GenreCard({ genre, items, tint, onClick, t }: { genre: string; items: CatalogItem[]; tint: number; onClick: () => void; t: Translate }) {
   const covers = items.filter((i) => i.coverUrl).slice(0, 4)
   return (
     <button
       onClick={onClick}
-      className="group relative aspect-[4/3] overflow-hidden rounded-2xl border border-[var(--border-subtle)] bg-[var(--container-2)] text-left transition-colors hover:border-[var(--border)]"
+      className="group relative aspect-[4/3] overflow-hidden rounded-2xl border border-[var(--border-subtle)] bg-[var(--container-2)] text-left transition-transform hover:-translate-y-0.5 hover:border-[var(--border)]"
     >
       <div className="absolute inset-0 grid grid-cols-2 grid-rows-2">
         {covers.length > 0
@@ -540,6 +646,7 @@ function GenreCard({ genre, items, onClick, t }: { genre: string; items: Catalog
             })
           : null}
       </div>
+      <div className={`absolute inset-0 bg-gradient-to-tr ${GENRE_TINTS[tint % GENRE_TINTS.length]} to-transparent`} />
       <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-black/10" />
       <div className="absolute inset-x-0 bottom-0 p-3">
         <p className="truncate text-base font-semibold text-white">{genre}</p>
