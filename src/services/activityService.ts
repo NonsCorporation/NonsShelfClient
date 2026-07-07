@@ -28,6 +28,8 @@ export type Activity = {
   page?: number
   /** Relative time, e.g. "2h", "1d". */
   timeAgo: string
+  /** Absolute event time, Unix seconds — used for date grouping. */
+  at: number
 }
 
 // ── Wire types ──────────────────────────────────────────────────────────────
@@ -160,6 +162,7 @@ class ApiActivityService implements IActivityService {
         progressPct: e.progress_pct || undefined,
         page: e.page || undefined,
         timeAgo: timeAgo(e.at),
+        at: e.at,
       }))
 
     return { items, total: body.total ?? items.length }
@@ -202,6 +205,7 @@ export async function getUserActivity(
         progressPct: e.progress_pct || undefined,
         page: e.page || undefined,
         timeAgo: timeAgo(e.at),
+        at: e.at,
       })),
     total: body.total ?? 0,
   }

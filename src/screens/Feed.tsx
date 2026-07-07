@@ -29,6 +29,18 @@ import InfinityLoader from '../components/InfinityLoader'
 // Friends-activity is paginated server-side; this many cards per page.
 const ACTIVITY_PER_PAGE = 10
 
+// Coarse day buckets for grouping the activity feed. `at` is Unix seconds.
+type DayBucket = 'today' | 'week' | 'earlier'
+const BUCKET_LABEL: Record<DayBucket, string> = { today: 'groupToday', week: 'groupThisWeek', earlier: 'groupEarlier' }
+function dayBucket(at: number): DayBucket {
+  const now = new Date()
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
+  const ms = at * 1000
+  if (ms >= startOfToday) return 'today'
+  if (ms >= startOfToday - 6 * 86400000) return 'week'
+  return 'earlier'
+}
+
 export default function FeedPage() {
   const { t } = useLanguage()
   const { user } = useAuth()
@@ -124,6 +136,41 @@ export default function FeedPage() {
 
   const inProgress = useMemo(() => items.filter((it) => it.status === 'active'), [items])
 
+  // Time-of-day greeting for the desktop header.
+  const greetingKey = (() => {
+    const h = new Date().getHours()
+    return h < 12 ? 'greetingMorning' : h < 18 ? 'greetingAfternoon' : 'greetingEvening'
+  })()
+
+  // A quiet at-a-glance line under the greeting: only the segments that apply.
+  const statLine = useMemo(() => {
+    const now = new Date()
+    const finishedThisMonth = items.filter((it) => {
+      if (it.status !== 'done' || !it.finishedAt) return false
+      const d = new Date(it.finishedAt)
+      return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()
+    }).length
+    const activeFriends = new Set(activity.map((a) => a.user.handle)).size
+    const segs = [
+      inProgress.length > 0 && t('statInProgress', { count: inProgress.length }),
+      finishedThisMonth > 0 && t('statFinishedThisMonth', { count: finishedThisMonth }),
+      activeFriends > 0 && t('statFriendsActive', { count: activeFriends }),
+    ].filter(Boolean) as string[]
+    return segs.join(' · ')
+  }, [items, activity, inProgress, t])
+
+  // Group the current activity page into day buckets, preserving newest-first order.
+  const activityGroups = useMemo(() => {
+    const groups: { key: DayBucket; items: Activity[] }[] = []
+    for (const a of activity) {
+      const b = dayBucket(a.at)
+      const last = groups[groups.length - 1]
+      if (last && last.key === b) last.items.push(a)
+      else groups.push({ key: b, items: [a] })
+    }
+    return groups
+  }, [activity])
+
   return (
     <Layout>
       <div className="mb-5 flex items-center gap-3 lg:hidden">
@@ -137,8 +184,10 @@ export default function FeedPage() {
       </div>
 
       <div className="mb-6 hidden lg:block">
-        <h1 className="text-xl font-bold tracking-tight text-[var(--text)]">{t('home')}</h1>
-        <p className="mt-1 text-sm text-[var(--text-muted)]">{t('feedSubtitle')}</p>
+        <h1 className="text-xl font-bold tracking-tight text-[var(--text)]">
+          {t(greetingKey)}{me?.name ? `, ${me.name}` : ''}
+        </h1>
+        <p className="mt-1 text-sm text-[var(--text-muted)]">{statLine || t('feedSubtitle')}</p>
       </div>
 
       {/* Currently watching / reading */}
@@ -156,7 +205,10 @@ export default function FeedPage() {
 
       {/* Friends activity */}
       <section ref={activityRef} className="scroll-mt-4">
-        <h2 className="mb-2 text-base font-semibold text-[var(--text)]">{t('friendsActivity')}</h2>
+        <h2 className="mb-3 flex items-center gap-2 text-base font-semibold text-[var(--text)]">
+          <IoPeopleOutline className="h-[18px] w-[18px] text-[var(--text-muted)]" />
+          {t('friendsActivity')}
+        </h2>
         {loading ? (
           <div className="flex flex-col gap-4">
             {Array.from({ length: 4 }).map((_, i) => (
@@ -172,29 +224,40 @@ export default function FeedPage() {
           </div>
         ) : (
           <div className={`animate-fade-up flex flex-col gap-4 transition-opacity ${activityLoading ? 'opacity-60' : ''}`}>
-            {activity.map((a) => {
-              const isFocused = focusPostId != null && a.postId === focusPostId
-              return (
-                <div
-                  key={a.id}
-                  ref={isFocused ? focusCardRef : undefined}
-                  className={isFocused ? 'ring-2 ring-nonsprimary/60 rounded-2xl' : undefined}
-                >
-                  <ActivityCard
-                    a={a}
-                    commentCount={commentCounts[String(a.postId)] ?? 0}
-                    myItem={myByMedia.get(a.mediaId)}
-                    openComments={isFocused}
-                    onShelfChange={applyShelfChange}
-                    onDeleted={(postId) => {
-                      setActivity((prev) => prev.filter((x) => x.postId !== postId))
-                      setActivityTotal((n) => Math.max(0, n - 1))
-                    }}
-                    onCountChange={(postId, n) => setCommentCounts((m) => ({ ...m, [String(postId)]: n }))}
-                  />
+            {activityGroups.map((group) => (
+              <div key={group.key} className="flex flex-col gap-4">
+                {/* Quiet day divider for scannability. */}
+                <div className="flex items-center gap-3">
+                  <span className="text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">
+                    {t(BUCKET_LABEL[group.key])}
+                  </span>
+                  <span className="h-px flex-1 bg-[var(--border-subtle)]" />
                 </div>
-              )
-            })}
+                {group.items.map((a) => {
+                  const isFocused = focusPostId != null && a.postId === focusPostId
+                  return (
+                    <div
+                      key={a.id}
+                      ref={isFocused ? focusCardRef : undefined}
+                      className={isFocused ? 'ring-2 ring-nonsprimary/60 rounded-2xl' : undefined}
+                    >
+                      <ActivityCard
+                        a={a}
+                        commentCount={commentCounts[String(a.postId)] ?? 0}
+                        myItem={myByMedia.get(a.mediaId)}
+                        openComments={isFocused}
+                        onShelfChange={applyShelfChange}
+                        onDeleted={(postId) => {
+                          setActivity((prev) => prev.filter((x) => x.postId !== postId))
+                          setActivityTotal((n) => Math.max(0, n - 1))
+                        }}
+                        onCountChange={(postId, n) => setCommentCounts((m) => ({ ...m, [String(postId)]: n }))}
+                      />
+                    </div>
+                  )
+                })}
+              </div>
+            ))}
             <Pagination
               currentPage={activityPage + 1}
               totalPages={activityPageCount}
