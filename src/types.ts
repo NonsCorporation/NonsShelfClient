@@ -7,6 +7,31 @@ export type Collection = {
   created_at: number
 }
 
+// ── Curated lists: Goodreads-style titled, described lists with a per-item
+// note (e.g. "Best sci-fi of the 90s") — distinct from Collections, which are
+// private, undescribed groupings. ──────────────────────────────────────────
+
+export type CuratedList = {
+  id: number
+  title: string
+  description?: string
+  count: number
+  created_at: number
+  updated_at: number
+}
+
+export type CuratedListItem = {
+  media_id: number
+  /** Optional per-item note — e.g. why this item belongs on the list. */
+  description?: string
+  created_at: number
+  media?: MediaSummary
+}
+
+export type CuratedListDetail = CuratedList & {
+  items: CuratedListItem[]
+}
+
 // ── Connections: how catalog works relate (series, franchises, adaptations) ──
 
 /** Slim work shape embedded in connection payloads (card + link). */
@@ -151,4 +176,6 @@ export type MediaItem = {
   editionId?: number
   /** IDs of the user's custom collections that contain this item. */
   collectionIds?: number[]
+  /** IDs of the user's curated lists that contain this item. */
+  listIds?: number[]
 }

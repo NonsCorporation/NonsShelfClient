@@ -5,6 +5,7 @@ import { AuthProvider } from '@/contexts/AuthContext'
 import { LanguageProvider } from '@/contexts/LanguageContext'
 import { PreferencesProvider } from '@/contexts/PreferencesContext'
 import { CollectionProvider } from '@/contexts/CollectionContext'
+import { ListProvider } from '@/contexts/ListContext'
 
 // Providers for the public /b and /m pages. Same context tree as the app, but
 // WITHOUT the mount gate and RequireAuth: these pages render their public
@@ -17,7 +18,9 @@ export default function PublicProviders({ children }: { children: ReactNode }) {
       <LanguageProvider>
         <PreferencesProvider>
           <CollectionProvider>
-            {children}
+            <ListProvider>
+              {children}
+            </ListProvider>
           </CollectionProvider>
         </PreferencesProvider>
       </LanguageProvider>

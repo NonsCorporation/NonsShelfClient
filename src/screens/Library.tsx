@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState, useEffect, useCallback } from 'react'
-import { useSearchParams } from '@/lib/router'
+import { useSearchParams, useNavigate, Link } from '@/lib/router'
 import {
   IoOptionsOutline,
   IoGridOutline,
@@ -41,6 +41,7 @@ import type { MediaItem, Collection } from '../types.ts'
 import { useLanguage } from '../contexts/LanguageContext.tsx'
 import { useAuth } from '../contexts/AuthContext.tsx'
 import { useCollections } from '../contexts/CollectionContext.tsx'
+import { useLists } from '../contexts/ListContext.tsx'
 
 type ShelfKey = 'all' | 'wishlist' | 'active' | 'done' | 'dnf' | 'favorites'
 type SortKey = 'added' | 'rating' | 'title' | 'year' | 'reviewed' | 'date_end'
@@ -67,6 +68,8 @@ export default function LibraryScreen() {
   const { t } = useLanguage()
   const { user: authUser, loading: authLoading } = useAuth()
   const { collections, createCollection } = useCollections()
+  const { lists, createList } = useLists()
+  const navigate = useNavigate()
   const [params, setParams] = useSearchParams()
   const shelf = (params.get('shelf') as ShelfKey) || 'all'
   const collectionFilter = params.get('collection') ? Number(params.get('collection')) : null
@@ -76,6 +79,12 @@ export default function LibraryScreen() {
   const [creatingCol, setCreatingCol] = useState(false)
   const [newColName, setNewColName] = useState('')
   const newColInputRef = useRef<HTMLInputElement>(null)
+
+  // Sidebar curated-list creation state (editing a list happens on its own
+  // /library/lists/<id> page, not here — see ListDetail.tsx).
+  const [creatingList, setCreatingList] = useState(false)
+  const [newListTitle, setNewListTitle] = useState('')
+  const newListInputRef = useRef<HTMLInputElement>(null)
 
   // ?user=<username> opens another user's library read-only (the "open full
   // library" button on a profile links here). Viewing your own username — or no
@@ -526,6 +535,16 @@ export default function LibraryScreen() {
     setNewColName('')
     setCreatingCol(false)
   }
+  // Sidebar list helpers — creates the list then jumps straight to its detail
+  // page, where the title/description/items are actually managed.
+  const commitCreateList = async () => {
+    const title = newListTitle.trim()
+    setNewListTitle('')
+    setCreatingList(false)
+    if (!title) return
+    const l = await createList(title)
+    navigate(`/library/lists/${l.id}`)
+  }
   const setShelfParam = (key: ShelfKey) => {
     const next = new URLSearchParams(params)
     if (key === 'all') next.delete('shelf')
@@ -692,6 +711,59 @@ export default function LibraryScreen() {
           </div>
         )}
 
+        {/* Lists — Goodreads-style curated lists (title + description + a note
+            per item). Distinct from Collections: each has its own page. */}
+        {!readOnly && (
+          <div className="mt-4">
+            <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-[var(--text-muted)]">
+              Lists
+            </p>
+
+            {lists.map((l) => (
+              <Link
+                key={l.id}
+                to={`/library/lists/${l.id}`}
+                className="flex min-w-0 items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
+              >
+                <IoLayersOutline className="h-3.5 w-3.5 flex-shrink-0" />
+                <span className="min-w-0 truncate">{l.title}</span>
+                <span className="ml-auto flex-shrink-0 text-[11px] text-[var(--text-muted)]">{l.count}</span>
+              </Link>
+            ))}
+
+            {creatingList ? (
+              <div className="mt-1 flex items-center gap-1">
+                <input
+                  ref={newListInputRef}
+                  value={newListTitle}
+                  onChange={(e) => setNewListTitle(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') commitCreateList()
+                    if (e.key === 'Escape') { setCreatingList(false); setNewListTitle('') }
+                  }}
+                  onBlur={() => { if (!newListTitle.trim()) setCreatingList(false) }}
+                  placeholder="Name…"
+                  className="h-7 min-w-0 flex-1 rounded-md border border-[var(--primary-ring)] bg-[var(--input)] px-2 text-xs text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none"
+                />
+                <button onClick={commitCreateList} className="flex-shrink-0 text-nonsprimary hover:opacity-70">
+                  <IoCheckmark className="h-3.5 w-3.5" />
+                </button>
+                <button onClick={() => { setCreatingList(false); setNewListTitle('') }} className="flex-shrink-0 text-[var(--text-muted)] hover:opacity-70">
+                  <IoClose className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => { setCreatingList(true); setTimeout(() => newListInputRef.current?.focus(), 30) }}
+                className="mt-1 flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-[var(--text-muted)] hover:text-[var(--text)]"
+              >
+                <IoAdd className="h-3.5 w-3.5" />
+                New list
+              </button>
+            )}
+          </div>
+        )}
+
       </aside>
 
       {/* ── Main content ── */}
@@ -798,6 +870,55 @@ export default function LibraryScreen() {
               >
                 <IoAdd className="h-3 w-3" />
                 {t('newCollection') || 'New'}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* List chips — mobile only */}
+      {!readOnly && (lists.length > 0 || creatingList) && (
+        <div className="mb-4 lg:hidden">
+          <div className="no-scrollbar -mx-4 flex items-center gap-1.5 overflow-x-auto px-4 pb-1">
+            {lists.map((l) => (
+              <Link
+                key={l.id}
+                to={`/library/lists/${l.id}`}
+                className="flex shrink-0 items-center gap-1.5 rounded-full border border-[var(--border-subtle)] py-1 pl-3 pr-2.5 text-xs text-[var(--text-muted)]"
+              >
+                <IoLayersOutline className="h-3 w-3 flex-shrink-0" />
+                {l.title}
+                <span className="opacity-50">{l.count}</span>
+              </Link>
+            ))}
+            {creatingList ? (
+              <div className="flex shrink-0 items-center gap-1">
+                <input
+                  ref={newListInputRef}
+                  value={newListTitle}
+                  onChange={(e) => setNewListTitle(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') commitCreateList()
+                    if (e.key === 'Escape') { setCreatingList(false); setNewListTitle('') }
+                  }}
+                  onBlur={() => { if (!newListTitle.trim()) setCreatingList(false) }}
+                  placeholder="Name…"
+                  className="h-7 w-32 rounded-full border border-[var(--primary-ring)] bg-[var(--input)] px-3 text-xs text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none"
+                />
+                <button onClick={commitCreateList} className="flex-shrink-0 text-nonsprimary">
+                  <IoCheckmark className="h-3.5 w-3.5" />
+                </button>
+                <button onClick={() => { setCreatingList(false); setNewListTitle('') }} className="flex-shrink-0 text-[var(--text-muted)]">
+                  <IoClose className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => { setCreatingList(true); setTimeout(() => newListInputRef.current?.focus(), 30) }}
+                className="flex shrink-0 items-center gap-1 rounded-full border border-dashed border-[var(--border-subtle)] px-3 py-1 text-xs text-[var(--text-muted)]"
+              >
+                <IoAdd className="h-3 w-3" />
+                New
               </button>
             )}
           </div>

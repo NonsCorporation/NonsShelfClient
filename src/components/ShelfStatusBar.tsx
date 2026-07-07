@@ -2,12 +2,14 @@
 
 import { createPortal } from 'react-dom'
 import { useEffect, useRef, useState } from 'react'
-import { IoChevronDown, IoCheckmark, IoAdd, IoTrendingUpOutline, IoClose, IoFolderOutline } from 'react-icons/io5'
+import { IoChevronDown, IoCheckmark, IoAdd, IoTrendingUpOutline, IoClose, IoFolderOutline, IoLayersOutline } from 'react-icons/io5'
 import type { MediaItem, ShelfStatus } from '../types'
 import { STATUS_COLOR, statusLabel } from '../lib/shelf'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useCollections } from '../contexts/CollectionContext'
+import { useLists } from '../contexts/ListContext'
 import { collectionService } from '../services/collectionService'
+import { listService } from '../services/listService'
 import { libraryService } from '../services/libraryService'
 
 type Props = {
@@ -21,6 +23,7 @@ type Props = {
 export default function ShelfStatusBar({ item, currentStatus, onStatusChange, onEditProgress, variant = 'bar' }: Props) {
   const { t } = useLanguage()
   const { collections, createCollection, refresh } = useCollections()
+  const { lists, createList, refresh: refreshLists } = useLists()
   const isBook = item.type === 'book'
 
   // enriches the status label with the latest progress for active items
@@ -74,6 +77,9 @@ export default function ShelfStatusBar({ item, currentStatus, onStatusChange, on
   // tracks which user collections contain this item
   const [itemCollectionIds, setItemCollectionIds] = useState<number[]>(item.collectionIds ?? [])
   const [colLoading, setColLoading] = useState(false)
+  // tracks which user curated lists contain this item
+  const [itemListIds, setItemListIds] = useState<number[]>(item.listIds ?? [])
+  const [listLoading, setListLoading] = useState(false)
   // placement 'up' anchors the popover's bottom edge above the trigger (grows
   // upward) instead of the default 'down' (grows downward from the trigger) —
   // picked per-open based on available viewport space so the collection list
@@ -86,10 +92,20 @@ export default function ShelfStatusBar({ item, currentStatus, onStatusChange, on
   const [newName, setNewName] = useState('')
   const newInputRef = useRef<HTMLInputElement>(null)
 
+  // holds state for the inline new-list form
+  const [creatingNewList, setCreatingNewList] = useState(false)
+  const [newListName, setNewListName] = useState('')
+  const newListInputRef = useRef<HTMLInputElement>(null)
+
   // syncs local state when the item's collectionids prop changes
   useEffect(() => {
     setItemCollectionIds(item.collectionIds ?? [])
   }, [item.collectionIds])
+
+  // syncs local state when the item's listIds prop changes
+  useEffect(() => {
+    setItemListIds(item.listIds ?? [])
+  }, [item.listIds])
 
   // Rough popover height estimate (status pills + collections header + a
   // handful of chips) used only to pick a placement — the popover itself still
@@ -121,6 +137,13 @@ export default function ShelfStatusBar({ item, currentStatus, onStatusChange, on
       setItemCollectionIds(ids)
       setColLoading(false)
     }).catch(() => setColLoading(false))
+
+    // lazily fetches curated lists containing this item
+    setListLoading(true)
+    listService.getItemLists(item.id).then((ids) => {
+      setItemListIds(ids)
+      setListLoading(false)
+    }).catch(() => setListLoading(false))
   }
 
   useEffect(() => {
@@ -140,6 +163,10 @@ export default function ShelfStatusBar({ item, currentStatus, onStatusChange, on
   useEffect(() => {
     if (creatingNew) setTimeout(() => newInputRef.current?.focus(), 30)
   }, [creatingNew])
+
+  useEffect(() => {
+    if (creatingNewList) setTimeout(() => newListInputRef.current?.focus(), 30)
+  }, [creatingNewList])
 
   const handleStatus = (key: ShelfStatus) => {
     onStatusChange(key)
@@ -163,11 +190,35 @@ export default function ShelfStatusBar({ item, currentStatus, onStatusChange, on
     const col = await createCollection(name)
     setNewName('')
     setCreatingNew(false)
-    
+
     // automatically adds the item to the newly created collection
     const next = [...itemCollectionIds, col.id]
     setItemCollectionIds(next)
     await collectionService.setItemCollections(item.id, next)
+  }
+
+  const toggleList = async (id: number) => {
+    const on = itemListIds.includes(id)
+    const next = on ? itemListIds.filter((l) => l !== id) : [...itemListIds, id]
+    setItemListIds(next)
+    if (on) await listService.removeListItem(id, Number(item.id))
+    else await listService.addListItem(id, item.id)
+
+    // updates the item count in the sidebar
+    refreshLists()
+  }
+
+  const handleCreateNewList = async () => {
+    const name = newListName.trim()
+    if (!name) return
+    const l = await createList(name)
+    setNewListName('')
+    setCreatingNewList(false)
+
+    // automatically adds the item to the newly created list
+    setItemListIds((prev) => [...prev, l.id])
+    await listService.addListItem(l.id, item.id)
+    refreshLists()
   }
 
   const popoverBody = (
@@ -267,6 +318,81 @@ export default function ShelfStatusBar({ item, currentStatus, onStatusChange, on
           >
             <IoAdd className="h-3.5 w-3.5" />
             {t('newCollection') || 'New collection'}
+          </button>
+        )}
+      </div>
+
+      {/* renders the curated-list list (Goodreads-style, separate from Collections) */}
+      <div className="mt-3 border-t border-[var(--border-subtle)] pt-3">
+        <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-[var(--text-muted)]">
+          Lists
+        </p>
+
+        {listLoading ? (
+          <div className="flex flex-wrap gap-1.5">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-7 w-20 animate-pulse rounded-full bg-[var(--surface)]" />
+            ))}
+          </div>
+        ) : lists.length === 0 && !creatingNewList ? (
+          <p className="text-xs text-[var(--text-muted)]">No lists yet</p>
+        ) : (
+          <div className="flex flex-wrap gap-1.5">
+            {lists.map((l) => {
+              const on = itemListIds.includes(l.id)
+              return (
+                <button
+                  key={l.id}
+                  onClick={() => toggleList(l.id)}
+                  className={`flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs transition-colors ${
+                    on
+                      ? 'border-transparent bg-nonsprimary/20 text-nonsprimary'
+                      : 'border-[var(--border-subtle)] text-[var(--text-muted)] hover:border-[var(--border)] hover:text-[var(--text)]'
+                  }`}
+                >
+                  {on ? <IoCheckmark className="h-3 w-3" /> : <IoLayersOutline className="h-3 w-3" />}
+                  {l.title}
+                </button>
+              )
+            })}
+          </div>
+        )}
+
+        {/* renders the inline form to create a new list */}
+        {creatingNewList ? (
+          <div className="mt-2 flex items-center gap-1.5">
+            <input
+              ref={newListInputRef}
+              value={newListName}
+              onChange={(e) => setNewListName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleCreateNewList()
+                if (e.key === 'Escape') { setCreatingNewList(false); setNewListName('') }
+              }}
+              placeholder="List title"
+              className="h-7 min-w-0 flex-1 rounded-lg border border-[var(--border)] bg-[var(--input)] px-2.5 text-xs text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-1 focus:ring-[var(--primary-ring)]"
+            />
+            <button
+              onClick={handleCreateNewList}
+              disabled={!newListName.trim()}
+              className="flex h-7 items-center rounded-lg bg-nonsprimary px-2.5 text-xs font-medium text-white disabled:opacity-40"
+            >
+              Create
+            </button>
+            <button
+              onClick={() => { setCreatingNewList(false); setNewListName('') }}
+              className="flex h-7 w-7 items-center justify-center rounded-lg text-[var(--text-muted)] hover:bg-[var(--surface)]"
+            >
+              <IoClose className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => setCreatingNewList(true)}
+            className="mt-2 flex items-center gap-1 text-[11px] text-[var(--text-muted)] hover:text-[var(--text)]"
+          >
+            <IoAdd className="h-3.5 w-3.5" />
+            New list
           </button>
         )}
       </div>
