@@ -2,17 +2,19 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from '@/lib/router'
 import Layout from '../components/layout/Layout'
 import CatalogCard from '../components/CatalogCard'
+import BoringAvatar from '../components/BoringAvatar'
 import { catalogService } from '../services/catalogService'
 import type { CatalogItem } from '../services/catalogService'
 import { libraryService } from '../services/libraryService'
-import type { MediaItem, MediaType } from '../types'
+import { listService } from '../services/listService'
+import type { MediaItem, MediaType, CuratedListDiscoverEntry } from '../types'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
 import { redirectToNonsLogin } from '../lib/api'
 import { initials, colorFor } from '../lib/user'
 import {
   IoStar, IoFlame, IoPeopleOutline, IoLogInOutline, IoSparklesOutline, IoArrowForward,
-  IoChevronBack, IoChevronForward, IoAdd, IoCheckmark, IoTrendingUp,
+  IoChevronBack, IoChevronForward, IoAdd, IoCheckmark, IoTrendingUp, IoLayersOutline,
 } from 'react-icons/io5'
 import { mediaPath } from '../lib/paths'
 import TypeBadge from '../components/TypeBadge'
@@ -56,6 +58,7 @@ export default function DiscoverPage() {
   const [newestBooks, setNewestBooks] = useState<CatalogItem[]>([])
   const [newestMovies, setNewestMovies] = useState<CatalogItem[]>([])
   const [spotlights, setSpotlights] = useState<Record<MediaType, CatalogItem[]> | null>(null)
+  const [curatedLists, setCuratedLists] = useState<CuratedListDiscoverEntry[]>([])
   const [libKeys, setLibKeys] = useState<Set<string>>(new Set())
   const [added, setAdded] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
@@ -100,6 +103,11 @@ export default function DiscoverPage() {
     if (authLoading || !isAuthenticated) return
     libraryService.getItems().then((lib) => setLibKeys(new Set(lib.map(keyOf)))).catch(() => {})
   }, [authLoading, isAuthenticated])
+
+  // Curated lists don't scope by type/filter — fetched once.
+  useEffect(() => {
+    listService.discoverLists(8).then(setCuratedLists).catch(() => {})
+  }, [])
 
   const inLibrary = (it: CatalogItem) => libKeys.has(keyOf(it)) || added.has(keyOf(it))
 
@@ -253,6 +261,9 @@ export default function DiscoverPage() {
 
           {/* ── Popular people + their works ── */}
           <PeopleSpotlights creators={creators} t={t} />
+
+          {/* ── Community curated lists ── */}
+          <CuratedListsRail lists={curatedLists} />
 
           {/* ── Explore by genre ── */}
           <GenreExplorer genres={genres} inLibrary={inLibrary} addProp={addProp} t={t} />
@@ -552,6 +563,66 @@ function PeopleSpotlights({ creators, t }: { creators: Creator[]; t: Translate }
         ))}
       </div>
     </section>
+  )
+}
+
+// Community curated lists — Goodreads-style Listopia rail. Each card is a
+// collage of the list's own covers (same treatment as GenreCard below), with
+// the curator's byline and item count overlaid.
+function CuratedListsRail({ lists }: { lists: CuratedListDiscoverEntry[] }) {
+  if (lists.length === 0) return null
+  return (
+    <section className="mb-12">
+      <div className="mb-1 flex items-center gap-2">
+        <IoLayersOutline className="h-4 w-4 text-nonsprimaryfocus" />
+        <h2 className="text-lg font-bold tracking-tight text-[var(--text)]">Curated lists</h2>
+      </div>
+      <p className="mb-4 text-sm text-[var(--text-muted)]">Collections other members have put together.</p>
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+        {lists.map((l) => <ListCard key={l.id} list={l} />)}
+      </div>
+    </section>
+  )
+}
+
+function ListCard({ list }: { list: CuratedListDiscoverEntry }) {
+  const covers = (list.cover_urls ?? []).slice(0, 4)
+  return (
+    <Link
+      to={`/list/${list.uuid}`}
+      className="group relative aspect-[4/3] overflow-hidden rounded-2xl border border-[var(--border-subtle)] bg-[var(--container-2)] transition-transform hover:-translate-y-0.5 hover:border-[var(--border)]"
+    >
+      <div className="absolute inset-0 grid grid-cols-2 grid-rows-2">
+        {Array.from({ length: 4 }).map((_, i) => {
+          const c = covers.length > 0 ? covers[i % covers.length] : undefined
+          return (
+            <div key={i} className="overflow-hidden">
+              {c && <img src={c} alt="" loading="lazy" className="h-full w-full object-cover opacity-90 transition-transform duration-500 group-hover:scale-105" />}
+            </div>
+          )
+        })}
+      </div>
+      <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-black/10" />
+      <div className="absolute inset-x-0 bottom-0 p-3">
+        <p className="truncate text-base font-semibold text-white">{list.title}</p>
+        <div className="mt-1 flex items-center gap-1.5 text-xs text-white/70">
+          {list.owner_username && (
+            <>
+              {list.owner_avatar_url ? (
+                <img src={list.owner_avatar_url} alt="" className="h-4 w-4 flex-shrink-0 rounded-full object-cover" />
+              ) : (
+                <span className="h-4 w-4 flex-shrink-0 overflow-hidden rounded-full">
+                  <BoringAvatar size={16} name={`user-${list.user_id}`} />
+                </span>
+              )}
+              <span className="truncate">{list.owner_name || list.owner_username}</span>
+              <span>·</span>
+            </>
+          )}
+          <span className="flex-shrink-0">{list.count} item{list.count !== 1 ? 's' : ''}</span>
+        </div>
+      </div>
+    </Link>
   )
 }
 

@@ -1,5 +1,5 @@
 import { authedFetch } from '../lib/api'
-import type { CuratedList, CuratedListDetail } from '../types'
+import type { CuratedList, CuratedListDetail, CuratedListDiscoverEntry } from '../types'
 
 // Client for nons-library-server's list module: Goodreads-style curated lists
 // (title + description, with an optional per-item note) — a separate feature
@@ -22,6 +22,14 @@ async function listLists(): Promise<CuratedList[]> {
   if (!res.ok) return []
   const data = await res.json()
   return (data.lists ?? []) as CuratedList[]
+}
+
+/** The most substantial public lists across all users, for Discover. */
+async function discoverLists(limit = 12): Promise<CuratedListDiscoverEntry[]> {
+  const res = await authedFetch(`/api/lists/discover?limit=${limit}`)
+  if (!res.ok) return []
+  const data = await res.json()
+  return (data.lists ?? []) as CuratedListDiscoverEntry[]
 }
 
 /** Lists are public reads — idOrUuid may be either the numeric id or the
@@ -93,6 +101,7 @@ async function removeListItem(listId: number, mediaId: number): Promise<void> {
 
 export const listService = {
   listLists,
+  discoverLists,
   getList,
   createList,
   updateList,

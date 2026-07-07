@@ -27,6 +27,12 @@ export type CuratedList = {
   owner_avatar_url?: string
 }
 
+/** A list as surfaced on the Discover page — a few cover images for a collage
+ *  card, plus the owner's byline. */
+export type CuratedListDiscoverEntry = CuratedList & {
+  cover_urls?: string[]
+}
+
 export type CuratedListItem = {
   media_id: number
   /** Optional per-item note — e.g. why this item belongs on the list. */
