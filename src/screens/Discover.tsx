@@ -357,7 +357,7 @@ function HeroCarousel({
       <div className="relative flex items-center gap-5 p-5 sm:gap-8 sm:p-8">
         <Link
           to={mediaPath(item)}
-          className="group relative aspect-[2/3] w-32 flex-shrink-0 overflow-hidden rounded-2xl border border-[var(--border-subtle)] bg-[var(--container-2)] shadow-2xl transition-transform hover:scale-[1.02] sm:w-52"
+          className="group relative aspect-[2/3] w-28 flex-shrink-0 overflow-hidden rounded-2xl border border-[var(--border-subtle)] bg-[var(--container-2)] shadow-2xl transition-transform hover:scale-[1.02] sm:w-52"
         >
           {item.coverUrl && <img src={item.coverUrl} alt={item.title} className="h-full w-full object-cover" />}
           <TypeBadge type={item.type} />
@@ -390,9 +390,9 @@ function HeroCarousel({
             <p className="mt-3 hidden max-w-2xl text-sm leading-6 text-[var(--text-muted)] sm:line-clamp-3">{item.description}</p>
           )}
 
-          <div className="mt-4 flex items-center gap-3">
+          <div className="mt-4 flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-3">
             {canAdd ? (
-              <div className="flex h-11 items-center">
+              <div className="flex h-11 max-w-full items-center">
                 <ShelfStatusBar
                   item={shelfItemOf(item)}
                   currentStatus={statusOf(item)}
