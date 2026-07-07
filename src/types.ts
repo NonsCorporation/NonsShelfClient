@@ -31,6 +31,8 @@ export type CuratedList = {
  *  card, plus the owner's byline. */
 export type CuratedListDiscoverEntry = CuratedList & {
   cover_urls?: string[]
+  /** Approximate genre tags, derived from a sample of the list's own items. */
+  genres?: string[]
 }
 
 export type CuratedListItem = {

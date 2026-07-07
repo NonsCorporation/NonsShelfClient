@@ -244,8 +244,19 @@ export default function DiscoverPage() {
           {/* ── Cinematic hero carousel ── */}
           <HeroCarousel items={heroItems} canAdd={isAuthenticated} inLibrary={inLibrary} onAdd={handleAdd} t={t} />
 
+          {/* ── Explore by genre — leads the page; genres are the primary way
+              in, with matching curated lists surfaced as "sublists" once a
+              genre is picked. ── */}
+          <GenreExplorer genres={genres} lists={curatedLists} inLibrary={inLibrary} addProp={addProp} t={t} />
+
           {/* ── Trending, with big IMDb-style rank numbers ── */}
           <RankRail title={t('trendingNow')} icon={<IoTrendingUp className="h-4 w-4 text-nonslightred" />} items={trending} inLibrary={inLibrary} addProp={addProp} />
+
+          {/* ── Community curated lists ── */}
+          <CuratedListsRail lists={curatedLists} />
+
+          {/* ── Popular people + their works ── */}
+          <PeopleSpotlights creators={creators} t={t} />
 
           {/* ── Just added ── */}
           <Row title={t('newestAdditions')} icon={<IoSparklesOutline className="h-4 w-4 text-nonsprimaryfocus" />} items={newestAll} inLibrary={inLibrary} addProp={addProp} />
@@ -258,15 +269,6 @@ export default function DiscoverPage() {
           )}
 
           <Row title={t('popularNow')} icon={<IoFlame className="h-4 w-4 text-nonslightred" />} items={popular.slice(1)} inLibrary={inLibrary} addProp={addProp} />
-
-          {/* ── Popular people + their works ── */}
-          <PeopleSpotlights creators={creators} t={t} />
-
-          {/* ── Community curated lists ── */}
-          <CuratedListsRail lists={curatedLists} />
-
-          {/* ── Explore by genre ── */}
-          <GenreExplorer genres={genres} inLibrary={inLibrary} addProp={addProp} t={t} />
 
           <Row title={t('newReleases')} items={newReleases} inLibrary={inLibrary} addProp={addProp} />
 
@@ -493,9 +495,11 @@ function Row({
   )
 }
 
-// Popular people — one rich card each: avatar, role and a horizontal strip of
-// their works (covers link straight to the title). Derived from the catalog
-// pool, so it renders whenever the catalog does.
+// Popular people — a horizontal rail of bigger-than-life author/director
+// cards: a big avatar with their own covers fanned out behind it, floating.
+// The first card leads extra-large so the rail reads as a spotlight, not a
+// uniform grid. Derived from the catalog pool, so it renders whenever the
+// catalog does.
 function PeopleSpotlights({ creators, t }: { creators: Creator[]; t: Translate }) {
   if (creators.length === 0) return null
   return (
@@ -505,60 +509,10 @@ function PeopleSpotlights({ creators, t }: { creators: Creator[]; t: Translate }
         <h2 className="text-lg font-bold tracking-tight text-[var(--text)]">{t('popularPeople')}</h2>
       </div>
       <p className="mb-4 text-sm text-[var(--text-muted)]">{t('popularPeopleSubtitle')}</p>
-      <div className="grid gap-4 md:grid-cols-2">
-        {creators.map((p) => (
-          <div
-            key={p.key}
-            className="flex flex-col gap-4 rounded-2xl border border-[var(--border-subtle)] bg-[var(--container)] p-4 transition-colors hover:border-[var(--border)]"
-          >
-            <div className="flex items-center gap-4">
-              <div className="h-14 w-14 flex-shrink-0 overflow-hidden rounded-full border border-[var(--border-subtle)]">
-                <span
-                  className="flex h-full w-full items-center justify-center text-base font-semibold text-white"
-                  style={{ backgroundColor: colorFor(p.uuid || p.name) }}
-                >
-                  {initials(p.name)}
-                </span>
-              </div>
-              <div className="min-w-0 flex-1">
-                {p.uuid ? (
-                  <Link to={`/p/${p.uuid}`} className="block truncate text-lg font-semibold text-[var(--text)] hover:text-nonsprimary">
-                    {p.name}
-                  </Link>
-                ) : (
-                  <p className="truncate text-lg font-semibold text-[var(--text)]">{p.name}</p>
-                )}
-                <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-[var(--text-muted)]">
-                  <span className="font-medium text-[var(--text)]">{roleLabel(t, p.role)}</span>
-                  <span className="text-[var(--border-strong)]">·</span>
-                  <span>{t('nWorks', { n: p.works.length })}</span>
-                </div>
-              </div>
-              {p.uuid && (
-                <Link
-                  to={`/p/${p.uuid}`}
-                  className="hidden flex-shrink-0 items-center gap-1 self-start rounded-lg border border-[var(--border-subtle)] px-2.5 py-1.5 text-xs font-medium text-[var(--text-muted)] transition-colors hover:border-nonsprimary hover:text-nonsprimary sm:inline-flex"
-                >
-                  {t('viewProfile')}
-                  <IoArrowForward className="h-3 w-3" />
-                </Link>
-              )}
-            </div>
-
-            {/* Works strip — covers scroll horizontally, linking to each title. */}
-            <div className="no-scrollbar -mx-1 flex gap-3 overflow-x-auto px-1">
-              {p.works.map((w) => (
-                <Link key={w.id} to={mediaPath(w)} className="group/w w-20 flex-shrink-0" title={w.title}>
-                  <div className="relative aspect-[2/3] w-full overflow-hidden rounded-lg border border-[var(--border-subtle)] bg-[var(--container-2)] transition-colors group-hover/w:border-[var(--border)]">
-                    {w.coverUrl
-                      ? <img src={w.coverUrl} alt={w.title} loading="lazy" className="h-full w-full object-cover transition-transform group-hover/w:scale-105" />
-                      : <span className="flex h-full w-full items-center justify-center px-1 text-center text-[10px] text-[var(--text-muted)]">{w.title}</span>}
-                    <TypeBadge type={w.type} />
-                  </div>
-                  <p className="mt-1 line-clamp-2 text-[11px] leading-tight text-[var(--text-muted)] group-hover/w:text-[var(--text)]">{w.title}</p>
-                </Link>
-              ))}
-            </div>
+      <div className="no-scrollbar -mx-1 flex items-stretch gap-4 overflow-x-auto px-1 pb-2">
+        {creators.map((p, i) => (
+          <div key={p.key} className={i === 0 ? 'w-64 flex-shrink-0 sm:w-72' : 'w-48 flex-shrink-0 sm:w-56'}>
+            <PersonCard person={p} big={i === 0} t={t} />
           </div>
         ))}
       </div>
@@ -566,45 +520,108 @@ function PeopleSpotlights({ creators, t }: { creators: Creator[]; t: Translate }
   )
 }
 
-// Community curated lists — Goodreads-style Listopia rail. Each card is a
-// collage of the list's own covers (same treatment as GenreCard below), with
-// the curator's byline and item count overlaid.
+function PersonCard({ person, big, t }: { person: Creator; big?: boolean; t: Translate }) {
+  const covers = person.works.filter((w) => w.coverUrl).slice(0, 3)
+  return (
+    <div className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-[var(--border-subtle)] bg-[var(--container)] transition-colors hover:border-[var(--border)]">
+      {/* Floating covers, fanned out behind the avatar and clipped to the card. */}
+      <div className={`relative flex flex-shrink-0 items-center justify-center ${big ? 'h-32' : 'h-24'}`}>
+        {covers.map((w, i, arr) => (
+          <div
+            key={w.id}
+            style={{
+              transform: `rotate(${(i - (arr.length - 1) / 2) * 14}deg) translateX(${(i - (arr.length - 1) / 2) * (big ? 42 : 28)}px) translateY(${big ? 8 : 5}px)`,
+            }}
+            className={`absolute overflow-hidden rounded-lg border-2 border-[var(--container)] opacity-70 shadow-lg transition-opacity duration-300 group-hover:opacity-95 ${big ? 'h-24 w-16' : 'h-16 w-11'}`}
+          >
+            <img src={w.coverUrl} alt="" loading="lazy" className="h-full w-full object-cover" />
+          </div>
+        ))}
+        <div className={`relative z-10 flex-shrink-0 overflow-hidden rounded-full border-4 border-[var(--container)] shadow-xl ${big ? 'h-20 w-20' : 'h-14 w-14'}`}>
+          <span
+            className="flex h-full w-full items-center justify-center font-bold text-white"
+            style={{ backgroundColor: colorFor(person.uuid || person.name), fontSize: big ? '1.5rem' : '1rem' }}
+          >
+            {initials(person.name)}
+          </span>
+        </div>
+      </div>
+
+      <div className="flex flex-1 flex-col items-center p-4 pt-2 text-center">
+        {person.uuid ? (
+          <Link to={`/p/${person.uuid}`} className={`block truncate font-bold text-[var(--text)] hover:text-nonsprimary ${big ? 'text-xl' : 'text-base'}`}>
+            {person.name}
+          </Link>
+        ) : (
+          <p className={`truncate font-bold text-[var(--text)] ${big ? 'text-xl' : 'text-base'}`}>{person.name}</p>
+        )}
+        <div className="mt-1 flex items-center justify-center gap-1.5 text-xs text-[var(--text-muted)]">
+          <span className="font-medium text-[var(--text)]">{roleLabel(t, person.role)}</span>
+          <span>·</span>
+          <span>{t('nWorks', { n: person.works.length })}</span>
+        </div>
+        {person.uuid && (
+          <Link
+            to={`/p/${person.uuid}`}
+            className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-nonsprimaryfocus hover:underline"
+          >
+            {t('viewProfile')}
+            <IoArrowForward className="h-3 w-3" />
+          </Link>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// Community curated lists — Goodreads-style Listopia rail. The lead card runs
+// bigger and taller than the rest, and every card's covers float as a fanned
+// stack rather than tiling edge-to-edge, so it reads as a shelf of things
+// someone put together, not another catalog grid.
 function CuratedListsRail({ lists }: { lists: CuratedListDiscoverEntry[] }) {
   if (lists.length === 0) return null
   return (
-    <section className="mb-12">
-      <div className="mb-1 flex items-center gap-2">
+    <section className="mb-11">
+      <h2 className="mb-4 flex items-center gap-2 text-lg font-bold tracking-tight text-[var(--text)]">
         <IoLayersOutline className="h-4 w-4 text-nonsprimaryfocus" />
-        <h2 className="text-lg font-bold tracking-tight text-[var(--text)]">Curated lists</h2>
-      </div>
-      <p className="mb-4 text-sm text-[var(--text-muted)]">Collections other members have put together.</p>
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-        {lists.map((l) => <ListCard key={l.id} list={l} />)}
+        Curated lists
+      </h2>
+      <div className="no-scrollbar -mx-1 flex items-stretch gap-4 overflow-x-auto px-1 pb-1">
+        {lists.map((l, i) => (
+          <div key={l.id} className={i === 0 ? 'w-64 flex-shrink-0 sm:w-72' : 'w-44 flex-shrink-0 sm:w-52'}>
+            <ListCard list={l} big={i === 0} />
+          </div>
+        ))}
       </div>
     </section>
   )
 }
 
-function ListCard({ list }: { list: CuratedListDiscoverEntry }) {
-  const covers = (list.cover_urls ?? []).slice(0, 4)
+function ListCard({ list, big }: { list: CuratedListDiscoverEntry; big?: boolean }) {
+  const covers = (list.cover_urls ?? []).slice(0, big ? 4 : 3)
   return (
     <Link
       to={`/list/${list.uuid}`}
-      className="group relative aspect-[4/3] overflow-hidden rounded-2xl border border-[var(--border-subtle)] bg-[var(--container-2)] transition-transform hover:-translate-y-0.5 hover:border-[var(--border)]"
+      className={`group relative flex flex-col overflow-hidden rounded-2xl border border-[var(--border-subtle)] bg-gradient-to-br from-[var(--primary-soft)] via-[var(--container-2)] to-[var(--container-2)] transition-transform hover:-translate-y-1 ${big ? 'aspect-[3/4]' : 'aspect-[4/5]'}`}
     >
-      <div className="absolute inset-0 grid grid-cols-2 grid-rows-2">
-        {Array.from({ length: 4 }).map((_, i) => {
-          const c = covers.length > 0 ? covers[i % covers.length] : undefined
-          return (
-            <div key={i} className="overflow-hidden">
-              {c && <img src={c} alt="" loading="lazy" className="h-full w-full object-cover opacity-90 transition-transform duration-500 group-hover:scale-105" />}
-            </div>
-          )
-        })}
+      {/* Floating, fanned covers — same visual language as a list's own page. */}
+      <div className="relative flex flex-1 items-center justify-center overflow-hidden">
+        {covers.map((c, i, arr) => (
+          <div
+            key={i}
+            style={{
+              transform: `rotate(${(i - (arr.length - 1) / 2) * 9}deg) translateX(${(i - (arr.length - 1) / 2) * (big ? 26 : 18)}px)`,
+              zIndex: i,
+            }}
+            className={`absolute overflow-hidden rounded-lg border-2 border-[var(--container)] shadow-xl transition-transform duration-300 group-hover:scale-105 ${big ? 'h-32 w-20 sm:h-40 sm:w-28' : 'h-20 w-14'}`}
+          >
+            {c && <img src={c} alt="" loading="lazy" className="h-full w-full object-cover" />}
+          </div>
+        ))}
       </div>
-      <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-black/10" />
-      <div className="absolute inset-x-0 bottom-0 p-3">
-        <p className="truncate text-base font-semibold text-white">{list.title}</p>
+      <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
+      <div className="relative mt-auto p-3">
+        <p className={`truncate font-semibold text-white ${big ? 'text-xl' : 'text-sm'}`}>{list.title}</p>
         <div className="mt-1 flex items-center gap-1.5 text-xs text-white/70">
           {list.owner_username && (
             <>
@@ -626,12 +643,15 @@ function ListCard({ list }: { list: CuratedListDiscoverEntry }) {
   )
 }
 
-// Explore by genre — a pill selector over a filterable grid. "All" shows a
-// collage of genre cards; picking a genre swaps in that genre's full grid.
+// Explore by genre — the page's lead-in. "All" shows a bento collage of
+// genre tiles (mixed sizes, floating covers) rather than a uniform grid;
+// picking a genre swaps in its full item grid plus any curated lists tagged
+// with that genre ("sublists" — Listopia-by-genre).
 function GenreExplorer({
-  genres, inLibrary, addProp, t,
+  genres, lists, inLibrary, addProp, t,
 }: {
   genres: { genre: string; items: CatalogItem[] }[]
+  lists: CuratedListDiscoverEntry[]
   inLibrary: (it: CatalogItem) => boolean
   addProp: (it: CatalogItem) => (() => void) | undefined
   t: Translate
@@ -640,6 +660,7 @@ function GenreExplorer({
   if (genres.length === 0) return null
 
   const active = selected ? genres.find((g) => g.genre === selected) : null
+  const sublists = selected ? lists.filter((l) => l.genres?.includes(selected)) : []
 
   return (
     <section className="mb-12">
@@ -658,15 +679,45 @@ function GenreExplorer({
       </div>
 
       {active ? (
-        <div className="grid grid-cols-3 gap-4 sm:grid-cols-5 lg:grid-cols-6">
-          {active.items.slice(0, 18).map((it) => (
-            <CatalogCard key={it.id} item={it} inLibrary={inLibrary(it)} onAdd={addProp(it)} />
-          ))}
+        <div>
+          <div className="grid grid-cols-3 gap-4 sm:grid-cols-5 lg:grid-cols-6">
+            {active.items.slice(0, 18).map((it) => (
+              <CatalogCard key={it.id} item={it} inLibrary={inLibrary(it)} onAdd={addProp(it)} />
+            ))}
+          </div>
+
+          {/* Sublists — curated lists tagged with this genre. */}
+          {sublists.length > 0 && (
+            <div className="mt-8">
+              <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-[var(--text)]">
+                <IoLayersOutline className="h-3.5 w-3.5 text-nonsprimaryfocus" />
+                Lists in {active.genre}
+              </h3>
+              <div className="no-scrollbar -mx-1 flex gap-4 overflow-x-auto px-1 pb-1">
+                {sublists.map((l) => (
+                  <div key={l.id} className="w-44 flex-shrink-0 sm:w-52">
+                    <ListCard list={l} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-          {genres.slice(0, 8).map((g, i) => (
-            <GenreCard key={g.genre} genre={g.genre} items={g.items} tint={i} onClick={() => setSelected(g.genre)} t={t} />
+        // Bento collage — the first tile leads bigger (2×2), the second is
+        // tall (1×2), the rest fill in at the regular size.
+        <div className="grid auto-rows-[132px] grid-cols-2 gap-4 sm:auto-rows-[150px] sm:grid-cols-4">
+          {genres.slice(0, 7).map((g, i) => (
+            <GenreCard
+              key={g.genre}
+              genre={g.genre}
+              items={g.items}
+              tint={i}
+              big={i === 0}
+              className={i === 0 ? 'col-span-2 row-span-2' : i === 1 ? 'row-span-2' : ''}
+              onClick={() => setSelected(g.genre)}
+              t={t}
+            />
           ))}
         </div>
       )}
@@ -696,31 +747,44 @@ const GENRE_TINTS = [
   'from-violet-500/30', 'from-fuchsia-500/30', 'from-cyan-500/30', 'from-orange-500/30',
 ]
 
-// A genre "cover" — a 2×2 collage of the genre's titles under a tinted gradient,
-// with the genre name and count overlaid. Clicking selects the genre.
-function GenreCard({ genre, items, tint, onClick, t }: { genre: string; items: CatalogItem[]; tint: number; onClick: () => void; t: Translate }) {
-  const covers = items.filter((i) => i.coverUrl).slice(0, 4)
+// A genre "cover" — a fanned, floating stack of the genre's own covers over a
+// tinted gradient (not a tiled collage), with the name and count overlaid.
+// Clicking selects the genre. `big` (the bento layout's lead tile) gets a
+// larger stack and much bigger type.
+function GenreCard({
+  genre, items, tint, big, className, onClick, t,
+}: {
+  genre: string
+  items: CatalogItem[]
+  tint: number
+  big?: boolean
+  className?: string
+  onClick: () => void
+  t: Translate
+}) {
+  const covers = items.filter((i) => i.coverUrl).slice(0, big ? 5 : 3)
   return (
     <button
       onClick={onClick}
-      className="group relative aspect-[4/3] overflow-hidden rounded-2xl border border-[var(--border-subtle)] bg-[var(--container-2)] text-left transition-transform hover:-translate-y-0.5 hover:border-[var(--border)]"
+      className={`group relative overflow-hidden rounded-2xl border border-[var(--border-subtle)] bg-gradient-to-br ${GENRE_TINTS[tint % GENRE_TINTS.length]} to-[var(--container-2)] text-left transition-transform hover:-translate-y-0.5 hover:border-[var(--border)] ${className ?? ''}`}
     >
-      <div className="absolute inset-0 grid grid-cols-2 grid-rows-2">
-        {covers.length > 0
-          ? Array.from({ length: 4 }).map((_, i) => {
-              const c = covers[i % covers.length]
-              return (
-                <div key={i} className="overflow-hidden">
-                  {c?.coverUrl && <img src={c.coverUrl} alt="" loading="lazy" className="h-full w-full object-cover opacity-90 transition-transform duration-500 group-hover:scale-105" />}
-                </div>
-              )
-            })
-          : null}
+      <div className="absolute inset-0 flex items-center justify-center">
+        {covers.map((c, i, arr) => (
+          <div
+            key={c.id}
+            style={{
+              transform: `rotate(${(i - (arr.length - 1) / 2) * 10}deg) translateX(${(i - (arr.length - 1) / 2) * (big ? 46 : 24)}px) translateY(${Math.abs(i - (arr.length - 1) / 2) * (big ? 10 : 6)}px)`,
+              zIndex: i,
+            }}
+            className={`absolute overflow-hidden rounded-lg border-2 border-black/10 shadow-xl transition-transform duration-300 group-hover:scale-105 ${big ? 'h-32 w-24 sm:h-40 sm:w-28' : 'h-16 w-11 sm:h-20 sm:w-14'}`}
+          >
+            {c.coverUrl && <img src={c.coverUrl} alt="" loading="lazy" className="h-full w-full object-cover" />}
+          </div>
+        ))}
       </div>
-      <div className={`absolute inset-0 bg-gradient-to-tr ${GENRE_TINTS[tint % GENRE_TINTS.length]} to-transparent`} />
-      <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-black/10" />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-transparent" />
       <div className="absolute inset-x-0 bottom-0 p-3">
-        <p className="truncate text-base font-semibold text-white">{genre}</p>
+        <p className={`truncate font-bold text-white ${big ? 'text-2xl' : 'text-sm'}`}>{genre}</p>
         <p className="text-xs text-white/70">{t('nWorks', { n: items.length })}</p>
       </div>
     </button>
