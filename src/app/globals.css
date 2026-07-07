@@ -78,6 +78,7 @@ html, html[data-theme="dark"] {
   --placeholder: rgba(255, 255, 255, 0.25);
   --primary-soft: rgba(103, 104, 171, 0.14);
   --primary-ring: rgba(103, 104, 171, 0.45);
+  --nav-bg: color-mix(in srgb, var(--bg) 50%, var(--container) 50%);
 }
 
 html[data-theme="light"] {
@@ -99,6 +100,7 @@ html[data-theme="light"] {
   --placeholder: rgba(0, 0, 0, 0.3);
   --primary-soft: rgba(103, 104, 171, 0.1);
   --primary-ring: rgba(103, 104, 171, 0.4);
+  --nav-bg: color-mix(in srgb, var(--bg) 50%, var(--container) 50%);
   background-color: var(--color-nonslightbg);
   color-scheme: light;
 }

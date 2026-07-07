@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate, useSearchParams } from '@/lib/router'
 import {
   IoHomeOutline,
@@ -14,6 +14,7 @@ import {
   IoLogInOutline,
   IoPersonOutline,
   IoNotificationsOutline,
+  IoInformationCircleOutline,
 } from 'react-icons/io5'
 import type { IconType } from 'react-icons'
 import { HiOutlineLibrary } from 'react-icons/hi'
@@ -90,25 +91,61 @@ export default function Header() {
     setProfileOpen(false)
   }, [path])
 
+  const navRef = useRef<HTMLElement>(null)
+  const [indicator, setIndicator] = useState<{ left: number; top: number; width: number; height: number } | null>(null)
+
+  const measureIndicator = useCallback(() => {
+    const navEl = navRef.current
+    const activeItem = nav.find((item) => item.match(path))
+    if (!navEl || !activeItem) {
+      setIndicator((prev) => (prev === null ? prev : null))
+      return
+    }
+    const linkEl = navEl.querySelector<HTMLElement>(`[data-nav-key="${activeItem.to}"]`)
+    if (!linkEl) return
+    const next = { left: linkEl.offsetLeft, top: linkEl.offsetTop, width: linkEl.offsetWidth, height: linkEl.offsetHeight }
+    setIndicator((prev) => {
+      if (prev && prev.left === next.left && prev.top === next.top && prev.width === next.width && prev.height === next.height) {
+        return prev
+      }
+      return next
+    })
+  }, [nav, path])
+
+  useLayoutEffect(() => {
+    measureIndicator()
+  }, [measureIndicator])
+
+  useEffect(() => {
+    window.addEventListener('resize', measureIndicator)
+    return () => window.removeEventListener('resize', measureIndicator)
+  }, [measureIndicator])
+
   return (
     <>
       {/* ── Top header (desktop only) ── */}
       <header
-        className={`sticky top-0 z-40 hidden border-b border-[var(--border-subtle)] bg-[color-mix(in_srgb,var(--container)_72%,transparent)] backdrop-blur-xl transition-transform duration-300 will-change-transform lg:block ${
+        className={`sticky top-0 z-40 hidden border-b border-[var(--border-subtle)] bg-[color-mix(in_srgb,var(--nav-bg)_85%,transparent)] backdrop-blur-xl transition-transform duration-300 will-change-transform lg:block ${
           hidden ? '-translate-y-full' : 'translate-y-0'
         }`}
       >
         <div className="mx-auto flex h-16 max-w-6xl items-center gap-3 px-4 md:px-8">
           {/* Brand */}
-          <Link to="/" className="group flex items-center gap-2.5">
+          <Link to="/" className="group flex flex-shrink-0 items-center gap-2.5">
             <ShelfLogo className="h-6 w-6 text-white" />
-            <span className="hidden text-[15px] font-semibold tracking-tight text-[var(--text)] sm:block">
+            <span className="hidden whitespace-nowrap text-[15px] font-semibold tracking-tight text-[var(--text)] sm:block">
               Nons Shelf
             </span>
           </Link>
 
           {/* Primary nav — desktop only */}
-          <nav className="ml-3 hidden items-center gap-1 lg:flex">
+          <nav ref={navRef} className="relative ml-3 hidden items-center gap-1 lg:flex">
+            {indicator && (
+              <span
+                className="absolute -z-10 rounded-full bg-[var(--surface)] ring-1 ring-inset ring-[var(--border-subtle)] transition-[left,width] duration-300 ease-out"
+                style={{ left: indicator.left, top: indicator.top, width: indicator.width, height: indicator.height }}
+              />
+            )}
             {nav.map((item) => {
               const active = item.match(path)
               const Icon = item.icon
@@ -116,13 +153,11 @@ export default function Header() {
                 <Link
                   key={item.to}
                   to={item.to}
-                  className={`group relative flex items-center gap-2 rounded-full px-3.5 py-2 text-sm transition-colors ${
+                  data-nav-key={item.to}
+                  className={`group flex items-center gap-2 rounded-full px-3.5 py-2 text-sm transition-colors ${
                     active ? 'text-[var(--text)]' : 'text-[var(--text-muted)] hover:text-[var(--text)]'
                   }`}
                 >
-                  {active && (
-                    <span className="absolute inset-0 -z-10 rounded-full bg-[var(--surface)] ring-1 ring-inset ring-[var(--border-subtle)]" />
-                  )}
                   <Icon className="h-[17px] w-[17px]" />
                   {item.label}
                 </Link>
@@ -209,6 +244,17 @@ export default function Header() {
 
                     <div className="h-px bg-[var(--border-subtle)]" />
 
+                    <Link
+                      to="/about"
+                      onClick={() => setAccountOpen(false)}
+                      className="flex w-full items-center gap-3 px-4 py-3 text-sm text-[var(--text-muted)] transition-colors hover:bg-[var(--surface)] hover:text-[var(--text)]"
+                    >
+                      <IoInformationCircleOutline className="h-[18px] w-[18px]" />
+                      {t('about') || 'About'}
+                    </Link>
+
+                    <div className="h-px bg-[var(--border-subtle)]" />
+
                     <button
                       onClick={() => logout()}
                       className="flex w-full items-center gap-3 px-4 py-3 text-sm text-[var(--text-muted)] transition-colors hover:bg-[var(--surface)] hover:text-[var(--text)]"
@@ -238,7 +284,7 @@ export default function Header() {
 
       {/* ── Mobile bottom nav (floating oval pill) ── */}
       <div className="pointer-events-none fixed bottom-6 left-0 right-0 z-50 flex justify-center lg:hidden">
-        <nav className="pointer-events-auto relative flex items-center gap-0.5 rounded-full border border-[var(--border-subtle)] bg-[color-mix(in_srgb,var(--bg)_92%,transparent)] px-3 py-2.5 shadow-2xl backdrop-blur-xl">
+        <nav className="pointer-events-auto relative flex items-center gap-0.5 rounded-full border border-[var(--border-subtle)] bg-[color-mix(in_srgb,var(--nav-bg)_85%,transparent)] px-3 py-2.5 shadow-2xl backdrop-blur-xl">
           {[
             { to: '/', icon: IoHomeOutline, label: t('home') || 'Home', active: path === '/' },
             { to: '/discover', icon: IoCompassOutline, label: t('discover') || 'Discover', active: path === '/discover' },
@@ -343,6 +389,17 @@ export default function Header() {
                 >
                   <IoCalendarOutline className="h-[18px] w-[18px]" />
                   {t('statistics') || 'Statistics'}
+                </Link>
+
+                <div className="h-px bg-[var(--border-subtle)]" />
+
+                <Link
+                  to="/about"
+                  onClick={() => setProfileOpen(false)}
+                  className={`flex w-full items-center gap-3 px-4 py-3 text-sm transition-colors hover:bg-[var(--surface)] hover:text-[var(--text)] ${path === '/about' ? 'text-[var(--text)]' : 'text-[var(--text-muted)]'}`}
+                >
+                  <IoInformationCircleOutline className="h-[18px] w-[18px]" />
+                  {t('about') || 'About'}
                 </Link>
 
                 <div className="h-px bg-[var(--border-subtle)]" />
