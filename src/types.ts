@@ -13,7 +13,7 @@ export type Collection = {
 
 export type CuratedList = {
   id: number
-  /** Stable public id — lists are publicly viewable at /library/lists/<uuid>. */
+  /** Stable public id — lists are publicly viewable at /list/<uuid>. */
   uuid: string
   user_id: number
   title: string

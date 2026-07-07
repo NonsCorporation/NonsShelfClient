@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate, Link } from '@/lib/router'
-import { IoTrash, IoClose, IoAdd, IoSearch, IoLink, IoCheckmark } from 'react-icons/io5'
+import { IoTrash, IoClose, IoAdd, IoSearch, IoLink, IoCheckmark, IoLayersOutline } from 'react-icons/io5'
 import Layout from '../components/layout/Layout'
 import BoringAvatar from '../components/BoringAvatar'
 import ConfirmModal from '../components/ConfirmModal'
@@ -14,7 +14,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { useLists } from '../contexts/ListContext'
 import type { CuratedListDetail } from '../types'
 
-// A single curated list (/library/lists/<id-or-uuid>): editable title +
+// A single curated list (/list/<id-or-uuid>): editable title +
 // description, plus each item's per-item note — editable inline, Goodreads
 // "Listopia" style. Lists are public reads (anyone signed in can view any
 // user's list); only the owner sees the edit controls (title/description,
@@ -154,73 +154,103 @@ export default function ListDetailScreen() {
 
   return (
     <Layout>
-      {/* Header */}
-      <div className="mb-8 flex items-start gap-3">
-        <div className="min-w-0 flex-1">
-          {isOwner ? (
-            <input
-              ref={titleRef}
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              onBlur={commitTitle}
-              onKeyDown={(e) => { if (e.key === 'Enter') titleRef.current?.blur() }}
-              maxLength={150}
-              className="w-full min-w-0 -ml-2 rounded-md bg-transparent px-2 py-0.5 text-2xl font-bold tracking-tight text-[var(--text)] outline-none focus:bg-[var(--surface)]"
-            />
-          ) : (
-            <h1 className="text-2xl font-bold tracking-tight text-[var(--text)]">{data.title}</h1>
+      {/* Header — matches the app's standard card treatment (Profile.tsx etc.):
+          solid dark container, subtle border, no gradient wash. */}
+      <div className="mb-8 rounded-2xl border border-[var(--border-subtle)] bg-[var(--container)] p-5 sm:p-6">
+        <div className="flex items-start gap-5">
+          {/* Fanned cover stack — an immediate visual cue that this is a shelf of things. */}
+          {data.items.length > 0 && (
+            <div className="relative hidden h-24 w-20 flex-shrink-0 sm:block">
+              {data.items.slice(0, 3).map((it, i, arr) => (
+                <div
+                  key={it.media_id}
+                  style={{
+                    transform: `rotate(${(i - (arr.length - 1) / 2) * 8}deg) translateX(${(i - (arr.length - 1) / 2) * 10}px)`,
+                    zIndex: i,
+                  }}
+                  className="absolute inset-0 overflow-hidden rounded-xl border-2 border-[var(--container)] bg-[var(--container-2)] shadow-lg"
+                >
+                  {it.media?.cover_url && (
+                    <img src={it.media.cover_url} alt="" className="h-full w-full object-cover" />
+                  )}
+                </div>
+              ))}
+            </div>
           )}
 
-          {/* Meta line — Goodreads-style: byline + item count on one row. */}
-          <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs text-[var(--text-muted)]">
-            {data.owner_username && (
-              <>
-                <Link to={`/u/${data.owner_username}`} className="flex items-center gap-1.5 hover:text-[var(--text)]">
-                  {data.owner_avatar_url ? (
-                    <img src={data.owner_avatar_url} alt="" className="h-5 w-5 flex-shrink-0 rounded-full object-cover" />
-                  ) : (
-                    <span className="flex-shrink-0 overflow-hidden rounded-full">
-                      <BoringAvatar size={20} name={`user-${data.user_id}`} />
-                    </span>
-                  )}
-                  <span className="font-medium text-[var(--text)]">{data.owner_name || data.owner_username}</span>
-                </Link>
-                <span>·</span>
-              </>
+          <div className="min-w-0 flex-1">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--primary-soft)] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-nonsprimary">
+              <IoLayersOutline className="h-3 w-3" />
+              Curated list
+            </span>
+
+            {isOwner ? (
+              <input
+                ref={titleRef}
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                onBlur={commitTitle}
+                onKeyDown={(e) => { if (e.key === 'Enter') titleRef.current?.blur() }}
+                maxLength={150}
+                className="mt-2 w-full min-w-0 -ml-2 rounded-md bg-[var(--surface)] px-2 py-0.5 text-3xl font-bold tracking-tight text-[var(--text)] outline-none focus:bg-[var(--surface-hover)]"
+              />
+            ) : (
+              <h1 className="mt-2 text-3xl font-bold tracking-tight text-[var(--text)]">{data.title}</h1>
             )}
-            <span>{data.count} item{data.count !== 1 ? 's' : ''}</span>
+
+            {/* Meta line — Goodreads-style: byline + item count on one row. */}
+            <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-[var(--text-muted)]">
+              {data.owner_username && (
+                <>
+                  <Link to={`/u/${data.owner_username}`} className="flex items-center gap-1.5 hover:text-[var(--text)]">
+                    {data.owner_avatar_url ? (
+                      <img src={data.owner_avatar_url} alt="" className="h-5 w-5 flex-shrink-0 rounded-full object-cover" />
+                    ) : (
+                      <span className="flex-shrink-0 overflow-hidden rounded-full">
+                        <BoringAvatar size={20} name={`user-${data.user_id}`} />
+                      </span>
+                    )}
+                    <span className="font-medium text-[var(--text)]">{data.owner_name || data.owner_username}</span>
+                  </Link>
+                  <span>·</span>
+                </>
+              )}
+              <span className="font-medium text-[var(--text)]">{data.count}</span>
+              <span>item{data.count !== 1 ? 's' : ''}</span>
+            </div>
+
+            {isOwner ? (
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                onBlur={commitDescription}
+                placeholder="Add a description…"
+                rows={2}
+                maxLength={4000}
+                className="mt-3 w-full max-w-2xl resize-none rounded-lg bg-[var(--surface)] px-2 py-1 -ml-2 text-sm leading-6 text-[var(--text-muted)] outline-none focus:bg-[var(--surface-hover)]"
+              />
+            ) : data.description ? (
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--text-muted)]">{data.description}</p>
+            ) : null}
           </div>
 
-          {isOwner ? (
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              onBlur={commitDescription}
-              placeholder="Add a description…"
-              rows={2}
-              maxLength={4000}
-              className="mt-2 w-full max-w-2xl resize-none rounded-lg bg-transparent px-2 py-1 -ml-2 text-sm leading-6 text-[var(--text-muted)] outline-none focus:bg-[var(--surface)]"
-            />
-          ) : data.description ? (
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--text-muted)]">{data.description}</p>
-          ) : null}
-        </div>
-        <button
-          onClick={copyLink}
-          title="Copy link"
-          className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl text-[var(--text-muted)] transition-colors hover:bg-[var(--surface)] hover:text-[var(--text)]"
-        >
-          {copied ? <IoCheckmark className="h-4 w-4 text-nonsprimary" /> : <IoLink className="h-4 w-4" />}
-        </button>
-        {isOwner && (
           <button
-            onClick={() => setConfirmDelete(true)}
-            title="Delete list"
-            className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl text-[var(--text-muted)] transition-colors hover:bg-[var(--surface)] hover:text-red-400"
+            onClick={copyLink}
+            title="Copy link"
+            className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl text-[var(--text-muted)] transition-colors hover:bg-[var(--surface)] hover:text-[var(--text)]"
           >
-            <IoTrash className="h-4 w-4" />
+            {copied ? <IoCheckmark className="h-4 w-4 text-nonsprimary" /> : <IoLink className="h-4 w-4" />}
           </button>
-        )}
+          {isOwner && (
+            <button
+              onClick={() => setConfirmDelete(true)}
+              title="Delete list"
+              className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl text-[var(--text-muted)] transition-colors hover:bg-[var(--surface)] hover:text-red-400"
+            >
+              <IoTrash className="h-4 w-4" />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Add entry — owner only */}

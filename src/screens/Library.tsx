@@ -81,7 +81,7 @@ export default function LibraryScreen() {
   const newColInputRef = useRef<HTMLInputElement>(null)
 
   // Sidebar curated-list creation state (editing a list happens on its own
-  // /library/lists/<id> page, not here — see ListDetail.tsx).
+  // /list/<id> page, not here — see ListDetail.tsx).
   const [creatingList, setCreatingList] = useState(false)
   const [newListTitle, setNewListTitle] = useState('')
   const newListInputRef = useRef<HTMLInputElement>(null)
@@ -543,7 +543,7 @@ export default function LibraryScreen() {
     setCreatingList(false)
     if (!title) return
     const l = await createList(title)
-    navigate(`/library/lists/${l.id}`)
+    navigate(`/list/${l.id}`)
   }
   const setShelfParam = (key: ShelfKey) => {
     const next = new URLSearchParams(params)
@@ -722,7 +722,7 @@ export default function LibraryScreen() {
             {lists.map((l) => (
               <Link
                 key={l.id}
-                to={`/library/lists/${l.id}`}
+                to={`/list/${l.id}`}
                 className="flex min-w-0 items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
               >
                 <IoLayersOutline className="h-3.5 w-3.5 flex-shrink-0" />
@@ -883,7 +883,7 @@ export default function LibraryScreen() {
             {lists.map((l) => (
               <Link
                 key={l.id}
-                to={`/library/lists/${l.id}`}
+                to={`/list/${l.id}`}
                 className="flex shrink-0 items-center gap-1.5 rounded-full border border-[var(--border-subtle)] py-1 pl-3 pr-2.5 text-xs text-[var(--text-muted)]"
               >
                 <IoLayersOutline className="h-3 w-3 flex-shrink-0" />
