@@ -34,6 +34,7 @@ import CollectionSettingsModal from '../components/CollectionSettingsModal.tsx'
 import DatePicker from '../components/DatePicker.tsx'
 import PersonSelectFilter from '../components/PersonSelectFilter.tsx'
 import Pagination from '../components/Pagination.tsx'
+import InfoTooltip from '../components/InfoTooltip.tsx'
 import { libraryService } from '../services/libraryService.ts'
 import type { LibrarySearchQuery } from '../services/libraryService.ts'
 import { fetchPublicProfile } from '../services/userService.ts'
@@ -715,8 +716,9 @@ export default function LibraryScreen() {
             per item). Distinct from Collections: each has its own page. */}
         {!readOnly && (
           <div className="mt-4">
-            <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-[var(--text-muted)]">
+            <p className="mb-1.5 flex items-center gap-1 px-2 text-[10px] font-semibold uppercase tracking-widest text-[var(--text-muted)]">
               Lists
+              <InfoTooltip text={t('listsInfoTooltip')} />
             </p>
 
             {lists.map((l) => (

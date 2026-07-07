@@ -660,4 +660,7 @@ export const ro = {
   aboutFaqA7: 'Da — din Setări îți poți exporta biblioteca în CSV sau JSON, oricând.',
   aboutFaqQ8: 'Cum raportez o problemă sau propun o idee?',
   aboutFaqA8: 'Scrie-ne pe Nons — suntem o echipă mică și citim tot.',
+
+  // Lists
+  listsInfoTooltip: 'Listele sunt publice — oricine are linkul le poate vedea, chiar și fără cont. Folosește-le ca recomandări curate (ex. „Cel mai bun sci-fi al deceniului”) și distribuie linkul prietenilor sau pe Nons.',
 };

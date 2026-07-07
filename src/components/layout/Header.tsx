@@ -141,9 +141,6 @@ export default function Header() {
             </span>
           </Link>
 
-          {/* Search — sits next to the brand and expands rightward into the open space */}
-          <HeaderSearch />
-
           {/* Primary nav — desktop only, grouped in its own pill, centered in the header */}
           <div className="absolute left-1/2 hidden -translate-x-1/2 items-center rounded-full border border-[var(--border-subtle)] bg-[var(--surface)] p-1 lg:flex">
             <nav ref={navRef} className="relative flex items-center gap-1">
@@ -175,6 +172,9 @@ export default function Header() {
 
           {/* Right cluster */}
           <div className="ml-auto flex items-center gap-2">
+            {/* Search — icon-only until clicked, then expands into an input */}
+            <HeaderSearch />
+
             {isAuthenticated && (
               <Link
                 to="/notifications"

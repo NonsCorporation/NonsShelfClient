@@ -722,4 +722,7 @@ export const en = {
   aboutFaqA7: 'Yes — Settings lets you export your library to CSV or JSON at any time.',
   aboutFaqQ8: 'How do I report a bug or suggest something?',
   aboutFaqA8: "Message us on Nons — we're a small team and read everything.",
+
+  // Lists
+  listsInfoTooltip: "Lists are public — anyone with the link can view them, even signed out. Use them as curated recommendations (e.g. \"Best sci-fi of the decade\") and share the link with friends or post it to Nons.",
 };
