@@ -43,7 +43,7 @@ function yearGridBase(y: number): number {
 }
 
 export default function DatePicker({ value, onChange, min, max, placeholder, openUp = true }: Props) {
-  const { language } = useLanguage()
+  const { language, t } = useLanguage()
   const locale = language === 'ru' ? 'ru-RU' : 'en-US'
   const selected = parseDate(value)
 
@@ -318,6 +318,17 @@ export default function DatePicker({ value, onChange, min, max, placeholder, ope
             </>
           )}
 
+          {/* Floating quick-jump to today, always visible regardless of view. */}
+          <div className="flex justify-center border-t border-[var(--border-subtle)] px-3 py-2">
+            <button
+              type="button"
+              onClick={() => select(today)}
+              disabled={isDisabled(today)}
+              className="rounded-full bg-[var(--surface)] px-4 py-1.5 text-xs font-semibold text-nonsprimaryfocus transition-colors hover:bg-[var(--surface-hover)] disabled:cursor-not-allowed disabled:text-[var(--text-muted)] disabled:opacity-40"
+            >
+              {t('today') || 'Today'}
+            </button>
+          </div>
         </div>,
         document.body,
       )}

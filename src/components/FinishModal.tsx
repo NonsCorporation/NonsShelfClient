@@ -1,4 +1,7 @@
+'use client'
+
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { IoClose } from 'react-icons/io5'
 import StarsSelector from '../StarsSelector'
 import { libraryService } from '../services/libraryService'
@@ -95,7 +98,7 @@ export default function FinishModal({ isOpen, item, onClose, onFinished }: Props
     }
   }
 
-  return (
+  return createPortal(
     <div onClick={onClose} className="fixed inset-0 z-[70] flex items-center justify-center bg-[var(--overlay)] p-4">
       <div
         onClick={(e) => e.stopPropagation()}
@@ -217,6 +220,7 @@ export default function FinishModal({ isOpen, item, onClose, onFinished }: Props
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

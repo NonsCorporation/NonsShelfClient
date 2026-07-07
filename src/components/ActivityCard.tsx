@@ -9,6 +9,7 @@ import { useLanguage } from '../contexts/LanguageContext'
 import { mediaPath, userPath } from '../lib/paths'
 import BoringAvatar from './BoringAvatar'
 import ShelfStatusBar from './ShelfStatusBar'
+import FinishModal from './FinishModal'
 import { IoHeart, IoHeartOutline, IoChatbubbleOutline, IoTrashOutline, IoShareOutline } from 'react-icons/io5'
 import { IoMdStar, IoMdStarHalf, IoMdStarOutline } from 'react-icons/io'
 import TypeBadge from './TypeBadge'
@@ -93,6 +94,7 @@ export default function ActivityCard({
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [shareOpen, setShareOpen] = useState(false)
+  const [finishOpen, setFinishOpen] = useState(false)
   // The catalog's page count, fetched only when Share opens (Activity itself
   // doesn't carry it) — needed for the share card's progress bar.
   const [sharePages, setSharePages] = useState<number | undefined>(undefined)
@@ -143,6 +145,12 @@ export default function ActivityCard({
   // Set the viewer's own shelf status from the feed. Optimistic, then persisted;
   // the resolved item (full catalog fields) replaces the optimistic one.
   const handleSetStatus = async (status: ShelfStatus) => {
+    // "Finished" gets the full rate/review/dates flow (same as the "in
+    // progress" row on Home), not an immediate silent status flip.
+    if (status === 'done') {
+      setFinishOpen(true)
+      return
+    }
     onShelfChange?.({ ...shelfItem, status })
     try {
       const updated = await libraryService.updateItem(shelfItem.id, { status })
@@ -332,6 +340,17 @@ export default function ActivityCard({
         status={shareStatus}
         currentPage={shareCurrentPage}
         onClose={() => setShareOpen(false)}
+      />
+
+      <FinishModal
+        isOpen={finishOpen}
+        item={shelfItem}
+        onClose={() => setFinishOpen(false)}
+        onFinished={() => {
+          setFinishOpen(false)
+          onShelfChange?.({ ...shelfItem, status: 'done' })
+          libraryService.getItem(shelfItem.id).then((full) => full && onShelfChange?.(full)).catch(() => {})
+        }}
       />
     </article>
   )

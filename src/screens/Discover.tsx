@@ -4,6 +4,7 @@ import Layout from '../components/layout/Layout'
 import CatalogCard from '../components/CatalogCard'
 import BoringAvatar from '../components/BoringAvatar'
 import ShelfStatusBar from '../components/ShelfStatusBar'
+import FinishModal from '../components/FinishModal'
 import { catalogService } from '../services/catalogService'
 import type { CatalogItem } from '../services/catalogService'
 import { libraryService } from '../services/libraryService'
@@ -70,6 +71,7 @@ export default function DiscoverPage() {
   const [libItems, setLibItems] = useState<Map<string, MediaItem>>(new Map())
   const [added, setAdded] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
+  const [finishItem, setFinishItem] = useState<CatalogItem | null>(null)
 
   const scopeType = typeFilter === 'all' ? undefined : typeFilter
 
@@ -147,6 +149,12 @@ export default function DiscoverPage() {
   const handleStatusChange = async (it: CatalogItem, status: ShelfStatus) => {
     if (!isAuthenticated) {
       redirectToNonsLogin()
+      return
+    }
+    // "Finished" gets the full rate/review/dates flow (same as the "in
+    // progress" row on Home) instead of an immediate silent status flip.
+    if (status === 'done') {
+      setFinishItem(it)
       return
     }
     const key = keyOf(it)
@@ -317,6 +325,21 @@ export default function DiscoverPage() {
           )}
         </div>
       )}
+
+      <FinishModal
+        isOpen={!!finishItem}
+        item={finishItem ? shelfItemOf(finishItem) : null}
+        onClose={() => setFinishItem(null)}
+        onFinished={() => {
+          const it = finishItem!
+          setFinishItem(null)
+          const key = keyOf(it)
+          libraryService.getItem(it.id).then((full) => {
+            if (full) setLibItems((prev) => new Map(prev).set(key, full))
+          }).catch(() => {})
+          setAdded((prev) => new Set(prev).add(key))
+        }}
+      />
     </Layout>
   )
 }
@@ -722,7 +745,7 @@ function UniverseCard({ franchise }: { franchise: Franchise }) {
   return (
     <Link
       to={`/franchise/${franchise.uuid}`}
-      className="group relative flex aspect-[4/5] w-44 flex-shrink-0 flex-col overflow-hidden rounded-2xl border border-[var(--border-subtle)] bg-gradient-to-br from-[var(--primary-soft)] via-[var(--container-2)] to-[var(--container-2)] transition-transform hover:-translate-y-1 sm:w-52"
+      className="group relative flex aspect-[3/4] w-64 flex-shrink-0 flex-col overflow-hidden rounded-2xl border border-[var(--border-subtle)] bg-gradient-to-br from-[var(--primary-soft)] via-[var(--container-2)] to-[var(--container-2)] transition-transform hover:-translate-y-1 sm:w-72"
     >
       {/* Floating, fanned covers — same visual language as a curated list's tile. */}
       <div className="relative flex flex-1 items-center justify-center overflow-hidden">
@@ -731,21 +754,21 @@ function UniverseCard({ franchise }: { franchise: Franchise }) {
             <div
               key={i}
               style={{
-                transform: `rotate(${(i - (arr.length - 1) / 2) * 9}deg) translateX(${(i - (arr.length - 1) / 2) * 18}px)`,
+                transform: `rotate(${(i - (arr.length - 1) / 2) * 9}deg) translateX(${(i - (arr.length - 1) / 2) * 26}px)`,
                 zIndex: i,
               }}
-              className="absolute h-20 w-14 overflow-hidden rounded-lg border-2 border-[var(--container)] shadow-xl transition-transform duration-300 group-hover:scale-105"
+              className="absolute h-32 w-20 overflow-hidden rounded-lg border-2 border-[var(--container)] shadow-xl transition-transform duration-300 group-hover:scale-105 sm:h-40 sm:w-28"
             >
               <img src={c} alt="" loading="lazy" className="h-full w-full object-cover" />
             </div>
           ))
         ) : (
-          <IoPlanetOutline className="h-10 w-10 text-[var(--text-muted)]" />
+          <IoPlanetOutline className="h-12 w-12 text-[var(--text-muted)]" />
         )}
       </div>
       <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
       <div className="relative mt-auto p-3">
-        <p className="truncate text-sm font-semibold text-white">{franchise.name}</p>
+        <p className="truncate text-xl font-semibold text-white">{franchise.name}</p>
         {typeof franchise.count === 'number' && franchise.count > 0 && (
           <p className="mt-1 text-xs text-white/70">{franchise.count} work{franchise.count !== 1 ? 's' : ''}</p>
         )}

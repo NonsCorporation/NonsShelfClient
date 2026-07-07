@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams, Link } from '@/lib/router'
 import Layout from '../components/layout/Layout'
 import CatalogCard from '../components/CatalogCard'
+import FinishModal from '../components/FinishModal'
 import { catalogService } from '../services/catalogService'
 import type { CatalogItem, PersonHit } from '../services/catalogService'
 import { libraryService } from '../services/libraryService'
@@ -13,6 +14,11 @@ import InfinityLoader from '../components/InfinityLoader'
 import { initials, colorFor } from '../lib/user'
 
 const keyOf = (it: { type: string; title: string }) => `${it.type}:${it.title.trim().toLowerCase()}`
+// Builds the minimal MediaItem shape FinishModal/ShelfStatusBar need from a catalog row.
+const shelfItemOf = (it: CatalogItem): MediaItem => ({
+  id: it.id, uuid: it.uuid, type: it.type, title: it.title, author: it.author, director: it.director,
+  coverUrl: it.coverUrl, year: it.year, genre: it.genre, description: it.description,
+})
 
 // How many more of each type to import per "Load more" click. The limit sent to
 // the server grows with the page so each press reaches further into the external
@@ -34,6 +40,7 @@ export default function SearchPage() {
   // Shelf status per result (by keyOf), seeded from the user's library and
   // updated in place as they change status from the shelf-status bar.
   const [statusByKey, setStatusByKey] = useState<Map<string, ShelfStatus>>(new Map())
+  const [finishItem, setFinishItem] = useState<CatalogItem | null>(null)
   const [loading, setLoading] = useState(true)
   const [importing, setImporting] = useState(false)
   const [filter, setFilter] = useState<Filter>('all')
@@ -133,6 +140,12 @@ export default function SearchPage() {
   // First status pick adds the item to the shelf (against the existing catalog
   // row via it.id, never creating a duplicate); later picks just update it.
   const handleStatusChange = async (it: CatalogItem, status: ShelfStatus) => {
+    // "Finished" gets the full rate/review/dates flow (same as the "in
+    // progress" row on Home) instead of an immediate silent status flip.
+    if (status === 'done') {
+      setFinishItem(it)
+      return
+    }
     const key = keyOf(it)
     if (statusByKey.has(key)) {
       await libraryService.updateItem(it.id, { status })
@@ -328,6 +341,17 @@ export default function SearchPage() {
           )}
         </>
       )}
+
+      <FinishModal
+        isOpen={!!finishItem}
+        item={finishItem ? shelfItemOf(finishItem) : null}
+        onClose={() => setFinishItem(null)}
+        onFinished={() => {
+          const it = finishItem!
+          setFinishItem(null)
+          setStatusByKey((prev) => new Map(prev).set(keyOf(it), 'done'))
+        }}
+      />
     </Layout>
   )
 }
