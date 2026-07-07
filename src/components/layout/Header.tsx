@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate, useSearchParams } from '@/lib/router'
 import {
   IoHomeOutline,
@@ -56,15 +56,18 @@ export default function Header() {
 
   const path = location.pathname
 
-  const nav: NavItem[] = [
-    { to: '/', label: t('home'), icon: IoHomeOutline, match: (p) => p === '/' },
-    { to: '/library', label: t('library'), icon: IoLibraryOutline, match: (p) => p === '/library' },
-    { to: '/discover', label: t('discover'), icon: IoCompassOutline, match: (p) => p === '/discover' },
-    { to: '/statistics', label: t('statistics'), icon: IoCalendarOutline, match: (p) => p === '/statistics' },
-  ]
-  if (isLibrarian(user?.role)) {
-    nav.push({ to: '/librarians', label: t('librarians'), icon: HiOutlineLibrary, match: (p) => p.startsWith('/librarian') })
-  }
+  const nav: NavItem[] = useMemo(() => {
+    const items: NavItem[] = [
+      { to: '/', label: t('home'), icon: IoHomeOutline, match: (p) => p === '/' },
+      { to: '/library', label: t('library'), icon: IoLibraryOutline, match: (p) => p === '/library' },
+      { to: '/discover', label: t('discover'), icon: IoCompassOutline, match: (p) => p === '/discover' },
+      { to: '/statistics', label: t('statistics'), icon: IoCalendarOutline, match: (p) => p === '/statistics' },
+    ]
+    if (isLibrarian(user?.role)) {
+      items.push({ to: '/librarians', label: t('librarians'), icon: HiOutlineLibrary, match: (p) => p.startsWith('/librarian') })
+    }
+    return items
+  }, [t, user?.role])
 
   const accountRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -125,7 +128,7 @@ export default function Header() {
     <>
       {/* ── Top header (desktop only) ── */}
       <header
-        className={`sticky top-0 z-40 hidden border-b border-[var(--border-subtle)] bg-[color-mix(in_srgb,var(--nav-bg)_85%,transparent)] backdrop-blur-xl transition-transform duration-300 will-change-transform lg:block ${
+        className={`sticky top-0 z-40 hidden bg-[color-mix(in_srgb,var(--nav-bg)_35%,transparent)] backdrop-blur-xl transition-transform duration-300 will-change-transform lg:block ${
           hidden ? '-translate-y-full' : 'translate-y-0'
         }`}
       >
@@ -138,32 +141,34 @@ export default function Header() {
             </span>
           </Link>
 
-          {/* Primary nav — desktop only */}
-          <nav ref={navRef} className="relative ml-3 hidden items-center gap-1 lg:flex">
-            {indicator && (
-              <span
-                className="absolute -z-10 rounded-full bg-[var(--surface)] ring-1 ring-inset ring-[var(--border-subtle)] transition-[left,width] duration-300 ease-out"
-                style={{ left: indicator.left, top: indicator.top, width: indicator.width, height: indicator.height }}
-              />
-            )}
-            {nav.map((item) => {
-              const active = item.match(path)
-              const Icon = item.icon
-              return (
-                <Link
-                  key={item.to}
-                  to={item.to}
-                  data-nav-key={item.to}
-                  className={`group flex items-center gap-2 rounded-full px-3.5 py-2 text-sm transition-colors ${
-                    active ? 'text-[var(--text)]' : 'text-[var(--text-muted)] hover:text-[var(--text)]'
-                  }`}
-                >
-                  <Icon className="h-[17px] w-[17px]" />
-                  {item.label}
-                </Link>
-              )
-            })}
-          </nav>
+          {/* Primary nav — desktop only, grouped in its own pill */}
+          <div className="ml-3 hidden items-center rounded-full border border-[var(--border-subtle)] bg-[var(--surface)] p-1 lg:flex">
+            <nav ref={navRef} className="relative flex items-center gap-1">
+              {indicator && (
+                <span
+                  className="absolute -z-10 rounded-full bg-[var(--surface-active)] ring-1 ring-inset ring-[var(--border-subtle)] transition-[left,width] duration-300 ease-out"
+                  style={{ left: indicator.left, top: indicator.top, width: indicator.width, height: indicator.height }}
+                />
+              )}
+              {nav.map((item) => {
+                const active = item.match(path)
+                const Icon = item.icon
+                return (
+                  <Link
+                    key={item.to}
+                    to={item.to}
+                    data-nav-key={item.to}
+                    className={`group flex items-center gap-2 rounded-full px-3.5 py-2 text-sm transition-colors ${
+                      active ? 'text-[var(--text)]' : 'text-[var(--text-muted)] hover:text-[var(--text)]'
+                    }`}
+                  >
+                    <Icon className="h-[17px] w-[17px]" />
+                    {item.label}
+                  </Link>
+                )
+              })}
+            </nav>
+          </div>
 
           {/* Right cluster */}
           <div className="ml-auto flex items-center gap-2">
