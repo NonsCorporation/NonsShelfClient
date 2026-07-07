@@ -202,6 +202,8 @@ export const en = {
   groupToday: 'Today',
   groupThisWeek: 'This week',
   groupEarlier: 'Earlier',
+  startFromWishlist: 'Start something from your wishlist',
+  copyInviteLink: 'Copy invite link',
   noActivity: 'No activity yet.',
   inviteFriends: 'Invite friends to Nons Shelf to share your books and movies experience',
   verbRated: 'rated',

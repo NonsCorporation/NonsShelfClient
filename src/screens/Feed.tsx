@@ -8,7 +8,8 @@ import ProgressModal from '../components/ProgressModal'
 import FinishModal from '../components/FinishModal'
 import { libraryService } from '../services/libraryService'
 import { activityService } from '../services/activityService'
-import type { Activity, ActivityPage } from '../services/activityService'
+import type { Activity, ActivityPage, ActivityType } from '../services/activityService'
+import BoringAvatar from '../components/BoringAvatar'
 import Pagination from '../components/Pagination'
 import { getCommentCounts } from '../services/commentService'
 import { catalogService } from '../services/catalogService'
@@ -19,7 +20,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { STATUS_COLOR } from '../lib/shelf'
 import type { ShelfStatus } from '../types'
 import { mediaPath } from '../lib/paths'
-import { IoSearch, IoStar, IoPeopleOutline, IoChevronBack, IoChevronForward } from 'react-icons/io5'
+import { IoSearch, IoStar, IoPeopleOutline, IoChevronBack, IoChevronForward, IoArrowForward, IoLinkOutline, IoCheckmark } from 'react-icons/io5'
 import ShelfLogo from '../components/ShelfLogo'
 import ShelfStatusBar from '../components/ShelfStatusBar'
 import TypeBadge from '../components/TypeBadge'
@@ -40,6 +41,14 @@ function dayBucket(at: number): DayBucket {
   if (ms >= startOfToday - 6 * 86400000) return 'week'
   return 'earlier'
 }
+
+// Lightweight activity filters. Labels reuse existing verb keys (capitalised in CSS).
+const ACTIVITY_FILTERS: { key: 'all' | ActivityType; labelKey: string }[] = [
+  { key: 'all', labelKey: 'filterAll' },
+  { key: 'finished', labelKey: 'verbFinished' },
+  { key: 'rated', labelKey: 'verbRated' },
+  { key: 'reviewed', labelKey: 'verbReviewed' },
+]
 
 export default function FeedPage() {
   const { t } = useLanguage()
@@ -135,6 +144,24 @@ export default function FeedPage() {
   const openProgress = (it: MediaItem) => setProgressItem(it)
 
   const inProgress = useMemo(() => items.filter((it) => it.status === 'active'), [items])
+  const [typeFilter, setTypeFilter] = useState<'all' | ActivityType>('all')
+  const [invited, setInvited] = useState(false)
+
+  // The newest wishlist item — used to nudge starting something when nothing's active.
+  const newestWishlist = useMemo(() => {
+    const w = items.filter((it) => it.status === 'wishlist')
+    w.sort((a, b) => (b.dateAdded ?? '').localeCompare(a.dateAdded ?? ''))
+    return w[0] ?? null
+  }, [items])
+
+  // Distinct friends who appear in the current activity page — the "pulse" strip.
+  const recentFriends = useMemo(() => {
+    const seen = new Map<string, { handle: string; name: string; avatarUrl?: string }>()
+    for (const a of activity) {
+      if (!seen.has(a.user.handle)) seen.set(a.user.handle, { handle: a.user.handle, name: a.user.name, avatarUrl: a.user.avatarUrl })
+    }
+    return [...seen.values()].slice(0, 14)
+  }, [activity])
 
   // Time-of-day greeting for the desktop header.
   const greetingKey = (() => {
@@ -159,17 +186,18 @@ export default function FeedPage() {
     return segs.join(' · ')
   }, [items, activity, inProgress, t])
 
-  // Group the current activity page into day buckets, preserving newest-first order.
+  // Group the (filtered) activity page into day buckets, preserving newest-first order.
   const activityGroups = useMemo(() => {
+    const visible = typeFilter === 'all' ? activity : activity.filter((a) => a.type === typeFilter)
     const groups: { key: DayBucket; items: Activity[] }[] = []
-    for (const a of activity) {
+    for (const a of visible) {
       const b = dayBucket(a.at)
       const last = groups[groups.length - 1]
       if (last && last.key === b) last.items.push(a)
       else groups.push({ key: b, items: [a] })
     }
     return groups
-  }, [activity])
+  }, [activity, typeFilter])
 
   return (
     <Layout>
@@ -203,12 +231,79 @@ export default function FeedPage() {
         />
       )}
 
+      {/* Nudge to start something when nothing's in progress but the wishlist isn't empty */}
+      {!loading && inProgress.length === 0 && newestWishlist && (
+        <Link
+          to={mediaPath(newestWishlist)}
+          className="group mb-10 flex items-center gap-3 rounded-xl border border-dashed border-[var(--border)] p-3 transition-colors hover:border-nonsprimary"
+        >
+          <div className="relative aspect-[2/3] w-10 flex-shrink-0">
+            {newestWishlist.coverUrl ? (
+              <img src={newestWishlist.coverUrl} alt="" loading="lazy" className="h-full w-full rounded-md object-cover" />
+            ) : (
+              <div className="h-full w-full rounded-md bg-[var(--container-2)]" />
+            )}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium text-[var(--text)]">{t('startFromWishlist')}</p>
+            <p className="truncate text-xs text-[var(--text-muted)]">{newestWishlist.title}</p>
+          </div>
+          <IoArrowForward className="h-4 w-4 flex-shrink-0 text-[var(--text-muted)] transition-transform group-hover:translate-x-0.5 group-hover:text-nonsprimary" />
+        </Link>
+      )}
+
       {/* Friends activity */}
       <section ref={activityRef} className="scroll-mt-4">
         <h2 className="mb-3 flex items-center gap-2 text-base font-semibold text-[var(--text)]">
           <IoPeopleOutline className="h-[18px] w-[18px] text-[var(--text-muted)]" />
           {t('friendsActivity')}
         </h2>
+
+        {!loading && activityTotal > 0 && (
+          <>
+            {/* Pulse — friends active recently; tap to open their profile. */}
+            {recentFriends.length > 0 && (
+              <div className="no-scrollbar -mx-1 mb-3 flex gap-3 overflow-x-auto px-1 pb-1">
+                {recentFriends.map((f) => (
+                  <Link
+                    key={f.handle}
+                    to={`/u/${f.handle}`}
+                    className="group/friend flex flex-shrink-0 flex-col items-center gap-1"
+                    title={f.name}
+                  >
+                    <span className="overflow-hidden rounded-full ring-2 ring-transparent transition-colors group-hover/friend:ring-nonsprimary" style={{ width: 40, height: 40 }}>
+                      {f.avatarUrl
+                        ? <img src={f.avatarUrl} alt={f.name} className="h-full w-full object-cover" />
+                        : <BoringAvatar size={40} name={f.handle} />}
+                    </span>
+                    <span className="max-w-[52px] truncate text-[10px] text-[var(--text-muted)] group-hover/friend:text-[var(--text)]">{f.name}</span>
+                  </Link>
+                ))}
+              </div>
+            )}
+
+            {/* Quiet type filter over the current page. */}
+            <div className="no-scrollbar mb-4 flex items-center gap-1.5 overflow-x-auto">
+              {ACTIVITY_FILTERS.map((f) => {
+                const active = typeFilter === f.key
+                return (
+                  <button
+                    key={f.key}
+                    onClick={() => setTypeFilter(f.key)}
+                    className={`shrink-0 rounded-full border px-3 py-1 text-xs capitalize transition-colors ${
+                      active
+                        ? 'border-[var(--border)] bg-[var(--container-2)] font-medium text-[var(--text)]'
+                        : 'border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--text)]'
+                    }`}
+                  >
+                    {t(f.labelKey)}
+                  </button>
+                )
+              })}
+            </div>
+          </>
+        )}
+
         {loading ? (
           <div className="flex flex-col gap-4">
             {Array.from({ length: 4 }).map((_, i) => (
@@ -221,9 +316,24 @@ export default function FeedPage() {
               <IoPeopleOutline className="h-7 w-7 text-[var(--text-muted)]" />
             </div>
             <p className="max-w-sm px-6 text-sm leading-6 text-[var(--text-muted)]">{t('inviteFriends')}</p>
+            <button
+              onClick={() => {
+                navigator.clipboard?.writeText(window.location.origin).then(() => {
+                  setInvited(true)
+                  setTimeout(() => setInvited(false), 2000)
+                }).catch(() => {})
+              }}
+              className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border-subtle)] px-4 py-2 text-sm font-medium text-[var(--text)] transition-colors hover:bg-[var(--surface)]"
+            >
+              {invited ? <IoCheckmark className="h-4 w-4 text-nonsprimary" /> : <IoLinkOutline className="h-4 w-4" />}
+              {t(invited ? 'copied' : 'copyInviteLink')}
+            </button>
           </div>
         ) : (
           <div className={`animate-fade-up flex flex-col gap-4 transition-opacity ${activityLoading ? 'opacity-60' : ''}`}>
+            {activityGroups.length === 0 && (
+              <p className="py-8 text-center text-sm text-[var(--text-muted)]">{t('noResults')}</p>
+            )}
             {activityGroups.map((group) => (
               <div key={group.key} className="flex flex-col gap-4">
                 {/* Quiet day divider for scannability. */}

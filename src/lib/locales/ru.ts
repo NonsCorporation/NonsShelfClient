@@ -202,6 +202,8 @@ export const ru = {
   groupToday: 'Сегодня',
   groupThisWeek: 'На этой неделе',
   groupEarlier: 'Ранее',
+  startFromWishlist: 'Начните что-нибудь из списка желаемого',
+  copyInviteLink: 'Скопировать ссылку-приглашение',
   noActivity: 'Пока нет активности.',
   inviteFriends: 'Пригласите друзей в Nons Shelf, чтобы делиться впечатлениями о книгах и фильмах',
   verbRated: 'оценил(а)',

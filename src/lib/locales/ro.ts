@@ -202,6 +202,8 @@ export const ro = {
   groupToday: 'Astăzi',
   groupThisWeek: 'Săptămâna aceasta',
   groupEarlier: 'Mai devreme',
+  startFromWishlist: 'Începe ceva din lista ta de dorințe',
+  copyInviteLink: 'Copiază linkul de invitație',
   noActivity: 'Nicio activitate încă.',
   inviteFriends: 'Invită prietenii pe Nons Shelf ca să împărtășiți cărți și filme',
   verbRated: 'a notat',
