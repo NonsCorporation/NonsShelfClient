@@ -13,7 +13,7 @@ export async function buildListMetadata(id: string): Promise<Metadata> {
   const l = await getPublicList(id)
   if (!l) return { title: 'Not found :: Nons Shelf' }
 
-  const title = `${l.title} :: Nons Shelf`
+  const title = l.owner_username ? `${l.title} :: ${l.owner_username}` : `${l.title} :: Nons Shelf`
   const description = (
     l.description || `A curated list of ${l.count} title${l.count !== 1 ? 's' : ''} on Nons Shelf.`
   ).slice(0, 200)
