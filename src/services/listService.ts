@@ -24,8 +24,10 @@ async function listLists(): Promise<CuratedList[]> {
   return (data.lists ?? []) as CuratedList[]
 }
 
-async function getList(id: number): Promise<CuratedListDetail | null> {
-  const res = await authedFetch(`/api/lists/${id}`)
+/** Lists are public reads — idOrUuid may be either the numeric id or the
+ *  public uuid, both accepted by the same backend endpoint. */
+async function getList(idOrUuid: string): Promise<CuratedListDetail | null> {
+  const res = await authedFetch(`/api/lists/${idOrUuid}`)
   if (!res.ok) return null
   const data = await res.json()
   return data.list as CuratedListDetail
