@@ -16,6 +16,7 @@ import { currentUser } from '../lib/user'
 import { isLibrarian } from '../services/librarianService'
 import LibrarianBadge from '../components/LibrarianBadge'
 import BoringAvatar from '../components/BoringAvatar'
+import Shelf12 from '../components/Shelf12'
 import { mediaPath } from '../lib/paths'
 import { STATUS_COLOR, statusLabel } from '../lib/shelf'
 import TypeBadge from '../components/TypeBadge'
@@ -364,6 +365,13 @@ export default function ProfilePage() {
           )}
         </div>
       )}
+
+      {/* Shelf — reserved 16:5 display area with the decorative book arrangement */}
+      <div className="mt-4 rounded-2xl border border-[var(--border-subtle)] p-5 sm:p-6">
+        <div className="w-full overflow-hidden rounded-xl border border-[var(--border-subtle)]">
+          <Shelf12 books={shown.slice(0, 12).map((it) => ({ title: it.title, coverUrl: it.coverUrl }))} />
+        </div>
+      </div>
 
       {/* Shelf tabs */}
       <div className="no-scrollbar mt-6 flex gap-1 overflow-x-auto border-b border-[var(--border-subtle)]">
