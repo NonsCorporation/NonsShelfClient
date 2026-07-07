@@ -157,9 +157,6 @@ export default function ListDetailScreen() {
       {/* Header */}
       <div className="mb-8 flex items-start gap-3">
         <div className="min-w-0 flex-1">
-          <p className="text-[10px] uppercase tracking-widest text-[var(--text-muted)]">
-            List
-          </p>
           {isOwner ? (
             <input
               ref={titleRef}
@@ -168,29 +165,32 @@ export default function ListDetailScreen() {
               onBlur={commitTitle}
               onKeyDown={(e) => { if (e.key === 'Enter') titleRef.current?.blur() }}
               maxLength={150}
-              className="mt-0.5 w-full min-w-0 -ml-2 rounded-md bg-transparent px-2 py-0.5 text-2xl font-bold tracking-tight text-[var(--text)] outline-none focus:bg-[var(--surface)]"
+              className="w-full min-w-0 -ml-2 rounded-md bg-transparent px-2 py-0.5 text-2xl font-bold tracking-tight text-[var(--text)] outline-none focus:bg-[var(--surface)]"
             />
           ) : (
-            <h1 className="mt-0.5 text-2xl font-bold tracking-tight text-[var(--text)]">{data.title}</h1>
+            <h1 className="text-2xl font-bold tracking-tight text-[var(--text)]">{data.title}</h1>
           )}
-          <p className="mt-1 text-sm text-[var(--text-muted)]">
-            {data.count} item{data.count !== 1 ? 's' : ''}
-          </p>
-          {data.owner_username && (
-            <Link
-              to={`/u/${data.owner_username}`}
-              className="mt-2 inline-flex items-center gap-2 text-xs text-[var(--text-muted)] hover:text-[var(--text)]"
-            >
-              {data.owner_avatar_url ? (
-                <img src={data.owner_avatar_url} alt="" className="h-5 w-5 flex-shrink-0 rounded-full object-cover" />
-              ) : (
-                <span className="flex-shrink-0 overflow-hidden rounded-full">
-                  <BoringAvatar size={20} name={`user-${data.user_id}`} />
-                </span>
-              )}
-              Curated by <span className="font-medium text-[var(--text)]">{data.owner_name || data.owner_username}</span>
-            </Link>
-          )}
+
+          {/* Meta line — Goodreads-style: byline + item count on one row. */}
+          <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs text-[var(--text-muted)]">
+            {data.owner_username && (
+              <>
+                <Link to={`/u/${data.owner_username}`} className="flex items-center gap-1.5 hover:text-[var(--text)]">
+                  {data.owner_avatar_url ? (
+                    <img src={data.owner_avatar_url} alt="" className="h-5 w-5 flex-shrink-0 rounded-full object-cover" />
+                  ) : (
+                    <span className="flex-shrink-0 overflow-hidden rounded-full">
+                      <BoringAvatar size={20} name={`user-${data.user_id}`} />
+                    </span>
+                  )}
+                  <span className="font-medium text-[var(--text)]">{data.owner_name || data.owner_username}</span>
+                </Link>
+                <span>·</span>
+              </>
+            )}
+            <span>{data.count} item{data.count !== 1 ? 's' : ''}</span>
+          </div>
+
           {isOwner ? (
             <textarea
               value={description}
@@ -199,10 +199,10 @@ export default function ListDetailScreen() {
               placeholder="Add a description…"
               rows={2}
               maxLength={4000}
-              className="mt-3 w-full max-w-2xl resize-none rounded-lg bg-transparent px-2 py-1 -ml-2 text-sm leading-6 text-[var(--text-muted)] outline-none focus:bg-[var(--surface)]"
+              className="mt-2 w-full max-w-2xl resize-none rounded-lg bg-transparent px-2 py-1 -ml-2 text-sm leading-6 text-[var(--text-muted)] outline-none focus:bg-[var(--surface)]"
             />
           ) : data.description ? (
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--text-muted)]">{data.description}</p>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--text-muted)]">{data.description}</p>
           ) : null}
         </div>
         <button
