@@ -248,8 +248,10 @@ export default function ProfilePage() {
 
   return (
     <Layout>
+      {/* On desktop the profile card and the shelf share a row; they stack on mobile. */}
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-stretch">
       {/* Profile card — identity, nons link, settings, stats */}
-      <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--container)] p-5 sm:p-6">
+      <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--container)] p-5 sm:p-6 lg:flex-1 lg:min-w-0">
         <div className="flex items-start gap-5">
           {profile.avatar ? (
             <img src={profile.avatar} alt={profile.name} className="h-20 w-20 flex-shrink-0 rounded-full object-cover" />
@@ -319,6 +321,27 @@ export default function ProfilePage() {
         </div>
       </div>
 
+      {/* Shelf — decorative bookshelf built from the user's top items */}
+      <div className="flex flex-col rounded-2xl border border-[var(--border-subtle)] bg-[var(--container)] p-5 sm:p-6 lg:flex-1 lg:min-w-0">
+        <div className="mb-3 flex items-center gap-2">
+          <IoLibraryOutline className="h-4 w-4 text-[var(--text-muted)]" />
+          <span className="text-sm font-semibold text-[var(--text)]">Shelf 12</span>
+        </div>
+        <div className="flex w-full flex-1 items-center">
+          <Shelf12
+            books={shown.slice(0, 12).map((it) => ({
+              title: it.title,
+              author: it.author,
+              year: it.year,
+              coverUrl: it.coverUrl,
+              rating: it.rating,
+              href: mediaPath(it),
+            }))}
+          />
+        </div>
+      </div>
+      </div>
+
       {/* Friends — own profile only, separate card */}
       {isSelf && (
         <div className="mt-4 rounded-2xl border border-[var(--border-subtle)] bg-[var(--container)] p-5 sm:p-6">
@@ -365,13 +388,6 @@ export default function ProfilePage() {
           )}
         </div>
       )}
-
-      {/* Shelf — reserved 16:5 display area with the decorative book arrangement */}
-      <div className="mt-4 rounded-2xl border border-[var(--border-subtle)] p-5 sm:p-6">
-        <div className="w-full overflow-hidden rounded-xl border border-[var(--border-subtle)]">
-          <Shelf12 books={shown.slice(0, 12).map((it) => ({ title: it.title, coverUrl: it.coverUrl }))} />
-        </div>
-      </div>
 
       {/* Shelf tabs */}
       <div className="no-scrollbar mt-6 flex gap-1 overflow-x-auto border-b border-[var(--border-subtle)]">
