@@ -132,7 +132,7 @@ export default function Header() {
           hidden ? '-translate-y-full' : 'translate-y-0'
         }`}
       >
-        <div className="relative mx-auto flex h-16 max-w-6xl items-center gap-3 px-4 md:px-8">
+        <div className="relative mx-auto flex h-16 max-w-7xl items-center gap-3 px-4 md:px-8">
           {/* Brand */}
           <Link to="/" className="group flex flex-shrink-0 items-center gap-2.5">
             <ShelfLogo className="h-6 w-6 text-white" />
@@ -141,8 +141,11 @@ export default function Header() {
             </span>
           </Link>
 
-          {/* Primary nav — desktop only, grouped in its own pill, centered in the header */}
-          <div className="absolute left-1/2 hidden -translate-x-1/2 items-center rounded-full border border-[var(--border-subtle)] bg-[var(--surface)] p-1 lg:flex">
+          {/* Primary nav — desktop only, grouped in its own pill, centered in the header.
+              Centering is left-1/2 + -translate-x-1/2 (based on the pill's own width), so
+              when the search button inside it expands into an input, the whole pill grows
+              symmetrically and stays centered automatically — no extra logic needed. */}
+          <div className="absolute left-1/2 hidden -translate-x-1/2 items-center gap-1 rounded-full border border-[var(--border-subtle)] bg-[var(--surface)] p-1 lg:flex">
             <nav ref={navRef} className="relative flex items-center gap-1">
               {indicator && (
                 <span
@@ -168,13 +171,15 @@ export default function Header() {
                 )
               })}
             </nav>
+
+            <div className="h-4 w-px flex-shrink-0 bg-[var(--border-subtle)]" />
+
+            {/* Search — icon-only until clicked, then expands into an input */}
+            <HeaderSearch />
           </div>
 
           {/* Right cluster */}
           <div className="ml-auto flex items-center gap-2">
-            {/* Search — icon-only until clicked, then expands into an input */}
-            <HeaderSearch />
-
             {isAuthenticated && (
               <Link
                 to="/notifications"
