@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate, Link } from '@/lib/router'
-import { IoLayersOutline, IoTrash, IoClose, IoAdd, IoSearch, IoLink, IoCheckmark } from 'react-icons/io5'
+import { IoTrash, IoClose, IoAdd, IoSearch, IoLink, IoCheckmark } from 'react-icons/io5'
 import Layout from '../components/layout/Layout'
+import BoringAvatar from '../components/BoringAvatar'
 import ConfirmModal from '../components/ConfirmModal'
 import { listService } from '../services/listService'
 import { catalogService, type CatalogItem } from '../services/catalogService'
@@ -102,7 +103,7 @@ export default function ListDetailScreen() {
   const [copied, setCopied] = useState(false)
   async function copyLink() {
     if (!data) return
-    const url = `${window.location.origin}/library/lists/${data.uuid}`
+    const url = `${window.location.origin}/list/${data.uuid}`
     try {
       await navigator.clipboard.writeText(url)
       setCopied(true)
@@ -155,9 +156,6 @@ export default function ListDetailScreen() {
     <Layout>
       {/* Header */}
       <div className="mb-8 flex items-start gap-3">
-        <div className="mt-0.5 flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl bg-[var(--primary-soft)]">
-          <IoLayersOutline className="h-5 w-5 text-nonsprimary" />
-        </div>
         <div className="min-w-0 flex-1">
           <p className="text-[10px] uppercase tracking-widest text-[var(--text-muted)]">
             List
@@ -178,6 +176,21 @@ export default function ListDetailScreen() {
           <p className="mt-1 text-sm text-[var(--text-muted)]">
             {data.count} item{data.count !== 1 ? 's' : ''}
           </p>
+          {data.owner_username && (
+            <Link
+              to={`/u/${data.owner_username}`}
+              className="mt-2 inline-flex items-center gap-2 text-xs text-[var(--text-muted)] hover:text-[var(--text)]"
+            >
+              {data.owner_avatar_url ? (
+                <img src={data.owner_avatar_url} alt="" className="h-5 w-5 flex-shrink-0 rounded-full object-cover" />
+              ) : (
+                <span className="flex-shrink-0 overflow-hidden rounded-full">
+                  <BoringAvatar size={20} name={`user-${data.user_id}`} />
+                </span>
+              )}
+              Curated by <span className="font-medium text-[var(--text)]">{data.owner_name || data.owner_username}</span>
+            </Link>
+          )}
           {isOwner ? (
             <textarea
               value={description}

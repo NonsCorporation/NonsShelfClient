@@ -1,5 +1,6 @@
 import 'server-only'
 import type { BackendMedia, MediaCredits, Edition } from './mediaMap'
+import type { CuratedListDetail } from '../types'
 
 // Server-side reads of nons-library-server's public catalog endpoints, used to
 // server-render the /b and /m pages for anonymous visitors and crawlers.
@@ -48,4 +49,10 @@ export async function getPublicEditions(id: string): Promise<Edition[]> {
     `/api/media/${encodeURIComponent(id)}/editions`,
   )
   return data?.editions ?? []
+}
+
+/** Public curated list by numeric id or uuid. Null when missing/unreachable. */
+export async function getPublicList(id: string): Promise<CuratedListDetail | null> {
+  const data = await getJson<{ list: CuratedListDetail }>(`/api/lists/${encodeURIComponent(id)}`)
+  return data?.list ?? null
 }

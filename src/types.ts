@@ -21,6 +21,10 @@ export type CuratedList = {
   count: number
   created_at: number
   updated_at: number
+  /** Owner byline — only populated on a single-list fetch, not the listing. */
+  owner_username?: string
+  owner_name?: string
+  owner_avatar_url?: string
 }
 
 export type CuratedListItem = {
