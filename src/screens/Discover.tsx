@@ -3,18 +3,19 @@ import { Link } from '@/lib/router'
 import Layout from '../components/layout/Layout'
 import CatalogCard from '../components/CatalogCard'
 import BoringAvatar from '../components/BoringAvatar'
+import ShelfStatusBar from '../components/ShelfStatusBar'
 import { catalogService } from '../services/catalogService'
 import type { CatalogItem } from '../services/catalogService'
 import { libraryService } from '../services/libraryService'
 import { listService } from '../services/listService'
-import type { MediaItem, MediaType, CuratedListDiscoverEntry } from '../types'
+import type { MediaItem, MediaType, ShelfStatus, CuratedListDiscoverEntry } from '../types'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
 import { redirectToNonsLogin } from '../lib/api'
 import { initials, colorFor } from '../lib/user'
 import {
-  IoStar, IoFlame, IoPeopleOutline, IoLogInOutline, IoSparklesOutline, IoArrowForward,
-  IoChevronBack, IoChevronForward, IoAdd, IoCheckmark, IoTrendingUp, IoLayersOutline,
+  IoStar, IoPeopleOutline, IoLogInOutline, IoSparklesOutline, IoArrowForward,
+  IoChevronBack, IoChevronForward, IoLayersOutline,
 } from 'react-icons/io5'
 import { mediaPath } from '../lib/paths'
 import TypeBadge from '../components/TypeBadge'
@@ -27,6 +28,11 @@ const dedupe = (items: CatalogItem[]) => {
   return items.filter((it) => (seen.has(it.id) ? false : (seen.add(it.id), true)))
 }
 const creditOf = (it: CatalogItem) => (it.type === 'book' ? it.author : it.director || it.author)
+// Builds the minimal MediaItem shape ShelfStatusBar needs from a catalog row.
+const shelfItemOf = (it: CatalogItem): MediaItem => ({
+  id: it.id, uuid: it.uuid, type: it.type, title: it.title, author: it.author, director: it.director,
+  coverUrl: it.coverUrl, year: it.year, genre: it.genre, description: it.description,
+})
 const typeWord = (t: Translate, type: MediaType) => (type === 'book' ? t('book') : type === 'series' ? t('series') : t('film'))
 // A creator's role → localized label (falls back to the raw role).
 const roleLabel = (t: Translate, role: string) => {
@@ -59,7 +65,7 @@ export default function DiscoverPage() {
   const [newestMovies, setNewestMovies] = useState<CatalogItem[]>([])
   const [spotlights, setSpotlights] = useState<Record<MediaType, CatalogItem[]> | null>(null)
   const [curatedLists, setCuratedLists] = useState<CuratedListDiscoverEntry[]>([])
-  const [libKeys, setLibKeys] = useState<Set<string>>(new Set())
+  const [libItems, setLibItems] = useState<Map<string, MediaItem>>(new Map())
   const [added, setAdded] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
 
@@ -101,7 +107,7 @@ export default function DiscoverPage() {
 
   useEffect(() => {
     if (authLoading || !isAuthenticated) return
-    libraryService.getItems().then((lib) => setLibKeys(new Set(lib.map(keyOf)))).catch(() => {})
+    libraryService.getItems().then((lib) => setLibItems(new Map(lib.map((it) => [keyOf(it), it])))).catch(() => {})
   }, [authLoading, isAuthenticated])
 
   // Curated lists don't scope by type/filter — fetched once.
@@ -109,7 +115,9 @@ export default function DiscoverPage() {
     listService.discoverLists(8).then(setCuratedLists).catch(() => {})
   }, [])
 
-  const inLibrary = (it: CatalogItem) => libKeys.has(keyOf(it)) || added.has(keyOf(it))
+  const inLibrary = (it: CatalogItem) => libItems.has(keyOf(it)) || added.has(keyOf(it))
+  const statusOf = (it: CatalogItem): ShelfStatus | null =>
+    libItems.get(keyOf(it))?.status ?? (added.has(keyOf(it)) ? 'wishlist' : null)
 
   const handleAdd = async (it: CatalogItem) => {
     if (!isAuthenticated) {
@@ -125,6 +133,26 @@ export default function DiscoverPage() {
   }
   // Pass an add handler only to signed-in users; anonymous cards hide the button.
   const addProp = (it: CatalogItem) => (isAuthenticated ? () => handleAdd(it) : undefined)
+
+  // Full status picker (want to / reading / finished / dnf), used by the hero
+  // carousel instead of a plain add button. Adds the item on first pick, then
+  // patches its shelf status on every pick after that.
+  const handleStatusChange = async (it: CatalogItem, status: ShelfStatus) => {
+    if (!isAuthenticated) {
+      redirectToNonsLogin()
+      return
+    }
+    const key = keyOf(it)
+    const existing = libItems.get(key)
+    const updated = existing
+      ? await libraryService.updateItem(existing.id, { status })
+      : await libraryService.addItem({
+          id: it.id, type: it.type, title: it.title, author: it.author, director: it.director,
+          coverUrl: it.coverUrl, year: it.year, genre: it.genre, description: it.description, status,
+        })
+    setLibItems((prev) => new Map(prev).set(key, updated))
+    setAdded((prev) => new Set(prev).add(key))
+  }
 
   // Top few, cover-bearing, for the cinematic hero carousel.
   const heroItems = useMemo(() => popular.filter((p) => p.coverUrl).slice(0, 5), [popular])
@@ -242,18 +270,18 @@ export default function DiscoverPage() {
       ) : (
         <div className="animate-fade-up">
           {/* ── Cinematic hero carousel ── */}
-          <HeroCarousel items={heroItems} canAdd={isAuthenticated} inLibrary={inLibrary} onAdd={handleAdd} t={t} />
+          <HeroCarousel items={heroItems} canAdd={isAuthenticated} statusOf={statusOf} onStatusChange={handleStatusChange} t={t} />
 
           {/* ── Explore by genre — leads the page; genres are the primary way
               in, with matching curated lists surfaced as "sublists" once a
               genre is picked. ── */}
           <GenreExplorer genres={genres} lists={curatedLists} inLibrary={inLibrary} addProp={addProp} t={t} />
 
-          {/* ── Trending, with big IMDb-style rank numbers ── */}
-          <RankRail title={t('trendingNow')} icon={<IoTrendingUp className="h-4 w-4 text-nonslightred" />} items={trending} inLibrary={inLibrary} addProp={addProp} />
-
           {/* ── Community curated lists ── */}
           <CuratedListsRail lists={curatedLists} />
+
+          {/* ── Trending — a compact list with covers, distinct from the card rails ── */}
+          <TrendingList title={t('trendingNow')} items={trending} statusOf={statusOf} onStatusChange={handleStatusChange} />
 
           {/* ── Popular people + their works ── */}
           <PeopleSpotlights creators={creators} t={t} />
@@ -267,8 +295,6 @@ export default function DiscoverPage() {
               <Row title={t('newestMovies')} items={newestMovies} inLibrary={inLibrary} addProp={addProp} />
             </>
           )}
-
-          <Row title={t('popularNow')} icon={<IoFlame className="h-4 w-4 text-nonslightred" />} items={popular.slice(1)} inLibrary={inLibrary} addProp={addProp} />
 
           <Row title={t('newReleases')} items={newReleases} inLibrary={inLibrary} addProp={addProp} />
 
@@ -290,12 +316,12 @@ export default function DiscoverPage() {
 // into the page background so it reads as one surface. Auto-advances through the
 // top titles; dots + arrows for manual control.
 function HeroCarousel({
-  items, canAdd, inLibrary, onAdd, t,
+  items, canAdd, statusOf, onStatusChange, t,
 }: {
   items: CatalogItem[]
   canAdd: boolean
-  inLibrary: (it: CatalogItem) => boolean
-  onAdd: (it: CatalogItem) => void
+  statusOf: (it: CatalogItem) => ShelfStatus | null
+  onStatusChange: (it: CatalogItem, status: ShelfStatus) => void
   t: Translate
 }) {
   const [idx, setIdx] = useState(0)
@@ -311,7 +337,6 @@ function HeroCarousel({
   if (count === 0) return null
   const active = idx % count
   const item = items[active]
-  const added = inLibrary(item)
   const go = (n: number) => setIdx((n + count) % count)
 
   return (
@@ -339,10 +364,6 @@ function HeroCarousel({
         </Link>
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <div className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-nonsprimaryfocus">
-            <IoFlame className="h-3.5 w-3.5" />
-            {t('spotlight')}
-          </div>
           <h2 className="text-2xl font-black leading-[1.05] tracking-tight text-[var(--text)] sm:text-4xl">
             <Link to={mediaPath(item)} className="hover:underline">{item.title}</Link>
           </h2>
@@ -371,16 +392,14 @@ function HeroCarousel({
 
           <div className="mt-4 flex items-center gap-3">
             {canAdd ? (
-              <button
-                onClick={() => onAdd(item)}
-                disabled={added}
-                className={`inline-flex h-11 items-center justify-center gap-2 rounded-xl px-5 text-sm font-semibold transition-colors ${
-                  added ? 'cursor-default border border-[var(--border-subtle)] text-[var(--text-muted)]' : 'bg-nonsprimary text-white hover:bg-nonsprimaryfocus'
-                }`}
-              >
-                {added ? <IoCheckmark className="h-4 w-4" /> : <IoAdd className="h-4 w-4" />}
-                {added ? t('inLibrary') : t('addToLibrary')}
-              </button>
+              <div className="flex h-11 items-center">
+                <ShelfStatusBar
+                  item={shelfItemOf(item)}
+                  currentStatus={statusOf(item)}
+                  onStatusChange={(status) => onStatusChange(item, status)}
+                  variant="button"
+                />
+              </div>
             ) : (
               <button
                 onClick={redirectToNonsLogin}
@@ -429,41 +448,6 @@ function HeroCarousel({
   )
 }
 
-// ── Trending rail with oversized rank numbers (IMDb "top" style) ───────────────
-function RankRail({
-  title, icon, items, inLibrary, addProp,
-}: {
-  title: string
-  icon?: React.ReactNode
-  items: CatalogItem[]
-  inLibrary: (it: CatalogItem) => boolean
-  addProp: (it: CatalogItem) => (() => void) | undefined
-}) {
-  if (items.length === 0) return null
-  return (
-    <section className="mb-12">
-      <h2 className="mb-4 flex items-center gap-2 text-lg font-bold tracking-tight text-[var(--text)]">
-        {icon}{title}
-      </h2>
-      <div className="no-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1 pb-2 sm:gap-4">
-        {items.map((it, i) => (
-          <div key={it.id} className="flex flex-shrink-0 items-end">
-            <span
-              className="select-none pr-0.5 text-[4.5rem] font-black leading-[0.72] sm:text-[6rem]"
-              style={{ WebkitTextStroke: '2px var(--border-strong)', color: 'transparent' }}
-            >
-              {i + 1}
-            </span>
-            <div className="-ml-3 w-28 sm:w-36">
-              <CatalogCard item={it} inLibrary={inLibrary(it)} onAdd={addProp(it)} />
-            </div>
-          </div>
-        ))}
-      </div>
-    </section>
-  )
-}
-
 // A horizontal scroll row of catalog cards. `addProp` returns an add handler for
 // signed-in users (undefined ⇒ no add button). An optional `icon` sits before
 // the title.
@@ -488,6 +472,65 @@ function Row({
         {items.map((it) => (
           <div key={it.id} className="w-32 flex-shrink-0 sm:w-40">
             <CatalogCard item={it} inLibrary={inLibrary(it)} onAdd={addProp(it)} showReason={showReason} />
+          </div>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+// Trending — a compact vertical list (cover + title/year/type/description per
+// row) rather than a card grid, so it reads distinctly from the rails around
+// it. Stacks (cover+text, then rating+status) on mobile; one row on sm+.
+function TrendingList({
+  title, items, statusOf, onStatusChange,
+}: {
+  title: string
+  items: CatalogItem[]
+  statusOf: (it: CatalogItem) => ShelfStatus | null
+  onStatusChange: (it: CatalogItem, status: ShelfStatus) => void
+}) {
+  if (items.length === 0) return null
+  return (
+    <section className="mb-12">
+      <h2 className="mb-4 text-lg font-bold tracking-tight text-[var(--text)]">{title}</h2>
+      <div className="overflow-hidden rounded-2xl border border-[var(--border-subtle)]">
+        {items.slice(0, 10).map((it) => (
+          <div
+            key={it.id}
+            className="flex flex-col gap-3 border-b border-[var(--border-subtle)] p-3 transition-colors last:border-0 hover:bg-[var(--surface)] sm:flex-row sm:items-center"
+          >
+            <Link to={mediaPath(it)} className="flex min-w-0 flex-1 items-start gap-3">
+              <div className="relative h-20 w-14 flex-shrink-0 overflow-hidden rounded-md border border-[var(--border-subtle)] bg-[var(--container-2)]">
+                {it.coverUrl && <img src={it.coverUrl} alt={it.title} loading="lazy" className="h-full w-full object-cover" />}
+                <TypeBadge type={it.type} position="top-1 right-1" size="h-5 w-5" iconSize="h-2.5 w-2.5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold text-[var(--text)]">{it.title}</p>
+                <p className="truncate text-xs text-[var(--text-muted)]">
+                  {creditOf(it)}
+                  {it.year ? ` · ${it.year}` : ''}
+                </p>
+                {it.description && (
+                  <p className="mt-1 line-clamp-2 text-xs text-[var(--text-muted)]">{it.description}</p>
+                )}
+              </div>
+            </Link>
+
+            <div className="flex flex-shrink-0 items-center justify-between gap-3 sm:justify-end">
+              {it.communityRating > 0 && (
+                <span className="flex items-center gap-1 text-xs font-medium text-[var(--text-muted)]">
+                  <IoStar className="h-3.5 w-3.5 text-nonsprimaryfocus" />
+                  {it.communityRating.toFixed(1)}
+                </span>
+              )}
+              <ShelfStatusBar
+                item={shelfItemOf(it)}
+                currentStatus={statusOf(it)}
+                onStatusChange={(status) => onStatusChange(it, status)}
+                variant="button"
+              />
+            </div>
           </div>
         ))}
       </div>
@@ -664,10 +707,7 @@ function GenreExplorer({
 
   return (
     <section className="mb-12">
-      <div className="mb-1 flex items-center gap-2">
-        <IoSparklesOutline className="h-4 w-4 text-nonsprimaryfocus" />
-        <h2 className="text-lg font-bold tracking-tight text-[var(--text)]">{t('exploreByGenre')}</h2>
-      </div>
+      <h2 className="mb-1 text-lg font-bold tracking-tight text-[var(--text)]">{t('exploreByGenre')}</h2>
       <p className="mb-4 text-sm text-[var(--text-muted)]">{t('exploreByGenreSubtitle')}</p>
 
       {/* Genre pills. */}
@@ -731,12 +771,12 @@ function GenrePill({ label, count, active, onClick }: { label: string; count?: n
       onClick={onClick}
       className={`flex flex-shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-medium transition-colors ${
         active
-          ? 'border-nonsprimary bg-nonsprimary text-white'
+          ? 'border-[var(--border-strong)] bg-[var(--surface-active)] text-[var(--text)]'
           : 'border-[var(--border-subtle)] bg-[var(--surface)] text-[var(--text-muted)] hover:border-[var(--border)] hover:text-[var(--text)]'
       }`}
     >
       {label}
-      {count != null && <span className={active ? 'text-white/70' : 'text-[var(--text-muted)]'}>{count}</span>}
+      {count != null && <span className="text-[var(--text-muted)]">{count}</span>}
     </button>
   )
 }
