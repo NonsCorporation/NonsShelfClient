@@ -16,7 +16,6 @@ import { currentUser } from '../lib/user'
 import { isLibrarian } from '../services/librarianService'
 import LibrarianBadge from '../components/LibrarianBadge'
 import BoringAvatar from '../components/BoringAvatar'
-import Shelf12 from '../components/Shelf12'
 import { mediaPath } from '../lib/paths'
 import { STATUS_COLOR, statusLabel } from '../lib/shelf'
 import TypeBadge from '../components/TypeBadge'
@@ -248,10 +247,8 @@ export default function ProfilePage() {
 
   return (
     <Layout>
-      {/* On desktop the profile card and the shelf share a row; they stack on mobile. */}
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-stretch">
       {/* Profile card — identity, nons link, settings, stats */}
-      <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--container)] p-5 sm:p-6 lg:flex-1 lg:min-w-0">
+      <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--container)] p-5 sm:p-6">
         <div className="flex items-start gap-5">
           {profile.avatar ? (
             <img src={profile.avatar} alt={profile.name} className="h-20 w-20 flex-shrink-0 rounded-full object-cover" />
@@ -319,27 +316,6 @@ export default function ProfilePage() {
             </div>
           )}
         </div>
-      </div>
-
-      {/* Shelf — decorative bookshelf built from the user's top items */}
-      <div className="flex flex-col rounded-2xl border border-[var(--border-subtle)] bg-[var(--container)] p-5 sm:p-6 lg:flex-1 lg:min-w-0">
-        <div className="mb-3 flex items-center gap-2">
-          <IoLibraryOutline className="h-4 w-4 text-[var(--text-muted)]" />
-          <span className="text-sm font-semibold text-[var(--text)]">Shelf 12</span>
-        </div>
-        <div className="flex w-full flex-1 items-center">
-          <Shelf12
-            books={shown.slice(0, 12).map((it) => ({
-              title: it.title,
-              author: it.author,
-              year: it.year,
-              coverUrl: it.coverUrl,
-              rating: it.rating,
-              href: mediaPath(it),
-            }))}
-          />
-        </div>
-      </div>
       </div>
 
       {/* Friends — own profile only, separate card */}
