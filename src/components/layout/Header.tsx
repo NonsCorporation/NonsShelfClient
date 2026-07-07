@@ -132,7 +132,7 @@ export default function Header() {
           hidden ? '-translate-y-full' : 'translate-y-0'
         }`}
       >
-        <div className="mx-auto flex h-16 max-w-6xl items-center gap-3 px-4 md:px-8">
+        <div className="relative mx-auto flex h-16 max-w-6xl items-center gap-3 px-4 md:px-8">
           {/* Brand */}
           <Link to="/" className="group flex flex-shrink-0 items-center gap-2.5">
             <ShelfLogo className="h-6 w-6 text-white" />
@@ -141,8 +141,11 @@ export default function Header() {
             </span>
           </Link>
 
-          {/* Primary nav — desktop only, grouped in its own pill */}
-          <div className="ml-3 hidden items-center rounded-full border border-[var(--border-subtle)] bg-[var(--surface)] p-1 lg:flex">
+          {/* Search — sits next to the brand and expands rightward into the open space */}
+          <HeaderSearch />
+
+          {/* Primary nav — desktop only, grouped in its own pill, centered in the header */}
+          <div className="absolute left-1/2 hidden -translate-x-1/2 items-center rounded-full border border-[var(--border-subtle)] bg-[var(--surface)] p-1 lg:flex">
             <nav ref={navRef} className="relative flex items-center gap-1">
               {indicator && (
                 <span
@@ -186,7 +189,6 @@ export default function Header() {
                 )}
               </Link>
             )}
-            <HeaderSearch />
 
             {/* Account — desktop only; mobile uses the bottom-nav profile sheet */}
             {isAuthenticated && display ? (
