@@ -667,4 +667,8 @@ export const ru = {
   // Universes (franchises)
   universesTitle: 'Вселенные',
   universesSubtitle: 'Сериалы и фильмы, объединённые общей вселенной.',
+
+  // Shelf removal
+  removeFromShelf: 'Убрать с полки',
+  removeFromShelfConfirm: 'Это убирает книгу с вашей полки вместе с оценкой, рецензией и прогрессом. Позже её можно добавить снова.',
 };

@@ -667,4 +667,8 @@ export const ro = {
   // Universes (franchises)
   universesTitle: 'Universuri',
   universesSubtitle: 'Seriale și filme care fac parte dintr-un univers mai larg.',
+
+  // Shelf removal
+  removeFromShelf: 'Elimină de pe raft',
+  removeFromShelfConfirm: 'Astfel se elimină de pe raftul tău, împreună cu nota, recenzia și progresul. Poate fi adăugat din nou mai târziu.',
 };

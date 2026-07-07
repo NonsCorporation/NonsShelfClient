@@ -49,6 +49,10 @@ export default function DatePicker({ value, onChange, min, max, placeholder, ope
 
   const today = new Date()
   const todayYmd = ymd(today)
+  // UTC-midnight form of "today", matching how cells and min/max are compared
+  // (parseDate/ymd) — avoids the raw `today`'s time-of-day component tripping
+  // the isDisabled() range check near midnight in non-UTC timezones.
+  const todayAsUTC = parseDate(todayYmd)!
   const initYear = selected?.getUTCFullYear() ?? today.getFullYear()
   const initMonth = selected?.getUTCMonth() ?? today.getMonth()
 
@@ -322,8 +326,8 @@ export default function DatePicker({ value, onChange, min, max, placeholder, ope
           <div className="flex justify-center border-t border-[var(--border-subtle)] px-3 py-2">
             <button
               type="button"
-              onClick={() => select(today)}
-              disabled={isDisabled(today)}
+              onClick={() => select(todayAsUTC)}
+              disabled={isDisabled(todayAsUTC)}
               className="rounded-full bg-[var(--surface)] px-4 py-1.5 text-xs font-semibold text-nonsprimaryfocus transition-colors hover:bg-[var(--surface-hover)] disabled:cursor-not-allowed disabled:text-[var(--text-muted)] disabled:opacity-40"
             >
               {t('today') || 'Today'}

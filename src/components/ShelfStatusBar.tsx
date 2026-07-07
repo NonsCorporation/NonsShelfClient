@@ -2,7 +2,7 @@
 
 import { createPortal } from 'react-dom'
 import { useEffect, useRef, useState } from 'react'
-import { IoChevronDown, IoCheckmark, IoAdd, IoTrendingUpOutline, IoClose, IoFolderOutline, IoLayersOutline } from 'react-icons/io5'
+import { IoChevronDown, IoCheckmark, IoAdd, IoTrendingUpOutline, IoClose, IoFolderOutline, IoLayersOutline, IoTrashOutline } from 'react-icons/io5'
 import type { MediaItem, ShelfStatus } from '../types'
 import { STATUS_COLOR, statusLabel } from '../lib/shelf'
 import { useLanguage } from '../contexts/LanguageContext'
@@ -11,16 +11,20 @@ import { useLists } from '../contexts/ListContext'
 import { collectionService } from '../services/collectionService'
 import { listService } from '../services/listService'
 import { libraryService } from '../services/libraryService'
+import ConfirmModal from './ConfirmModal'
 
 type Props = {
   item: MediaItem
   currentStatus: ShelfStatus | null
   onStatusChange: (status: ShelfStatus) => void
   onEditProgress?: () => void
+  /** Shows a "Remove from shelf" action in the popover when the item is on
+   *  the shelf. Omit to hide it (e.g. surfaces with no sensible local reset). */
+  onRemove?: () => void
   variant?: 'bar' | 'button'
 }
 
-export default function ShelfStatusBar({ item, currentStatus, onStatusChange, onEditProgress, variant = 'bar' }: Props) {
+export default function ShelfStatusBar({ item, currentStatus, onStatusChange, onEditProgress, onRemove, variant = 'bar' }: Props) {
   const { t } = useLanguage()
   const { collections, createCollection, refresh } = useCollections()
   const { lists, createList, refresh: refreshLists } = useLists()
@@ -86,6 +90,7 @@ export default function ShelfStatusBar({ item, currentStatus, onStatusChange, on
   // at the bottom of the popover isn't cut off when there isn't enough room below.
   const [anchor, setAnchor] = useState<{ top?: number; bottom?: number; left: number; width: number; placement: 'up' | 'down' } | null>(null)
   const btnRef = useRef<HTMLDivElement>(null)
+  const [confirmingRemove, setConfirmingRemove] = useState(false)
 
   // holds state for the inline new-collection form
   const [creatingNew, setCreatingNew] = useState(false)
@@ -396,6 +401,20 @@ export default function ShelfStatusBar({ item, currentStatus, onStatusChange, on
           </button>
         )}
       </div>
+
+      {/* Remove entirely — clears the shelf entry (and its rating/review/note),
+          distinct from picking a status. Only shown once the item is on shelf. */}
+      {onShelf && onRemove && (
+        <div className="mt-3 border-t border-[var(--border-subtle)] pt-3">
+          <button
+            onClick={() => { setAnchor(null); setConfirmingRemove(true) }}
+            className="flex items-center gap-1.5 text-[11px] font-medium text-red-500 hover:opacity-70"
+          >
+            <IoTrashOutline className="h-3.5 w-3.5" />
+            {t('removeFromShelf') || 'Remove from shelf'}
+          </button>
+        </div>
+      )}
     </>
   )
 
@@ -451,6 +470,16 @@ export default function ShelfStatusBar({ item, currentStatus, onStatusChange, on
               <IoTrendingUpOutline className="h-4 w-4" />
             </button>
           )}
+
+          {onShelf && onRemove && (
+            <button
+              onClick={() => setConfirmingRemove(true)}
+              title={t('removeFromShelf') || 'Remove from shelf'}
+              className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-[var(--text-muted)] transition-colors hover:bg-red-500/10 hover:text-red-500"
+            >
+              <IoClose className="h-4 w-4" />
+            </button>
+          )}
         </div>
       )}
 
@@ -496,6 +525,18 @@ export default function ShelfStatusBar({ item, currentStatus, onStatusChange, on
         </div>
         ),
         document.body,
+      )}
+
+      {confirmingRemove && (
+        <ConfirmModal
+          title={t('removeFromShelf') || 'Remove from shelf'}
+          message={t('removeFromShelfConfirm') || 'This removes it from your shelf along with any rating, review and progress. It can be added back later.'}
+          confirmText={t('delete')}
+          cancelText={t('cancel')}
+          variant="danger"
+          onConfirm={() => { setConfirmingRemove(false); onRemove?.() }}
+          onCancel={() => setConfirmingRemove(false)}
+        />
       )}
     </>
   )

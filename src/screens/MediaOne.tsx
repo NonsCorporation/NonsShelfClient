@@ -405,6 +405,12 @@ export default function MediaOnePage({
     setItem(updated)
   }
 
+  const handleRemove = async () => {
+    if (!item) return
+    await libraryService.deleteItem(item.id)
+    loadItem()
+  }
+
   const handleRatingChange = async (val: number) => {
     setUserRating(val)
     await patch({ rating: val })
@@ -662,6 +668,7 @@ export default function MediaOnePage({
                     patch({ status: s })
                   }}
                   onEditProgress={status === 'active' ? () => setProgressOpen(true) : undefined}
+                  onRemove={handleRemove}
                 />
               </div>
               {/* Editable reading/watching period — once the item is on the shelf.

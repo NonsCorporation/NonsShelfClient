@@ -729,4 +729,8 @@ export const en = {
   // Universes (franchises)
   universesTitle: 'Universes',
   universesSubtitle: 'Series and films that share a wider universe.',
+
+  // Shelf removal
+  removeFromShelf: 'Remove from shelf',
+  removeFromShelfConfirm: 'This removes it from your shelf along with any rating, review and progress. It can be added back later.',
 };
