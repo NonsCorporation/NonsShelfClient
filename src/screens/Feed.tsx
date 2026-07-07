@@ -254,36 +254,14 @@ export default function FeedPage() {
 
       {/* Friends activity */}
       <section ref={activityRef} className="scroll-mt-4">
-        <h2 className="mb-3 flex items-center gap-2 text-base font-semibold text-[var(--text)]">
-          <IoPeopleOutline className="h-[18px] w-[18px] text-[var(--text-muted)]" />
-          {t('friendsActivity')}
-        </h2>
-
-        {!loading && activityTotal > 0 && (
-          <>
-            {/* Pulse — friends active recently; tap to open their profile. */}
-            {recentFriends.length > 0 && (
-              <div className="no-scrollbar -mx-1 mb-3 flex gap-3 overflow-x-auto px-1 pb-1">
-                {recentFriends.map((f) => (
-                  <Link
-                    key={f.handle}
-                    to={`/u/${f.handle}`}
-                    className="group/friend flex flex-shrink-0 flex-col items-center gap-1"
-                    title={f.name}
-                  >
-                    <span className="overflow-hidden rounded-full ring-2 ring-transparent transition-colors group-hover/friend:ring-nonsprimary" style={{ width: 40, height: 40 }}>
-                      {f.avatarUrl
-                        ? <img src={f.avatarUrl} alt={f.name} className="h-full w-full object-cover" />
-                        : <BoringAvatar size={40} name={f.handle} />}
-                    </span>
-                    <span className="max-w-[52px] truncate text-[10px] text-[var(--text-muted)] group-hover/friend:text-[var(--text)]">{f.name}</span>
-                  </Link>
-                ))}
-              </div>
-            )}
-
-            {/* Quiet type filter over the current page. */}
-            <div className="no-scrollbar mb-4 flex items-center gap-1.5 overflow-x-auto">
+        {/* Title + type filter share a row; the filter appears only with activity. */}
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <h2 className="flex items-center gap-2 text-base font-semibold text-[var(--text)]">
+            <IoPeopleOutline className="h-[18px] w-[18px] text-[var(--text-muted)]" />
+            {t('friendsActivity')}
+          </h2>
+          {!loading && activityTotal > 0 && (
+            <div className="no-scrollbar flex items-center gap-1.5 overflow-x-auto">
               {ACTIVITY_FILTERS.map((f) => {
                 const active = typeFilter === f.key
                 return (
@@ -301,7 +279,28 @@ export default function FeedPage() {
                 )
               })}
             </div>
-          </>
+          )}
+        </div>
+
+        {/* Pulse — friends active recently; tap to open their profile. */}
+        {!loading && activityTotal > 0 && recentFriends.length > 0 && (
+          <div className="no-scrollbar -mx-1 mb-4 flex gap-3 overflow-x-auto px-1 pb-1">
+            {recentFriends.map((f) => (
+              <Link
+                key={f.handle}
+                to={`/u/${f.handle}`}
+                className="group/friend flex flex-shrink-0 flex-col items-center gap-1"
+                title={f.name}
+              >
+                <span className="overflow-hidden rounded-full ring-2 ring-transparent transition-colors group-hover/friend:ring-nonsprimary" style={{ width: 40, height: 40 }}>
+                  {f.avatarUrl
+                    ? <img src={f.avatarUrl} alt={f.name} className="h-full w-full object-cover" />
+                    : <BoringAvatar size={40} name={f.handle} />}
+                </span>
+                <span className="max-w-[52px] truncate text-[10px] text-[var(--text-muted)] group-hover/friend:text-[var(--text)]">{f.name}</span>
+              </Link>
+            ))}
+          </div>
         )}
 
         {loading ? (
