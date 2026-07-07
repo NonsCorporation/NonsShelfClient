@@ -8,14 +8,15 @@ import { catalogService } from '../services/catalogService'
 import type { CatalogItem } from '../services/catalogService'
 import { libraryService } from '../services/libraryService'
 import { listService } from '../services/listService'
-import type { MediaItem, MediaType, ShelfStatus, CuratedListDiscoverEntry } from '../types'
+import { connectionService } from '../services/connectionService'
+import type { MediaItem, MediaType, ShelfStatus, CuratedListDiscoverEntry, Franchise } from '../types'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
 import { redirectToNonsLogin } from '../lib/api'
 import { initials, colorFor } from '../lib/user'
 import {
   IoStar, IoPeopleOutline, IoLogInOutline, IoSparklesOutline, IoArrowForward,
-  IoChevronBack, IoChevronForward, IoLayersOutline,
+  IoChevronBack, IoChevronForward, IoLayersOutline, IoPlanetOutline,
 } from 'react-icons/io5'
 import { mediaPath } from '../lib/paths'
 import TypeBadge from '../components/TypeBadge'
@@ -65,6 +66,7 @@ export default function DiscoverPage() {
   const [newestMovies, setNewestMovies] = useState<CatalogItem[]>([])
   const [spotlights, setSpotlights] = useState<Record<MediaType, CatalogItem[]> | null>(null)
   const [curatedLists, setCuratedLists] = useState<CuratedListDiscoverEntry[]>([])
+  const [universes, setUniverses] = useState<Franchise[]>([])
   const [libItems, setLibItems] = useState<Map<string, MediaItem>>(new Map())
   const [added, setAdded] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
@@ -113,6 +115,11 @@ export default function DiscoverPage() {
   // Curated lists don't scope by type/filter — fetched once.
   useEffect(() => {
     listService.discoverLists(8).then(setCuratedLists).catch(() => {})
+  }, [])
+
+  // Universes (franchises) — shared catalog data, not scoped by type/filter.
+  useEffect(() => {
+    connectionService.searchFranchises('').then(setUniverses).catch(() => {})
   }, [])
 
   const inLibrary = (it: CatalogItem) => libItems.has(keyOf(it)) || added.has(keyOf(it))
@@ -279,6 +286,9 @@ export default function DiscoverPage() {
 
           {/* ── Community curated lists ── */}
           <CuratedListsRail lists={curatedLists} />
+
+          {/* ── Universes (franchises) — shared catalog groupings ── */}
+          <UniversesRail universes={universes} t={t} />
 
           {/* ── Trending — a compact list with covers, distinct from the card rails ── */}
           <TrendingList title={t('trendingNow')} items={trending} statusOf={statusOf} onStatusChange={handleStatusChange} />
@@ -681,6 +691,64 @@ function ListCard({ list, big }: { list: CuratedListDiscoverEntry; big?: boolean
           )}
           <span className="flex-shrink-0">{list.count} item{list.count !== 1 ? 's' : ''}</span>
         </div>
+      </div>
+    </Link>
+  )
+}
+
+// Universes — shared-catalog franchises (Marvel/Wizarding World-style groupings
+// of series and standalone works), shown as a fanned-cover tile (same visual
+// language as curated lists), using a preview of member covers from the API.
+function UniversesRail({ universes, t }: { universes: Franchise[]; t: Translate }) {
+  if (universes.length === 0) return null
+  return (
+    <section className="mb-12">
+      <div className="mb-1 flex items-center gap-2">
+        <IoPlanetOutline className="h-4 w-4 text-nonsprimaryfocus" />
+        <h2 className="text-lg font-bold tracking-tight text-[var(--text)]">{t('universesTitle')}</h2>
+      </div>
+      <p className="mb-4 text-sm text-[var(--text-muted)]">{t('universesSubtitle')}</p>
+      <div className="no-scrollbar -mx-1 flex items-stretch gap-4 overflow-x-auto px-1 pb-1">
+        {universes.map((f) => (
+          <UniverseCard key={f.uuid} franchise={f} />
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function UniverseCard({ franchise }: { franchise: Franchise }) {
+  const covers = (franchise.cover_urls ?? []).slice(0, 4)
+  return (
+    <Link
+      to={`/franchise/${franchise.uuid}`}
+      className="group relative flex aspect-[4/5] w-44 flex-shrink-0 flex-col overflow-hidden rounded-2xl border border-[var(--border-subtle)] bg-gradient-to-br from-[var(--primary-soft)] via-[var(--container-2)] to-[var(--container-2)] transition-transform hover:-translate-y-1 sm:w-52"
+    >
+      {/* Floating, fanned covers — same visual language as a curated list's tile. */}
+      <div className="relative flex flex-1 items-center justify-center overflow-hidden">
+        {covers.length > 0 ? (
+          covers.map((c, i, arr) => (
+            <div
+              key={i}
+              style={{
+                transform: `rotate(${(i - (arr.length - 1) / 2) * 9}deg) translateX(${(i - (arr.length - 1) / 2) * 18}px)`,
+                zIndex: i,
+              }}
+              className="absolute h-20 w-14 overflow-hidden rounded-lg border-2 border-[var(--container)] shadow-xl transition-transform duration-300 group-hover:scale-105"
+            >
+              <img src={c} alt="" loading="lazy" className="h-full w-full object-cover" />
+            </div>
+          ))
+        ) : (
+          <IoPlanetOutline className="h-10 w-10 text-[var(--text-muted)]" />
+        )}
+      </div>
+      <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
+      <div className="relative mt-auto p-3">
+        <p className="truncate text-sm font-semibold text-white">{franchise.name}</p>
+        {typeof franchise.count === 'number' && franchise.count > 0 && (
+          <p className="mt-1 text-xs text-white/70">{franchise.count} work{franchise.count !== 1 ? 's' : ''}</p>
+        )}
       </div>
     </Link>
   )

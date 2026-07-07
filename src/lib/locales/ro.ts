@@ -663,4 +663,8 @@ export const ro = {
 
   // Lists
   listsInfoTooltip: 'Listele sunt publice — oricine are linkul le poate vedea, chiar și fără cont. Folosește-le ca recomandări curate (ex. „Cel mai bun sci-fi al deceniului”) și distribuie linkul prietenilor sau pe Nons.',
+
+  // Universes (franchises)
+  universesTitle: 'Universuri',
+  universesSubtitle: 'Seriale și filme care fac parte dintr-un univers mai larg.',
 };

@@ -84,6 +84,11 @@ export type Franchise = {
   name: string
   description?: string
   created_at?: number
+  /** A few member covers (member order), for fanned-cover tiles — present
+   *  only from the Discover-facing list endpoint, not the librarian picker. */
+  cover_urls?: string[]
+  /** Total works in the franchise — same endpoint as cover_urls. */
+  count?: number
 }
 
 export type RelationKind = 'adaptation' | 'novelization' | 'remake' | 'companion' | 'crossover'

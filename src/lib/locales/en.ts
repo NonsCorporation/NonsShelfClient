@@ -725,4 +725,8 @@ export const en = {
 
   // Lists
   listsInfoTooltip: "Lists are public — anyone with the link can view them, even signed out. Use them as curated recommendations (e.g. \"Best sci-fi of the decade\") and share the link with friends or post it to Nons.",
+
+  // Universes (franchises)
+  universesTitle: 'Universes',
+  universesSubtitle: 'Series and films that share a wider universe.',
 };
