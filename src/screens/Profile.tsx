@@ -5,10 +5,11 @@ import { ProfileSkeleton } from '../components/Skeletons'
 import ImportModal from '../components/ImportModal'
 import SettingsModal from '../components/SettingsModal'
 import { libraryService } from '../services/libraryService'
+import { collectionService } from '../services/collectionService'
 import Pagination from '../components/Pagination'
 import { fetchPublicProfile } from '../services/userService'
 import { nonsProfileUrl, nonsFetch, authedFetch } from '../lib/api'
-import type { MediaItem, ShelfStatus } from '../types'
+import type { MediaItem, ShelfStatus, Collection } from '../types'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
 import { useCollections } from '../contexts/CollectionContext'
@@ -85,6 +86,11 @@ export default function ProfilePage() {
   const [postCommentCounts, setPostCommentCounts] = useState<Record<string, number>>({})
   const postsRef = useRef<HTMLElement>(null)
   const { collections } = useCollections()
+  // Another user's collections (view/filter only, public — same visibility as
+  // their shelf). Empty when viewing your own profile (collections comes from
+  // the context above instead) or when their shelf is private.
+  const [otherCollections, setOtherCollections] = useState<Collection[]>([])
+  const shownCollections = isSelf ? collections : otherCollections
 
 
   useEffect(() => {
@@ -93,6 +99,10 @@ export default function ProfilePage() {
     setLoading(true)
     setNotFound(false)
     setPostsPage(0)
+    // A collection filter is a specific collection's numeric id — meaningless
+    // (and silently wrong, not just stale) once we're looking at a different
+    // user's collections, so it must not carry over across a profile switch.
+    setCollectionFilter(null)
 
     const mine = !routeId || routeId === authUser?.username || routeId === authUser?.uuid
 
@@ -109,6 +119,7 @@ export default function ProfilePage() {
           role: authUser?.role,
         })
         setItems(its)
+        setOtherCollections([])
         // Import friends from nons (best-effort — silently ignored if unreachable).
         try {
           const res = await nonsFetch('/api/friendships/friends?limit=100')
@@ -143,9 +154,13 @@ export default function ProfilePage() {
           }
         } catch { /* library server unreachable — no badge */ }
         setProfile({ id: p.id, name: p.name, handle: p.username, avatar: p.avatarUrl || '', role: userRole })
-        const its = await libraryService.getUserItems(p.id)
+        const [its, theirCollections] = await Promise.all([
+          libraryService.getUserItems(p.id),
+          collectionService.getUserCollections(p.id),
+        ])
         if (cancelled) return
         setItems(its)
+        setOtherCollections(theirCollections)
       }
       if (!cancelled) setLoading(false)
     }
@@ -383,10 +398,10 @@ export default function ProfilePage() {
         ))}
       </div>
 
-      {/* Collection chips — own profile only */}
-      {isSelf && collections.length > 0 && (
+      {/* Collection chips — own (editable elsewhere) or another user's (view/filter only) */}
+      {shownCollections.length > 0 && (
         <div className="no-scrollbar -mx-4 mt-3 flex items-center gap-1.5 overflow-x-auto px-4">
-          {collections.map((col) => {
+          {shownCollections.map((col) => {
             const active = collectionFilter === col.id
             return (
               <button
