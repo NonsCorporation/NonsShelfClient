@@ -21,10 +21,14 @@ export type Spotlights = { book: CatalogItem[]; movie: CatalogItem[]; series: Ca
 // scope → query string. "all" (undefined) omits the type param.
 const scope = (type?: MediaType) => (type ? `?type=${type}` : '')
 
+// Discovery data is live, so every call bypasses the HTTP cache — the browser
+// must never replay a stale "newest/trending" snapshot from an earlier fetch.
+const noCache: RequestInit = { cache: 'no-store' }
+
 // Fetches a section that returns { items: [...media rows...] }.
 async function items(path: string): Promise<CatalogItem[]> {
   try {
-    const res = await authedFetch(path)
+    const res = await authedFetch(path, noCache)
     if (!res.ok) return []
     const data = (await res.json()) as { items?: BackendMedia[] }
     return (data.items ?? []).map(mapMedia)
@@ -41,7 +45,7 @@ export const discoverService = {
 
   async spotlights(): Promise<Spotlights> {
     try {
-      const res = await authedFetch('/api/discover/spotlights')
+      const res = await authedFetch('/api/discover/spotlights', noCache)
       if (!res.ok) return { book: [], movie: [], series: [] }
       const d = (await res.json()) as Record<'book' | 'movie' | 'series', BackendMedia[] | undefined>
       return {
@@ -56,7 +60,7 @@ export const discoverService = {
 
   async genres(type?: MediaType): Promise<DiscoverGenre[]> {
     try {
-      const res = await authedFetch(`/api/discover/genres${scope(type)}`)
+      const res = await authedFetch(`/api/discover/genres${scope(type)}`, noCache)
       if (!res.ok) return []
       const d = (await res.json()) as { genres?: { genre: string; items?: BackendMedia[] }[] }
       return (d.genres ?? []).map((g) => ({ genre: g.genre, items: (g.items ?? []).map(mapMedia) }))
@@ -67,7 +71,7 @@ export const discoverService = {
 
   async people(type?: MediaType): Promise<DiscoverPerson[]> {
     try {
-      const res = await authedFetch(`/api/discover/people${scope(type)}`)
+      const res = await authedFetch(`/api/discover/people${scope(type)}`, noCache)
       if (!res.ok) return []
       const d = (await res.json()) as {
         people?: { key: string; name: string; role: 'author' | 'director'; uuid?: string; works?: BackendMedia[] }[]

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from '@/lib/router'
 import Layout from '../components/layout/Layout'
 import CatalogCard from '../components/CatalogCard'
@@ -25,7 +25,6 @@ import TypeBadge from '../components/TypeBadge'
 
 type Translate = (k: string, v?: Record<string, string | number>) => string
 
-const keyOf = (it: { type: string; title: string }) => `${it.type}:${it.title.trim().toLowerCase()}`
 const creditOf = (it: CatalogItem) => (it.type === 'book' ? it.author : it.director || it.author)
 // Builds the minimal MediaItem shape ShelfStatusBar needs from a catalog row.
 const shelfItemOf = (it: CatalogItem): MediaItem => ({
@@ -64,7 +63,11 @@ export default function DiscoverPage() {
   const [creators, setCreators] = useState<Creator[]>([])
   const [curatedLists, setCuratedLists] = useState<CuratedListDiscoverEntry[]>([])
   const [universes, setUniverses] = useState<Franchise[]>([])
-  const [libItems, setLibItems] = useState<Map<string, MediaItem>>(new Map())
+  // The viewer's shelf status per media id, for only the items currently shown
+  // (badging "in library" / the status picker). Fetched in one batched lookup
+  // by id — like the search page — instead of pulling the whole library. Keyed
+  // by media id (a string), same id the catalog rows carry.
+  const [shelfStatus, setShelfStatus] = useState<Map<string, ShelfStatus>>(new Map())
   const [added, setAdded] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
   const [finishItem, setFinishItem] = useState<CatalogItem | null>(null)
@@ -108,10 +111,26 @@ export default function DiscoverPage() {
     }
   }, [typeFilter, scopeType])
 
+  // The unique media ids across every section currently rendered — the set we
+  // need shelf statuses for.
+  const shownIds = useMemo(() => {
+    const ids = new Set<string>()
+    const add = (arr: CatalogItem[]) => arr.forEach((it) => ids.add(it.id))
+    add(hero); add(trending); add(newest); add(newReleases); add(newestBooks); add(newestMovies)
+    if (spotlights) { add(spotlights.book); add(spotlights.movie); add(spotlights.series) }
+    genres.forEach((g) => add(g.items))
+    creators.forEach((c) => add(c.works))
+    return [...ids]
+  }, [hero, trending, newest, newReleases, newestBooks, newestMovies, spotlights, genres, creators])
+
+  // Batch-fetch shelf statuses for exactly the shown items (one small request),
+  // instead of downloading the whole library to badge cards.
   useEffect(() => {
-    if (authLoading || !isAuthenticated) return
-    libraryService.getItems().then((lib) => setLibItems(new Map(lib.map((it) => [keyOf(it), it])))).catch(() => {})
-  }, [authLoading, isAuthenticated])
+    if (authLoading || !isAuthenticated || shownIds.length === 0) return
+    let cancelled = false
+    libraryService.getStatuses(shownIds).then((m) => { if (!cancelled) setShelfStatus(m) }).catch(() => {})
+    return () => { cancelled = true }
+  }, [authLoading, isAuthenticated, shownIds])
 
   // Curated lists don't scope by type/filter — fetched once.
   useEffect(() => {
@@ -123,9 +142,9 @@ export default function DiscoverPage() {
     connectionService.searchFranchises('').then(setUniverses).catch(() => {})
   }, [])
 
-  const inLibrary = (it: CatalogItem) => libItems.has(keyOf(it)) || added.has(keyOf(it))
+  const inLibrary = (it: CatalogItem) => shelfStatus.has(it.id) || added.has(it.id)
   const statusOf = (it: CatalogItem): ShelfStatus | null =>
-    libItems.get(keyOf(it))?.status ?? (added.has(keyOf(it)) ? 'wishlist' : null)
+    shelfStatus.get(it.id) ?? (added.has(it.id) ? 'wishlist' : null)
 
   const handleAdd = async (it: CatalogItem) => {
     if (!isAuthenticated) {
@@ -137,7 +156,8 @@ export default function DiscoverPage() {
       coverUrl: it.coverUrl, year: it.year, genre: it.genre, description: it.description, status: 'wishlist',
     }
     await libraryService.addItem(payload)
-    setAdded((prev) => new Set(prev).add(keyOf(it)))
+    setShelfStatus((prev) => new Map(prev).set(it.id, 'wishlist'))
+    setAdded((prev) => new Set(prev).add(it.id))
   }
   // Pass an add handler only to signed-in users; anonymous cards hide the button.
   const addProp = (it: CatalogItem) => (isAuthenticated ? () => handleAdd(it) : undefined)
@@ -156,16 +176,18 @@ export default function DiscoverPage() {
       setFinishItem(it)
       return
     }
-    const key = keyOf(it)
-    const existing = libItems.get(key)
-    const updated = existing
-      ? await libraryService.updateItem(existing.id, { status })
-      : await libraryService.addItem({
-          id: it.id, type: it.type, title: it.title, author: it.author, director: it.director,
-          coverUrl: it.coverUrl, year: it.year, genre: it.genre, description: it.description, status,
-        })
-    setLibItems((prev) => new Map(prev).set(key, updated))
-    setAdded((prev) => new Set(prev).add(key))
+    // On the shelf already? patch its status; otherwise add it. Both address the
+    // catalog row by its media id, so no full-library copy is needed.
+    if (shelfStatus.has(it.id)) {
+      await libraryService.updateItem(it.id, { status })
+    } else {
+      await libraryService.addItem({
+        id: it.id, type: it.type, title: it.title, author: it.author, director: it.director,
+        coverUrl: it.coverUrl, year: it.year, genre: it.genre, description: it.description, status,
+      })
+    }
+    setShelfStatus((prev) => new Map(prev).set(it.id, status))
+    setAdded((prev) => new Set(prev).add(it.id))
   }
 
   const toggles: { key: TypeFilter; label: string }[] = [
@@ -268,11 +290,8 @@ export default function DiscoverPage() {
         onFinished={() => {
           const it = finishItem!
           setFinishItem(null)
-          const key = keyOf(it)
-          libraryService.getItem(it.id).then((full) => {
-            if (full) setLibItems((prev) => new Map(prev).set(key, full))
-          }).catch(() => {})
-          setAdded((prev) => new Set(prev).add(key))
+          setShelfStatus((prev) => new Map(prev).set(it.id, 'done'))
+          setAdded((prev) => new Set(prev).add(it.id))
         }}
       />
     </Layout>
