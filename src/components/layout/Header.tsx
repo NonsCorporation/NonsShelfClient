@@ -18,7 +18,8 @@ import {
 } from 'react-icons/io5'
 import type { IconType } from 'react-icons'
 import { HiOutlineLibrary } from 'react-icons/hi'
-import { useLanguage, type Language } from '../../contexts/LanguageContext'
+import { useLanguage } from '../../contexts/LanguageContext'
+import LanguageSelect from '../LanguageSelect'
 import { useAuth } from '../../contexts/AuthContext'
 import { useNotifications } from '../../contexts/NotificationContext'
 import { redirectToNonsLogin, NONS_LOGIN_URL } from '../../lib/api'
@@ -242,15 +243,7 @@ export default function Header() {
                         {t('language')}
                       </p>
                       <div className="px-2 pb-2">
-                        <select
-                          value={language}
-                          onChange={(e) => setLanguage(e.target.value as Language)}
-                          className="w-full rounded-md border border-[var(--border)] bg-[var(--border-subtle)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-nonsprimary focus:border-transparent"
-                        >
-                          <option value="en">🇺🇸 English</option>
-                          <option value="ru">🇷🇺 Русский</option>
-                          <option value="ro">🇷🇴 Română</option>
-                        </select>
+                        <LanguageSelect value={language} onChange={setLanguage} />
                       </div>
                     </div>
 
@@ -350,15 +343,7 @@ export default function Header() {
                 <div className="h-px bg-[var(--border-subtle)]" />
 
                 <div className="p-3">
-                  <select
-                    value={language}
-                    onChange={(e) => setLanguage(e.target.value as Language)}
-                    className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] p-2 text-sm text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-nonsprimary"
-                  >
-                    <option value="en">🇺🇸 English</option>
-                    <option value="ru">🇷🇺 Русский</option>
-                    <option value="ro">🇷🇴 Română</option>
-                  </select>
+                  <LanguageSelect value={language} onChange={setLanguage} />
                 </div>
 
                 {/* renders librarian link for authorized accounts */}

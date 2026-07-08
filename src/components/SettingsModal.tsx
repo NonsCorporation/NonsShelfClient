@@ -12,7 +12,8 @@ import {
 } from 'react-icons/io5'
 import { useState } from 'react'
 import type { IconType } from 'react-icons'
-import { useLanguage, type Language } from '../contexts/LanguageContext'
+import { useLanguage } from '../contexts/LanguageContext'
+import LanguageSelect from './LanguageSelect'
 import {
   usePreferences,
   PRIVACY_FACETS,
@@ -110,15 +111,7 @@ export default function SettingsModal({ isOpen, onClose, onOpenImport }: Props) 
               {/* Language */}
               <div className="flex flex-col gap-1.5">
                 <span className="text-sm text-[var(--text)]">{t('language')}</span>
-                <select
-                  value={language}
-                  onChange={(e) => setLanguage(e.target.value as Language)}
-                  className="w-full rounded-md border border-[var(--border)] bg-[var(--border-subtle)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-nonsprimary focus:border-transparent"
-                >
-                  <option value="en">🇺🇸 English</option>
-                  <option value="ru">🇷🇺 Русский</option>
-                  <option value="ro">🇷🇴 Română</option>
-                </select>
+                <LanguageSelect value={language} onChange={setLanguage} />
               </div>
 
               {/* Preferred display language for movies/series */}
