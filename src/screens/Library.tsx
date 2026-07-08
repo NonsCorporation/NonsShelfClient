@@ -600,10 +600,29 @@ export default function LibraryScreen() {
   }, [params, setParams])
 
   // Reset to page 1 whenever local filter states change (sort/shelf/collection
-  // already reset page inside their URL-param setters).
+  // already reset page inside their URL-param setters). Compares against the
+  // *previous values*, not just "have I run before": React 18 Strict Mode
+  // (Next's dev server) invokes a fresh mount's effects twice with no render
+  // in between, so a simple "skip the first run" flag still fires on the
+  // second of those two invocations and strips a page param that was just
+  // correctly restored (e.g. by browser back to /library?page=3). Comparing
+  // values makes this idempotent regardless of how many times it's invoked
+  // for the same underlying filters.
+  const prevFiltersRef = useRef({
+    query, typeFilter, genreFilter, yearFilter, authorFilter, directorFilter,
+    actorFilter, hasRating, hasReview, addedFrom, addedTo, finishedFrom, finishedTo, compareFilter,
+  })
   useEffect(() => {
-    const cur = Number(params.get('page') || '1')
-    if (cur <= 1) return
+    const cur = {
+      query, typeFilter, genreFilter, yearFilter, authorFilter, directorFilter,
+      actorFilter, hasRating, hasReview, addedFrom, addedTo, finishedFrom, finishedTo, compareFilter,
+    }
+    const prev = prevFiltersRef.current
+    prevFiltersRef.current = cur
+    const changed = (Object.keys(cur) as (keyof typeof cur)[]).some((k) => cur[k] !== prev[k])
+    if (!changed) return
+    const curPage = Number(params.get('page') || '1')
+    if (curPage <= 1) return
     const next = new URLSearchParams(params)
     next.delete('page')
     setParams(next, { replace: true })
