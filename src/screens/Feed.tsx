@@ -254,14 +254,17 @@ export default function FeedPage() {
 
       {/* Friends activity */}
       <section ref={activityRef} className="scroll-mt-4">
-        {/* Title + type filter share a row; the filter appears only with activity. */}
-        <div className="mb-3 flex items-center justify-between gap-3">
-          <h2 className="flex items-center gap-2 text-base font-semibold text-[var(--text)]">
+        {/* Type filter sits on its own row above the title, so both stay a
+            straight, uncrowded line on mobile. */}
+        {/* Mobile: filter row above the title (its own line). Desktop (sm+):
+            back on the same row as the title, right-aligned. */}
+        <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+          <h2 className="order-2 flex items-center gap-2 text-base font-semibold text-[var(--text)] sm:order-1">
             <IoPeopleOutline className="h-[18px] w-[18px] text-[var(--text-muted)]" />
             {t('friendsActivity')}
           </h2>
           {!loading && activityTotal > 0 && (
-            <div className="no-scrollbar flex items-center gap-1.5 overflow-x-auto">
+            <div className="no-scrollbar order-1 flex items-center gap-1.5 overflow-x-auto sm:order-2">
               {ACTIVITY_FILTERS.map((f) => {
                 const active = typeFilter === f.key
                 return (

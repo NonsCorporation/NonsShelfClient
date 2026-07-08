@@ -197,22 +197,22 @@ export default function ActivityCard({
             <BoringAvatar size={36} name={`user-${a.userId}`} />
           )}
         </Link>
-        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-1.5 text-sm leading-6 text-[var(--text)]">
-          <Link to={userPath(a.user.handle || a.user.uuid || '')} className="font-semibold hover:underline">
+        <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden whitespace-nowrap text-sm leading-6 text-[var(--text)]">
+          <Link to={userPath(a.user.handle || a.user.uuid || '')} className="flex-shrink-0 font-semibold hover:underline">
             {a.user.name}
           </Link>
-          {isLibrarian(a.user.role) && <LibrarianBadge className="h-4 w-4" />}
-          <span className="text-[var(--text-muted)]">{t(VERB_KEY[a.type])}</span>
-          <Link to={to} className="font-semibold hover:text-nonsprimary">
+          {isLibrarian(a.user.role) && <LibrarianBadge className="h-4 w-4 flex-shrink-0" />}
+          <span className="flex-shrink-0 text-[var(--text-muted)]">{t(VERB_KEY[a.type])}</span>
+          <Link to={to} className="min-w-0 flex-1 truncate font-semibold hover:text-nonsprimary">
             {a.mediaTitle}
           </Link>
           {showStars && (
-            <span className="ml-0.5 inline-flex">
+            <span className="ml-0.5 inline-flex flex-shrink-0">
               <Stars rating={a.rating!} />
             </span>
           )}
           {progressText && (
-            <span className="ml-0.5 inline-flex items-center rounded-full bg-[var(--primary-soft)] px-2 py-0.5 text-xs font-medium text-[var(--text)]">
+            <span className="ml-0.5 inline-flex flex-shrink-0 items-center rounded-full bg-[var(--primary-soft)] px-2 py-0.5 text-xs font-medium text-[var(--text)]">
               {progressText}
             </span>
           )}
