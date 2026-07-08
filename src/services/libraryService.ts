@@ -180,6 +180,11 @@ export interface LibraryPage {
 
 export interface ILibraryService {
   getItems(): Promise<MediaItem[]>
+  /** The signed-in user's shelf status for a set of media ids — only ids that
+   *  are on their shelf are present in the returned map. A cheap, targeted read
+   *  (one small query) for badging a results grid, instead of fetching the whole
+   *  shelf via getItems(). Empty input ⇒ empty map, no request. */
+  getStatuses(mediaIds: string[]): Promise<Map<string, ShelfStatus>>
   /** Another user's public library (shelf + ratings), for their profile page. */
   getUserItems(userId: number): Promise<MediaItem[]>
   /** One page of the signed-in user's shelf, filtered/sorted server-side —
@@ -246,6 +251,17 @@ export interface ILibraryService {
 class ApiLibraryService implements ILibraryService {
   // The library view is the user's shelf, enriched with their favorites and
   // ratings (both keyed by media id).
+  async getStatuses(mediaIds: string[]): Promise<Map<string, ShelfStatus>> {
+    const out = new Map<string, ShelfStatus>()
+    const ids = mediaIds.map((id) => id.trim()).filter(Boolean)
+    if (ids.length === 0) return out
+    const res = await authedFetch(`/api/shelf/statuses?ids=${encodeURIComponent(ids.join(','))}`)
+    if (!res.ok) return out
+    const data: { statuses?: Record<string, ShelfStatus> } = await res.json()
+    for (const [id, status] of Object.entries(data.statuses ?? {})) out.set(id, status)
+    return out
+  }
+
   async getItems(): Promise<MediaItem[]> {
     const [shelfRes, favRes, ratRes] = await Promise.all([
       authedFetch('/api/shelf'),

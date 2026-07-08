@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams, Link } from '@/lib/router'
 import Layout from '../components/layout/Layout'
 import CatalogCard from '../components/CatalogCard'
@@ -60,6 +60,23 @@ export default function SearchPage() {
   const [people, setPeople] = useState<PersonHit[]>([])
   const [peopleLoading, setPeopleLoading] = useState(false)
 
+  // Badge the given results with the user's shelf status, fetching status for
+  // only those media ids (one small query) instead of pulling the whole shelf.
+  // Merges into the existing map (keyed by keyOf) so it can top up appended
+  // "Load more" pages without clobbering statuses already shown.
+  const seedStatuses = useCallback(async (list: CatalogItem[]) => {
+    const byId = await libraryService.getStatuses(list.map((it) => it.id))
+    if (byId.size === 0) return
+    setStatusByKey((prev) => {
+      const next = new Map(prev)
+      for (const it of list) {
+        const s = byId.get(it.id)
+        if (s) next.set(keyOf(it), s)
+      }
+      return next
+    })
+  }, [])
+
   useEffect(() => {
     // All setState happens inside the debounce callback (never synchronously in
     // the effect body), so this doesn't trigger cascading renders.
@@ -74,13 +91,14 @@ export default function SearchPage() {
       setImporting(false)
       setPage(0)
       setExhausted(false)
-      const [cat, lib] = await Promise.all([catalogService.getCatalog(q), libraryService.getItems()])
-      setStatusByKey(new Map(lib.filter((i) => i.status).map((i) => [keyOf(i), i.status as ShelfStatus])))
+      setStatusByKey(new Map()) // clear the previous query's badges
+      const cat = await catalogService.getCatalog(q)
       if (cat.length > 0) {
         // Local hits exist — show them immediately. External results are pulled in
         // on demand via "Load more" so a single local match doesn't hide the rest.
         setCatalog(cat)
         setLoading(false)
+        void seedStatuses(cat)
         if (cat.some((it) => (it.relevance ?? 0) >= STRONG_MATCH)) return
         // Every local hit is only a weak fuzzy match (shares a word with the
         // query, e.g. "project hail" -> "The Phoenix Project") — the result the
@@ -91,7 +109,10 @@ export default function SearchPage() {
         setImporting(true)
         const fill = await catalogService.searchFill(q, { limit: 5, series: true, force: true })
         setImporting(false)
-        if (fill.items.length > 0) setCatalog(fill.items)
+        if (fill.items.length > 0) {
+          setCatalog(fill.items)
+          void seedStatuses(fill.items)
+        }
         return
       }
       // Nothing in local catalog — auto-import books, movies and series in parallel.
@@ -100,9 +121,10 @@ export default function SearchPage() {
       const fill = await catalogService.searchFill(q, { limit: 5, series: true })
       setImporting(false)
       setCatalog(fill.items)
+      void seedStatuses(fill.items)
     }, q ? 300 : 0)
     return () => clearTimeout(timer)
-  }, [q])
+  }, [q, seedStatuses])
 
   // People tab: debounced fuzzy name search against its own endpoint, only
   // while active — no external-source import step, unlike the catalog search.
@@ -137,16 +159,16 @@ export default function SearchPage() {
     setLoadingMore(true)
     try {
       const fill = await catalogService.searchFill(q, { limit: nextPage * BATCH, series: true, force: true })
-      let appended = 0
+      let added: CatalogItem[] = []
       setCatalog((prev) => {
         const seenIds = new Set(prev.map((it) => it.id))
         const seenKeys = new Set(prev.map(keyOf))
-        const extra = fill.items.filter((it) => !seenIds.has(it.id) && !seenKeys.has(keyOf(it)))
-        appended = extra.length
-        return [...prev, ...extra]
+        added = fill.items.filter((it) => !seenIds.has(it.id) && !seenKeys.has(keyOf(it)))
+        return [...prev, ...added]
       })
       setPage(nextPage)
-      if (appended === 0) setExhausted(true)
+      if (added.length === 0) setExhausted(true)
+      else void seedStatuses(added)
     } finally {
       setLoadingMore(false)
     }
