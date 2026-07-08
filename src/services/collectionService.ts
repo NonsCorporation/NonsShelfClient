@@ -8,6 +8,15 @@ async function listCollections(): Promise<Collection[]> {
   return (data.collections ?? []) as Collection[]
 }
 
+// Another user's collections (read-only) — for their profile/library page.
+// Empty when their shelf is private or they have none.
+async function getUserCollections(userId: number): Promise<Collection[]> {
+  const res = await authedFetch(`/api/users/${userId}/collections`)
+  if (!res.ok) return []
+  const data = await res.json()
+  return (data.collections ?? []) as Collection[]
+}
+
 async function createCollection(name: string): Promise<Collection> {
   const res = await authedFetch('/api/collections', {
     method: 'POST',
@@ -56,6 +65,7 @@ async function setItemCollections(mediaId: string, collectionIds: number[]): Pro
 
 export const collectionService = {
   listCollections,
+  getUserCollections,
   createCollection,
   renameCollection,
   deleteCollection,

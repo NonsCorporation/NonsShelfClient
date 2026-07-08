@@ -37,6 +37,7 @@ import Pagination from '../components/Pagination.tsx'
 import InfoTooltip from '../components/InfoTooltip.tsx'
 import { libraryService } from '../services/libraryService.ts'
 import type { LibrarySearchQuery } from '../services/libraryService.ts'
+import { collectionService } from '../services/collectionService.ts'
 import { fetchPublicProfile } from '../services/userService.ts'
 import type { MediaItem, Collection } from '../types.ts'
 import { useLanguage } from '../contexts/LanguageContext.tsx'
@@ -99,6 +100,10 @@ export default function LibraryScreen() {
   const readOnly = !!userParam && !!authUser && userParam !== authUser.username && userParam !== authUser.uuid
   const [ownerName, setOwnerName] = useState('')
   const [notFound, setNotFound] = useState(false)
+  // Another user's collections (read-only, view/filter only — no create/rename/
+  // delete). Empty when their shelf is private or they have none.
+  const [otherCollections, setOtherCollections] = useState<Collection[]>([])
+  const visibleCollections = readOnly ? otherCollections : collections
 
   // Local search — filters the user's own library. The global top-bar search
   // goes to Discover and searches the whole catalog instead. Debounced before
@@ -193,15 +198,22 @@ export default function LibraryScreen() {
           return
         }
         setOwnerName(p.name || p.username)
-        // Their library + my own library (for the per-item shelf comparison).
-        const [theirs, mine] = await Promise.all([libraryService.getUserItems(p.id), libraryService.getItems()])
+        // Their library + their collections + my own library (for the
+        // per-item shelf comparison).
+        const [theirs, theirCollections, mine] = await Promise.all([
+          libraryService.getUserItems(p.id),
+          collectionService.getUserCollections(p.id),
+          libraryService.getItems(),
+        ])
         if (cancelled) return
         setMyByMediaId(new Map(mine.map((m) => [m.id, { status: m.status, rating: m.rating }])))
         setItems(theirs)
         setTotal(theirs.length)
+        setOtherCollections(theirCollections)
       } else {
         setOwnerName('')
         setMyByMediaId(new Map())
+        setOtherCollections([])
         const its = await libraryService.getItems()
         if (cancelled) return
         setItems(its)
@@ -648,14 +660,14 @@ export default function LibraryScreen() {
           )
         })}
 
-        {/* Collections */}
-        {!readOnly && (
+        {/* Collections — own (editable) or another user's (view/filter only). */}
+        {(!readOnly || visibleCollections.length > 0) && (
           <div className="mt-4">
             <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-[var(--text-muted)]">
               {t('collections') || 'Collections'}
             </p>
 
-            {collections.map((col) => {
+            {visibleCollections.map((col) => {
               const active = collectionFilter === col.id
               return (
                 <div key={col.id} className="group flex items-center gap-0.5">
@@ -671,20 +683,21 @@ export default function LibraryScreen() {
                     <span className="min-w-0 truncate">{col.name}</span>
                     <span className="ml-auto flex-shrink-0 text-[11px] text-[var(--text-muted)]">{col.count}</span>
                   </button>
-                  {/* Rename / move / delete — restored per-collection entry point
-                      (previously only reachable after filtering into the collection). */}
-                  <button
-                    onClick={() => setSettingsCol(col)}
-                    title={`${t('settings') || 'Settings'}: ${col.name}`}
-                    className="flex-shrink-0 rounded-lg p-1.5 text-[var(--text-muted)] opacity-0 transition-opacity hover:bg-[var(--surface-hover)] hover:text-[var(--text)] group-hover:opacity-100"
-                  >
-                    <IoSettingsOutline className="h-3.5 w-3.5" />
-                  </button>
+                  {/* Rename / move / delete — own collections only. */}
+                  {!readOnly && (
+                    <button
+                      onClick={() => setSettingsCol(col)}
+                      title={`${t('settings') || 'Settings'}: ${col.name}`}
+                      className="flex-shrink-0 rounded-lg p-1.5 text-[var(--text-muted)] opacity-0 transition-opacity hover:bg-[var(--surface-hover)] hover:text-[var(--text)] group-hover:opacity-100"
+                    >
+                      <IoSettingsOutline className="h-3.5 w-3.5" />
+                    </button>
+                  )}
                 </div>
               )
             })}
 
-            {creatingCol ? (
+            {!readOnly && (creatingCol ? (
               <div className="mt-1 flex items-center gap-1">
                 <input
                   ref={newColInputRef}
@@ -713,7 +726,7 @@ export default function LibraryScreen() {
                 <IoAdd className="h-3.5 w-3.5" />
                 {t('newCollection') || 'New collection'}
               </button>
-            )}
+            ))}
           </div>
         )}
 
@@ -817,11 +830,11 @@ export default function LibraryScreen() {
         })}
       </div>
 
-      {/* Collection chips — mobile only */}
-      {!readOnly && (collections.length > 0 || creatingCol) && (
+      {/* Collection chips — mobile only. Own (editable) or another user's (view/filter only). */}
+      {(visibleCollections.length > 0 || (!readOnly && creatingCol)) && (
         <div className="mb-4 lg:hidden">
           <div className="no-scrollbar -mx-4 flex items-center gap-1.5 overflow-x-auto px-4 pb-1">
-            {collections.map((col) => {
+            {visibleCollections.map((col) => {
               const active = collectionFilter === col.id
               return (
                 <div
@@ -838,18 +851,20 @@ export default function LibraryScreen() {
                     {col.name}
                     <span className="opacity-50">{col.count}</span>
                   </button>
-                  {/* Rename / move / delete — no hover on touch, so always visible here. */}
-                  <button
-                    onClick={() => setSettingsCol(col)}
-                    title={`${t('settings') || 'Settings'}: ${col.name}`}
-                    className="flex flex-shrink-0 items-center border-l border-[var(--border-subtle)] px-2 text-[var(--text-muted)]"
-                  >
-                    <IoSettingsOutline className="h-3 w-3" />
-                  </button>
+                  {/* Rename / move / delete — no hover on touch, so always visible here; own collections only. */}
+                  {!readOnly && (
+                    <button
+                      onClick={() => setSettingsCol(col)}
+                      title={`${t('settings') || 'Settings'}: ${col.name}`}
+                      className="flex flex-shrink-0 items-center border-l border-[var(--border-subtle)] px-2 text-[var(--text-muted)]"
+                    >
+                      <IoSettingsOutline className="h-3 w-3" />
+                    </button>
+                  )}
                 </div>
               )
             })}
-            {creatingCol ? (
+            {!readOnly && (creatingCol ? (
               <div className="flex shrink-0 items-center gap-1">
                 <input
                   ref={newColInputRef}
@@ -878,7 +893,7 @@ export default function LibraryScreen() {
                 <IoAdd className="h-3 w-3" />
                 {t('newCollection') || 'New'}
               </button>
-            )}
+            ))}
           </div>
         </div>
       )}

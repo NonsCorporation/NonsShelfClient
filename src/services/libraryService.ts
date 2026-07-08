@@ -323,6 +323,7 @@ class ApiLibraryService implements ILibraryService {
           editionTitle: e.edition?.title,
           editionCover: e.edition?.cover_url,
           editionPages: e.edition?.pages,
+          collectionIds: e.collection_ids,
         }),
       )
   }
