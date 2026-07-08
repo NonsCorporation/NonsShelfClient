@@ -25,6 +25,12 @@ const shelfItemOf = (it: CatalogItem): MediaItem => ({
 // results instead of re-importing the same first batch.
 const BATCH = 8
 
+// A local result with relevance (word_similarity of the query vs the title,
+// 0..1) at or above this is a "real" hit; anything below is a weak fuzzy match
+// (e.g. only one query word overlaps), which shouldn't stop the external-source
+// import from also running.
+const STRONG_MATCH = 0.8
+
 type Filter = 'all' | MediaType
 
 // Dedicated search-results page (its own /search route), split out of Discover so
@@ -75,6 +81,17 @@ export default function SearchPage() {
         // on demand via "Load more" so a single local match doesn't hide the rest.
         setCatalog(cat)
         setLoading(false)
+        if (cat.some((it) => (it.relevance ?? 0) >= STRONG_MATCH)) return
+        // Every local hit is only a weak fuzzy match (shares a word with the
+        // query, e.g. "project hail" -> "The Phoenix Project") — the result the
+        // user wants is probably external. Import from external sources behind
+        // the shown list; search-fill persists the imports and returns the whole
+        // local catalog re-ranked, so the real match (e.g. "Project Hail Mary")
+        // now leads.
+        setImporting(true)
+        const fill = await catalogService.searchFill(q, { limit: 5, series: true, force: true })
+        setImporting(false)
+        if (fill.items.length > 0) setCatalog(fill.items)
         return
       }
       // Nothing in local catalog — auto-import books, movies and series in parallel.

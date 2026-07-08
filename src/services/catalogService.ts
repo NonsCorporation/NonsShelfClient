@@ -28,6 +28,10 @@ export type CatalogItem = {
   trendScore: number
   /** How many members have this item on a shelf — the popularity signal. */
   popularity: number
+  /** Search ranking score (0..1, word_similarity of the query against the
+   *  title), only set on search results. Lets the search page tell a strong
+   *  local hit from a weak fuzzy one. */
+  relevance?: number
   /** Short, social reason this is recommended to the user. */
   recommendedBecause?: string
 }
@@ -60,6 +64,7 @@ type BackendMedia = {
   created_at: number
   updated_at: number
   popularity?: number
+  relevance?: number
 }
 
 // mapMedia adapts a backend row to the CatalogItem the UI renders. The social
@@ -83,6 +88,7 @@ function mapMedia(m: BackendMedia): CatalogItem {
     activeNow: 0,
     trendScore: 0,
     popularity: m.popularity ?? 0,
+    relevance: m.relevance,
   }
 }
 
