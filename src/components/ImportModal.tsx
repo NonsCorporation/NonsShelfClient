@@ -6,8 +6,8 @@ import { libraryService, type ImportJob, type ImportProgress } from '../services
 import { useLanguage } from '../contexts/LanguageContext'
 
 type Props = { isOpen: boolean; onClose: () => void; onImported: () => void }
-type Step = 'choose' | 'books' | 'bookdiary' | 'upload'
-type SourceKey = 'goodreads' | 'bookdiarycsv' | 'bookdiarydb' | 'storygraph'
+type Step = 'choose' | 'books' | 'bookdiary' | 'movies' | 'upload'
+type SourceKey = 'goodreads' | 'bookdiarycsv' | 'bookdiarydb' | 'storygraph' | 'letterboxd'
 
 // Book import sources: how to get the file + which endpoint to send it to.
 const SOURCES: Record<SourceKey, { name: string; sub: string; accept: string; fileLabel: string; steps: ReactNode[]; run: (f: File, onProgress?: ImportProgress) => Promise<ImportJob> }> = {
@@ -59,6 +59,18 @@ const SOURCES: Record<SourceKey, { name: string; sub: string; accept: string; fi
       <>Download the CSV file, then upload it here.</>,
     ],
   },
+  letterboxd: {
+    name: 'Letterboxd',
+    sub: 'Export .zip, or a single CSV from it',
+    accept: '.zip,.csv',
+    fileLabel: 'Choose .zip or CSV file',
+    run: (f, p) => libraryService.importLetterboxd(f, p),
+    steps: [
+      <>Go to <a href="https://letterboxd.com/settings/data/" target="_blank" rel="noreferrer" className="text-nonsprimary underline">Letterboxd → Settings → Import & Export</a>.</>,
+      <>Click <b className="text-[var(--text)]">Export your data</b> and wait for the email with your .zip.</>,
+      <>Upload the whole .zip here — watchlist, watched, ratings, diary and reviews are all imported together. You can also upload just one CSV from it (e.g. <b className="text-[var(--text)]">watchlist.csv</b>) if that's all you want.</>,
+    ],
+  },
 }
 
 export default function ImportModal({ isOpen, onClose, onImported }: Props) {
@@ -79,8 +91,9 @@ export default function ImportModal({ isOpen, onClose, onImported }: Props) {
   const back = () => {
     setError(null); setResult(null); setFile(null); setProgress(null)
     if (step === 'upload') {
-      const isBookDiary = source === 'bookdiarycsv' || source === 'bookdiarydb'
-      setStep(isBookDiary ? 'bookdiary' : 'books')
+      if (source === 'letterboxd') setStep('movies')
+      else if (source === 'bookdiarycsv' || source === 'bookdiarydb') setStep('bookdiary')
+      else setStep('books')
     } else if (step === 'bookdiary') {
       setStep('books')
     } else {
@@ -89,6 +102,7 @@ export default function ImportModal({ isOpen, onClose, onImported }: Props) {
   }
 
   const pick = (key: SourceKey) => { setSource(key); setStep('upload') }
+  const itemsLabel = source === 'letterboxd' ? (t('filmsImported') || 'films imported') : (t('booksImported') || 'books imported')
 
   const doImport = async () => {
     if (!file) return
@@ -131,7 +145,7 @@ export default function ImportModal({ isOpen, onClose, onImported }: Props) {
               <IoBookOutline className="h-7 w-7" />
               {t('books') || 'Books'}
             </button>
-            <button disabled title={t('comingSoon') || 'Coming soon'} className={`${card} cursor-not-allowed opacity-50`}>
+            <button onClick={() => setStep('movies')} className={`${card} hover:border-nonsprimary hover:bg-[var(--primary-soft)]`}>
               <IoFilmOutline className="h-7 w-7" />
               {t('movies') || 'Movies'}
             </button>
@@ -159,6 +173,19 @@ export default function ImportModal({ isOpen, onClose, onImported }: Props) {
               <span>
                 <span className="block font-medium text-[var(--text)]">StoryGraph</span>
                 <span className="text-xs text-[var(--text-muted)]">CSV export</span>
+              </span>
+              <IoChevronForward className="h-4 w-4 text-[var(--text-muted)]" />
+            </button>
+          </div>
+        )}
+
+        {/* Step 2 — movie sources */}
+        {step === 'movies' && (
+          <div className="flex flex-col gap-2">
+            <button onClick={() => pick('letterboxd')} className={row}>
+              <span>
+                <span className="block font-medium text-[var(--text)]">Letterboxd</span>
+                <span className="text-xs text-[var(--text-muted)]">Export .zip (watchlist, watched, ratings, diary, reviews)</span>
               </span>
               <IoChevronForward className="h-4 w-4 text-[var(--text-muted)]" />
             </button>
@@ -220,7 +247,7 @@ export default function ImportModal({ isOpen, onClose, onImported }: Props) {
                 </div>
                 <p className="text-xs text-[var(--text-muted)]">
                   {progress && progress.total > 0
-                    ? `${progress.processed} / ${progress.total} ${t('booksImported') || 'books imported'}`
+                    ? `${progress.processed} / ${progress.total} ${itemsLabel}`
                     : (t('importing') || 'Importing…')}
                 </p>
               </div>
@@ -241,10 +268,10 @@ export default function ImportModal({ isOpen, onClose, onImported }: Props) {
           <div className="flex flex-col items-center gap-3 text-center">
             <IoCheckmarkCircle className="h-12 w-12 text-nonsprimary" />
             <p className="text-base font-semibold text-[var(--text)]">
-              {result.shelved} / {result.total} {t('booksImported') || 'books imported'}
+              {result.shelved} / {result.total} {itemsLabel}
             </p>
             <ul className="text-sm text-[var(--text-muted)]">
-              <li>{result.matched} already in catalog · {result.created} added from OpenLibrary</li>
+              <li>{result.matched} already in catalog · {result.created} added from {source === 'letterboxd' ? 'TMDB' : 'OpenLibrary'}</li>
               <li>{result.shelved} shelved · {result.rated} rated</li>
               {result.skipped > 0 && <li>{result.skipped} {t('notFoundSkipped') || 'not found — skipped'}</li>}
             </ul>

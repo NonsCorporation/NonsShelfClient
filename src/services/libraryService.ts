@@ -246,6 +246,7 @@ export interface ILibraryService {
   importBookDiary(file: File, onProgress?: ImportProgress): Promise<ImportJob>
   importBookDiaryDB(file: File, onProgress?: ImportProgress): Promise<ImportJob>
   importStoryGraph(file: File, onProgress?: ImportProgress): Promise<ImportJob>
+  importLetterboxd(file: File, onProgress?: ImportProgress): Promise<ImportJob>
 }
 
 class ApiLibraryService implements ILibraryService {
@@ -791,6 +792,13 @@ class ApiLibraryService implements ILibraryService {
 
   importStoryGraph(file: File, onProgress?: ImportProgress): Promise<ImportJob> {
     return this.uploadImport('/api/import/storygraph', file, onProgress)
+  }
+
+  // file is the Letterboxd "Export Data" .zip, or a single CSV out of it
+  // (watchlist.csv, watched.csv, ratings.csv, diary.csv, reviews.csv) — the
+  // backend routes by the uploaded filename, so it must be kept as-is.
+  importLetterboxd(file: File, onProgress?: ImportProgress): Promise<ImportJob> {
+    return this.uploadImport('/api/import/letterboxd', file, onProgress)
   }
 
   private setFavorite(mediaId: number, on: boolean) {
