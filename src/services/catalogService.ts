@@ -45,8 +45,9 @@ export type PersonHit = {
   creditCount: number
 }
 
-// Shape of a media row as returned by nons-library-server’s GET /api/media.
-type BackendMedia = {
+// Shape of a media row as returned by nons-library-server’s GET /api/media
+// (and the /api/discover/* section endpoints, which return the same rows).
+export type BackendMedia = {
   id: number
   uuid: string
   type: MediaType
@@ -69,8 +70,9 @@ type BackendMedia = {
 
 // mapMedia adapts a backend row to the CatalogItem the UI renders. The social
 // signals (rating, active-now, trend) aren’t computed server-side yet, so they
-// default to 0 until the backend aggregates shelf/rating data.
-function mapMedia(m: BackendMedia): CatalogItem {
+// default to 0 until the backend aggregates shelf/rating data. Exported so the
+// discover service maps the same row shape without duplicating this.
+export function mapMedia(m: BackendMedia): CatalogItem {
   return {
     id: String(m.id),
     uuid: m.uuid || undefined,

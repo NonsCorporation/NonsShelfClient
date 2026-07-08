@@ -1,12 +1,13 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from '@/lib/router'
 import Layout from '../components/layout/Layout'
 import CatalogCard from '../components/CatalogCard'
 import BoringAvatar from '../components/BoringAvatar'
 import ShelfStatusBar from '../components/ShelfStatusBar'
 import FinishModal from '../components/FinishModal'
-import { catalogService } from '../services/catalogService'
 import type { CatalogItem } from '../services/catalogService'
+import { discoverService } from '../services/discoverService'
+import type { DiscoverGenre, DiscoverPerson, Spotlights } from '../services/discoverService'
 import { libraryService } from '../services/libraryService'
 import { listService } from '../services/listService'
 import { connectionService } from '../services/connectionService'
@@ -25,10 +26,6 @@ import TypeBadge from '../components/TypeBadge'
 type Translate = (k: string, v?: Record<string, string | number>) => string
 
 const keyOf = (it: { type: string; title: string }) => `${it.type}:${it.title.trim().toLowerCase()}`
-const dedupe = (items: CatalogItem[]) => {
-  const seen = new Set<string>()
-  return items.filter((it) => (seen.has(it.id) ? false : (seen.add(it.id), true)))
-}
 const creditOf = (it: CatalogItem) => (it.type === 'book' ? it.author : it.director || it.author)
 // Builds the minimal MediaItem shape ShelfStatusBar needs from a catalog row.
 const shelfItemOf = (it: CatalogItem): MediaItem => ({
@@ -43,16 +40,9 @@ const roleLabel = (t: Translate, role: string) => {
   return label === key ? role : label
 }
 
-// A person surfaced from the catalog pool: the author of their books or the
-// director of their films, plus every loaded title they're behind.
-type Creator = {
-  key: string
-  name: string
-  role: 'author' | 'director'
-  /** Public person uuid (from the media's maker) → links to /p/<uuid>. */
-  uuid?: string
-  works: CatalogItem[]
-}
+// A person surfaced from the catalog: the author of their books or the director
+// of their films, plus every loaded title they're behind. Computed server-side.
+type Creator = DiscoverPerson
 
 type TypeFilter = 'all' | MediaType
 
@@ -61,11 +51,17 @@ export default function DiscoverPage() {
   const { isAuthenticated, loading: authLoading } = useAuth()
 
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all')
-  const [popular, setPopular] = useState<CatalogItem[]>([])
-  const [recent, setRecent] = useState<CatalogItem[]>([])
+  // Every section below is computed by the backend /api/discover/* endpoints;
+  // the page just holds and renders what it's given (no in-memory derivation).
+  const [hero, setHero] = useState<CatalogItem[]>([])
+  const [trending, setTrending] = useState<CatalogItem[]>([])
+  const [newest, setNewest] = useState<CatalogItem[]>([])
+  const [newReleases, setNewReleases] = useState<CatalogItem[]>([])
   const [newestBooks, setNewestBooks] = useState<CatalogItem[]>([])
   const [newestMovies, setNewestMovies] = useState<CatalogItem[]>([])
-  const [spotlights, setSpotlights] = useState<Record<MediaType, CatalogItem[]> | null>(null)
+  const [spotlights, setSpotlights] = useState<Spotlights | null>(null)
+  const [genres, setGenres] = useState<DiscoverGenre[]>([])
+  const [creators, setCreators] = useState<Creator[]>([])
   const [curatedLists, setCuratedLists] = useState<CuratedListDiscoverEntry[]>([])
   const [universes, setUniverses] = useState<Franchise[]>([])
   const [libItems, setLibItems] = useState<Map<string, MediaItem>>(new Map())
@@ -75,32 +71,35 @@ export default function DiscoverPage() {
 
   const scopeType = typeFilter === 'all' ? undefined : typeFilter
 
-  // Catalog rows for the active scope. `recent()` returns the most recently
-  // added rows, so it doubles as the "just added" / newest source. Refetch when
-  // the toggle changes; the /api/media endpoint answers over the SSO session.
+  // Fetch every scoped section from the backend in parallel. The per-type
+  // "newest books/movies" rails and the popular spotlights only render in the
+  // "all" scope, so they're fetched only then.
   useEffect(() => {
     let cancelled = false
     setLoading(true)
+    const isAll = typeFilter === 'all'
     Promise.all([
-      catalogService.popular(scopeType, 40),
-      catalogService.recent(scopeType, 40),
-      catalogService.recent('book', 18),
-      catalogService.recent('movie', 18),
-      typeFilter === 'all'
-        ? Promise.all([
-            catalogService.popular('book', 12),
-            catalogService.popular('movie', 12),
-            catalogService.popular('series', 12),
-          ])
-        : Promise.resolve(null),
+      discoverService.hero(scopeType),
+      discoverService.trending(scopeType),
+      discoverService.newest(scopeType),
+      discoverService.newReleases(scopeType),
+      discoverService.genres(scopeType),
+      discoverService.people(scopeType),
+      isAll ? discoverService.newest('book') : Promise.resolve([]),
+      isAll ? discoverService.newest('movie') : Promise.resolve([]),
+      isAll ? discoverService.spotlights() : Promise.resolve(null),
     ])
-      .then(([pop, rec, newBooks, newMovies, spots]) => {
+      .then(([heroItems, trend, news, releases, genreGroups, people, newBooks, newMovies, spots]) => {
         if (cancelled) return
-        setPopular(pop)
-        setRecent(rec)
+        setHero(heroItems)
+        setTrending(trend)
+        setNewest(news)
+        setNewReleases(releases)
+        setGenres(genreGroups)
+        setCreators(people)
         setNewestBooks(newBooks)
         setNewestMovies(newMovies)
-        setSpotlights(spots ? { book: spots[0], movie: spots[1], series: spots[2] } : null)
+        setSpotlights(spots)
         setLoading(false)
       })
       .catch(() => !cancelled && setLoading(false))
@@ -169,70 +168,6 @@ export default function DiscoverPage() {
     setAdded((prev) => new Set(prev).add(key))
   }
 
-  // Top few, cover-bearing, for the cinematic hero carousel.
-  const heroItems = useMemo(() => popular.filter((p) => p.coverUrl).slice(0, 5), [popular])
-  const trending = useMemo(() => dedupe([...popular, ...recent]).slice(0, 10), [popular, recent])
-
-  // Newest additions across the current scope — most recently added first. When
-  // a single type is selected, `recent` already holds that type; when "all",
-  // interleave the newest books and movies so both surface near the top.
-  const newestAll = useMemo(() => {
-    if (typeFilter !== 'all') return recent.slice(0, 18)
-    const merged: CatalogItem[] = []
-    const max = Math.max(newestBooks.length, newestMovies.length)
-    for (let i = 0; i < max; i++) {
-      if (newestBooks[i]) merged.push(newestBooks[i])
-      if (newestMovies[i]) merged.push(newestMovies[i])
-    }
-    return dedupe(merged).slice(0, 18)
-  }, [typeFilter, recent, newestBooks, newestMovies])
-
-  const newReleases = useMemo(
-    () => dedupe([...popular, ...recent]).filter((c) => c.year).sort((a, b) => (b.year ?? 0) - (a.year ?? 0)).slice(0, 18),
-    [popular, recent],
-  )
-
-  // Popular people, derived straight from the loaded catalog: group titles by
-  // their maker (book → author, film → director), so each person comes with the
-  // real works behind them. No extra requests, and it can't be starved by an
-  // empty people endpoint. The most prolific makers in the pool surface first.
-  const creators = useMemo(() => {
-    const pool = dedupe([...popular, ...recent])
-    const map = new Map<string, Creator>()
-    for (const it of pool) {
-      const name = creditOf(it)?.trim()
-      if (!name) continue
-      const role: Creator['role'] = it.type === 'book' ? 'author' : 'director'
-      const key = it.makerUuid || `${role}:${name.toLowerCase()}`
-      const entry = map.get(key) ?? { key, name, role, uuid: it.makerUuid, works: [] }
-      if (!entry.uuid && it.makerUuid) entry.uuid = it.makerUuid
-      entry.works.push(it)
-      map.set(key, entry)
-    }
-    return [...map.values()]
-      .map((c) => ({ ...c, works: dedupe(c.works) }))
-      .sort((a, b) => b.works.length - a.works.length || a.name.localeCompare(b.name))
-      .slice(0, 8)
-  }, [popular, recent])
-
-  // Genre → items. OpenLibrary subjects are noisy and fragmented, so we keep any
-  // genre with 2+ titles in the pool and rank by how many titles fall under it.
-  const genres = useMemo(() => {
-    const pool = dedupe([...popular, ...recent])
-    const byGenre = new Map<string, CatalogItem[]>()
-    for (const c of pool) for (const g of c.genre ?? []) {
-      const genre = g?.trim()
-      if (!genre) continue
-      const arr = byGenre.get(genre) ?? []
-      arr.push(c)
-      byGenre.set(genre, arr)
-    }
-    return [...byGenre.entries()]
-      .map(([genre, items]) => ({ genre, items }))
-      .filter((r) => r.items.length >= 2)
-      .sort((a, b) => b.items.length - a.items.length)
-  }, [popular, recent])
-
   const toggles: { key: TypeFilter; label: string }[] = [
     { key: 'all', label: t('filterAll') },
     { key: 'book', label: t('books') },
@@ -285,7 +220,7 @@ export default function DiscoverPage() {
       ) : (
         <div className="animate-fade-up">
           {/* ── Cinematic hero carousel ── */}
-          <HeroCarousel items={heroItems} canAdd={isAuthenticated} statusOf={statusOf} onStatusChange={handleStatusChange} t={t} />
+          <HeroCarousel items={hero} canAdd={isAuthenticated} statusOf={statusOf} onStatusChange={handleStatusChange} t={t} />
 
           {/* ── Explore by genre — leads the page; genres are the primary way
               in, with matching curated lists surfaced as "sublists" once a
@@ -305,7 +240,7 @@ export default function DiscoverPage() {
           <PeopleSpotlights creators={creators} t={t} />
 
           {/* ── Just added ── */}
-          <Row title={t('newestAdditions')} icon={<IoSparklesOutline className="h-4 w-4 text-nonsprimaryfocus" />} items={newestAll} inLibrary={inLibrary} addProp={addProp} />
+          <Row title={t('newestAdditions')} icon={<IoSparklesOutline className="h-4 w-4 text-nonsprimaryfocus" />} items={newest} inLibrary={inLibrary} addProp={addProp} />
 
           {typeFilter === 'all' && (
             <>
