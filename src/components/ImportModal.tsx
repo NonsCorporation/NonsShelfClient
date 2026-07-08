@@ -7,7 +7,7 @@ import { useLanguage } from '../contexts/LanguageContext'
 
 type Props = { isOpen: boolean; onClose: () => void; onImported: () => void }
 type Step = 'choose' | 'books' | 'bookdiary' | 'movies' | 'upload'
-type SourceKey = 'goodreads' | 'bookdiarycsv' | 'bookdiarydb' | 'storygraph' | 'letterboxd'
+type SourceKey = 'goodreads' | 'bookdiarycsv' | 'bookdiarydb' | 'storygraph' | 'letterboxd' | 'imdb'
 
 // Book import sources: how to get the file + which endpoint to send it to.
 const SOURCES: Record<SourceKey, { name: string; sub: string; accept: string; fileLabel: string; steps: ReactNode[]; run: (f: File, onProgress?: ImportProgress) => Promise<ImportJob> }> = {
@@ -71,6 +71,18 @@ const SOURCES: Record<SourceKey, { name: string; sub: string; accept: string; fi
       <>Upload the whole .zip here — watchlist, watched, ratings, diary and reviews are all imported together. You can also upload just one CSV from it (e.g. <b className="text-[var(--text)]">watchlist.csv</b>) if that's all you want.</>,
     ],
   },
+  imdb: {
+    name: 'IMDb',
+    sub: 'Ratings or Watchlist CSV export',
+    accept: '.csv,text/csv',
+    fileLabel: 'Choose CSV file',
+    run: (f, p) => libraryService.importIMDb(f, p),
+    steps: [
+      <>Go to <a href="https://www.imdb.com/list/ratings" target="_blank" rel="noreferrer" className="text-nonsprimary underline">IMDb → Your Ratings</a> (or <b className="text-[var(--text)]">Your Watchlist</b>) and click <b className="text-[var(--text)]">Export</b>.</>,
+      <>Download the CSV file.</>,
+      <>Upload it here — ratings and watchlist exports are both supported, and can be uploaded one at a time.</>,
+    ],
+  },
 }
 
 export default function ImportModal({ isOpen, onClose, onImported }: Props) {
@@ -91,7 +103,7 @@ export default function ImportModal({ isOpen, onClose, onImported }: Props) {
   const back = () => {
     setError(null); setResult(null); setFile(null); setProgress(null)
     if (step === 'upload') {
-      if (source === 'letterboxd') setStep('movies')
+      if (source === 'letterboxd' || source === 'imdb') setStep('movies')
       else if (source === 'bookdiarycsv' || source === 'bookdiarydb') setStep('bookdiary')
       else setStep('books')
     } else if (step === 'bookdiary') {
@@ -102,7 +114,8 @@ export default function ImportModal({ isOpen, onClose, onImported }: Props) {
   }
 
   const pick = (key: SourceKey) => { setSource(key); setStep('upload') }
-  const itemsLabel = source === 'letterboxd' ? (t('filmsImported') || 'films imported') : (t('booksImported') || 'books imported')
+  const isMovieSource = source === 'letterboxd' || source === 'imdb'
+  const itemsLabel = isMovieSource ? (t('filmsImported') || 'films imported') : (t('booksImported') || 'books imported')
 
   const doImport = async () => {
     if (!file) return
@@ -189,6 +202,13 @@ export default function ImportModal({ isOpen, onClose, onImported }: Props) {
               </span>
               <IoChevronForward className="h-4 w-4 text-[var(--text-muted)]" />
             </button>
+            <button onClick={() => pick('imdb')} className={row}>
+              <span>
+                <span className="block font-medium text-[var(--text)]">IMDb</span>
+                <span className="text-xs text-[var(--text-muted)]">Ratings or Watchlist CSV export</span>
+              </span>
+              <IoChevronForward className="h-4 w-4 text-[var(--text-muted)]" />
+            </button>
           </div>
         )}
 
@@ -271,7 +291,7 @@ export default function ImportModal({ isOpen, onClose, onImported }: Props) {
               {result.shelved} / {result.total} {itemsLabel}
             </p>
             <ul className="text-sm text-[var(--text-muted)]">
-              <li>{result.matched} already in catalog · {result.created} added from {source === 'letterboxd' ? 'TMDB' : 'OpenLibrary'}</li>
+              <li>{result.matched} already in catalog · {result.created} added from {isMovieSource ? 'TMDB' : 'OpenLibrary'}</li>
               <li>{result.shelved} shelved · {result.rated} rated</li>
               {result.skipped > 0 && <li>{result.skipped} {t('notFoundSkipped') || 'not found — skipped'}</li>}
             </ul>

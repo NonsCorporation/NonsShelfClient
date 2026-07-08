@@ -247,6 +247,7 @@ export interface ILibraryService {
   importBookDiaryDB(file: File, onProgress?: ImportProgress): Promise<ImportJob>
   importStoryGraph(file: File, onProgress?: ImportProgress): Promise<ImportJob>
   importLetterboxd(file: File, onProgress?: ImportProgress): Promise<ImportJob>
+  importIMDb(file: File, onProgress?: ImportProgress): Promise<ImportJob>
 }
 
 class ApiLibraryService implements ILibraryService {
@@ -799,6 +800,12 @@ class ApiLibraryService implements ILibraryService {
   // backend routes by the uploaded filename, so it must be kept as-is.
   importLetterboxd(file: File, onProgress?: ImportProgress): Promise<ImportJob> {
     return this.uploadImport('/api/import/letterboxd', file, onProgress)
+  }
+
+  // file is an IMDb "Your Ratings" or "Your Watchlist" CSV export — the
+  // backend auto-detects which from its header, no filename convention needed.
+  importIMDb(file: File, onProgress?: ImportProgress): Promise<ImportJob> {
+    return this.uploadImport('/api/import/imdb', file, onProgress)
   }
 
   private setFavorite(mediaId: number, on: boolean) {
