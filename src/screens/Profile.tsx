@@ -441,7 +441,7 @@ export default function ProfilePage() {
       {/* Open the full Goodreads-style library (shelves, filters, sort) for this user. */}
       <div className="mt-4">
         <Link
-          to={`/library?user=${encodeURIComponent(profile.handle)}`}
+          to={`/u/${encodeURIComponent(profile.handle)}/library`}
           className="inline-flex items-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] px-4 py-2.5 text-sm font-medium text-[var(--text)] transition-colors hover:border-nonsprimary hover:text-nonsprimary"
         >
           <IoLibraryOutline className="h-4 w-4" />

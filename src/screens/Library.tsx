@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState, useEffect, useCallback } from 'react'
-import { useSearchParams, useNavigate, Link } from '@/lib/router'
+import { useSearchParams, useNavigate, useParams, Link } from '@/lib/router'
 import {
   IoOptionsOutline,
   IoGridOutline,
@@ -87,10 +87,15 @@ export default function LibraryScreen() {
   const [newListTitle, setNewListTitle] = useState('')
   const newListInputRef = useRef<HTMLInputElement>(null)
 
-  // ?user=<username> opens another user's library read-only (the "open full
-  // library" button on a profile links here). Viewing your own username — or no
-  // param — is your normal, editable library.
-  const userParam = params.get('user')?.trim() || ''
+  // /u/<username>/library opens another user's library read-only (the "open
+  // full library" button on a profile links here) — a real route segment, not
+  // a search param, so switching from one user's library straight to another's
+  // (or to your own) reliably remounts/refetches instead of risking a stale
+  // useSearchParams() value from Next's client-side navigation cache. Same
+  // pattern as Profile.tsx's routeId. Viewing your own username — or plain
+  // /library — is your normal, editable library.
+  const { id: routeUser } = useParams<{ id?: string }>()
+  const userParam = (routeUser ?? '').trim()
   const readOnly = !!userParam && !!authUser && userParam !== authUser.username && userParam !== authUser.uuid
   const [ownerName, setOwnerName] = useState('')
   const [notFound, setNotFound] = useState(false)
