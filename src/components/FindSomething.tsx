@@ -153,8 +153,9 @@ export default function FindSomething({ t }: { t: Translate }) {
   const [draw, setDraw] = useState<CatalogItem[]>([])
   const [widened, setWidened] = useState(false)
   const [flipped, setFlipped] = useState<Set<number>>(new Set())
-  // The card currently lifted out of the hand into the center of the stage.
-  const [activeCard, setActiveCard] = useState<number | null>(null)
+  // Cards picked so far, in pick order. Picked cards stay in the center as a
+  // growing spread; the rest wait fanned in the hand at the bottom.
+  const [revealOrder, setRevealOrder] = useState<number[]>([])
   const lastDrawRef = useRef<Set<string>>(new Set())
 
   // Lazily pull a broad, multi-type, genre-tagged pool the first time the
@@ -232,7 +233,7 @@ export default function FindSomething({ t }: { t: Translate }) {
     setDraw(items)
     setWidened(w)
     setFlipped(new Set())
-    setActiveCard(null)
+    setRevealOrder([])
     setView('cards')
   }
 
@@ -247,9 +248,10 @@ export default function FindSomething({ t }: { t: Translate }) {
 
   const surprise = () => { const f = freshSelection(); setSel(f); deal(f) }
 
-  // Picking a card lifts it from the hand to the center; it flips in flight.
+  // Picking a card lifts it from the hand into the center spread (flipping in
+  // flight), where it stays; later picks join it and the spread re-centers.
   const select = (i: number) => {
-    setActiveCard(i)
+    setRevealOrder((prev) => (prev.includes(i) ? prev : [...prev, i]))
     setFlipped((prev) => (prev.has(i) ? prev : new Set(prev).add(i)))
   }
   const revealAll = () => setFlipped(new Set(draw.map((_, i) => i)))
@@ -312,7 +314,7 @@ export default function FindSomething({ t }: { t: Translate }) {
                     </div>
                   )
                 ) : (
-                  <CardsTable draw={draw} flipped={flipped} active={activeCard} onSelect={select} widened={widened} allRevealed={allRevealed} t={t} />
+                  <CardsTable draw={draw} flipped={flipped} revealOrder={revealOrder} onSelect={select} widened={widened} allRevealed={allRevealed} t={t} />
                 )}
               </div>
             </div>
@@ -639,61 +641,78 @@ function EraOption({ era, active, onClick }: { era: Era; active: boolean; onClic
 }
 
 // ── The dealt hand — cards rest fanned at the bottom of the stage; picking
-// one lifts it to the center, flipping in flight. Each card is one absolutely
-// positioned element whose transform switches between its hand slot and the
-// center, so a plain CSS transition animates the whole journey. ──────────────
+// one lifts it into the center, flipping in flight, where it STAYS. Later
+// picks join it and the whole center spread re-spaces and re-centers (cards
+// shrink a step as the spread grows). Each card is one absolutely positioned
+// element whose transform switches between its hand slot and its spread slot,
+// so a plain CSS transition animates every journey and re-layout. ────────────
 function CardsTable({
-  draw, flipped, active, onSelect, widened, allRevealed, t,
+  draw, flipped, revealOrder, onSelect, widened, allRevealed, t,
 }: {
   draw: CatalogItem[]
   flipped: Set<number>
-  active: number | null
+  revealOrder: number[]
   onSelect: (i: number) => void
   widened: boolean
   allRevealed: boolean
   t: Translate
 }) {
   if (draw.length === 0) return <EmptyState label="No matches for that combo. Try loosening it up." />
-  const mid = (draw.length - 1) / 2
+
+  // Cards still waiting in the hand, in dealt order — they re-fan tighter
+  // around the bottom center as members leave for the spread.
+  const hand = draw.map((_, j) => j).filter((j) => !revealOrder.includes(j))
+  const handMid = (hand.length - 1) / 2
+  const count = revealOrder.length
+  const centerMid = (count - 1) / 2
+  // The spread shares the spotlight: each extra card steps the scale down.
+  const centerScale = [1.08, 0.9, 0.76, 0.65][Math.min(count, 4) - 1] ?? 0.65
+  // Slot width tracks the scaled card, capped in vw so a full spread overlaps
+  // gracefully on narrow screens instead of overflowing.
+  const slot = `min(${(centerScale * 11 + 0.9).toFixed(2)}rem, 23vw)`
+  const allCentered = count >= draw.length
+
   return (
     <div className="flex w-full max-w-3xl flex-col items-center">
       <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-nonsprimaryfocus">Your draw</p>
       <h3 className="mt-3 text-2xl font-black tracking-tight text-[var(--find-text)] sm:text-3xl">
-        {allRevealed ? 'Your hand' : 'Pick a card'}
+        {allCentered ? 'Your hand' : 'Pick a card'}
       </h3>
       <p className="mt-1.5 text-xs font-medium tracking-wide text-[var(--find-text-muted)]">
-        {allRevealed ? '✦ Tap a card to open it ✦' : `${flipped.size} / ${draw.length} revealed`}
+        {allCentered ? '✦ Tap a card to open it ✦' : `${flipped.size} / ${draw.length} revealed`}
       </p>
       {widened && (
         <p className="mt-1 text-xs text-[var(--find-text-muted)]/70">Slim pickings for that exact combo — widened the search a touch.</p>
       )}
 
-      {/* The stage: center spotlight + the hand along the bottom. */}
+      {/* The stage: the growing spread in the center + the hand along the bottom. */}
       <div className="relative h-[27rem] w-full sm:h-[30rem]">
-        {/* A faint pulsing hint where the picked card will land. */}
-        {active === null && (
+        {/* A faint pulsing hint where the first picked card will land. */}
+        {count === 0 && (
           <div aria-hidden className="animate-glow-pulse absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-[62%]">
             <IoSparklesOutline className="h-8 w-8 text-[var(--find-text-muted)]/40" />
           </div>
         )}
 
         {draw.map((it, i) => {
-          const off = i - mid
-          const isActive = active === i
-          // Hand slot: fanned along the bottom, small. Center: lifted, big.
-          const transform = isActive
-            ? 'translate(-50%, -62%) scale(1.1)'
-            : `translate(calc(-50% + ${off * 60}px), 135px) rotate(${off * 6}deg) scale(0.55)`
+          const r = revealOrder.indexOf(i)
+          const inCenter = r !== -1
+          const h = hand.indexOf(i)
+          // Spread slot: side by side in pick order, slightly tilted outward.
+          // Hand slot: fanned along the bottom, small and face-down.
+          const transform = inCenter
+            ? `translate(calc(-50% + (${r} - ${centerMid}) * ${slot}), -62%) rotate(${(r - centerMid) * 3}deg) scale(${centerScale})`
+            : `translate(calc(-50% + ${(h - handMid) * 60}px), 135px) rotate(${(h - handMid) * 6}deg) scale(0.55)`
           return (
             <div
               key={it.id}
               className="absolute left-1/2 top-1/2 w-40 transition-transform duration-500 [transition-timing-function:cubic-bezier(0.32,0.72,0,1)] sm:w-44"
-              style={{ transform, zIndex: isActive ? 30 : 10 + i }}
+              style={{ transform, zIndex: inCenter ? 20 + r : 10 + i }}
             >
               {/* Deal-in entrance on an inner wrapper — its keyframes end at
                   identity, so the positioning transform above stays intact. */}
               <div className="animate-deal" style={{ animationDelay: `${i * 110}ms` }}>
-                <HandCard item={it} flipped={flipped.has(i)} active={isActive} onSelect={() => onSelect(i)} t={t} />
+                <HandCard item={it} flipped={flipped.has(i)} active={inCenter} onSelect={() => onSelect(i)} t={t} />
               </div>
             </div>
           )
