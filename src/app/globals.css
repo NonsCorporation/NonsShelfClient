@@ -238,6 +238,28 @@ html[data-theme="light"] .app-ambient::before {
 }
 .animate-aurora { animation: nons-aurora 20s linear infinite; }
 
+/* Fanned mini-covers on the wizard's genre options: each cover carries its own
+   base rotation/offset via CSS vars; hovering (or selecting) the option spreads
+   the fan wider and lifts it. */
+.cover-fan-item {
+  transform: rotate(var(--rot)) translateX(var(--tx));
+  transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+}
+.group:hover .cover-fan-item,
+.group.is-active .cover-fan-item {
+  transform: rotate(calc(var(--rot) * 1.7)) translateX(calc(var(--tx) * 1.45)) translateY(-4px);
+}
+
+/* Tilted mini-card (wizard type stage) that straightens and lifts on hover. */
+.tilt-card {
+  transform: rotate(var(--tilt));
+  transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1), box-shadow 0.3s ease;
+}
+.group:hover .tilt-card,
+.group.is-active .tilt-card {
+  transform: rotate(0deg) translateY(-6px) scale(1.04);
+}
+
 /* A short celebratory pop when the last card is revealed. */
 @keyframes nons-pop-in {
   0%   { opacity: 0; transform: scale(0.4); }

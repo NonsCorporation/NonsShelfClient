@@ -8,7 +8,7 @@ import {
   IoDiceOutline, IoEyeOutline, IoOptionsOutline, IoStar, IoPlayForwardOutline,
   IoAppsOutline, IoBookOutline, IoFilmOutline, IoTvOutline,
   IoCafeOutline, IoFlashOutline, IoPlanetOutline, IoHeartOutline, IoMoonOutline,
-  IoTrophyOutline, IoHappyOutline, IoInfiniteOutline, IoHourglassOutline, IoCalendarOutline,
+  IoTrophyOutline, IoHappyOutline,
 } from 'react-icons/io5'
 import type { CatalogItem } from '../services/catalogService'
 import { discoverService } from '../services/discoverService'
@@ -22,28 +22,30 @@ type IconType = typeof IoSparkles
 // ── Vibes → genre keywords ─────────────────────────────────────────────────
 // Catalog genres are free-form strings from OpenLibrary/TMDB, so each mood
 // matches by case-insensitive substring against any of a title's genres.
-type Mood = { key: string; label: string; icon: IconType; keywords: string[] }
+// Each mood carries its own accent color — the vibe stage is the emotional
+// beat of the wizard, so it's the one place the palette blooms beyond violet.
+type Mood = { key: string; label: string; icon: IconType; color: string; keywords: string[] }
 const MOODS: Mood[] = [
-  { key: 'cozy', label: 'Cozy', icon: IoCafeOutline, keywords: ['romance', 'comedy', 'slice of life', 'family', 'feel-good', 'friendship', 'contemporary'] },
-  { key: 'thrilling', label: 'Thrilling', icon: IoFlashOutline, keywords: ['thriller', 'action', 'crime', 'suspense', 'mystery', 'adventure', 'spy'] },
-  { key: 'mindbending', label: 'Mind-bending', icon: IoPlanetOutline, keywords: ['science fiction', 'sci-fi', 'psychological', 'dystopia', 'mystery', 'speculative'] },
-  { key: 'heartfelt', label: 'Heart-wrenching', icon: IoHeartOutline, keywords: ['drama', 'tragedy', 'romance', 'historical', 'coming of age'] },
-  { key: 'whimsical', label: 'Whimsical', icon: IoSparklesOutline, keywords: ['fantasy', 'animation', 'adventure', 'magic', 'fairy', 'myth'] },
-  { key: 'dark', label: 'Dark', icon: IoMoonOutline, keywords: ['horror', 'thriller', 'crime', 'noir', 'gothic', 'dark', 'war'] },
-  { key: 'epic', label: 'Epic', icon: IoTrophyOutline, keywords: ['fantasy', 'adventure', 'epic', 'historical', 'war', 'science fiction'] },
-  { key: 'funny', label: 'Funny', icon: IoHappyOutline, keywords: ['comedy', 'humor', 'satire', 'parody'] },
+  { key: 'cozy', label: 'Cozy', icon: IoCafeOutline, color: '#e5a86b', keywords: ['romance', 'comedy', 'slice of life', 'family', 'feel-good', 'friendship', 'contemporary'] },
+  { key: 'thrilling', label: 'Thrilling', icon: IoFlashOutline, color: '#e57373', keywords: ['thriller', 'action', 'crime', 'suspense', 'mystery', 'adventure', 'spy'] },
+  { key: 'mindbending', label: 'Mind-bending', icon: IoPlanetOutline, color: '#64b5f6', keywords: ['science fiction', 'sci-fi', 'psychological', 'dystopia', 'mystery', 'speculative'] },
+  { key: 'heartfelt', label: 'Heart-wrenching', icon: IoHeartOutline, color: '#f06292', keywords: ['drama', 'tragedy', 'romance', 'historical', 'coming of age'] },
+  { key: 'whimsical', label: 'Whimsical', icon: IoSparklesOutline, color: '#ba8bf0', keywords: ['fantasy', 'animation', 'adventure', 'magic', 'fairy', 'myth'] },
+  { key: 'dark', label: 'Dark', icon: IoMoonOutline, color: '#8fa3c7', keywords: ['horror', 'thriller', 'crime', 'noir', 'gothic', 'dark', 'war'] },
+  { key: 'epic', label: 'Epic', icon: IoTrophyOutline, color: '#4dd0a1', keywords: ['fantasy', 'adventure', 'epic', 'historical', 'war', 'science fiction'] },
+  { key: 'funny', label: 'Funny', icon: IoHappyOutline, color: '#ffd54f', keywords: ['comedy', 'humor', 'satire', 'parody'] },
 ]
 
-// ── Eras (single-select) ────────────────────────────────────────────────────
-type Era = { key: string; label: string; icon: IconType; test: (y: number) => boolean }
+// ── Eras (single-select) — rendered as stops on a timeline ──────────────────
+type Era = { key: string; label: string; sub: string; test: (y: number) => boolean }
 const ERAS: Era[] = [
-  { key: 'any', label: 'Any era', icon: IoInfiniteOutline, test: () => true },
-  { key: 'classic', label: 'Classic', icon: IoHourglassOutline, test: (y) => y > 0 && y < 1980 },
-  { key: '80s', label: '80s', icon: IoCalendarOutline, test: (y) => y >= 1980 && y <= 1989 },
-  { key: '90s', label: '90s', icon: IoCalendarOutline, test: (y) => y >= 1990 && y <= 1999 },
-  { key: '00s', label: '2000s', icon: IoCalendarOutline, test: (y) => y >= 2000 && y <= 2009 },
-  { key: '10s', label: '2010s', icon: IoCalendarOutline, test: (y) => y >= 2010 && y <= 2019 },
-  { key: 'now', label: 'Right now', icon: IoFlashOutline, test: (y) => y >= 2020 },
+  { key: 'any', label: 'Any era', sub: '∞', test: () => true },
+  { key: 'classic', label: 'Classic', sub: 'before 1980', test: (y) => y > 0 && y < 1980 },
+  { key: '80s', label: '80s', sub: '1980–89', test: (y) => y >= 1980 && y <= 1989 },
+  { key: '90s', label: '90s', sub: '1990–99', test: (y) => y >= 1990 && y <= 1999 },
+  { key: '00s', label: '2000s', sub: '2000–09', test: (y) => y >= 2000 && y <= 2009 },
+  { key: '10s', label: '2010s', sub: '2010–19', test: (y) => y >= 2010 && y <= 2019 },
+  { key: 'now', label: 'Right now', sub: '2020+', test: (y) => y >= 2020 },
 ]
 
 const TYPE_OPTS: { key: 'any' | MediaType; label: string; icon: IconType }[] = [
@@ -151,6 +153,8 @@ export default function FindSomething({ t }: { t: Translate }) {
   const [draw, setDraw] = useState<CatalogItem[]>([])
   const [widened, setWidened] = useState(false)
   const [flipped, setFlipped] = useState<Set<number>>(new Set())
+  // The card currently lifted out of the hand into the center of the stage.
+  const [activeCard, setActiveCard] = useState<number | null>(null)
   const lastDrawRef = useRef<Set<string>>(new Set())
 
   // Lazily pull a broad, multi-type, genre-tagged pool the first time the
@@ -188,18 +192,21 @@ export default function FindSomething({ t }: { t: Translate }) {
     return () => { document.body.style.overflow = prev }
   }, [open])
 
-  const genreChips = useMemo(() => {
-    const count = new Map<string, { label: string; n: number }>()
+  // Top genres in the pool, each with up to three real covers to fan out
+  // behind its label — the selection shows the goods, not just a word.
+  const genreOptions = useMemo(() => {
+    const count = new Map<string, { label: string; n: number; covers: string[] }>()
     for (const it of pool) {
       for (const g of it.genre ?? []) {
         const key = norm(g)
         if (!key) continue
-        const cur = count.get(key)
-        if (cur) cur.n++
-        else count.set(key, { label: g, n: 1 })
+        let cur = count.get(key)
+        if (!cur) { cur = { label: g, n: 0, covers: [] }; count.set(key, cur) }
+        cur.n++
+        if (it.coverUrl && cur.covers.length < 3 && !cur.covers.includes(it.coverUrl)) cur.covers.push(it.coverUrl)
       }
     }
-    return [...count.values()].sort((a, b) => b.n - a.n).slice(0, 12).map((x) => x.label)
+    return [...count.values()].sort((a, b) => b.n - a.n).slice(0, 12).map(({ label, covers }) => ({ label, covers }))
   }, [pool])
 
   const eraChips = useMemo(
@@ -211,10 +218,10 @@ export default function FindSomething({ t }: { t: Translate }) {
   // pool can populate them.
   const stages = useMemo<StageKey[]>(() => {
     const s: StageKey[] = ['type', 'vibe']
-    if (genreChips.length > 0) s.push('genre')
+    if (genreOptions.length > 0) s.push('genre')
     if (eraChips.length > 1) s.push('era')
     return s
-  }, [genreChips, eraChips])
+  }, [genreOptions, eraChips])
 
   const openModal = () => { setOpen(true); setView('wizard'); setStep(0) }
   const close = () => setOpen(false)
@@ -225,6 +232,7 @@ export default function FindSomething({ t }: { t: Translate }) {
     setDraw(items)
     setWidened(w)
     setFlipped(new Set())
+    setActiveCard(null)
     setView('cards')
   }
 
@@ -239,7 +247,11 @@ export default function FindSomething({ t }: { t: Translate }) {
 
   const surprise = () => { const f = freshSelection(); setSel(f); deal(f) }
 
-  const flip = (i: number) => setFlipped((prev) => (prev.has(i) ? prev : new Set(prev).add(i)))
+  // Picking a card lifts it from the hand to the center; it flips in flight.
+  const select = (i: number) => {
+    setActiveCard(i)
+    setFlipped((prev) => (prev.has(i) ? prev : new Set(prev).add(i)))
+  }
   const revealAll = () => setFlipped(new Set(draw.map((_, i) => i)))
   const allRevealed = draw.length > 0 && flipped.size >= draw.length
 
@@ -290,7 +302,7 @@ export default function FindSomething({ t }: { t: Translate }) {
                         stageKey={stageKey}
                         stepIndex={step}
                         sel={sel}
-                        genreChips={genreChips}
+                        genreOptions={genreOptions}
                         eraChips={eraChips}
                         onType={(type) => advance({ ...sel, type })}
                         onMood={(k) => advance({ ...sel, moods: new Set([k]) })}
@@ -300,7 +312,7 @@ export default function FindSomething({ t }: { t: Translate }) {
                     </div>
                   )
                 ) : (
-                  <CardsTable draw={draw} flipped={flipped} onFlip={flip} widened={widened} allRevealed={allRevealed} t={t} />
+                  <CardsTable draw={draw} flipped={flipped} active={activeCard} onSelect={select} widened={widened} allRevealed={allRevealed} t={t} />
                 )}
               </div>
             </div>
@@ -438,12 +450,12 @@ const STAGE_META: Record<StageKey, { kicker: string; title: string }> = {
 }
 
 function Stage({
-  stageKey, stepIndex, sel, genreChips, eraChips, onType, onMood, onGenre, onEra,
+  stageKey, stepIndex, sel, genreOptions, eraChips, onType, onMood, onGenre, onEra,
 }: {
   stageKey: StageKey
   stepIndex: number
   sel: Selection
-  genreChips: string[]
+  genreOptions: { label: string; covers: string[] }[]
   eraChips: Era[]
   onType: (t: 'any' | MediaType) => void
   onMood: (k: string) => void
@@ -460,61 +472,183 @@ function Stage({
         {meta.title}
       </h3>
 
-      <div className="mt-10 flex max-w-xl flex-wrap items-center justify-center gap-x-8 gap-y-5 sm:mt-12">
-        {stageKey === 'type' && TYPE_OPTS.map((o) => (
-          <Option key={o.key} icon={o.icon} label={o.label} active={sel.type === o.key} onClick={() => onType(o.key)} />
-        ))}
-        {stageKey === 'vibe' && MOODS.map((m) => (
-          <Option key={m.key} icon={m.icon} label={m.label} active={sel.moods.has(m.key)} onClick={() => onMood(m.key)} />
-        ))}
-        {stageKey === 'genre' && genreChips.map((g) => (
-          <Option key={g} label={g} capitalize active={sel.genres.has(g)} onClick={() => onGenre(g)} />
-        ))}
-        {stageKey === 'era' && eraChips.map((e) => (
-          <Option key={e.key} icon={e.icon} label={e.label} active={sel.era === e.key} onClick={() => onEra(e.key)} />
-        ))}
-      </div>
+      {/* The medium — four little cards from the deck, tilted; hover straightens. */}
+      {stageKey === 'type' && (
+        <div className="mt-10 flex flex-wrap items-start justify-center gap-x-7 gap-y-8 sm:mt-14 sm:gap-x-10">
+          {TYPE_OPTS.map((o, i) => (
+            <TypeCardOption key={o.key} icon={o.icon} label={o.label} tilt={(i - 1.5) * 5} active={sel.type === o.key} onClick={() => onType(o.key)} />
+          ))}
+        </div>
+      )}
+
+      {/* The vibe — each mood blooms in its own color. */}
+      {stageKey === 'vibe' && (
+        <div className="mt-10 flex max-w-xl flex-wrap items-center justify-center gap-x-9 gap-y-6 sm:mt-12">
+          {MOODS.map((m) => (
+            <MoodOption key={m.key} mood={m} active={sel.moods.has(m.key)} onClick={() => onMood(m.key)} />
+          ))}
+        </div>
+      )}
+
+      {/* The genre — real covers from the catalog fan out over each word. */}
+      {stageKey === 'genre' && (
+        <div className="mt-10 flex w-full flex-wrap items-start justify-center gap-x-4 gap-y-9 sm:mt-12 sm:gap-x-6">
+          {genreOptions.map((g) => (
+            <GenreOption key={g.label} label={g.label} covers={g.covers} active={sel.genres.has(g.label)} onClick={() => onGenre(g.label)} />
+          ))}
+        </div>
+      )}
+
+      {/* The era — stops on a timeline. */}
+      {stageKey === 'era' && (
+        <div className="relative mt-12 w-full sm:mt-16">
+          <span aria-hidden className="absolute inset-x-8 top-[5px] hidden h-px bg-gradient-to-r from-transparent via-white/20 to-transparent sm:block" />
+          <div className="flex flex-wrap items-start justify-center gap-x-7 gap-y-8 sm:gap-x-9">
+            {eraChips.map((e) => (
+              <EraOption key={e.key} era={e} active={sel.era === e.key} onClick={() => onEra(e.key)} />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
 
-// The single control language of the wizard: a bare, generously sized text
-// option — muted by default, white on hover, primary with an underline stroke
-// when chosen. No boxes, no borders, no backgrounds.
-function Option({
-  label, icon: Icon, active, capitalize, onClick,
+// A miniature face-down card (same gradient as the deck) with its label below —
+// tilted at rest, straightening and lifting on hover, ringed when chosen.
+function TypeCardOption({
+  icon: Icon, label, tilt, active, onClick,
 }: {
+  icon: IconType
   label: string
-  icon?: IconType
+  tilt: number
   active: boolean
-  capitalize?: boolean
   onClick: () => void
 }) {
   return (
+    <button onClick={onClick} className={`group flex flex-col items-center gap-3 active:scale-95 ${active ? 'is-active' : ''}`}>
+      <span
+        style={{ '--tilt': `${tilt}deg` } as React.CSSProperties}
+        className={`tilt-card relative flex h-24 w-[4.25rem] items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-nonsprimary via-nonsprimarydeep to-[#100d20] shadow-xl ${
+          active ? 'ring-2 ring-nonsprimaryfocus shadow-[0_10px_30px_-8px_rgba(124,125,202,0.6)]' : ''
+        }`}
+      >
+        <span aria-hidden className="absolute inset-0 opacity-40" style={{ backgroundImage: 'radial-gradient(circle at 30% 22%, rgba(255,255,255,0.4), transparent 50%)' }} />
+        <Icon className="relative h-6 w-6 text-white/85" />
+      </span>
+      <span className={`text-sm font-semibold transition-colors ${active ? 'text-nonsprimaryfocus' : 'text-[var(--find-text-muted)] group-hover:text-[var(--find-text)]'}`}>
+        {label}
+      </span>
+    </button>
+  )
+}
+
+// A mood in its own color: the icon and word take the accent, and a soft
+// colored bloom breathes behind them on hover/selection. No box, no border.
+function MoodOption({ mood, active, onClick }: { mood: Mood; active: boolean; onClick: () => void }) {
+  const Icon = mood.icon
+  return (
     <button
       onClick={onClick}
-      className={`group relative inline-flex items-center gap-2 pb-1.5 text-lg font-semibold transition-all duration-200 active:scale-95 sm:text-xl ${
-        capitalize ? 'capitalize' : ''
-      } ${active ? 'text-nonsprimaryfocus' : 'text-[var(--find-text-muted)] hover:text-[var(--find-text)]'}`}
+      className="group relative inline-flex items-center gap-2 pb-1.5 text-lg font-semibold transition-all duration-200 active:scale-95 sm:text-xl"
+      style={active ? { color: mood.color } : undefined}
     >
-      {Icon && <Icon className="h-5 w-5 transition-transform duration-200 group-hover:-translate-y-0.5" />}
-      {label}
       <span
-        className={`pointer-events-none absolute inset-x-0 bottom-0 h-[2px] origin-center rounded-full bg-nonsprimaryfocus transition-transform duration-300 ${
-          active ? 'scale-x-100' : 'scale-x-0 group-hover:scale-x-[0.35]'
-        }`}
+        aria-hidden
+        className={`pointer-events-none absolute -inset-x-5 -inset-y-3 rounded-full blur-xl transition-opacity duration-300 ${active ? 'opacity-25' : 'opacity-0 group-hover:opacity-20'}`}
+        style={{ backgroundColor: mood.color }}
+      />
+      <Icon
+        className="relative h-5 w-5 transition-transform duration-200 group-hover:-translate-y-0.5"
+        style={{ color: mood.color }}
+      />
+      <span className={`relative transition-colors ${active ? '' : 'text-[var(--find-text-muted)] group-hover:text-[var(--find-text)]'}`}>
+        {mood.label}
+      </span>
+      <span
+        className={`pointer-events-none absolute inset-x-0 bottom-0 h-[2px] origin-center rounded-full transition-transform duration-300 ${active ? 'scale-x-100' : 'scale-x-0 group-hover:scale-x-[0.35]'}`}
+        style={{ backgroundColor: mood.color }}
       />
     </button>
   )
 }
 
-// ── The dealt hand — fanned like real cards held from below ──────────────────
+// A genre as floating goods: up to three real covers fanned above the word,
+// spreading wider on hover. Falls back to a small deck-card with the genre's
+// initial when the pool has no covers for it.
+function GenreOption({
+  label, covers, active, onClick,
+}: {
+  label: string
+  covers: string[]
+  active: boolean
+  onClick: () => void
+}) {
+  const mid = (Math.max(covers.length, 1) - 1) / 2
+  return (
+    <button onClick={onClick} className={`group flex w-[5.5rem] flex-col items-center gap-2.5 active:scale-95 sm:w-24 ${active ? 'is-active' : ''}`}>
+      <span className="relative flex h-16 w-full items-end justify-center">
+        {covers.length > 0 ? (
+          covers.map((c, i) => (
+            <span
+              key={c}
+              style={{ '--rot': `${(i - mid) * 10}deg`, '--tx': `${(i - mid) * 16}px`, zIndex: i } as React.CSSProperties}
+              className={`cover-fan-item absolute bottom-0 h-14 w-10 overflow-hidden rounded-md shadow-lg transition-opacity ${
+                active ? 'opacity-100' : 'opacity-75 group-hover:opacity-100'
+              }`}
+            >
+              <img src={c} alt="" loading="lazy" className="h-full w-full object-cover" />
+            </span>
+          ))
+        ) : (
+          <span className="flex h-14 w-10 items-center justify-center rounded-md bg-gradient-to-br from-nonsprimary to-nonsprimarydeep text-sm font-bold uppercase text-white/80 shadow-lg">
+            {label.charAt(0)}
+          </span>
+        )}
+      </span>
+      <span className={`relative w-full truncate pb-1 text-sm font-semibold capitalize transition-colors ${active ? 'text-nonsprimaryfocus' : 'text-[var(--find-text-muted)] group-hover:text-[var(--find-text)]'}`}>
+        {label}
+        <span
+          className={`pointer-events-none absolute inset-x-4 bottom-0 h-[2px] origin-center rounded-full bg-nonsprimaryfocus transition-transform duration-300 ${active ? 'scale-x-100' : 'scale-x-0'}`}
+        />
+      </span>
+    </button>
+  )
+}
+
+// An era as a stop on the timeline: a glowing dot on the hairline track, the
+// name beneath it, and the actual year range as a whisper below that.
+function EraOption({ era, active, onClick }: { era: Era; active: boolean; onClick: () => void }) {
+  return (
+    <button onClick={onClick} className="group flex flex-col items-center gap-2.5 active:scale-95">
+      <span
+        className={`relative h-2.5 w-2.5 rounded-full transition-all duration-300 ${
+          active
+            ? 'scale-125 bg-nonsprimaryfocus shadow-[0_0_14px_3px_rgba(124,125,202,0.55)]'
+            : 'bg-white/25 group-hover:scale-110 group-hover:bg-white/60'
+        }`}
+      />
+      <span className="flex flex-col items-center">
+        <span className={`text-base font-semibold transition-colors sm:text-lg ${active ? 'text-nonsprimaryfocus' : 'text-[var(--find-text-muted)] group-hover:text-[var(--find-text)]'}`}>
+          {era.label}
+        </span>
+        <span className="mt-0.5 text-[10px] font-medium tracking-wide text-[var(--find-text-muted)]/60">{era.sub}</span>
+      </span>
+    </button>
+  )
+}
+
+// ── The dealt hand — cards rest fanned at the bottom of the stage; picking
+// one lifts it to the center, flipping in flight. Each card is one absolutely
+// positioned element whose transform switches between its hand slot and the
+// center, so a plain CSS transition animates the whole journey. ──────────────
 function CardsTable({
-  draw, flipped, onFlip, widened, allRevealed, t,
+  draw, flipped, active, onSelect, widened, allRevealed, t,
 }: {
   draw: CatalogItem[]
   flipped: Set<number>
-  onFlip: (i: number) => void
+  active: number | null
+  onSelect: (i: number) => void
   widened: boolean
   allRevealed: boolean
   t: Translate
@@ -522,75 +656,81 @@ function CardsTable({
   if (draw.length === 0) return <EmptyState label="No matches for that combo. Try loosening it up." />
   const mid = (draw.length - 1) / 2
   return (
-    <div className="flex w-full max-w-4xl flex-col items-center">
+    <div className="flex w-full max-w-3xl flex-col items-center">
       <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-nonsprimaryfocus">Your draw</p>
-      <h3 className="mt-4 text-2xl font-black tracking-tight text-[var(--find-text)] sm:text-4xl">
-        {allRevealed ? 'Your hand' : 'Tap a card to reveal it'}
+      <h3 className="mt-3 text-2xl font-black tracking-tight text-[var(--find-text)] sm:text-3xl">
+        {allRevealed ? 'Your hand' : 'Pick a card'}
       </h3>
+      <p className="mt-1.5 text-xs font-medium tracking-wide text-[var(--find-text-muted)]">
+        {allRevealed ? '✦ Tap a card to open it ✦' : `${flipped.size} / ${draw.length} revealed`}
+      </p>
       {widened && (
-        <p className="mt-2 text-xs text-[var(--find-text-muted)]">Slim pickings for that exact combo — widened the search a touch.</p>
+        <p className="mt-1 text-xs text-[var(--find-text-muted)]/70">Slim pickings for that exact combo — widened the search a touch.</p>
       )}
 
-      <div className="mt-10 flex flex-wrap items-start justify-center gap-4 sm:mt-14 sm:gap-0">
+      {/* The stage: center spotlight + the hand along the bottom. */}
+      <div className="relative h-[27rem] w-full sm:h-[30rem]">
+        {/* A faint pulsing hint where the picked card will land. */}
+        {active === null && (
+          <div aria-hidden className="animate-glow-pulse absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-[62%]">
+            <IoSparklesOutline className="h-8 w-8 text-[var(--find-text-muted)]/40" />
+          </div>
+        )}
+
         {draw.map((it, i) => {
           const off = i - mid
+          const isActive = active === i
+          // Hand slot: fanned along the bottom, small. Center: lifted, big.
+          const transform = isActive
+            ? 'translate(-50%, -62%) scale(1.1)'
+            : `translate(calc(-50% + ${off * 60}px), 135px) rotate(${off * 6}deg) scale(0.55)`
           return (
             <div
               key={it.id}
-              className="relative sm:-mx-3"
-              style={{ transform: `rotate(${off * 5}deg) translateY(${Math.abs(off) * Math.abs(off) * 11}px)`, zIndex: i }}
+              className="absolute left-1/2 top-1/2 w-40 transition-transform duration-500 [transition-timing-function:cubic-bezier(0.32,0.72,0,1)] sm:w-44"
+              style={{ transform, zIndex: isActive ? 30 : 10 + i }}
             >
-              <MysteryCard item={it} index={i} isFlipped={flipped.has(i)} onFlip={() => onFlip(i)} t={t} />
+              {/* Deal-in entrance on an inner wrapper — its keyframes end at
+                  identity, so the positioning transform above stays intact. */}
+              <div className="animate-deal" style={{ animationDelay: `${i * 110}ms` }}>
+                <HandCard item={it} flipped={flipped.has(i)} active={isActive} onSelect={() => onSelect(i)} t={t} />
+              </div>
             </div>
           )
         })}
       </div>
-
-      <p className="mt-12 h-5 text-xs font-medium tracking-wide text-[var(--find-text-muted)] sm:mt-16">
-        {allRevealed ? '✦ Tap a title to open it ✦' : `${flipped.size} / ${draw.length} revealed`}
-      </p>
     </div>
   )
 }
 
-function MysteryCard({
-  item, index, isFlipped, onFlip, t,
+function HandCard({
+  item, flipped, active, onSelect, t,
 }: {
   item: CatalogItem
-  index: number
-  isFlipped: boolean
-  onFlip: () => void
+  flipped: boolean
+  active: boolean
+  onSelect: () => void
   t: Translate
 }) {
   const typeWord = item.type === 'book' ? t('book') : item.type === 'series' ? t('series') : t('film')
   const credit = item.type === 'book' ? item.author : item.director || item.author
   return (
-    // The deal-in animation lives on this wrapper (its keyframes end at
-    // identity, so the fan rotation on the parent survives); a soft glow sits
-    // behind the card only while it's still face-down.
-    <div className="animate-deal relative w-[38vw] max-w-[10.5rem] flex-shrink-0 sm:w-44" style={{ animationDelay: `${index * 110}ms` }}>
-      {!isFlipped && (
+    <div className="relative transition-transform duration-300 hover:-translate-y-1.5">
+      {!flipped && (
         <div aria-hidden className="animate-glow-pulse pointer-events-none absolute -inset-4 -z-10 rounded-3xl bg-nonsprimary/25 blur-2xl" />
       )}
-      <div className="flip-scene transition-transform duration-300 hover:-translate-y-2">
-        <div className={`flip-inner aspect-[2/3] w-full ${isFlipped ? 'is-flipped' : ''}`}>
+      <div className="flip-scene">
+        <div className={`flip-inner aspect-[2/3] w-full ${flipped ? 'is-flipped' : ''}`}>
           {/* Mystery face (front, shown first) */}
-          <button
-            onClick={onFlip}
-            aria-label="Reveal card"
-            className="flip-face flip-face--front group flex h-full w-full items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-nonsprimary via-nonsprimarydeep to-[#100d20] shadow-2xl"
-          >
+          <div className="flip-face flip-face--front flex h-full w-full items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-nonsprimary via-nonsprimarydeep to-[#100d20] shadow-2xl">
             <span className="pointer-events-none absolute inset-y-0 -left-1/2 w-1/2 skew-x-12 bg-white/15 blur-md animate-sheen" />
             <span aria-hidden className="absolute inset-0 opacity-40" style={{ backgroundImage: 'radial-gradient(circle at 30% 22%, rgba(255,255,255,0.45), transparent 45%)' }} />
             <IoSparkles className="relative h-10 w-10 text-white/85 drop-shadow" />
             <span className="absolute bottom-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-white/45">nons</span>
-          </button>
+          </div>
 
           {/* Revealed face (back) */}
-          <Link
-            to={mediaPath(item)}
-            className="flip-face flip-face--back block h-full w-full overflow-hidden rounded-2xl bg-[var(--find-surface-active)] shadow-2xl"
-          >
+          <div className="flip-face flip-face--back overflow-hidden rounded-2xl bg-[var(--find-surface-active)] shadow-2xl">
             <div className="relative h-full w-full">
               {item.coverUrl ? (
                 <img src={item.coverUrl} alt={item.title} className="h-full w-full object-cover" />
@@ -613,9 +753,17 @@ function MysteryCard({
                 </p>
               </div>
             </div>
-          </Link>
+          </div>
         </div>
       </div>
+
+      {/* Interaction overlay: a card in the hand is picked (moves to center);
+          the centered, revealed card opens the title. */}
+      {!active ? (
+        <button onClick={onSelect} aria-label={`Pick card`} className="absolute inset-0 z-20 rounded-2xl" />
+      ) : flipped ? (
+        <Link to={mediaPath(item)} aria-label={`Open ${item.title}`} className="absolute inset-0 z-20 rounded-2xl" />
+      ) : null}
     </div>
   )
 }
