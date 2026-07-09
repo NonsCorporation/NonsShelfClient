@@ -19,11 +19,7 @@ import TypeBadge from './TypeBadge'
 type Translate = (k: string, v?: Record<string, string | number>) => string
 type IconType = typeof IoSparkles
 
-// ── Vibes → genre keywords ─────────────────────────────────────────────────
-// Catalog genres are free-form strings from OpenLibrary/TMDB, so each mood
-// matches by case-insensitive substring against any of a title's genres.
-// Each mood carries its own accent color — the vibe stage is the emotional
-// beat of the wizard, so it's the one place the palette blooms beyond violet.
+// matches genres by substring and assigns an accent color for the wizard stage
 type Mood = { key: string; label: string; icon: IconType; color: string; keywords: string[] }
 const MOODS: Mood[] = [
   { key: 'cozy', label: 'Cozy', icon: IoCafeOutline, color: '#e5a86b', keywords: ['romance', 'comedy', 'slice of life', 'family', 'feel-good', 'friendship', 'contemporary'] },
@@ -36,7 +32,7 @@ const MOODS: Mood[] = [
   { key: 'funny', label: 'Funny', icon: IoHappyOutline, color: '#ffd54f', keywords: ['comedy', 'humor', 'satire', 'parody'] },
 ]
 
-// ── Eras (single-select) — rendered as stops on a timeline ──────────────────
+// defines timeline stops for era selection
 type Era = { key: string; label: string; sub: string; test: (y: number) => boolean }
 const ERAS: Era[] = [
   { key: 'any', label: 'Any era', sub: '∞', test: () => true },
@@ -55,7 +51,7 @@ const TYPE_OPTS: { key: 'any' | MediaType; label: string; icon: IconType }[] = [
   { key: 'series', label: 'Series', icon: IoTvOutline },
 ]
 
-// How many cards are dealt per draw.
+// sets number of cards per draw
 const HAND_SIZE = 4
 
 type Selection = {
@@ -96,10 +92,7 @@ function genreMatch(item: CatalogItem, genres: Set<string>): boolean {
   return false
 }
 
-// Draws a hand for the selection. Filters run in tiers from strictest to
-// loosest (drop era → moods → genres → type → anything) so we (almost) always
-// deal a full hand; `widened` flags that we had to loosen past the exact ask.
-// `exclude` deprioritizes the previous draw so "Deal again" feels fresh.
+// draws a hand by filtering items in tiers of strictness
 function drawHand(
   pool: CatalogItem[],
   sel: Selection,
@@ -139,8 +132,6 @@ function drawHand(
   return { items: chosen.slice(0, HAND_SIZE), widened: chosen.some((i) => !strict.has(i.id)) }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-
 export default function FindSomething({ t }: { t: Translate }) {
   const [open, setOpen] = useState(false)
   const [pool, setPool] = useState<CatalogItem[]>([])
@@ -153,13 +144,12 @@ export default function FindSomething({ t }: { t: Translate }) {
   const [draw, setDraw] = useState<CatalogItem[]>([])
   const [widened, setWidened] = useState(false)
   const [flipped, setFlipped] = useState<Set<number>>(new Set())
-  // Cards picked so far, in pick order. Picked cards stay in the center as a
-  // growing spread; the rest wait fanned in the hand at the bottom.
+  
+  // tracks picked cards and reveal order
   const [revealOrder, setRevealOrder] = useState<number[]>([])
   const lastDrawRef = useRef<Set<string>>(new Set())
 
-  // Lazily pull a broad, multi-type, genre-tagged pool the first time the
-  // experience opens — independent of the page's own type filter.
+  // fetches a broad pool of catalog items on first open
   useEffect(() => {
     if (!open || loadedRef.current) return
     loadedRef.current = true
@@ -193,8 +183,7 @@ export default function FindSomething({ t }: { t: Translate }) {
     return () => { document.body.style.overflow = prev }
   }, [open])
 
-  // Top genres in the pool, each with up to three real covers to fan out
-  // behind its label — the selection shows the goods, not just a word.
+  // gets top genres and assigns up to three covers for the spread
   const genreOptions = useMemo(() => {
     const count = new Map<string, { label: string; n: number; covers: string[] }>()
     for (const it of pool) {
@@ -215,8 +204,7 @@ export default function FindSomething({ t }: { t: Translate }) {
     [pool],
   )
 
-  // The stages that actually apply, in order. Genre/era only appear when the
-  // pool can populate them.
+  // determines which wizard stages have enough data to appear
   const stages = useMemo<StageKey[]>(() => {
     const s: StageKey[] = ['type', 'vibe']
     if (genreOptions.length > 0) s.push('genre')
@@ -237,7 +225,7 @@ export default function FindSomething({ t }: { t: Translate }) {
     setView('cards')
   }
 
-  // Advance to the next stage, or deal when we've passed the last one.
+  // moves to the next stage or deals the hand if finished
   const advance = (next: Selection) => {
     setSel(next)
     if (step >= stages.length - 1) deal(next)
@@ -248,8 +236,7 @@ export default function FindSomething({ t }: { t: Translate }) {
 
   const surprise = () => { const f = freshSelection(); setSel(f); deal(f) }
 
-  // Picking a card lifts it from the hand into the center spread (flipping in
-  // flight), where it stays; later picks join it and the spread re-centers.
+  // moves picked card to center spread and tracks flip status
   const select = (i: number) => {
     setRevealOrder((prev) => (prev.includes(i) ? prev : [...prev, i]))
     setFlipped((prev) => (prev.has(i) ? prev : new Set(prev).add(i)))
@@ -264,10 +251,10 @@ export default function FindSomething({ t }: { t: Translate }) {
       <FindBanner onOpen={openModal} />
 
       {open && createPortal(
-        // Full-screen takeover — the draw is a scene, not a dialog box.
+        // renders full-screen draw scene
         <div className="fixed inset-0 z-[70]" role="dialog" aria-modal="true">
           <div className="animate-fade-up absolute inset-0 flex flex-col bg-[var(--find-bg)]">
-            {/* Ambient staging: drifting glow, floor vignette, one light sweep on open. */}
+            {/* renders ambient background effects */}
             <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
               <div className="animate-aurora absolute -top-1/4 left-1/3 h-[55vh] w-[55vh] rounded-full bg-nonsprimary/12 blur-3xl" />
               <div className="animate-glow-pulse absolute -bottom-1/4 right-1/4 h-[45vh] w-[45vh] rounded-full bg-nonsprimaryfocus/8 blur-3xl" />
@@ -275,7 +262,7 @@ export default function FindSomething({ t }: { t: Translate }) {
               <span className="animate-sheen-once absolute inset-y-0 -left-1/2 w-1/3 skew-x-12 bg-white/[0.06] blur-2xl" />
             </div>
 
-            {/* Chrome: brand whisper + close. Nothing else. */}
+            {/* renders header and close button */}
             <div className="relative flex items-center justify-between px-5 pt-5 sm:px-8">
               <span className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.3em] text-[var(--find-text-muted)]">
                 <IoSparkles className="h-3 w-3 text-nonsprimaryfocus" />
@@ -290,9 +277,9 @@ export default function FindSomething({ t }: { t: Translate }) {
               </button>
             </div>
 
-            {/* Stage — everything centered, typography leads. */}
+            {/* renders central interactive stage */}
             <div className="relative flex-1 overflow-y-auto">
-              <div className="flex min-h-full flex-col items-center justify-center px-6 py-10 text-center">
+              <div className="flex min-h-full flex-col items-center justify-center px-6 py-4 text-center sm:py-10">
                 {loading ? (
                   <LoadingDeck />
                 ) : view === 'wizard' ? (
@@ -319,7 +306,7 @@ export default function FindSomething({ t }: { t: Translate }) {
               </div>
             </div>
 
-            {/* Quiet bottom bar: back · progress · skip (or the deal controls). */}
+            {/* renders navigation and action bar at bottom */}
             {!loading && pool.length > 0 && (
               <div className="relative grid grid-cols-[1fr_auto_1fr] items-center gap-3 px-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-2 sm:px-8">
                 {view === 'wizard' ? (
@@ -336,7 +323,7 @@ export default function FindSomething({ t }: { t: Translate }) {
                       )}
                     </div>
 
-                    {/* Progress dots — the only persistent trace of the steps. */}
+                    {/* renders wizard step indicators */}
                     <div className="flex items-center gap-2 justify-self-center">
                       {stages.map((sk, i) => (
                         <span
@@ -395,7 +382,7 @@ export default function FindSomething({ t }: { t: Translate }) {
   )
 }
 
-// ── Entry banner on the Discover page ────────────────────────────────────────
+// renders entry banner for discover page
 function FindBanner({ onOpen }: { onOpen: () => void }) {
   return (
     <section className="mb-8">
@@ -443,7 +430,6 @@ const SPARKS = [
   { top: '22%', left: '78%', size: 8, delay: '0.9s' },
 ]
 
-// ── One wizard stage ─────────────────────────────────────────────────────────
 const STAGE_META: Record<StageKey, { kicker: string; title: string }> = {
   type: { kicker: 'The medium', title: 'What are you after tonight?' },
   vibe: { kicker: 'The vibe', title: 'How should it feel?' },
@@ -451,6 +437,7 @@ const STAGE_META: Record<StageKey, { kicker: string; title: string }> = {
   era: { kicker: 'The era', title: 'From when?' },
 }
 
+// renders individual wizard stage content
 function Stage({
   stageKey, stepIndex, sel, genreOptions, eraChips, onType, onMood, onGenre, onEra,
 }: {
@@ -474,7 +461,7 @@ function Stage({
         {meta.title}
       </h3>
 
-      {/* The medium — four little cards from the deck, tilted; hover straightens. */}
+      {/* renders media type selection cards */}
       {stageKey === 'type' && (
         <div className="mt-10 flex flex-wrap items-start justify-center gap-x-7 gap-y-8 sm:mt-14 sm:gap-x-10">
           {TYPE_OPTS.map((o, i) => (
@@ -483,7 +470,7 @@ function Stage({
         </div>
       )}
 
-      {/* The vibe — each mood blooms in its own color. */}
+      {/* renders mood selection options */}
       {stageKey === 'vibe' && (
         <div className="mt-10 flex max-w-xl flex-wrap items-center justify-center gap-x-9 gap-y-6 sm:mt-12">
           {MOODS.map((m) => (
@@ -492,7 +479,7 @@ function Stage({
         </div>
       )}
 
-      {/* The genre — real covers from the catalog fan out over each word. */}
+      {/* renders genre selection with fanned covers */}
       {stageKey === 'genre' && (
         <div className="mt-10 flex w-full flex-wrap items-start justify-center gap-x-4 gap-y-9 sm:mt-12 sm:gap-x-6">
           {genreOptions.map((g) => (
@@ -501,7 +488,7 @@ function Stage({
         </div>
       )}
 
-      {/* The era — stops on a timeline. */}
+      {/* renders era selection timeline */}
       {stageKey === 'era' && (
         <div className="relative mt-12 w-full sm:mt-16">
           <span aria-hidden className="absolute inset-x-8 top-[5px] hidden h-px bg-gradient-to-r from-transparent via-white/20 to-transparent sm:block" />
@@ -516,8 +503,7 @@ function Stage({
   )
 }
 
-// A miniature face-down card (same gradient as the deck) with its label below —
-// tilted at rest, straightening and lifting on hover, ringed when chosen.
+// renders miniature card option for type selection
 function TypeCardOption({
   icon: Icon, label, tilt, active, onClick,
 }: {
@@ -545,8 +531,7 @@ function TypeCardOption({
   )
 }
 
-// A mood in its own color: the icon and word take the accent, and a soft
-// colored bloom breathes behind them on hover/selection. No box, no border.
+// renders mood option with accent color bloom
 function MoodOption({ mood, active, onClick }: { mood: Mood; active: boolean; onClick: () => void }) {
   const Icon = mood.icon
   return (
@@ -575,9 +560,7 @@ function MoodOption({ mood, active, onClick }: { mood: Mood; active: boolean; on
   )
 }
 
-// A genre as floating goods: up to three real covers fanned above the word,
-// spreading wider on hover. Falls back to a small deck-card with the genre's
-// initial when the pool has no covers for it.
+// renders genre option with fanned covers or initial fallback
 function GenreOption({
   label, covers, active, onClick,
 }: {
@@ -618,8 +601,7 @@ function GenreOption({
   )
 }
 
-// An era as a stop on the timeline: a glowing dot on the hairline track, the
-// name beneath it, and the actual year range as a whisper below that.
+// renders era option dot on timeline
 function EraOption({ era, active, onClick }: { era: Era; active: boolean; onClick: () => void }) {
   return (
     <button onClick={onClick} className="group flex flex-col items-center gap-2.5 active:scale-95">
@@ -640,12 +622,7 @@ function EraOption({ era, active, onClick }: { era: Era; active: boolean; onClic
   )
 }
 
-// ── The dealt hand — cards rest fanned at the bottom of the stage; picking
-// one lifts it into the center, flipping in flight, where it STAYS. Later
-// picks join it and the whole center spread re-spaces and re-centers (cards
-// shrink a step as the spread grows). Each card is one absolutely positioned
-// element whose transform switches between its hand slot and its spread slot,
-// so a plain CSS transition animates every journey and re-layout. ────────────
+// renders dealt hand and manages transitions between hand and spread
 function CardsTable({
   draw, flipped, revealOrder, onSelect, widened, t,
 }: {
@@ -658,16 +635,16 @@ function CardsTable({
 }) {
   if (draw.length === 0) return <EmptyState label="No matches for that combo. Try loosening it up." />
 
-  // Cards still waiting in the hand, in dealt order — they re-fan tighter
-  // around the bottom center as members leave for the spread.
+  // tracks cards waiting in hand
   const hand = draw.map((_, j) => j).filter((j) => !revealOrder.includes(j))
   const handMid = (hand.length - 1) / 2
   const count = revealOrder.length
   const centerMid = (count - 1) / 2
-  // The spread shares the spotlight: each extra card steps the scale down.
+  
+  // calculates scale based on spread size
   const centerScale = [1.08, 0.9, 0.76, 0.65][Math.min(count, 4) - 1] ?? 0.65
-  // Slot width tracks the scaled card, capped in vw so a full spread overlaps
-  // gracefully on narrow screens instead of overflowing.
+  
+  // calculates responsive slot width for center cards
   const slot = `min(${(centerScale * 11 + 0.9).toFixed(2)}rem, 23vw)`
   const allCentered = count >= draw.length
 
@@ -684,9 +661,9 @@ function CardsTable({
         <p className="mt-1 text-xs text-[var(--find-text-muted)]/70">Slim pickings for that exact combo — widened the search a touch.</p>
       )}
 
-      {/* The stage: the growing spread in the center + the hand along the bottom. */}
-      <div className="relative h-[27rem] w-full sm:h-[30rem]">
-        {/* A faint pulsing hint where the first picked card will land. */}
+      {/* renders growing spread and hand layout */}
+      <div className="relative h-[22rem] w-full sm:h-[30rem]">
+        {/* renders hint for first pick */}
         {count === 0 && (
           <div aria-hidden className="animate-glow-pulse absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-[62%]">
             <IoSparklesOutline className="h-8 w-8 text-[var(--find-text-muted)]/40" />
@@ -697,19 +674,19 @@ function CardsTable({
           const r = revealOrder.indexOf(i)
           const inCenter = r !== -1
           const h = hand.indexOf(i)
-          // Spread slot: side by side in pick order, slightly tilted outward.
-          // Hand slot: fanned along the bottom, small and face-down.
+          
+          // calculates position transform for hand or spread slot
           const transform = inCenter
             ? `translate(calc(-50% + (${r} - ${centerMid}) * ${slot}), -62%) rotate(${(r - centerMid) * 3}deg) scale(${centerScale})`
-            : `translate(calc(-50% + ${(h - handMid) * 60}px), 135px) rotate(${(h - handMid) * 6}deg) scale(0.55)`
+            : `translate(calc(-50% + ${(h - handMid) * 60}px), clamp(70px, 15vh, 135px)) rotate(${(h - handMid) * 6}deg) scale(0.55)`
+          
           return (
             <div
               key={it.id}
               className="absolute left-1/2 top-1/2 w-40 transition-transform duration-500 [transition-timing-function:cubic-bezier(0.32,0.72,0,1)] sm:w-44"
               style={{ transform, zIndex: inCenter ? 20 + r : 10 + i }}
             >
-              {/* Deal-in entrance on an inner wrapper — its keyframes end at
-                  identity, so the positioning transform above stays intact. */}
+              {/* wraps card in deal-in animation layer */}
               <div className="animate-deal" style={{ animationDelay: `${i * 110}ms` }}>
                 <HandCard item={it} flipped={flipped.has(i)} active={inCenter} onSelect={() => onSelect(i)} t={t} />
               </div>
@@ -739,7 +716,7 @@ function HandCard({
       )}
       <div className="flip-scene">
         <div className={`flip-inner aspect-[2/3] w-full ${flipped ? 'is-flipped' : ''}`}>
-          {/* Mystery face (front, shown first) */}
+          {/* renders mystery front face */}
           <div className="flip-face flip-face--front flex h-full w-full items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-nonsprimary via-nonsprimarydeep to-[#100d20] shadow-2xl">
             <span className="pointer-events-none absolute inset-y-0 -left-1/2 w-1/2 skew-x-12 bg-white/15 blur-md animate-sheen" />
             <span aria-hidden className="absolute inset-0 opacity-40" style={{ backgroundImage: 'radial-gradient(circle at 30% 22%, rgba(255,255,255,0.45), transparent 45%)' }} />
@@ -747,7 +724,7 @@ function HandCard({
             <span className="absolute bottom-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-white/45">nons</span>
           </div>
 
-          {/* Revealed face (back) */}
+          {/* renders revealed back face */}
           <div className="flip-face flip-face--back overflow-hidden rounded-2xl bg-[var(--find-surface-active)] shadow-2xl">
             <div className="relative h-full w-full">
               {item.coverUrl ? (
@@ -775,8 +752,7 @@ function HandCard({
         </div>
       </div>
 
-      {/* Interaction overlay: a card in the hand is picked (moves to center);
-          the centered, revealed card opens the title. */}
+      {/* renders interaction overlay based on card state */}
       {!active ? (
         <button onClick={onSelect} aria-label={`Pick card`} className="absolute inset-0 z-20 rounded-2xl" />
       ) : flipped ? (
