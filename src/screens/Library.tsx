@@ -130,7 +130,13 @@ export default function LibraryScreen() {
   const sortDir = (params.get('dir') as 'asc' | 'desc') || 'desc'
   const page = Math.max(1, Number(params.get('page') || '1'))
   const PAGE_SIZE = 25
-  const [view, setView] = useState<'grid' | 'list'>('grid')
+  const [view, setViewState] = useState<'grid' | 'list'>(() =>
+    typeof window === 'undefined' ? 'grid' : (localStorage.getItem('library.view') as 'grid' | 'list') || 'grid',
+  )
+  const setView = (v: 'grid' | 'list') => {
+    setViewState(v)
+    if (typeof window !== 'undefined') localStorage.setItem('library.view', v)
+  }
 
   const [showExport, setShowExport] = useState(false)
   const [showFilterMenu, setShowFilterMenu] = useState(false)
