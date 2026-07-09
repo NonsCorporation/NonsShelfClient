@@ -314,7 +314,7 @@ export default function FindSomething({ t }: { t: Translate }) {
                     </div>
                   )
                 ) : (
-                  <CardsTable draw={draw} flipped={flipped} revealOrder={revealOrder} onSelect={select} widened={widened} allRevealed={allRevealed} t={t} />
+                  <CardsTable draw={draw} flipped={flipped} revealOrder={revealOrder} onSelect={select} widened={widened} t={t} />
                 )}
               </div>
             </div>
@@ -647,14 +647,13 @@ function EraOption({ era, active, onClick }: { era: Era; active: boolean; onClic
 // element whose transform switches between its hand slot and its spread slot,
 // so a plain CSS transition animates every journey and re-layout. ────────────
 function CardsTable({
-  draw, flipped, revealOrder, onSelect, widened, allRevealed, t,
+  draw, flipped, revealOrder, onSelect, widened, t,
 }: {
   draw: CatalogItem[]
   flipped: Set<number>
   revealOrder: number[]
   onSelect: (i: number) => void
   widened: boolean
-  allRevealed: boolean
   t: Translate
 }) {
   if (draw.length === 0) return <EmptyState label="No matches for that combo. Try loosening it up." />
