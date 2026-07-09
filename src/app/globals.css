@@ -143,7 +143,21 @@ html[data-theme="light"] .app-ambient::before {
 }
 
 /* ── "Find something" discovery experience ─────────────────────────────────
-   A card-game style reveal: face-down mystery cards deal onto the table, and a
+   Its own fixed, near-black "game table" palette — deliberately independent of
+   html[data-theme], so the draw feels like the same dim, cinematic surface
+   whether the rest of the app is in light or dark mode. Never mix the site's
+   --text/--surface tokens into this feature; on the light theme they assume a
+   light backdrop and would render invisible (dark text) on this dark one. */
+:root {
+  --find-bg: color-mix(in srgb, #050507 96%, var(--color-nonsprimary) 4%);
+  --find-surface: rgba(255, 255, 255, 0.045);
+  --find-surface-hover: rgba(255, 255, 255, 0.085);
+  --find-surface-active: rgba(255, 255, 255, 0.1);
+  --find-text: #f3f2f7;
+  --find-text-muted: #938fa0;
+}
+
+/* A card-game style reveal: face-down mystery cards deal onto the table, and a
    tap flips each one to its cover. The 3D flip needs perspective on the scene,
    a preserve-3d inner that rotates, and back-face-hidden faces. */
 .flip-scene { perspective: 1400px; }
@@ -193,6 +207,15 @@ html[data-theme="light"] .app-ambient::before {
 }
 .animate-sheen { animation: nons-sheen 3s ease-in-out infinite; }
 
+/* A single light sweep across the whole panel when it first opens. */
+@keyframes nons-sheen-once {
+  0%   { transform: translateX(-160%) rotate(8deg); opacity: 0; }
+  12%  { opacity: 0.6; }
+  55%  { opacity: 0.4; }
+  100% { transform: translateX(220%) rotate(8deg); opacity: 0; }
+}
+.animate-sheen-once { animation: nons-sheen-once 1.3s ease-out 0.2s both; }
+
 /* Gentle twinkle for scattered sparkles. */
 @keyframes nons-twinkle {
   0%, 100% { opacity: 0.2; transform: scale(0.8); }
@@ -224,7 +247,7 @@ html[data-theme="light"] .app-ambient::before {
 .animate-pop-in { animation: nons-pop-in 0.7s ease-out both; }
 
 @media (prefers-reduced-motion: reduce) {
-  .animate-deal, .animate-sheen, .animate-twinkle,
+  .animate-deal, .animate-sheen, .animate-sheen-once, .animate-twinkle,
   .animate-glow-pulse, .animate-aurora, .animate-pop-in,
   .animate-stage-in { animation: none !important; }
   .flip-inner { transition: none; }
