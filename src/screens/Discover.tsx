@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from '@/lib/router'
 import Layout from '../components/layout/Layout'
 import CatalogCard from '../components/CatalogCard'
+import FindSomething from '../components/FindSomething'
 import BoringAvatar from '../components/BoringAvatar'
 import ShelfStatusBar from '../components/ShelfStatusBar'
 import FinishModal from '../components/FinishModal'
@@ -218,6 +219,11 @@ export default function DiscoverPage() {
           ))}
         </div>
       </div>
+
+      {/* Discovery draw — an engaging "pick a vibe → deal 5 mystery cards"
+          experience. Self-contained (fetches its own multi-type pool), so it
+          renders above the fold regardless of the page's own loading state. */}
+      <FindSomething t={t} />
 
       {/* Sign-in nudge for anonymous visitors. */}
       {!authLoading && !isAuthenticated && (

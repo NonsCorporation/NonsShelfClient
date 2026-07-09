@@ -141,3 +141,91 @@ html[data-theme="light"] .app-ambient::before {
 .animate-slide-up {
   animation: nons-slide-up 0.3s cubic-bezier(0.32, 0.72, 0, 1) both;
 }
+
+/* ── "Find something" discovery experience ─────────────────────────────────
+   A card-game style reveal: face-down mystery cards deal onto the table, and a
+   tap flips each one to its cover. The 3D flip needs perspective on the scene,
+   a preserve-3d inner that rotates, and back-face-hidden faces. */
+.flip-scene { perspective: 1400px; }
+.flip-inner {
+  position: relative;
+  transform-style: preserve-3d;
+  -webkit-transform-style: preserve-3d;
+  transition: transform 0.62s cubic-bezier(0.4, 0.15, 0.2, 1);
+}
+.flip-inner.is-flipped { transform: rotateY(180deg); }
+.flip-face {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  /* Opacity fallback: some engines (notably iOS Safari) flatten the 3D scene
+     and stop honouring backface-visibility, so both faces show at once — the
+     "everything's already open" bug. Hard-hiding the away-facing face by
+     opacity, swapped at the midpoint of the flip, guarantees exactly one face
+     is ever visible regardless of 3D support. */
+  transition: opacity 0s linear 0.31s;
+}
+.flip-face--front { opacity: 1; }
+.flip-face--back { transform: rotateY(180deg); opacity: 0; }
+.flip-inner.is-flipped .flip-face--front { opacity: 0; }
+.flip-inner.is-flipped .flip-face--back { opacity: 1; }
+
+/* Stepped-wizard stage entrance. */
+@keyframes nons-stage-in {
+  from { opacity: 0; transform: translateX(26px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.animate-stage-in { animation: nons-stage-in 0.34s cubic-bezier(0.32, 0.72, 0, 1) both; }
+
+/* Cards deal in from a stack with a little overshoot; per-card delay set inline. */
+@keyframes nons-deal {
+  0%   { opacity: 0; transform: translateY(34px) scale(0.88) rotate(-7deg); }
+  62%  { opacity: 1; transform: translateY(-5px) scale(1.03) rotate(1.5deg); }
+  100% { opacity: 1; transform: translateY(0) scale(1) rotate(0); }
+}
+.animate-deal { animation: nons-deal 0.52s cubic-bezier(0.32, 0.72, 0, 1) both; }
+
+/* A slow sheen sweeping across mystery-card backs and the call-to-action. */
+@keyframes nons-sheen {
+  0%   { transform: translateX(-140%) rotate(12deg); }
+  100% { transform: translateX(240%) rotate(12deg); }
+}
+.animate-sheen { animation: nons-sheen 3s ease-in-out infinite; }
+
+/* Gentle twinkle for scattered sparkles. */
+@keyframes nons-twinkle {
+  0%, 100% { opacity: 0.2; transform: scale(0.8); }
+  50%      { opacity: 1; transform: scale(1.15); }
+}
+.animate-twinkle { animation: nons-twinkle 2.4s ease-in-out infinite; }
+
+/* Soft breathing glow behind the CTA and the dealt cards. */
+@keyframes nons-glow-pulse {
+  0%, 100% { opacity: 0.45; }
+  50%      { opacity: 0.85; }
+}
+.animate-glow-pulse { animation: nons-glow-pulse 3.6s ease-in-out infinite; }
+
+/* Slowly drifting aurora gradient behind the Find banner. */
+@keyframes nons-aurora {
+  0%   { transform: translate3d(-8%, -6%, 0) rotate(0deg); }
+  50%  { transform: translate3d(8%, 6%, 0) rotate(180deg); }
+  100% { transform: translate3d(-8%, -6%, 0) rotate(360deg); }
+}
+.animate-aurora { animation: nons-aurora 20s linear infinite; }
+
+/* A short celebratory pop when the last card is revealed. */
+@keyframes nons-pop-in {
+  0%   { opacity: 0; transform: scale(0.4); }
+  70%  { opacity: 1; transform: scale(1.2); }
+  100% { opacity: 0; transform: scale(1.6); }
+}
+.animate-pop-in { animation: nons-pop-in 0.7s ease-out both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-deal, .animate-sheen, .animate-twinkle,
+  .animate-glow-pulse, .animate-aurora, .animate-pop-in,
+  .animate-stage-in { animation: none !important; }
+  .flip-inner { transition: none; }
+}
