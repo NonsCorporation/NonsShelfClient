@@ -125,7 +125,7 @@ export default function LibraryScreen() {
   const [loading, setLoading] = useState(true)
   const [progressMap, setProgressMap] = useState<Map<string, ItemProgress>>(new Map())
 
-  const [typeFilter, setTypeFilter] = useState<'all' | 'book' | 'movie' | 'series'>('all')
+  const typeFilter = (params.get('type') as 'all' | 'book' | 'movie' | 'series') || 'all'
   const sort = (params.get('sort') as SortKey) || 'added'
   const sortDir = (params.get('dir') as 'asc' | 'desc') || 'desc'
   const page = Math.max(1, Number(params.get('page') || '1'))
@@ -146,8 +146,8 @@ export default function LibraryScreen() {
   const [authorFilter, setAuthorFilter] = useState('')
   const [directorFilter, setDirectorFilter] = useState('')
   const [actorFilter, setActorFilter] = useState('')
-  const [hasRating, setHasRating] = useState(false)
-  const [hasReview, setHasReview] = useState(false)
+  const hasRating = params.get('rated') === '1'
+  const hasReview = params.get('reviewed') === '1'
   const [addedFrom, setAddedFrom] = useState('')
   const [addedTo, setAddedTo] = useState('')
   const [finishedFrom, setFinishedFrom] = useState('')
@@ -576,6 +576,27 @@ export default function LibraryScreen() {
     next.delete('page')
     setParams(next, { replace: true })
   }
+  const setTypeFilterParam = (t: 'all' | 'book' | 'movie' | 'series') => {
+    const next = new URLSearchParams(params)
+    if (t === 'all') next.delete('type')
+    else next.set('type', t)
+    next.delete('page')
+    setParams(next, { replace: true })
+  }
+  const toggleRatedParam = () => {
+    const next = new URLSearchParams(params)
+    if (hasRating) next.delete('rated')
+    else next.set('rated', '1')
+    next.delete('page')
+    setParams(next, { replace: true })
+  }
+  const toggleReviewedParam = () => {
+    const next = new URLSearchParams(params)
+    if (hasReview) next.delete('reviewed')
+    else next.set('reviewed', '1')
+    next.delete('page')
+    setParams(next, { replace: true })
+  }
   const setCollectionParam = (id: number | null) => {
     const next = new URLSearchParams(params)
     if (id == null) next.delete('collection')
@@ -615,13 +636,13 @@ export default function LibraryScreen() {
   // values makes this idempotent regardless of how many times it's invoked
   // for the same underlying filters.
   const prevFiltersRef = useRef({
-    query, typeFilter, genreFilter, yearFilter, authorFilter, directorFilter,
-    actorFilter, hasRating, hasReview, addedFrom, addedTo, finishedFrom, finishedTo, compareFilter,
+    query, genreFilter, yearFilter, authorFilter, directorFilter,
+    actorFilter, addedFrom, addedTo, finishedFrom, finishedTo, compareFilter,
   })
   useEffect(() => {
     const cur = {
-      query, typeFilter, genreFilter, yearFilter, authorFilter, directorFilter,
-      actorFilter, hasRating, hasReview, addedFrom, addedTo, finishedFrom, finishedTo, compareFilter,
+      query, genreFilter, yearFilter, authorFilter, directorFilter,
+      actorFilter, addedFrom, addedTo, finishedFrom, finishedTo, compareFilter,
     }
     const prev = prevFiltersRef.current
     prevFiltersRef.current = cur
@@ -633,7 +654,7 @@ export default function LibraryScreen() {
     next.delete('page')
     setParams(next, { replace: true })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query, typeFilter, genreFilter, yearFilter, authorFilter, directorFilter, actorFilter, hasRating, hasReview, addedFrom, addedTo, finishedFrom, finishedTo, compareFilter])
+  }, [query, genreFilter, yearFilter, authorFilter, directorFilter, actorFilter, addedFrom, addedTo, finishedFrom, finishedTo, compareFilter])
 
   if (notFound) {
     return (
@@ -1003,7 +1024,7 @@ export default function LibraryScreen() {
           {(['all', 'book', 'movie', 'series'] as const).map((f) => (
             <button
               key={f}
-              onClick={() => setTypeFilter(f)}
+              onClick={() => setTypeFilterParam(f)}
               className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
                 typeFilter === f
                   ? 'bg-[var(--surface-active)] text-[var(--text)]'
@@ -1017,7 +1038,7 @@ export default function LibraryScreen() {
 
         {/* Quick filters: only rated / only reviewed (combine for "reviews with a rating") */}
         <button
-          onClick={() => setHasRating((v) => !v)}
+          onClick={toggleRatedParam}
           title={t('hasRating')}
           className={`flex h-10 items-center gap-1.5 rounded-xl border px-3 text-xs font-medium transition-colors ${
             hasRating
@@ -1029,7 +1050,7 @@ export default function LibraryScreen() {
           <span className="hidden sm:inline">{t('hasRating')}</span>
         </button>
         <button
-          onClick={() => setHasReview((v) => !v)}
+          onClick={toggleReviewedParam}
           title={t('hasReview')}
           className={`flex h-10 items-center gap-1.5 rounded-xl border px-3 text-xs font-medium transition-colors ${
             hasReview
@@ -1134,12 +1155,15 @@ export default function LibraryScreen() {
                       setAuthorFilter('')
                       setDirectorFilter('')
                       setActorFilter('')
-                      setHasRating(false)
-                      setHasReview(false)
                       setAddedFrom('')
                       setAddedTo('')
                       setFinishedFrom('')
                       setFinishedTo('')
+                      const next = new URLSearchParams(params)
+                      next.delete('rated')
+                      next.delete('reviewed')
+                      next.delete('page')
+                      setParams(next, { replace: true })
                     }}
                     className="self-end text-xs text-nonsprimaryfocus hover:underline"
                   >
@@ -1355,7 +1379,7 @@ export default function LibraryScreen() {
                   next.delete('page')
                   setParams(next, { replace: true })
                 }}
-                onFilterType={setTypeFilter}
+                onFilterType={setTypeFilterParam}
                 progress={progressMap.get(it.id)}
               />
             ))}
