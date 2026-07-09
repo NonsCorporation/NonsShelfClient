@@ -16,7 +16,7 @@ import StarsSelector from '../StarsSelector'
 import { libraryService } from '../services/libraryService'
 import { librarianService } from '../services/librarianService'
 import { suggestionService } from '../services/suggestionService'
-import { getReviews, type ReviewsPage, type CommunityReview } from '../services/reviewService'
+import { getReviews, getFriendShelfStatuses, type ReviewsPage, type CommunityReview, type FriendShelfStatus } from '../services/reviewService'
 import ShareModal from '../components/ShareModal'
 import { getFriendUsers, colorFor } from '../services/activityService'
 import type { Activity } from '../services/activityService'
@@ -49,7 +49,7 @@ import { usePreferences } from '../contexts/PreferencesContext'
 import { FiClipboard } from 'react-icons/fi'
 import { useAuth } from '../contexts/AuthContext'
 import { isLibrarian } from '../services/librarianService'
-import { statusLabel } from '../lib/shelf'
+import { statusLabel, STATUS_COLOR } from '../lib/shelf'
 import TypeBadge from '../components/TypeBadge'
 import BoringAvatar from '../components/BoringAvatar'
 
@@ -178,6 +178,7 @@ export default function MediaOnePage({
   const [reviewsLoading, setReviewsLoading] = useState(false)
   const [friendUsers, setFriendUsers] = useState<Map<number, Activity['user']>>(new Map())
   const [friendReviews, setFriendReviews] = useState<CommunityReview[]>([])
+  const [friendStatuses, setFriendStatuses] = useState<FriendShelfStatus[]>([])
   const [friendsLoaded, setFriendsLoaded] = useState(false)
   const commSectionRef = useRef<HTMLDivElement>(null)
   const editionsRef = useRef<HTMLDivElement>(null)
@@ -309,9 +310,11 @@ export default function MediaOnePage({
     }
   }, [mediaNumId, commSort, commWithReview, commPage])
 
-  // Friends' ratings/reviews for this media item. Loads once per page visit:
-  // fetches the friend list from nons-server, then pulls their ratings for this
-  // specific catalog item. Only runs when authenticated.
+  // Friends' ratings/reviews AND shelf statuses (want-to-read/reading/etc.)
+  // for this media item. Loads once per page visit: fetches the friend list
+  // from nons-server, then pulls both facets for this specific catalog item
+  // in parallel — a friend who only shelved the item (no rating/review yet)
+  // still shows up via the statuses fetch. Only runs when authenticated.
   const userId = user?.id
   useEffect(() => {
     if (!isAuthenticated || !userId || !mediaNumId) return
@@ -325,6 +328,8 @@ export default function MediaOnePage({
       const userIds = [...map.keys()]
       getReviews(mediaNumId, { userIds, perPage: userIds.length + 1 })
         .then((p) => { if (!cancelled) setFriendReviews(p.items) })
+      getFriendShelfStatuses(mediaNumId, userIds)
+        .then((items) => { if (!cancelled) setFriendStatuses(items) })
     })
     return () => { cancelled = true }
   }, [isAuthenticated, userId, mediaNumId])
@@ -1198,12 +1203,13 @@ export default function MediaOnePage({
                   <h3 className="mb-3 text-[10px] uppercase tracking-widest text-[var(--text-muted)]">Friends</h3>
                   {!friendsLoaded ? (
                     <p className="text-sm text-[var(--placeholder)]">{t('loading')}</p>
-                  ) : friendReviews.length === 0 ? (
-                    <p className="text-sm text-[var(--placeholder)]">No friends have rated this yet.</p>
+                  ) : friendReviews.length === 0 && friendStatuses.length === 0 ? (
+                    <p className="text-sm text-[var(--placeholder)]">No friends have added this yet.</p>
                   ) : (
                     <div className="flex flex-col divide-y divide-[var(--border-subtle)]">
                       {friendReviews.map((r) => {
                         const u = friendUsers.get(r.userId)
+                        const s = friendStatuses.find((s) => s.userId === r.userId)
                         const f = {
                           handle: r.username ?? `user-${r.userId}`,
                           name: r.name || r.username || 'Friend',
@@ -1212,9 +1218,27 @@ export default function MediaOnePage({
                           review: r.review ?? null,
                           avatarUrl: r.avatarUrl ?? null,
                           userId: r.userId,
+                          status: s?.status,
                         }
-                        return <FriendRatingRow key={r.userId} f={f} />
+                        return <FriendRatingRow key={r.userId} f={f} mediaType={item.type} t={t} />
                       })}
+                      {/* Friends who shelved the item but haven't rated/reviewed it yet */}
+                      {friendStatuses
+                        .filter((s) => !friendReviews.some((r) => r.userId === s.userId))
+                        .map((s) => {
+                          const u = friendUsers.get(s.userId)
+                          const f = {
+                            handle: s.username ?? `user-${s.userId}`,
+                            name: s.name || s.username || 'Friend',
+                            rating: 0,
+                            color: u?.color ?? colorFor(s.username ?? ''),
+                            review: null,
+                            avatarUrl: s.avatarUrl ?? null,
+                            userId: s.userId,
+                            status: s.status,
+                          }
+                          return <FriendRatingRow key={s.userId} f={f} mediaType={item.type} t={t} />
+                        })}
                     </div>
                   )}
                 </div>
@@ -1403,7 +1427,12 @@ export default function MediaOnePage({
   )
 }
 
-function FriendRatingRow({ f }: { f: { handle: string; name: string; rating: number; color: string; review: string | null; avatarUrl: string | null; userId: number } }) {
+function FriendRatingRow({ f, mediaType, t }: {
+  f: { handle: string; name: string; rating: number; color: string; review: string | null; avatarUrl: string | null; userId: number; status?: ShelfStatus }
+  mediaType: MediaItem['type']
+  t: (key: string, vars?: Record<string, string | number>) => string
+}) {
+  const hasRating = f.rating > 0 || !!f.review
   return (
     <div className="py-3 first:pt-0 last:pb-0">
       <div className="flex items-center gap-3">
@@ -1418,10 +1447,22 @@ function FriendRatingRow({ f }: { f: { handle: string; name: string; rating: num
           </span>
         )}
         <span className="min-w-0 flex-1 truncate text-sm text-[var(--text)]">{f.name}</span>
-        <StarsSelector initialValue={f.rating} isEditable={false} size="sm" />
+        {hasRating ? (
+          <StarsSelector initialValue={f.rating} isEditable={false} size="sm" />
+        ) : f.status ? (
+          <span
+            className="flex-shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium text-white"
+            style={{ backgroundColor: STATUS_COLOR[f.status] }}
+          >
+            {statusLabel(mediaType, f.status, t)}
+          </span>
+        ) : null}
       </div>
       {f.review && (
         <p className="mt-2 pl-10 text-xs leading-6 text-[var(--text-muted)]">{f.review}</p>
+      )}
+      {hasRating && f.status && (
+        <p className="mt-1 pl-10 text-[11px] text-[var(--text-muted)]">{statusLabel(mediaType, f.status, t)}</p>
       )}
     </div>
   )

@@ -1,4 +1,5 @@
 import { authedFetch } from '../lib/api'
+import type { ShelfStatus } from '../types'
 
 // Community ratings & reviews for a catalog item, computed server-side from all
 // users' ratings (nons-library-server resolves the reviewers' names/avatars from
@@ -84,5 +85,51 @@ export async function getReviews(mediaId: number | string, q: ReviewQuery = {}):
     }
   } catch {
     return EMPTY
+  }
+}
+
+// Friends' shelf statuses (want-to-read/reading/etc.) for a catalog item —
+// the shelf-status counterpart of getReviews, for friends who added the item
+// without rating or reviewing it. Powers the media page's "Friends" section
+// alongside getReviews.
+
+export type FriendShelfStatus = {
+  userId: number
+  username?: string
+  name?: string
+  avatarUrl?: string
+  status: ShelfStatus
+  updatedAt: number
+}
+
+type WireFriendStatus = {
+  user_id: number
+  username?: string
+  name?: string
+  avatar_url?: string
+  status: ShelfStatus
+  updated_at: number
+}
+
+// Fetch friends' shelf statuses for a media item. `userIds` scopes the result
+// to that set of users (the friends list). Never throws — failures resolve to
+// an empty array.
+export async function getFriendShelfStatuses(mediaId: number | string, userIds: number[]): Promise<FriendShelfStatus[]> {
+  if (userIds.length === 0) return []
+  try {
+    const params = new URLSearchParams({ user_ids: userIds.join(',') })
+    const res = await authedFetch(`/api/media/${mediaId}/shelf-statuses?${params}`)
+    if (!res.ok) return []
+    const data: { items?: WireFriendStatus[] } = await res.json()
+    return (data.items ?? []).map((s) => ({
+      userId: s.user_id,
+      username: s.username || undefined,
+      name: s.name || undefined,
+      avatarUrl: s.avatar_url || undefined,
+      status: s.status,
+      updatedAt: s.updated_at,
+    }))
+  } catch {
+    return []
   }
 }
