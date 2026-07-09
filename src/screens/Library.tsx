@@ -30,6 +30,7 @@ import MediaModal from '../components/MediaModal.tsx'
 import ImportModal from '../components/ImportModal.tsx'
 import ExportModal from '../components/ExportModal.tsx'
 import MediaDetailModal from '../components/MediaDetailModal.tsx'
+import FinishModal from '../components/FinishModal.tsx'
 import CollectionSettingsModal from '../components/CollectionSettingsModal.tsx'
 import DatePicker from '../components/DatePicker.tsx'
 import PersonSelectFilter from '../components/PersonSelectFilter.tsx'
@@ -155,6 +156,9 @@ export default function LibraryScreen() {
   // Comparison vs the viewer's own shelf, only when browsing another user's library.
   const [compareFilter, setCompareFilter] = useState<'all' | 'shared' | 'onlyTheirs'>('all')
   const [myByMediaId, setMyByMediaId] = useState<Map<string, { status?: MediaItem['status']; rating?: number }>>(new Map())
+  // The item currently going through the "already read/watched" finish flow,
+  // triggered from the comparison chip's status picker (see handleMyStatusChange).
+  const [finishItem, setFinishItem] = useState<MediaItem | null>(null)
 
   const [showForm, setShowForm] = useState<null | 'book' | 'movie'>(null)
   const [showImport, setShowImport] = useState(false)
@@ -504,6 +508,13 @@ export default function LibraryScreen() {
   // object, but its id is the shared catalog id, so these calls act on the
   // signed-in viewer's own shelf via the usual authed endpoints.
   async function handleMyStatusChange(item: MediaItem, status: ShelfStatus) {
+    // "Finished" gets the full rate/review/dates flow (same as everywhere
+    // else "already read/watched" is picked) instead of an immediate silent
+    // status flip.
+    if (status === 'done') {
+      setFinishItem(item)
+      return
+    }
     const updated = await libraryService.updateItem(item.id, { status })
     setMyByMediaId((prev) => new Map(prev).set(item.id, { status: updated.status, rating: updated.rating }))
   }
@@ -1352,6 +1363,18 @@ export default function LibraryScreen() {
         onImported={() => libraryService.getItems().then(setItems)}
       />
       <MediaDetailModal item={detailItem} onClose={() => setDetailItem(null)} />
+      <FinishModal
+        isOpen={finishItem !== null}
+        item={finishItem}
+        onClose={() => setFinishItem(null)}
+        onFinished={async () => {
+          const item = finishItem
+          setFinishItem(null)
+          if (!item) return
+          const updated = await libraryService.getItem(item.id)
+          if (updated) setMyByMediaId((prev) => new Map(prev).set(item.id, { status: updated.status, rating: updated.rating }))
+        }}
+      />
       {showExport && (
         <ExportModal collections={collections} onClose={() => setShowExport(false)} />
       )}
