@@ -212,6 +212,8 @@ export type ChallengeCondition = {
 
 export type Challenge = {
   id: number
+  /** Stable public id used in /challenge/<uuid> URLs. */
+  uuid: string
   title: string
   description: string
   created_by: number

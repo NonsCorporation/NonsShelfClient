@@ -6,10 +6,11 @@ import ImportModal from '../components/ImportModal'
 import SettingsModal from '../components/SettingsModal'
 import { libraryService } from '../services/libraryService'
 import { collectionService } from '../services/collectionService'
+import { challengeService } from '../services/challengeService'
 import Pagination from '../components/Pagination'
 import { fetchPublicProfile } from '../services/userService'
 import { nonsProfileUrl, nonsFetch, authedFetch } from '../lib/api'
-import type { MediaItem, ShelfStatus, Collection } from '../types'
+import type { MediaItem, ShelfStatus, Collection, Challenge } from '../types'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
 import { useCollections } from '../contexts/CollectionContext'
@@ -34,6 +35,7 @@ import {
   IoFolderOutline,
   IoPeopleOutline,
   IoInformationCircleOutline,
+  IoTrophyOutline,
 } from 'react-icons/io5'
 import type { IconType } from 'react-icons'
 import type { MediaType } from '../types'
@@ -91,6 +93,9 @@ export default function ProfilePage() {
   // the context above instead) or when their shelf is private.
   const [otherCollections, setOtherCollections] = useState<Collection[]>([])
   const shownCollections = isSelf ? collections : otherCollections
+  // Challenges this profile's owner has joined, each with their own progress —
+  // shown below the library regardless of who's viewing.
+  const [challenges, setChallenges] = useState<Challenge[]>([])
 
 
   useEffect(() => {
@@ -172,6 +177,13 @@ export default function ProfilePage() {
 
   const byNewest = (a: MediaItem, b: MediaItem) => (b.dateAdded ?? '').localeCompare(a.dateAdded ?? '')
 
+
+  useEffect(() => {
+    if (!profile) return
+    let cancelled = false
+    challengeService.listUserChallenges(profile.id).then((cs) => { if (!cancelled) setChallenges(cs) })
+    return () => { cancelled = true }
+  }, [profile])
 
   const POSTS_PER_PAGE = 10
   useEffect(() => {
@@ -464,6 +476,23 @@ export default function ProfilePage() {
         </Link>
       </div>
 
+      {/* Challenges this profile's owner has joined — a shield per challenge
+          (title + "n/target" progress), solid-outlined once completed, dashed
+          while still in progress. */}
+      {challenges.length > 0 && (
+        <div className="mt-6">
+          <div className="mb-3 flex items-center gap-2">
+            <IoTrophyOutline className="h-4 w-4 text-[var(--text-muted)]" />
+            <span className="text-sm font-semibold text-[var(--text)]">{t('challenges')}</span>
+          </div>
+          <div className="no-scrollbar -mx-1 flex gap-4 overflow-x-auto px-1 pb-1">
+            {challenges.map((c) => (
+              <ChallengeShield key={c.id} challenge={c} />
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Ratings & reviews — feed-style ActivityCards with comment threads */}
       <section ref={postsRef} className="mt-8 scroll-mt-4">
         <h2 className="mb-2 text-base font-semibold text-[var(--text)]">
@@ -507,6 +536,51 @@ export default function ProfilePage() {
       <SettingsModal isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} onOpenImport={() => setImportOpen(true)} />
       <ImportModal isOpen={importOpen} onClose={() => setImportOpen(false)} onImported={() => libraryService.getItems().then(setItems)} />
     </Layout>
+  )
+}
+
+// A rotating set of gradients so shields feel distinct at a glance without
+// per-challenge color data — same "hash the id into a small fixed palette"
+// trick as Discover's genre tiles (GENRE_TINTS).
+const SHIELD_GRADIENTS = [
+  'from-violet-500 to-fuchsia-600',
+  'from-amber-500 to-orange-600',
+  'from-emerald-500 to-teal-600',
+  'from-sky-500 to-blue-600',
+  'from-rose-500 to-pink-600',
+  'from-indigo-500 to-purple-600',
+]
+
+// One joined challenge, as a shield: a gradient badge with the title and
+// "progress/target" inside. Solid border once the target's been hit, dashed
+// while it's still in progress — the outline itself carries the completion
+// state without needing separate copy.
+function ChallengeShield({ challenge }: { challenge: Challenge }) {
+  const target = challenge.target ?? 0
+  const progress = challenge.progress ?? 0
+  const completed = (challenge.completed_at ?? 0) > 0
+  const gradient = SHIELD_GRADIENTS[challenge.id % SHIELD_GRADIENTS.length]
+
+  return (
+    <Link
+      to={`/challenge/${challenge.uuid}`}
+      title={challenge.title}
+      className="group flex w-24 flex-shrink-0 flex-col items-center"
+    >
+      <div
+        style={{ clipPath: 'polygon(0% 0%, 100% 0%, 100% 68%, 50% 100%, 0% 68%)' }}
+        className={`flex h-28 w-24 flex-col items-center justify-center gap-1.5 bg-gradient-to-br ${gradient} p-3 text-center transition-transform group-hover:-translate-y-0.5 ${
+          completed ? 'border-2 border-white/85' : 'border-2 border-dashed border-white/55'
+        }`}
+      >
+        <span className="line-clamp-3 text-[11px] font-bold leading-tight text-white drop-shadow-sm">
+          {challenge.title}
+        </span>
+        {target > 0 && (
+          <span className="text-[10px] font-semibold text-white/90">{progress}/{target}</span>
+        )}
+      </div>
+    </Link>
   )
 }
 

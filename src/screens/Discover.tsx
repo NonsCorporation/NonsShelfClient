@@ -14,7 +14,8 @@ import { libraryService } from '../services/libraryService'
 import { listService } from '../services/listService'
 import { connectionService } from '../services/connectionService'
 import { challengeService } from '../services/challengeService'
-import type { MediaItem, MediaType, ShelfStatus, CuratedListDiscoverEntry, Franchise, Challenge, ChallengeCondition } from '../types'
+import type { MediaItem, MediaType, ShelfStatus, CuratedListDiscoverEntry, Franchise, Challenge } from '../types'
+import { typeWord, goalLabel, conditionText } from '../lib/challenge'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
 import { redirectToNonsLogin } from '../lib/api'
@@ -34,26 +35,6 @@ const shelfItemOf = (it: CatalogItem): MediaItem => ({
   id: it.id, uuid: it.uuid, type: it.type, title: it.title, author: it.author, director: it.director,
   coverUrl: it.coverUrl, year: it.year, genre: it.genre, description: it.description,
 })
-const typeWord = (t: Translate, type: MediaType) => (type === 'book' ? t('book') : type === 'series' ? t('series') : t('film'))
-// A challenge condition → its display text (server-resolved `label` for
-// list/person conditions, the raw value for genre/year, a bare fallback for
-// anything the client doesn't specially know about — e.g. tag_id).
-const conditionText = (t: Translate, cond: ChallengeCondition): string => {
-  switch (cond.field) {
-    case 'list_id':
-      return t('fromList', { name: cond.label || cond.value }) || `From ${cond.label || cond.value}`
-    case 'person_uuid':
-      return cond.label || cond.value
-    case 'genre':
-      return `${t('genre')}: ${cond.label || cond.value}`
-    case 'year':
-      if (cond.op === 'gte') return `${cond.value}+`
-      if (cond.op === 'lte') return `${t('to')} ${cond.value}`
-      return cond.label || cond.value
-    default:
-      return cond.label || cond.value
-  }
-}
 // A creator's role → localized label (falls back to the raw role).
 const roleLabel = (t: Translate, role: string) => {
   const key = 'role' + role.charAt(0).toUpperCase() + role.slice(1)
@@ -1015,7 +996,7 @@ function ChallengeCard({
   onLeave: (c: Challenge) => void
   t: Translate
 }) {
-  const goalLabel = challenge.target_count != null ? String(challenge.target_count) : t('everythingMatching')
+  const goalText = goalLabel(t, challenge)
   const hasProgress = challenge.joined && typeof challenge.target === 'number' && challenge.target > 0
   const pct = hasProgress ? Math.min(100, Math.round(((challenge.progress ?? 0) / challenge.target!) * 100)) : 0
   const completed = challenge.joined && (challenge.completed_at ?? 0) > 0
@@ -1024,7 +1005,9 @@ function ChallengeCard({
     <div className="flex flex-col gap-3 rounded-2xl border border-[var(--border-subtle)] bg-[var(--container)] p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h3 className="truncate text-base font-semibold text-[var(--text)]">{challenge.title}</h3>
+          <Link to={`/challenge/${challenge.uuid}`} className="block truncate text-base font-semibold text-[var(--text)] hover:text-nonsprimary hover:underline">
+            {challenge.title}
+          </Link>
           {challenge.creator_name && (
             <p className="truncate text-xs text-[var(--text-muted)]">{t('byCreator', { name: challenge.creator_name })}</p>
           )}
@@ -1049,7 +1032,7 @@ function ChallengeCard({
         {challenge.media_type && (
           <span className="rounded-full border border-[var(--border-subtle)] px-2 py-0.5">{typeWord(t, challenge.media_type)}</span>
         )}
-        <span className="rounded-full border border-[var(--border-subtle)] px-2 py-0.5">{t('goal')}: {goalLabel}</span>
+        <span className="rounded-full border border-[var(--border-subtle)] px-2 py-0.5">{t('goal')}: {goalText}</span>
         {challenge.conditions.map((cond, i) => {
           const text = conditionText(t, cond)
           const chipCls = 'rounded-full border border-[var(--border-subtle)] px-2 py-0.5'

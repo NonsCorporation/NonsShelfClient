@@ -24,10 +24,21 @@ async function listChallenges(): Promise<Challenge[]> {
   return (data.challenges ?? []) as Challenge[]
 }
 
-async function getChallenge(id: number): Promise<Challenge | null> {
-  const res = await authedFetch(`/api/challenges/${id}`)
+/** idOrUuid is either the numeric challenge id or its public uuid (the
+ *  /challenge/<uuid> detail page) — the backend resolves both. */
+async function getChallenge(idOrUuid: string | number): Promise<Challenge | null> {
+  const res = await authedFetch(`/api/challenges/${idOrUuid}`)
   if (!res.ok) return null
   return (await res.json()) as Challenge
+}
+
+/** The challenges a user has joined, with progress always computed for that
+ *  user — powers the profile page's "challenges" section. */
+async function listUserChallenges(userId: number): Promise<Challenge[]> {
+  const res = await authedFetch(`/api/users/${userId}/challenges`)
+  if (!res.ok) return []
+  const data = await res.json()
+  return (data.challenges ?? []) as Challenge[]
 }
 
 export type CreateChallengeInput = {
@@ -75,6 +86,7 @@ async function deleteChallenge(id: number): Promise<void> {
 export const challengeService = {
   listChallenges,
   getChallenge,
+  listUserChallenges,
   createChallenge,
   joinChallenge,
   leaveChallenge,
