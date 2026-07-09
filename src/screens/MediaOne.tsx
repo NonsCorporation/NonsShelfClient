@@ -812,9 +812,9 @@ export default function MediaOnePage({
           {/* User opinions (StoryGraph-style tags) — crowdsourced from the
               "already finished" flow. Collapsed to a short teaser (all tags
               flattened, plain genre-style chips, clipped to ~2 lines);
-              expanding switches to the full facet-grouped view with each
-              facet's label underlined in its own color (e.g. content
-              warnings underline red). */}
+              expanding switches to the full facet-grouped sections, each
+              chip outlined in its facet's color (e.g. content warnings
+              outline red). */}
           {appliedTags.length > 0 && (
             <div>
               <h3 className="mb-2.5 text-[10px] uppercase tracking-widest text-[var(--text-muted)]">
@@ -840,17 +840,15 @@ export default function MediaOnePage({
                     }, {}),
                   ).map(([facetKey, tags]) => (
                     <div key={facetKey}>
-                      <p
-                        className="mb-2 inline-block text-[10px] font-semibold uppercase tracking-widest underline decoration-2 underline-offset-4"
-                        style={{ color: tags[0].color, textDecorationColor: tags[0].color }}
-                      >
+                      <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-[var(--text-muted)]">
                         {tags[0].facetLabel}
                       </p>
                       <div className="flex flex-wrap gap-2">
                         {tags.map((tag) => (
                           <span
                             key={tag.id}
-                            className="rounded-full border border-[var(--border-subtle)] bg-[var(--surface)] px-3 py-1 text-xs text-[var(--text)]"
+                            style={{ borderColor: tag.color, color: tag.color, backgroundColor: 'var(--surface)' }}
+                            className="rounded-full border px-3 py-1 text-xs font-medium"
                           >
                             {tag.label}
                           </span>
@@ -865,7 +863,7 @@ export default function MediaOnePage({
                 onClick={() => setTagsExpanded((v) => !v)}
                 className="mt-2 flex items-center gap-1 text-[11px] font-medium text-nonsprimary hover:underline"
               >
-                {tagsExpanded ? t('showLess') : t('showAll') || 'Show all'}
+                {tagsExpanded ? t('showLess') : t('showAll')}
                 <IoChevronDown className={`h-3 w-3 transition-transform duration-200 ${tagsExpanded ? 'rotate-180' : ''}`} />
               </button>
             </div>

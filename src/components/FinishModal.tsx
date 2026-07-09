@@ -202,12 +202,7 @@ export default function FinishModal({ isOpen, item, onClose, onFinished }: Props
                     <div className="flex flex-col gap-2">
                       {group.facets.map((facet) => (
                         <div key={facet.key}>
-                          <p
-                            className="mb-1 inline-block text-[11px] font-medium underline decoration-2 underline-offset-4"
-                            style={{ color: facet.color, textDecorationColor: facet.color }}
-                          >
-                            {facet.label}
-                          </p>
+                          <p className="mb-1 text-[11px] text-[var(--text-muted)]">{facet.label}</p>
                           <div className="flex flex-wrap gap-1.5">
                             {facet.tags.map((tag) => {
                               const selected = selectedTags.has(tag.id)
@@ -216,11 +211,12 @@ export default function FinishModal({ isOpen, item, onClose, onFinished }: Props
                                   type="button"
                                   key={tag.id}
                                   onClick={() => toggleTag(facet, tag.id)}
-                                  className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${
-                                    selected
-                                      ? 'border-transparent bg-[var(--surface-active)] text-[var(--text)]'
-                                      : 'border-[var(--border-subtle)] bg-[var(--surface)] text-[var(--text-muted)] hover:text-[var(--text)]'
-                                  }`}
+                                  style={{
+                                    borderColor: facet.color,
+                                    color: facet.color,
+                                    backgroundColor: selected ? `color-mix(in srgb, ${facet.color} 15%, transparent)` : 'var(--surface)',
+                                  }}
+                                  className="rounded-full border px-2.5 py-1 text-xs font-medium transition-opacity hover:opacity-70"
                                 >
                                   {tag.label}
                                 </button>
