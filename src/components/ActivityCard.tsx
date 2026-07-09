@@ -197,13 +197,13 @@ export default function ActivityCard({
             <BoringAvatar size={36} name={`user-${a.userId}`} />
           )}
         </Link>
-        <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden whitespace-nowrap text-sm leading-6 text-[var(--text)]">
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-sm leading-6 text-[var(--text)]">
           <Link to={userPath(a.user.handle || a.user.uuid || '')} className="flex-shrink-0 font-semibold hover:underline">
             {a.user.name}
           </Link>
           {isLibrarian(a.user.role) && <LibrarianBadge className="h-4 w-4 flex-shrink-0" />}
           <span className="flex-shrink-0 text-[var(--text-muted)]">{t(VERB_KEY[a.type])}</span>
-          <Link to={to} className="min-w-0 flex-1 truncate font-semibold hover:text-nonsprimary">
+          <Link to={to} className="min-w-0 font-semibold hover:text-nonsprimary">
             {a.mediaTitle}
           </Link>
           {showStars && (
