@@ -7,6 +7,7 @@ import BoringAvatar from '../components/BoringAvatar'
 import ShelfStatusBar from '../components/ShelfStatusBar'
 import FinishModal from '../components/FinishModal'
 import CreateChallengeModal from '../components/CreateChallengeModal'
+import ChallengeAvatarStack, { type ChallengeViewer } from '../components/ChallengeAvatarStack'
 import type { CatalogItem } from '../services/catalogService'
 import { discoverService } from '../services/discoverService'
 import type { DiscoverGenre, DiscoverPerson, Spotlights } from '../services/discoverService'
@@ -1074,24 +1075,7 @@ function ChallengeCard({
         })}
       </div>
 
-      {stack.length > 0 && (
-        <div className="flex items-center -space-x-2">
-          {stack.map((p) => (
-            <span key={p.id} className="h-6 w-6 flex-shrink-0 overflow-hidden rounded-full ring-2 ring-[var(--container)]">
-              {p.avatarUrl ? (
-                <img src={p.avatarUrl} alt={p.name} title={p.name} className="h-full w-full object-cover" />
-              ) : (
-                <BoringAvatar size={24} name={String(p.id)} />
-              )}
-            </span>
-          ))}
-          {overflow > 0 && (
-            <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-[var(--surface)] text-[9px] font-semibold text-[var(--text-muted)] ring-2 ring-[var(--container)]">
-              +{overflow}
-            </span>
-          )}
-        </div>
-      )}
+      <ChallengeAvatarStack challenge={challenge} viewer={viewer} friendMap={friendMap} />
 
       {hasProgress && (
         <div>

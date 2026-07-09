@@ -4,7 +4,9 @@ import { useCallback, useEffect, useState } from 'react'
 import { useParams, Link } from '@/lib/router'
 import { IoTrophyOutline } from 'react-icons/io5'
 import Layout from '../components/layout/Layout'
+import ChallengeAvatarStack from '../components/ChallengeAvatarStack'
 import { challengeService } from '../services/challengeService'
+import { getFriendUsers, type Activity } from '../services/activityService'
 import { typeWord, goalLabel, conditionText } from '../lib/challenge'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
@@ -23,13 +25,16 @@ function shortDate(unix?: number): string {
 // condition, the date window, and the join/leave action.
 export default function ChallengeDetailScreen() {
   const { t } = useLanguage()
-  const { isAuthenticated } = useAuth()
+  const { user: authUser, isAuthenticated } = useAuth()
   const { uuid = '' } = useParams<{ uuid: string }>()
 
   const [challenge, setChallenge] = useState<Challenge | null>(null)
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
   const [busy, setBusy] = useState(false)
+  // Friends map (nons user id -> display info), for prioritizing "you" and
+  // your friends in the avatar stack — same source Discover's cards use.
+  const [friendMap, setFriendMap] = useState<Map<number, Activity['user']>>(new Map())
 
   const load = useCallback(() => {
     return challengeService.getChallenge(uuid).then((c) => {
@@ -40,6 +45,16 @@ export default function ChallengeDetailScreen() {
   }, [uuid])
 
   useEffect(() => { setLoading(true); load() }, [load])
+
+  useEffect(() => {
+    if (!authUser) return
+    let cancelled = false
+    getFriendUsers({
+      id: authUser.id, name: authUser.name || authUser.username, handle: authUser.username,
+      uuid: authUser.uuid, avatar: authUser.avatar_url, role: authUser.role,
+    }).then((m) => { if (!cancelled) setFriendMap(m) })
+    return () => { cancelled = true }
+  }, [authUser])
 
   const toggleJoin = async () => {
     if (!challenge) return
@@ -125,6 +140,15 @@ export default function ChallengeDetailScreen() {
             </span>
           )}
           <span className="rounded-full border border-[var(--border-subtle)] px-2.5 py-1">{t('nParticipants', { n: challenge.participants })}</span>
+        </div>
+
+        <div className="mt-3">
+          <ChallengeAvatarStack
+            challenge={challenge}
+            viewer={authUser ? { id: authUser.id, name: authUser.name || authUser.username, avatarUrl: authUser.avatar_url } : null}
+            friendMap={friendMap}
+            size={28}
+          />
         </div>
 
         {challenge.conditions.length > 0 && (
