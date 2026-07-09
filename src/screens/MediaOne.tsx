@@ -327,9 +327,9 @@ export default function MediaOnePage({
       if (map.size === 0) return
       const userIds = [...map.keys()]
       getReviews(mediaNumId, { userIds, perPage: userIds.length + 1 })
-        .then((p) => { if (!cancelled) setFriendReviews(p.items) })
+        .then((p) => { if (!cancelled) setFriendReviews(p.items.filter((r) => r.userId !== userId)) })
       getFriendShelfStatuses(mediaNumId, userIds)
-        .then((items) => { if (!cancelled) setFriendStatuses(items) })
+        .then((items) => { if (!cancelled) setFriendStatuses(items.filter((s) => s.userId !== userId)) })
     })
     return () => { cancelled = true }
   }, [isAuthenticated, userId, mediaNumId])
