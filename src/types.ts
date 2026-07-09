@@ -150,6 +150,44 @@ export type AutoConnectSummary = {
   created: boolean
 }
 
+// ── Community tags (StoryGraph-style) ───────────────────────────────────────
+// A normalized taxonomy (group -> facet -> tag) crowdsourced from users who
+// mark an item finished. A facet's `multi` says whether its picker allows
+// more than one selection (moods, genres) vs. exactly one (pacing, audience);
+// `color` badges every tag in that facet (e.g. content warnings render red).
+export type TagTaxonomyTag = {
+  id: number
+  key: string
+  label: string
+}
+
+export type TagTaxonomyFacet = {
+  key: string
+  label: string
+  color: string
+  multi: boolean
+  tags: TagTaxonomyTag[]
+}
+
+export type TagTaxonomyGroup = {
+  key: string
+  label: string
+  facets: TagTaxonomyFacet[]
+}
+
+/** One tag that has crossed the applied-tag vote threshold for a media item. */
+export type AppliedTag = {
+  id: number
+  key: string
+  label: string
+  facetKey: string
+  facetLabel: string
+  color: string
+  groupKey: string
+  groupLabel: string
+  votes: number
+}
+
 // Shelf status — the Goodreads/IMDb "what am I doing with this" axis.
 //   wishlist -> Want to Read / Want to Watch
 //   active   -> Currently Reading / Watching

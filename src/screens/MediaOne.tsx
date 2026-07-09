@@ -14,6 +14,7 @@ import ReadingProgress from '../components/ReadingProgress'
 import MediaHistory from '../components/MediaHistory'
 import StarsSelector from '../StarsSelector'
 import { libraryService } from '../services/libraryService'
+import { tagService } from '../services/tagService'
 import { librarianService } from '../services/librarianService'
 import { suggestionService } from '../services/suggestionService'
 import { getReviews, getFriendShelfStatuses, type ReviewsPage, type CommunityReview, type FriendShelfStatus } from '../services/reviewService'
@@ -22,7 +23,7 @@ import { getFriendUsers, colorFor } from '../services/activityService'
 import type { Activity } from '../services/activityService'
 import { userPath } from '../lib/paths'
 import { authedFetch, redirectToNonsLogin } from '../lib/api'
-import type { MediaItem, ShelfStatus } from '../types'
+import type { MediaItem, ShelfStatus, AppliedTag } from '../types'
 import type { CreditPerson, MediaCredits, Edition } from '../lib/mediaMap'
 import {
   IoFilmOutline,
@@ -130,6 +131,13 @@ export default function MediaOnePage({
   const [item, setItem] = useState<MediaItem | null>(initialItem)
   const [loading, setLoading] = useState(!initialItem)
   const [credits, setCredits] = useState<MediaCredits | null>(initialCredits)
+  // Community tags (StoryGraph-style: pacing/mood/genre/content warnings/…)
+  // that have crossed the applied-tag vote threshold — crowdsourced from
+  // users on the "already finished" flow (see FinishModal).
+  const [appliedTags, setAppliedTags] = useState<AppliedTag[]>([])
+  // Collapsed by default (a 1-2 line teaser of all tags flattened together);
+  // expanding switches to the full facet-grouped, underline-colored view.
+  const [tagsExpanded, setTagsExpanded] = useState(false)
   const [editions, setEditions] = useState<Edition[]>(initialEditions)
   const [editionsTotal, setEditionsTotal] = useState(initialEditions.length)
   const [editionsLoadingMore, setEditionsLoadingMore] = useState(false)
@@ -262,6 +270,16 @@ export default function MediaOnePage({
       cancelled = true
     }
   }, [id, selectedLang])
+
+  // Community tags — public read, independent of sign-in state.
+  useEffect(() => {
+    if (!id) return
+    let cancelled = false
+    tagService.getAppliedTags(id).then((tags) => { if (!cancelled) setAppliedTags(tags) })
+    return () => {
+      cancelled = true
+    }
+  }, [id, finishOpen])
 
   // Editions (books) for the metadata section, loaded a page at a time. Always
   // refetches the first page on the client — even on SSR pages, where
@@ -788,6 +806,68 @@ export default function MediaOnePage({
                   </span>
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* User opinions (StoryGraph-style tags) — crowdsourced from the
+              "already finished" flow. Collapsed to a short teaser (all tags
+              flattened, plain genre-style chips, clipped to ~2 lines);
+              expanding switches to the full facet-grouped view with each
+              facet's label underlined in its own color (e.g. content
+              warnings underline red). */}
+          {appliedTags.length > 0 && (
+            <div>
+              <h3 className="mb-2.5 text-[10px] uppercase tracking-widest text-[var(--text-muted)]">
+                {t('userOpinions') || 'User opinions'}
+              </h3>
+              {!tagsExpanded ? (
+                <div className="flex max-h-[68px] flex-wrap gap-2 overflow-hidden">
+                  {appliedTags.map((tag) => (
+                    <span
+                      key={tag.id}
+                      className="rounded-full border border-[var(--border-subtle)] bg-[var(--surface)] px-3 py-1 text-xs text-[var(--text)]"
+                    >
+                      {tag.label}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  {Object.entries(
+                    appliedTags.reduce<Record<string, AppliedTag[]>>((acc, tag) => {
+                      (acc[tag.facetKey] ??= []).push(tag)
+                      return acc
+                    }, {}),
+                  ).map(([facetKey, tags]) => (
+                    <div key={facetKey}>
+                      <p
+                        className="mb-2 inline-block text-[10px] font-semibold uppercase tracking-widest underline decoration-2 underline-offset-4"
+                        style={{ color: tags[0].color, textDecorationColor: tags[0].color }}
+                      >
+                        {tags[0].facetLabel}
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {tags.map((tag) => (
+                          <span
+                            key={tag.id}
+                            className="rounded-full border border-[var(--border-subtle)] bg-[var(--surface)] px-3 py-1 text-xs text-[var(--text)]"
+                          >
+                            {tag.label}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={() => setTagsExpanded((v) => !v)}
+                className="mt-2 flex items-center gap-1 text-[11px] font-medium text-nonsprimary hover:underline"
+              >
+                {tagsExpanded ? t('showLess') : t('showAll') || 'Show all'}
+                <IoChevronDown className={`h-3 w-3 transition-transform duration-200 ${tagsExpanded ? 'rotate-180' : ''}`} />
+              </button>
             </div>
           )}
 

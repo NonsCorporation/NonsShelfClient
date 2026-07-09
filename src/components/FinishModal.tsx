@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { IoClose } from 'react-icons/io5'
+import { IoClose, IoChevronDown } from 'react-icons/io5'
 import StarsSelector from '../StarsSelector'
 import { libraryService } from '../services/libraryService'
-import type { MediaItem } from '../types'
+import { tagService } from '../services/tagService'
+import type { MediaItem, TagTaxonomyFacet, TagTaxonomyGroup } from '../types'
 import { useLanguage } from '../contexts/LanguageContext'
 import DatePicker from './DatePicker'
 import NonsPostPreview from './NonsPostPreview'
@@ -42,6 +43,13 @@ export default function FinishModal({ isOpen, item, onClose, onFinished }: Props
   const [busy, setBusy] = useState(false)
   const [nonsError, setNonsError] = useState<string | null>(null)
 
+  // Community tags (StoryGraph-style: pacing/mood/genre/content warnings/…).
+  // Collapsed by default — the taxonomy is large — but pre-loaded with the
+  // taxonomy and the user's previous picks so opening it shows the full picker.
+  const [taxonomy, setTaxonomy] = useState<TagTaxonomyGroup[]>([])
+  const [selectedTags, setSelectedTags] = useState<Set<number>>(new Set())
+  const [tagsOpen, setTagsOpen] = useState(false)
+
   // Pull the user's current rating/review + the started date when opening.
   useEffect(() => {
     if (!isOpen || !item) return
@@ -52,6 +60,8 @@ export default function FinishModal({ isOpen, item, onClose, onFinished }: Props
     setPostToNons(false)
     setNonsTitle(item.title)
     setNonsError(null)
+    setTagsOpen(false)
+    setSelectedTags(new Set())
     let cancelled = false
     libraryService.getItem(item.id).then((full) => {
       if (cancelled || !full) return
@@ -60,10 +70,30 @@ export default function FinishModal({ isOpen, item, onClose, onFinished }: Props
       setStarted(toDateInput(full.startedAt ?? full.dateAdded))
       if (full.finishedAt) setFinished(toDateInput(full.finishedAt))
     })
+    tagService.getTaxonomy().then((groups) => { if (!cancelled) setTaxonomy(groups) })
+    tagService.getMyVotes(item.id).then((ids) => { if (!cancelled) setSelectedTags(new Set(ids)) })
     return () => {
       cancelled = true
     }
   }, [isOpen, item])
+
+  // Multi-select facets (mood, genre, …) toggle freely; single-select facets
+  // (pacing, audience, …) clear any other pick in the same facet first, so at
+  // most one of their tags is ever selected — clicking the current pick again clears it.
+  const toggleTag = (facet: TagTaxonomyFacet, tagId: number) => {
+    setSelectedTags((prev) => {
+      const next = new Set(prev)
+      if (facet.multi) {
+        if (next.has(tagId)) next.delete(tagId)
+        else next.add(tagId)
+        return next
+      }
+      const wasSelected = prev.has(tagId)
+      for (const t of facet.tags) next.delete(t.id)
+      if (!wasSelected) next.add(tagId)
+      return next
+    })
+  }
 
   if (!isOpen || !item) return null
 
@@ -82,6 +112,13 @@ export default function FinishModal({ isOpen, item, onClose, onFinished }: Props
         started_at: started ? Math.floor(new Date(started).getTime() / 1000) : 0,
         finished_at: finishedAt ?? 0,
       })
+      // Best-effort, like the cross-post below — a tag-save hiccup shouldn't
+      // block finishing the book.
+      try {
+        await tagService.setMyVotes(item.id, [...selectedTags])
+      } catch {
+        /* non-critical */
+      }
       // Cross-posting to the main nons feed is a separate service/action from
       // the above — best-effort, so a nons-server hiccup never blocks finishing
       // the book. On failure we still close out via onFinished() below.
@@ -102,7 +139,7 @@ export default function FinishModal({ isOpen, item, onClose, onFinished }: Props
     <div onClick={onClose} className="fixed inset-0 z-[70] flex items-center justify-center bg-[var(--overlay)] p-4">
       <div
         onClick={(e) => e.stopPropagation()}
-        className="flex w-full max-w-md flex-col gap-4 rounded-2xl border border-[var(--border)] bg-[var(--container)] p-5"
+        className="flex max-h-[90vh] w-full max-w-md flex-col gap-4 overflow-y-auto rounded-2xl border border-[var(--border)] bg-[var(--container)] p-5"
       >
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3">
@@ -139,6 +176,66 @@ export default function FinishModal({ isOpen, item, onClose, onFinished }: Props
             className="resize-none rounded-lg border border-[var(--border-subtle)] bg-[var(--input)] p-3 text-sm text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-ring)]"
           />
         </label>
+
+        {/* Community tags (StoryGraph-style): pacing/mood/genre/setting/content
+            warnings/… — collapsed by default since the full taxonomy is large. */}
+        {taxonomy.length > 0 && (
+          <div className="flex flex-col gap-1 rounded-xl border border-[var(--border-subtle)] p-3">
+            <button
+              type="button"
+              onClick={() => setTagsOpen((v) => !v)}
+              className="flex items-center justify-between text-sm font-medium text-[var(--text)]"
+            >
+              <span>
+                {t('tags') || 'Tags'}
+                {selectedTags.size > 0 && <span className="text-[var(--text-muted)]"> ({selectedTags.size})</span>}
+              </span>
+              <IoChevronDown className={`h-4 w-4 flex-shrink-0 text-[var(--text-muted)] transition-transform duration-200 ${tagsOpen ? 'rotate-180' : ''}`} />
+            </button>
+            {tagsOpen && (
+              <div className="mt-2 flex max-h-64 flex-col gap-3 overflow-y-auto pr-1">
+                {taxonomy.map((group) => (
+                  <div key={group.key}>
+                    <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-[var(--text-muted)]">
+                      {group.label}
+                    </p>
+                    <div className="flex flex-col gap-2">
+                      {group.facets.map((facet) => (
+                        <div key={facet.key}>
+                          <p
+                            className="mb-1 inline-block text-[11px] font-medium underline decoration-2 underline-offset-4"
+                            style={{ color: facet.color, textDecorationColor: facet.color }}
+                          >
+                            {facet.label}
+                          </p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {facet.tags.map((tag) => {
+                              const selected = selectedTags.has(tag.id)
+                              return (
+                                <button
+                                  type="button"
+                                  key={tag.id}
+                                  onClick={() => toggleTag(facet, tag.id)}
+                                  className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${
+                                    selected
+                                      ? 'border-transparent bg-[var(--surface-active)] text-[var(--text)]'
+                                      : 'border-[var(--border-subtle)] bg-[var(--surface)] text-[var(--text-muted)] hover:text-[var(--text)]'
+                                  }`}
+                                >
+                                  {tag.label}
+                                </button>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="grid grid-cols-2 gap-3">
           <div className="flex flex-col gap-1">
