@@ -6,20 +6,22 @@ import FindSomething from '../components/FindSomething'
 import BoringAvatar from '../components/BoringAvatar'
 import ShelfStatusBar from '../components/ShelfStatusBar'
 import FinishModal from '../components/FinishModal'
+import CreateChallengeModal from '../components/CreateChallengeModal'
 import type { CatalogItem } from '../services/catalogService'
 import { discoverService } from '../services/discoverService'
 import type { DiscoverGenre, DiscoverPerson, Spotlights } from '../services/discoverService'
 import { libraryService } from '../services/libraryService'
 import { listService } from '../services/listService'
 import { connectionService } from '../services/connectionService'
-import type { MediaItem, MediaType, ShelfStatus, CuratedListDiscoverEntry, Franchise } from '../types'
+import { challengeService } from '../services/challengeService'
+import type { MediaItem, MediaType, ShelfStatus, CuratedListDiscoverEntry, Franchise, Challenge, ChallengeCondition } from '../types'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
 import { redirectToNonsLogin } from '../lib/api'
 import { initials, colorFor } from '../lib/user'
 import {
   IoStar, IoPeopleOutline, IoLogInOutline, IoSparklesOutline, IoArrowForward,
-  IoChevronBack, IoChevronForward, IoLayersOutline, IoPlanetOutline,
+  IoChevronBack, IoChevronForward, IoLayersOutline, IoPlanetOutline, IoTrophyOutline, IoAdd,
 } from 'react-icons/io5'
 import { mediaPath } from '../lib/paths'
 import TypeBadge from '../components/TypeBadge'
@@ -33,6 +35,25 @@ const shelfItemOf = (it: CatalogItem): MediaItem => ({
   coverUrl: it.coverUrl, year: it.year, genre: it.genre, description: it.description,
 })
 const typeWord = (t: Translate, type: MediaType) => (type === 'book' ? t('book') : type === 'series' ? t('series') : t('film'))
+// A challenge condition → its display text (server-resolved `label` for
+// list/person conditions, the raw value for genre/year, a bare fallback for
+// anything the client doesn't specially know about — e.g. tag_id).
+const conditionText = (t: Translate, cond: ChallengeCondition): string => {
+  switch (cond.field) {
+    case 'list_id':
+      return t('fromList', { name: cond.label || cond.value }) || `From ${cond.label || cond.value}`
+    case 'person_uuid':
+      return cond.label || cond.value
+    case 'genre':
+      return `${t('genre')}: ${cond.label || cond.value}`
+    case 'year':
+      if (cond.op === 'gte') return `${cond.value}+`
+      if (cond.op === 'lte') return `${t('to')} ${cond.value}`
+      return cond.label || cond.value
+    default:
+      return cond.label || cond.value
+  }
+}
 // A creator's role → localized label (falls back to the raw role).
 const roleLabel = (t: Translate, role: string) => {
   const key = 'role' + role.charAt(0).toUpperCase() + role.slice(1)
@@ -45,12 +66,14 @@ const roleLabel = (t: Translate, role: string) => {
 type Creator = DiscoverPerson
 
 type TypeFilter = 'all' | MediaType
+type PageTab = 'discover' | 'challenges'
 
 export default function DiscoverPage() {
   const { t } = useLanguage()
   const { isAuthenticated, loading: authLoading } = useAuth()
 
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all')
+  const [pageTab, setPageTab] = useState<PageTab>('discover')
   // Every section below is computed by the backend /api/discover/* endpoints;
   // the page just holds and renders what it's given (no in-memory derivation).
   const [hero, setHero] = useState<CatalogItem[]>([])
@@ -72,6 +95,11 @@ export default function DiscoverPage() {
   const [added, setAdded] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
   const [finishItem, setFinishItem] = useState<CatalogItem | null>(null)
+
+  // Challenges tab — fetched lazily, only once the tab is actually opened.
+  const [challenges, setChallenges] = useState<Challenge[]>([])
+  const [challengesLoading, setChallengesLoading] = useState(false)
+  const [showCreateChallenge, setShowCreateChallenge] = useState(false)
 
   const scopeType = typeFilter === 'all' ? undefined : typeFilter
 
@@ -143,6 +171,31 @@ export default function DiscoverPage() {
     connectionService.searchFranchises('').then(setUniverses).catch(() => {})
   }, [])
 
+  // Challenges — fetched (and refetched) each time the tab is opened, so
+  // progress reflects anything the viewer did since the last visit.
+  useEffect(() => {
+    if (pageTab !== 'challenges') return
+    let cancelled = false
+    setChallengesLoading(true)
+    challengeService.listChallenges()
+      .then((list) => { if (!cancelled) setChallenges(list) })
+      .finally(() => { if (!cancelled) setChallengesLoading(false) })
+    return () => { cancelled = true }
+  }, [pageTab])
+
+  const handleJoinChallenge = async (c: Challenge) => {
+    if (!isAuthenticated) {
+      redirectToNonsLogin()
+      return
+    }
+    const updated = await challengeService.joinChallenge(c.id)
+    setChallenges((prev) => prev.map((x) => (x.id === c.id ? updated : x)))
+  }
+  const handleLeaveChallenge = async (c: Challenge) => {
+    await challengeService.leaveChallenge(c.id)
+    setChallenges((prev) => prev.map((x) => (x.id === c.id ? { ...x, joined: false, progress: undefined, target: undefined } : x)))
+  }
+
   const inLibrary = (it: CatalogItem) => shelfStatus.has(it.id) || added.has(it.id)
   const statusOf = (it: CatalogItem): ShelfStatus | null =>
     shelfStatus.get(it.id) ?? (added.has(it.id) ? 'wishlist' : null)
@@ -198,28 +251,96 @@ export default function DiscoverPage() {
     { key: 'series', label: t('seriesPlural') },
   ]
 
+  const pageTabs: { key: PageTab; label: string }[] = [
+    { key: 'discover', label: t('discover') },
+    { key: 'challenges', label: t('challenges') },
+  ]
+
   return (
     <Layout>
       {/* Top bar — minimal, home-page feel: the scope segmented control leads. */}
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-lg font-bold tracking-tight text-[var(--text)]">{t('discover')}</h1>
-        <div className="flex rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] p-1">
-          {toggles.map((tg) => (
-            <button
-              key={tg.key}
-              onClick={() => setTypeFilter(tg.key)}
-              className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
-                typeFilter === tg.key
-                  ? 'bg-[var(--surface-active)] text-[var(--text)]'
-                  : 'text-[var(--text-muted)] hover:text-[var(--text)]'
-              }`}
-            >
-              {tg.label}
-            </button>
-          ))}
-        </div>
+        {pageTab === 'discover' && (
+          <div className="flex rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] p-1">
+            {toggles.map((tg) => (
+              <button
+                key={tg.key}
+                onClick={() => setTypeFilter(tg.key)}
+                className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+                  typeFilter === tg.key
+                    ? 'bg-[var(--surface-active)] text-[var(--text)]'
+                    : 'text-[var(--text-muted)] hover:text-[var(--text)]'
+                }`}
+              >
+                {tg.label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
+      {/* Page tabs — Discover / Challenges (the latter empty for now). Same
+          underline style as the profile page's shelf tabs. */}
+      <div className="no-scrollbar mb-6 flex gap-1 overflow-x-auto border-b border-[var(--border-subtle)]">
+        {pageTabs.map((tb) => (
+          <button
+            key={tb.key}
+            onClick={() => setPageTab(tb.key)}
+            className={`whitespace-nowrap border-b-2 px-3 py-2.5 text-sm font-medium transition-colors ${
+              pageTab === tb.key
+                ? 'border-nonsprimary text-[var(--text)]'
+                : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text)]'
+            }`}
+          >
+            {tb.label}
+          </button>
+        ))}
+      </div>
+
+      {pageTab === 'challenges' ? (
+        <div>
+          <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-[var(--text-muted)]">{t('challengesSubtitle') || 'Reading and watching goals the community is working on.'}</p>
+            <button
+              onClick={() => (isAuthenticated ? setShowCreateChallenge(true) : redirectToNonsLogin())}
+              className="flex flex-shrink-0 items-center gap-1.5 rounded-xl bg-nonsprimary px-3.5 py-2 text-sm font-medium text-white transition-colors hover:bg-nonsprimaryfocus"
+            >
+              <IoAdd className="h-4 w-4" />
+              {t('newChallenge') || 'New challenge'}
+            </button>
+          </div>
+
+          {challengesLoading ? (
+            <div className="grid animate-pulse gap-4 sm:grid-cols-2">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="h-40 rounded-2xl bg-[var(--surface)]" />
+              ))}
+            </div>
+          ) : challenges.length === 0 ? (
+            <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-[var(--border)] py-20 text-center">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--surface)]">
+                <IoTrophyOutline className="h-7 w-7 text-[var(--text-muted)]" />
+              </div>
+              <p className="text-base font-medium text-[var(--text)]">{t('noChallengesYet') || 'No challenges yet'}</p>
+              <p className="text-sm text-[var(--text-muted)]">{t('noChallengesHint') || 'Be the first to start one.'}</p>
+            </div>
+          ) : (
+            <div className="grid animate-fade-up gap-4 sm:grid-cols-2">
+              {challenges.map((c) => (
+                <ChallengeCard key={c.id} challenge={c} onJoin={handleJoinChallenge} onLeave={handleLeaveChallenge} t={t} />
+              ))}
+            </div>
+          )}
+
+          <CreateChallengeModal
+            isOpen={showCreateChallenge}
+            onClose={() => setShowCreateChallenge(false)}
+            onCreated={(c) => setChallenges((prev) => [c, ...prev])}
+          />
+        </div>
+      ) : (
+        <>
       {/* Discovery draw — an engaging "pick a vibe → deal 5 mystery cards"
           experience. Self-contained (fetches its own multi-type pool), so it
           renders above the fold regardless of the page's own loading state. */}
@@ -287,6 +408,8 @@ export default function DiscoverPage() {
             </>
           )}
         </div>
+      )}
+        </>
       )}
 
       <FinishModal
@@ -879,5 +1002,89 @@ function GenreCard({
         <p className="text-xs text-white/70">{t('nWorks', { n: items.length })}</p>
       </div>
     </button>
+  )
+}
+
+// One community challenge — title/description, its scope chips (type + goal),
+// a progress bar once the viewer has joined, and a join/leave action.
+function ChallengeCard({
+  challenge, onJoin, onLeave, t,
+}: {
+  challenge: Challenge
+  onJoin: (c: Challenge) => void
+  onLeave: (c: Challenge) => void
+  t: Translate
+}) {
+  const goalLabel = challenge.target_count != null ? String(challenge.target_count) : t('everythingMatching')
+  const hasProgress = challenge.joined && typeof challenge.target === 'number' && challenge.target > 0
+  const pct = hasProgress ? Math.min(100, Math.round(((challenge.progress ?? 0) / challenge.target!) * 100)) : 0
+  const completed = challenge.joined && (challenge.completed_at ?? 0) > 0
+
+  return (
+    <div className="flex flex-col gap-3 rounded-2xl border border-[var(--border-subtle)] bg-[var(--container)] p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="truncate text-base font-semibold text-[var(--text)]">{challenge.title}</h3>
+          {challenge.creator_name && (
+            <p className="truncate text-xs text-[var(--text-muted)]">{t('byCreator', { name: challenge.creator_name })}</p>
+          )}
+        </div>
+        <div className="flex flex-shrink-0 items-center gap-1.5">
+          {completed && (
+            <span className="rounded-full px-2.5 py-1 text-[11px] font-medium" style={{ backgroundColor: '#3ec98a22', color: '#3ec98a' }}>
+              {t('challengeCompleted')}
+            </span>
+          )}
+          <span className="rounded-full border border-[var(--border-subtle)] bg-[var(--surface)] px-2.5 py-1 text-[11px] font-medium text-[var(--text-muted)]">
+            {t('nParticipants', { n: challenge.participants })}
+          </span>
+        </div>
+      </div>
+
+      {challenge.description && (
+        <p className="line-clamp-2 text-sm text-[var(--text-muted)]">{challenge.description}</p>
+      )}
+
+      <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-[var(--text-muted)]">
+        {challenge.media_type && (
+          <span className="rounded-full border border-[var(--border-subtle)] px-2 py-0.5">{typeWord(t, challenge.media_type)}</span>
+        )}
+        <span className="rounded-full border border-[var(--border-subtle)] px-2 py-0.5">{t('goal')}: {goalLabel}</span>
+        {challenge.conditions.map((cond, i) => {
+          const text = conditionText(t, cond)
+          const chipCls = 'rounded-full border border-[var(--border-subtle)] px-2 py-0.5'
+          return cond.href ? (
+            <Link key={i} to={cond.href} className={`${chipCls} text-nonsprimary hover:underline`}>
+              {text}
+            </Link>
+          ) : (
+            <span key={i} className={chipCls}>{text}</span>
+          )
+        })}
+      </div>
+
+      {hasProgress && (
+        <div>
+          <div className="mb-1 flex items-center justify-between text-xs text-[var(--text-muted)]">
+            <span>{challenge.progress ?? 0} / {challenge.target}</span>
+            <span className="font-semibold text-nonsprimary">{pct}%</span>
+          </div>
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--container-2)]">
+            <div className="h-full rounded-full bg-nonsprimary transition-all" style={{ width: `${pct}%` }} />
+          </div>
+        </div>
+      )}
+
+      <button
+        onClick={() => (challenge.joined ? onLeave(challenge) : onJoin(challenge))}
+        className={`mt-auto h-9 rounded-lg text-sm font-medium transition-colors ${
+          challenge.joined
+            ? 'border border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--text)]'
+            : 'bg-nonsprimary text-white hover:bg-nonsprimaryfocus'
+        }`}
+      >
+        {challenge.joined ? t('leaveChallenge') : t('joinChallenge')}
+      </button>
+    </div>
   )
 }

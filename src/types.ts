@@ -188,6 +188,52 @@ export type AppliedTag = {
   votes: number
 }
 
+// ── Community challenges ("read 60 books in 2026", "watch all Wes Anderson
+// films") — a normalized goal definition any signed-in user can join, with
+// live per-participant progress computed from their own shelf. Mirrors the
+// backend's challenge_service.Entry JSON as-is (snake_case), same convention
+// as CuratedList above rather than a mapped camelCase shape. ────────────────
+
+/** One condition narrowing which media count toward a challenge. Conditions
+ *  on the same challenge AND together. `list_id` scopes to a curated list's
+ *  members (curated lists are public/shared, unlike collections, which are
+ *  private per-user and so aren't a valid challenge scope); the rest match
+ *  media attributes directly. `label`/`href` are populated server-side only
+ *  when the condition is returned (never sent when creating) — e.g. a
+ *  person_uuid condition comes back with the person's name and a link to
+ *  /p/<uuid> so a challenge card can render "Wes Anderson" instead of a raw id. */
+export type ChallengeCondition = {
+  field: 'genre' | 'person_uuid' | 'tag_id' | 'year' | 'list_id'
+  op: 'eq' | 'gte' | 'lte' | 'contains'
+  value: string
+  label?: string
+  href?: string
+}
+
+export type Challenge = {
+  id: number
+  title: string
+  description: string
+  created_by: number
+  creator_name?: string
+  /** Empty string means "any type". */
+  media_type: '' | MediaType
+  metric: 'finished' | 'added' | 'rated'
+  /** null means "complete every item matching media_type + conditions". */
+  target_count: number | null
+  start_date: number
+  end_date: number
+  conditions: ChallengeCondition[]
+  created_at: number
+  participants: number
+  joined: boolean
+  /** Only meaningful (and only computed server-side) when `joined`. */
+  progress?: number
+  target?: number
+  /** Unix seconds the viewer first hit the target; 0/absent = not completed. */
+  completed_at?: number
+}
+
 // Shelf status — the Goodreads/IMDb "what am I doing with this" axis.
 //   wishlist -> Want to Read / Want to Watch
 //   active   -> Currently Reading / Watching
