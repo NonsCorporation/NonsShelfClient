@@ -228,6 +228,9 @@ export type Challenge = {
   conditions: ChallengeCondition[]
   created_at: number
   participants: number
+  /** Up to a dozen participants (joined earliest first) for an avatar-stack
+   *  UI — not the full roster; use `participants` for the true count / "+N". */
+  participant_preview: { id: number; name: string; avatar_url?: string }[]
   joined: boolean
   /** Only meaningful (and only computed server-side) when `joined`. */
   progress?: number

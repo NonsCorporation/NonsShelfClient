@@ -14,6 +14,7 @@ import { libraryService } from '../services/libraryService'
 import { listService } from '../services/listService'
 import { connectionService } from '../services/connectionService'
 import { challengeService } from '../services/challengeService'
+import { getFriendUsers, type Activity } from '../services/activityService'
 import type { MediaItem, MediaType, ShelfStatus, CuratedListDiscoverEntry, Franchise, Challenge } from '../types'
 import { typeWord, goalLabel, conditionText } from '../lib/challenge'
 import { useLanguage } from '../contexts/LanguageContext'
@@ -51,7 +52,7 @@ type PageTab = 'discover' | 'challenges'
 
 export default function DiscoverPage() {
   const { t } = useLanguage()
-  const { isAuthenticated, loading: authLoading } = useAuth()
+  const { user: authUser, isAuthenticated, loading: authLoading } = useAuth()
 
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all')
   const [pageTab, setPageTab] = useState<PageTab>('discover')
@@ -81,6 +82,10 @@ export default function DiscoverPage() {
   const [challenges, setChallenges] = useState<Challenge[]>([])
   const [challengesLoading, setChallengesLoading] = useState(false)
   const [showCreateChallenge, setShowCreateChallenge] = useState(false)
+  // Friends map (nons user id -> display info), for prioritizing "you" and
+  // your friends in a challenge's avatar stack — same source Profile.tsx and
+  // the activity feed use. Only worth fetching once the Challenges tab is open.
+  const [friendMap, setFriendMap] = useState<Map<number, Activity['user']>>(new Map())
 
   const scopeType = typeFilter === 'all' ? undefined : typeFilter
 
@@ -163,6 +168,17 @@ export default function DiscoverPage() {
       .finally(() => { if (!cancelled) setChallengesLoading(false) })
     return () => { cancelled = true }
   }, [pageTab])
+
+  // Friends — same lazy-on-tab-open loading as the challenges themselves.
+  useEffect(() => {
+    if (pageTab !== 'challenges' || !authUser) return
+    let cancelled = false
+    getFriendUsers({
+      id: authUser.id, name: authUser.name || authUser.username, handle: authUser.username,
+      uuid: authUser.uuid, avatar: authUser.avatar_url, role: authUser.role,
+    }).then((m) => { if (!cancelled) setFriendMap(m) })
+    return () => { cancelled = true }
+  }, [pageTab, authUser])
 
   const handleJoinChallenge = async (c: Challenge) => {
     if (!isAuthenticated) {
@@ -309,7 +325,15 @@ export default function DiscoverPage() {
           ) : (
             <div className="grid animate-fade-up gap-4 sm:grid-cols-2">
               {challenges.map((c) => (
-                <ChallengeCard key={c.id} challenge={c} onJoin={handleJoinChallenge} onLeave={handleLeaveChallenge} t={t} />
+                <ChallengeCard
+                  key={c.id}
+                  challenge={c}
+                  onJoin={handleJoinChallenge}
+                  onLeave={handleLeaveChallenge}
+                  t={t}
+                  viewer={authUser ? { id: authUser.id, name: authUser.name || authUser.username, avatarUrl: authUser.avatar_url } : null}
+                  friendMap={friendMap}
+                />
               ))}
             </div>
           )}
@@ -989,12 +1013,16 @@ function GenreCard({
 // One community challenge — title/description, its scope chips (type + goal),
 // a progress bar once the viewer has joined, and a join/leave action.
 function ChallengeCard({
-  challenge, onJoin, onLeave, t,
+  challenge, onJoin, onLeave, t, viewer, friendMap,
 }: {
   challenge: Challenge
   onJoin: (c: Challenge) => void
   onLeave: (c: Challenge) => void
   t: Translate
+  /** The signed-in viewer, so their own avatar can lead the stack when joined. */
+  viewer: ChallengeViewer | null
+  /** nons user id -> display info, so friends who joined sort right after "you". */
+  friendMap: Map<number, Activity['user']>
 }) {
   const goalText = goalLabel(t, challenge)
   const hasProgress = challenge.joined && typeof challenge.target === 'number' && challenge.target > 0
@@ -1045,6 +1073,25 @@ function ChallengeCard({
           )
         })}
       </div>
+
+      {stack.length > 0 && (
+        <div className="flex items-center -space-x-2">
+          {stack.map((p) => (
+            <span key={p.id} className="h-6 w-6 flex-shrink-0 overflow-hidden rounded-full ring-2 ring-[var(--container)]">
+              {p.avatarUrl ? (
+                <img src={p.avatarUrl} alt={p.name} title={p.name} className="h-full w-full object-cover" />
+              ) : (
+                <BoringAvatar size={24} name={String(p.id)} />
+              )}
+            </span>
+          ))}
+          {overflow > 0 && (
+            <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-[var(--surface)] text-[9px] font-semibold text-[var(--text-muted)] ring-2 ring-[var(--container)]">
+              +{overflow}
+            </span>
+          )}
+        </div>
+      )}
 
       {hasProgress && (
         <div>

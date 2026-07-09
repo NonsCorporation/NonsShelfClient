@@ -539,16 +539,16 @@ export default function ProfilePage() {
   )
 }
 
-// A rotating set of gradients so shields feel distinct at a glance without
-// per-challenge color data — same "hash the id into a small fixed palette"
-// trick as Discover's genre tiles (GENRE_TINTS).
+// A rotating set of muted, Pantone-ish purple/blue/near-black gradients — a
+// deliberately narrow, cohesive family (not a rainbow) so a row of shields
+// reads as one design language, with just enough variation per challenge id
+// to tell them apart at a glance. Plain hex via inline style rather than
+// Tailwind's palette classes, which run too saturated/bright for this.
 const SHIELD_GRADIENTS = [
-  'from-violet-500 to-fuchsia-600',
-  'from-amber-500 to-orange-600',
-  'from-emerald-500 to-teal-600',
-  'from-sky-500 to-blue-600',
-  'from-rose-500 to-pink-600',
-  'from-indigo-500 to-purple-600',
+  'linear-gradient(135deg, #4a3382, #16111f)',
+  'linear-gradient(135deg, #33397a, #1c1730)',
+  'linear-gradient(135deg, #3d2f68, #100e1c)',
+  'linear-gradient(135deg, #2c3568, #221a3a)',
 ]
 
 // One joined challenge, as a shield: a gradient badge with the title and
@@ -568,16 +568,16 @@ function ChallengeShield({ challenge }: { challenge: Challenge }) {
       className="group flex w-24 flex-shrink-0 flex-col items-center"
     >
       <div
-        style={{ clipPath: 'polygon(0% 0%, 100% 0%, 100% 68%, 50% 100%, 0% 68%)' }}
-        className={`flex h-28 w-24 flex-col items-center justify-center gap-1.5 bg-gradient-to-br ${gradient} p-3 text-center transition-transform group-hover:-translate-y-0.5 ${
-          completed ? 'border-2 border-white/85' : 'border-2 border-dashed border-white/55'
+        style={{ clipPath: 'polygon(0% 0%, 100% 0%, 100% 68%, 50% 100%, 0% 68%)', background: gradient }}
+        className={`flex h-28 w-24 flex-col items-center justify-center gap-1.5 p-3 text-center transition-transform group-hover:-translate-y-0.5 ${
+          completed ? 'border-2 border-white/80' : 'border-2 border-dashed border-white/45'
         }`}
       >
         <span className="line-clamp-3 text-[11px] font-bold leading-tight text-white drop-shadow-sm">
           {challenge.title}
         </span>
         {target > 0 && (
-          <span className="text-[10px] font-semibold text-white/90">{progress}/{target}</span>
+          <span className="text-[10px] font-semibold text-white/85">{progress}/{target}</span>
         )}
       </div>
     </Link>
