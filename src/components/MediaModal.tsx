@@ -77,6 +77,10 @@ export default function MediaModal({ isOpen, initialData, initialType, catalogOn
 
   const [downloadingCover, setDownloadingCover] = useState(false)
   const [coverError, setCoverError] = useState('')
+  // Guards against a double-submit: while the save request is in flight the
+  // modal is still open (it only closes once onSave resolves), so without this
+  // rapid clicks would each POST a fresh media row — creating duplicate entries.
+  const [saving, setSaving] = useState(false)
 
   if (!isOpen) return null
 
@@ -115,7 +119,7 @@ export default function MediaModal({ isOpen, initialData, initialType, catalogOn
   }
 
   const handleSave = async () => {
-    if (!form.title) return
+    if (!form.title || saving) return
 
     const baseData: Partial<MediaItem> = {
       type,
@@ -134,7 +138,12 @@ export default function MediaModal({ isOpen, initialData, initialType, catalogOn
       baseData.duration = form.duration || undefined
     }
 
-    await onSave(baseData)
+    setSaving(true)
+    try {
+      await onSave(baseData)
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -359,7 +368,7 @@ export default function MediaModal({ isOpen, initialData, initialType, catalogOn
           <button onClick={onClose} className="px-4 h-10 rounded-lg bg-[var(--surface)] border border-[var(--border-subtle)] text-[var(--text-muted)] hover:bg-[var(--surface-hover)] transition-colors">
             {t('cancel')}
           </button>
-          <button onClick={handleSave} className="px-6 h-10 rounded-lg bg-nonsprimary text-white font-medium hover:bg-nonsprimaryfocus transition-colors">
+          <button onClick={handleSave} disabled={saving} className="px-6 h-10 rounded-lg bg-nonsprimary text-white font-medium hover:bg-nonsprimaryfocus transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
             {isEditing ? t('save') : `${t('add')} ${type === 'book' ? t('book') : type === 'series' ? t('series') : t('film')}`}
           </button>
         </div>
