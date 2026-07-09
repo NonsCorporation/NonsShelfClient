@@ -156,14 +156,28 @@ export default function ShelfStatusBar({ item, currentStatus, onStatusChange, on
     const close = (e: MouseEvent) => {
       if (!(e.target as HTMLElement).closest('[data-shelf-popover]')) setAnchor(null)
     }
-    const closeOnScroll = () => setAnchor(null)
     document.addEventListener('mousedown', close)
-    window.addEventListener('scroll', closeOnScroll, { passive: true, capture: true })
+
+    // The desktop popover is pinned to the trigger's on-screen position, so a
+    // *page* scroll should dismiss it. But two scrolls must NOT: a scroll inside
+    // the popover's own scrollable body, and — on mobile — anything at all,
+    // because the mobile popover is a viewport-fixed bottom sheet and the
+    // on-screen keyboard fires spurious scroll events while keeping the focused
+    // input in view, which would otherwise close it (dismissing the keyboard)
+    // the moment the user starts typing a new collection/list name.
+    const closeOnScroll = (e: Event) => {
+      const target = e.target as Node | null
+      if (target instanceof HTMLElement && target.closest('[data-shelf-popover]')) return
+      setAnchor(null)
+    }
+    if (!isMobile) {
+      window.addEventListener('scroll', closeOnScroll, { passive: true, capture: true })
+    }
     return () => {
       document.removeEventListener('mousedown', close)
-      window.removeEventListener('scroll', closeOnScroll, { capture: true })
+      if (!isMobile) window.removeEventListener('scroll', closeOnScroll, { capture: true })
     }
-  }, [anchor])
+  }, [anchor, isMobile])
 
   useEffect(() => {
     if (creatingNew) setTimeout(() => newInputRef.current?.focus(), 30)
