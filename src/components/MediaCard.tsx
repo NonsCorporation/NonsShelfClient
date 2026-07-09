@@ -17,6 +17,7 @@ import { useLanguage } from '../contexts/LanguageContext'
 import { statusLabel, STATUS_COLOR } from '../lib/shelf'
 import { mediaPath } from '../lib/paths'
 import TypeBadge from './TypeBadge'
+import ShelfStatusBar from './ShelfStatusBar'
 
 // The most recent dated milestone we can infer from the item alone (no extra
 // fetch): finished > started > added, by latest date. The full timeline (incl.
@@ -58,6 +59,11 @@ type MediaCardProps = {
   // `compareName` present ⇒ comparison mode; `myEntry` undefined ⇒ not in lib.
   compareName?: string
   myEntry?: ShelfCompare
+  // Lets the viewer manage their own shelf entry for this item straight from
+  // the comparison chip (opens ShelfStatusBar's status/collections/lists
+  // popover). Omit to keep the chip a plain, non-interactive badge.
+  onMyStatusChange?: (item: MediaItem, status: ShelfStatus) => void
+  onMyRemove?: (item: MediaItem) => void
   // Grid view: make the corner badges quick-filter the library.
   onFilterStatus?: (status: ShelfStatus) => void
   onFilterType?: (type: MediaItem['type']) => void
@@ -89,6 +95,8 @@ export default function MediaCard({
   onOpenDetail,
   compareName,
   myEntry,
+  onMyStatusChange,
+  onMyRemove,
   onFilterStatus,
   onFilterType,
   progress,
@@ -208,7 +216,17 @@ export default function MediaCard({
             {/* Comparison vs the viewer's own shelf (read-only other-user libraries) */}
             {compareName && (
               <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[10px]">
-                {myEntry ? (
+                {onMyStatusChange ? (
+                  <div onClick={stop} className="inline-flex">
+                    <ShelfStatusBar
+                      item={item}
+                      currentStatus={myEntry?.status ?? null}
+                      onStatusChange={(s) => onMyStatusChange(item, s)}
+                      onRemove={myEntry ? () => onMyRemove?.(item) : undefined}
+                      variant="button"
+                    />
+                  </div>
+                ) : myEntry ? (
                   <span className="inline-flex items-center gap-1 rounded-full bg-[var(--primary-soft)] px-2 py-0.5 font-medium text-[var(--text)]">
                     <IoLibraryOutline className="h-3 w-3" />
                     {t('onYourShelf')}

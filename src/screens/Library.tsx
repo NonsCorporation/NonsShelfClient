@@ -39,7 +39,7 @@ import { libraryService } from '../services/libraryService.ts'
 import type { LibrarySearchQuery } from '../services/libraryService.ts'
 import { collectionService } from '../services/collectionService.ts'
 import { fetchPublicProfile } from '../services/userService.ts'
-import type { MediaItem, Collection } from '../types.ts'
+import type { MediaItem, Collection, ShelfStatus } from '../types.ts'
 import { useLanguage } from '../contexts/LanguageContext.tsx'
 import { useAuth } from '../contexts/AuthContext.tsx'
 import { useCollections } from '../contexts/CollectionContext.tsx'
@@ -497,6 +497,23 @@ export default function LibraryScreen() {
   async function toggleFavorite(item: MediaItem) {
     const updated = await libraryService.updateItem(item.id, { favorite: !item.favorite })
     setItems((prev) => prev.map((it) => (it.id === item.id ? updated : it)))
+  }
+
+  // Comparison view (another user's library): let the viewer manage their own
+  // shelf entry for `item` without leaving the page. `item` here is *their*
+  // object, but its id is the shared catalog id, so these calls act on the
+  // signed-in viewer's own shelf via the usual authed endpoints.
+  async function handleMyStatusChange(item: MediaItem, status: ShelfStatus) {
+    const updated = await libraryService.updateItem(item.id, { status })
+    setMyByMediaId((prev) => new Map(prev).set(item.id, { status: updated.status, rating: updated.rating }))
+  }
+  async function handleMyRemove(item: MediaItem) {
+    await libraryService.deleteItem(item.id)
+    setMyByMediaId((prev) => {
+      const next = new Map(prev)
+      next.delete(item.id)
+      return next
+    })
   }
 
   const shelfTitle =
@@ -1399,6 +1416,8 @@ export default function LibraryScreen() {
                 onOpenDetail={setDetailItem}
                 compareName={readOnly ? ownerName : undefined}
                 myEntry={readOnly ? myByMediaId.get(it.id) : undefined}
+                onMyStatusChange={readOnly ? handleMyStatusChange : undefined}
+                onMyRemove={readOnly ? handleMyRemove : undefined}
                 progress={progressMap.get(it.id)}
               />
             ))}

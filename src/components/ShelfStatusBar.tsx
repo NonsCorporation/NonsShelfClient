@@ -422,7 +422,7 @@ export default function ShelfStatusBar({ item, currentStatus, onStatusChange, on
         <div className="mt-3 border-t border-[var(--border-subtle)] pt-3">
           <button
             onClick={() => { setAnchor(null); setConfirmingRemove(true) }}
-            className="flex items-center gap-1.5 text-[11px] font-medium text-red-500 hover:opacity-70"
+            className="flex items-center gap-1.5 text-[11px] font-medium text-[var(--text-muted)] hover:text-[var(--text)]"
           >
             <IoTrashOutline className="h-3.5 w-3.5" />
             {t('removeFromShelf') || 'Remove from shelf'}
