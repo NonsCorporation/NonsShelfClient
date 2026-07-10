@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { IoClose, IoChevronDown } from 'react-icons/io5'
+import { IoClose, IoChevronDown, IoCheckmark } from 'react-icons/io5'
 import StarsSelector from '../StarsSelector'
 import { libraryService } from '../services/libraryService'
 import { tagService } from '../services/tagService'
@@ -10,6 +10,7 @@ import type { MediaItem, TagTaxonomyFacet, TagTaxonomyGroup } from '../types'
 import { useLanguage } from '../contexts/LanguageContext'
 import DatePicker from './DatePicker'
 import NonsPostPreview from './NonsPostPreview'
+import InfoTooltip from './InfoTooltip'
 
 type Props = {
   isOpen: boolean
@@ -50,6 +51,11 @@ export default function FinishModal({ isOpen, item, onClose, onFinished }: Props
   const [selectedTags, setSelectedTags] = useState<Set<number>>(new Set())
   const [tagsOpen, setTagsOpen] = useState(false)
 
+  // How many times this item has already been finished, from the activity
+  // history — so a reread/rewatch says so up front instead of looking like
+  // a plain first finish.
+  const [priorFinishCount, setPriorFinishCount] = useState(0)
+
   // Pull the user's current rating/review + the started date when opening.
   useEffect(() => {
     if (!isOpen || !item) return
@@ -62,6 +68,7 @@ export default function FinishModal({ isOpen, item, onClose, onFinished }: Props
     setNonsError(null)
     setTagsOpen(false)
     setSelectedTags(new Set())
+    setPriorFinishCount(0)
     let cancelled = false
     libraryService.getItem(item.id).then((full) => {
       if (cancelled || !full) return
@@ -72,6 +79,9 @@ export default function FinishModal({ isOpen, item, onClose, onFinished }: Props
     })
     tagService.getTaxonomy().then((groups) => { if (!cancelled) setTaxonomy(groups) })
     tagService.getMyVotes(item.id).then((ids) => { if (!cancelled) setSelectedTags(new Set(ids)) })
+    libraryService.getHistory(item.id).then((events) => {
+      if (!cancelled) setPriorFinishCount(events.filter((e) => e.type === 'finished').length)
+    })
     return () => {
       cancelled = true
     }
@@ -96,6 +106,30 @@ export default function FinishModal({ isOpen, item, onClose, onFinished }: Props
   }
 
   if (!isOpen || !item) return null
+
+  // Flattened (group/facet dropped) for the collapsed one-row preview strip —
+  // still individually clickable, just without the grouped headers.
+  const flatTags = taxonomy.flatMap((g) => g.facets.flatMap((f) => f.tags.map((tag) => ({ tag, facet: f }))))
+
+  const tagChip = (tag: { id: number; label: string }, facet: TagTaxonomyFacet) => {
+    const selected = selectedTags.has(tag.id)
+    return (
+      <button
+        type="button"
+        key={tag.id}
+        onClick={() => toggleTag(facet, tag.id)}
+        style={{
+          borderColor: facet.color,
+          color: selected ? facet.color : 'var(--text-muted)',
+          backgroundColor: selected ? `color-mix(in srgb, ${facet.color} 22%, var(--surface))` : 'var(--surface)',
+        }}
+        className="inline-flex flex-shrink-0 items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium transition-opacity hover:opacity-70"
+      >
+        {selected && <IoCheckmark className="h-3 w-3" />}
+        {tag.label}
+      </button>
+    )
+  }
 
   const isBook = item.type === 'book'
   const finishedLabel = isBook ? t('dateRead') || 'Date read' : t('dateWatched') || 'Date watched'
@@ -161,6 +195,14 @@ export default function FinishModal({ isOpen, item, onClose, onFinished }: Props
           </button>
         </div>
 
+        {priorFinishCount > 0 && (
+          <p className="rounded-lg bg-[var(--primary-soft)] px-3 py-2 text-xs text-nonsprimaryfocus">
+            {isBook
+              ? t('rereadHint', { n: priorFinishCount + 1 })
+              : t('rewatchHint', { n: priorFinishCount + 1 })}
+          </p>
+        )}
+
         <div className="flex flex-col gap-1.5">
           <span className="text-sm font-medium text-[var(--text)]">{t('rating') || 'Rating'}</span>
           <StarsSelector initialValue={rating} onChange={setRating} onClear={() => setRating(null)} isEditable />
@@ -178,20 +220,36 @@ export default function FinishModal({ isOpen, item, onClose, onFinished }: Props
         </label>
 
         {/* Community tags (StoryGraph-style): pacing/mood/genre/setting/content
-            warnings/… — collapsed by default since the full taxonomy is large. */}
+            warnings/… — collapsed to a one-row preview strip (still clickable)
+            since the full taxonomy is large; expands to the full grouped picker. */}
         {taxonomy.length > 0 && (
           <div className="flex flex-col gap-1 rounded-xl border border-[var(--border-subtle)] p-3">
-            <button
-              type="button"
-              onClick={() => setTagsOpen((v) => !v)}
-              className="flex items-center justify-between text-sm font-medium text-[var(--text)]"
-            >
-              <span>
+            <div className="flex items-center justify-between gap-2">
+              <button
+                type="button"
+                onClick={() => setTagsOpen((v) => !v)}
+                className="flex flex-1 items-center gap-1.5 text-left text-sm font-medium text-[var(--text)]"
+              >
                 {t('tags') || 'Tags'}
-                {selectedTags.size > 0 && <span className="text-[var(--text-muted)]"> ({selectedTags.size})</span>}
-              </span>
-              <IoChevronDown className={`h-4 w-4 flex-shrink-0 text-[var(--text-muted)] transition-transform duration-200 ${tagsOpen ? 'rotate-180' : ''}`} />
-            </button>
+                {selectedTags.size > 0 && <span className="text-[var(--text-muted)]">({selectedTags.size})</span>}
+              </button>
+              <InfoTooltip text={t('tagsInfoTooltip')} />
+              <button
+                type="button"
+                onClick={() => setTagsOpen((v) => !v)}
+                aria-label={t('tags') || 'Tags'}
+                className="flex-shrink-0"
+              >
+                <IoChevronDown className={`h-4 w-4 text-[var(--text-muted)] transition-transform duration-200 ${tagsOpen ? 'rotate-180' : ''}`} />
+              </button>
+            </div>
+
+            {!tagsOpen && (
+              <div className="mt-1 flex flex-nowrap gap-1.5 overflow-hidden">
+                {flatTags.map(({ tag, facet }) => tagChip(tag, facet))}
+              </div>
+            )}
+
             {tagsOpen && (
               <div className="mt-2 flex max-h-64 flex-col gap-3 overflow-y-auto pr-1">
                 {taxonomy.map((group) => (
@@ -204,24 +262,7 @@ export default function FinishModal({ isOpen, item, onClose, onFinished }: Props
                         <div key={facet.key}>
                           <p className="mb-1 text-[11px] text-[var(--text-muted)]">{facet.label}</p>
                           <div className="flex flex-wrap gap-1.5">
-                            {facet.tags.map((tag) => {
-                              const selected = selectedTags.has(tag.id)
-                              return (
-                                <button
-                                  type="button"
-                                  key={tag.id}
-                                  onClick={() => toggleTag(facet, tag.id)}
-                                  style={{
-                                    borderColor: facet.color,
-                                    color: facet.color,
-                                    backgroundColor: selected ? `color-mix(in srgb, ${facet.color} 15%, transparent)` : 'var(--surface)',
-                                  }}
-                                  className="rounded-full border px-2.5 py-1 text-xs font-medium transition-opacity hover:opacity-70"
-                                >
-                                  {tag.label}
-                                </button>
-                              )
-                            })}
+                            {facet.tags.map((tag) => tagChip(tag, facet))}
                           </div>
                         </div>
                       ))}

@@ -119,6 +119,27 @@ export const ro = {
   histAdded: 'Adăugat în bibliotecă',
   histStarted: 'Început',
   histFinished: 'Terminat',
+  histFinishedReread: 'Terminat — recitire #{n}',
+  histFinishedRewatch: 'Terminat — revizionare #{n}',
+  readNTimes: 'Citit de {n}×',
+  watchedNTimes: 'Vizionat de {n}×',
+  rereadHint: 'Ai mai citit asta — va fi recitirea #{n}.',
+  rewatchHint: 'Ai mai vizionat asta — va fi revizionarea #{n}.',
+  // Reads list (per-cycle)
+  yourReads: 'Lecturile tale',
+  readingNow: 'Citesc acum',
+  since: 'din',
+  readOnce: 'Citit',
+  watchedOnce: 'Vizionat',
+  rereadN: 'Recitire #{n}',
+  rewatchN: 'Revizionare #{n}',
+  readAttempt: 'Încercarea #{n} · abandonat',
+  // DNF modal
+  dnfDateStopped: 'Data când ai oprit lectura',
+  dnfDateStoppedWatching: 'Data când ai oprit vizionarea',
+  dnfReason: 'De ce ai renunțat? (opțional)',
+  dnfReasonPlaceholder: 'ex. „am pierdut interesul la jumătate”, „prea lent”',
+  dnfConfirm: 'Marchează ca abandonat',
   histRated: 'Notă {rating}',
   histReviewed: 'A scris o recenzie',
   histProgress: 'Progres',
@@ -707,6 +728,9 @@ export const ro = {
 
   // Lists
   listsInfoTooltip: 'Listele sunt publice — oricine are linkul le poate vedea, chiar și fără cont. Folosește-le ca recomandări curate (ex. „Cel mai bun sci-fi al deceniului”) și distribuie linkul prietenilor sau pe Nons.',
+
+  // Tags
+  tagsInfoTooltip: 'Etichetele sunt adunate de la toți cei care termină acest titlu. Când destui oameni aleg aceeași etichetă, ea apare pe pagina titlului — ajutând întreaga comunitate să filtreze și să descopere după atmosferă, ritm, avertismente de conținut și altele.',
 
   // Universes (franchises)
   universesTitle: 'Universuri',

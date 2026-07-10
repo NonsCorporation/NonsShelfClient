@@ -119,6 +119,27 @@ export const en = {
   histAdded: 'Added to library',
   histStarted: 'Started',
   histFinished: 'Finished',
+  histFinishedReread: 'Finished — reread #{n}',
+  histFinishedRewatch: 'Finished — rewatch #{n}',
+  readNTimes: 'Read {n}×',
+  watchedNTimes: 'Watched {n}×',
+  rereadHint: 'You\'ve read this before — this will be reread #{n}.',
+  rewatchHint: 'You\'ve watched this before — this will be rewatch #{n}.',
+  // Reads list (per-cycle)
+  yourReads: 'Your reads',
+  readingNow: 'Reading now',
+  since: 'since',
+  readOnce: 'Read',
+  watchedOnce: 'Watched',
+  rereadN: 'Reread #{n}',
+  rewatchN: 'Rewatch #{n}',
+  readAttempt: 'Attempt #{n} · DNF',
+  // DNF modal
+  dnfDateStopped: 'Date stopped reading',
+  dnfDateStoppedWatching: 'Date stopped watching',
+  dnfReason: 'Why did you stop? (optional)',
+  dnfReasonPlaceholder: 'e.g. "lost interest halfway", "too slow"',
+  dnfConfirm: 'Mark as did not finish',
   histRated: 'Rated {rating}',
   histReviewed: 'Wrote a review',
   histProgress: 'Progress',
@@ -769,6 +790,9 @@ export const en = {
 
   // Lists
   listsInfoTooltip: "Lists are public — anyone with the link can view them, even signed out. Use them as curated recommendations (e.g. \"Best sci-fi of the decade\") and share the link with friends or post it to Nons.",
+
+  // Tags
+  tagsInfoTooltip: "Tags are crowdsourced from everyone who finishes this item. Once enough people agree on one, it shows up on the item's page — helping the whole community filter and discover by mood, pacing, content warnings, and more.",
 
   // Universes (franchises)
   universesTitle: 'Universes',

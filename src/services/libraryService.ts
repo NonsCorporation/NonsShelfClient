@@ -139,6 +139,25 @@ export interface HistoryEvent {
   at: number // unix seconds
 }
 
+// One derived read cycle (GET /api/activity/read-cycles) — a single attempt at
+// a media item. `started_at`/`ended_at` are unix seconds (0 = unset/ongoing).
+export type ReadOutcome = 'reading' | 'finished' | 'dnf'
+export interface ReadCycle {
+  index: number // 1-based, chronological (1 = first ever)
+  started_at: number
+  ended_at: number
+  outcome: ReadOutcome
+  note?: string // the dnf "why I stopped", when present
+}
+
+// What the DNF ("did not finish") modal collects.
+export interface DNFOptions {
+  endedAt?: number // unix seconds (0 = now)
+  note?: string
+  /** Post the abandonment to the feed (default true). */
+  share?: boolean
+}
+
 // What the "ending" (finish) modal collects.
 export interface FinishOptions {
   rating?: number | null
@@ -227,6 +246,9 @@ export interface ILibraryService {
   getProgress(mediaId: string): Promise<ProgressEntry[]>
   /** The user's full interaction timeline for a media item, newest first. */
   getHistory(mediaId: string): Promise<HistoryEvent[]>
+  /** The user's derived read cycles for a media item (each read/reread as one
+   *  cycle with its dates + outcome), oldest first. Powers the "Your reads" list. */
+  getReadCycles(mediaId: string): Promise<ReadCycle[]>
   /** Reading/watching spans over [from, to] (unix seconds) for the calendar. */
   getCalendar(from: number, to: number): Promise<CalendarData>
   /** Watched/total episode counts for a series (lightweight). */
@@ -235,6 +257,9 @@ export interface ILibraryService {
   setEpisodeWatched(episodeId: number, watched: boolean): Promise<void>
   /** Finish an item: shelf → done, save rating/review, log a (backdatable) finished event. */
   finish(mediaId: string, opts: FinishOptions): Promise<void>
+  /** Abandon an item: shelf → dnf, log a dated (backdatable) dnf event with an
+   *  optional "why I stopped" note. The mirror of finish(). */
+  markDNF(mediaId: string, opts: DNFOptions): Promise<void>
   /** Cross-post a finished item to the main nons feed (a real post on
    *  nons-server/nons-client) mentioning it, independent of the shelf's own
    *  internal feed (`share` above). Throws if the post couldn't be created. */
@@ -600,6 +625,14 @@ class ApiLibraryService implements ILibraryService {
     return (data.items ?? []) as HistoryEvent[]
   }
 
+  // The user's derived read cycles for a media item (oldest first).
+  async getReadCycles(mediaId: string): Promise<ReadCycle[]> {
+    const res = await authedFetch(`/api/activity/read-cycles?media_id=${Number(mediaId)}`)
+    if (!res.ok) return []
+    const data = await res.json()
+    return (data.cycles ?? []) as ReadCycle[]
+  }
+
   // Reading/watching spans over [from, to] (unix seconds) — started→finished
   // pairs from the activity log, for drawing multi-day spans on the calendar.
   async getCalendar(from: number, to: number): Promise<CalendarData> {
@@ -631,6 +664,21 @@ class ApiLibraryService implements ILibraryService {
       // (the shelf "finished" event above already represents the finish).
       await this.logProgress(mediaId, { pct: 100, eventDate: opts.finishedAt, note: 'finished', share: false })
     }
+  }
+
+  // Abandon an item: move the shelf entry to "dnf" and log a dated dnf event
+  // with an optional "why I stopped" note — one backend call (the mirror of
+  // finish(), which spans several because it also writes rating/review).
+  async markDNF(mediaId: string, opts: DNFOptions): Promise<void> {
+    await authedFetch(`/api/shelf/${Number(mediaId)}/dnf`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        event_date: opts.endedAt ?? 0,
+        note: opts.note ?? '',
+        share: opts.share ?? true,
+      }),
+    })
   }
 
   // Cross-post to the main nons feed: creates a real post on nons-server

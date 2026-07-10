@@ -61,6 +61,13 @@ export default function MediaHistory({ item, refreshKey = 0 }: { item: MediaItem
 
   if (!events || events.length === 0) return null
 
+  const isBook = item.type === 'book'
+  // events arrive newest-first; a 'finished' event's chronological ordinal
+  // (1 = the first-ever finish) is its position counting from the *oldest*
+  // finish, not from where it sits in this newest-first list.
+  const totalFinishes = events.filter((e) => e.type === 'finished').length
+  let finishesSeen = 0
+
   // Builds the human label + optional detail for one event.
   const describe = (e: HistoryEvent): { label: string; detail?: string } => {
     switch (e.type) {
@@ -68,8 +75,14 @@ export default function MediaHistory({ item, refreshKey = 0 }: { item: MediaItem
         return { label: t('histAdded') }
       case 'started':
         return { label: t('histStarted') }
-      case 'finished':
+      case 'finished': {
+        finishesSeen += 1
+        const ordinal = totalFinishes - finishesSeen + 1
+        if (ordinal > 1) {
+          return { label: isBook ? t('histFinishedReread', { n: ordinal }) : t('histFinishedRewatch', { n: ordinal }) }
+        }
         return { label: t('histFinished') }
+      }
       case 'dnf':
         return { label: t('didNotFinish') }
       case 'rated':
@@ -88,6 +101,8 @@ export default function MediaHistory({ item, refreshKey = 0 }: { item: MediaItem
 
   return (
     <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface)] p-3">
+      {/* The summary count ("Read 2×") now lives in the ReadsList section
+          above; this stays the granular event-by-event timeline. */}
       <div className="mb-2.5 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-widest text-[var(--text-muted)]">
         <IoTimeOutline className="h-3.5 w-3.5" />
         {t('historyTitle')}

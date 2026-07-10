@@ -8,9 +8,11 @@ import ConnectionsPanel from '../components/ConnectionsPanel'
 import MediaModal from '../components/MediaModal'
 import ProgressModal from '../components/ProgressModal'
 import FinishModal from '../components/FinishModal'
+import DnfModal from '../components/DnfModal'
 import ShelfStatusBar from '../components/ShelfStatusBar'
 import ReadingDates from '../components/ReadingDates'
 import ReadingProgress from '../components/ReadingProgress'
+import ReadsList from '../components/ReadsList'
 import MediaHistory from '../components/MediaHistory'
 import StarsSelector from '../StarsSelector'
 import { libraryService } from '../services/libraryService'
@@ -199,6 +201,7 @@ export default function MediaOnePage({
   const [editingReview, setEditingReview] = useState(false)
   const [progressOpen, setProgressOpen] = useState(false)
   const [finishOpen, setFinishOpen] = useState(false)
+  const [dnfOpen, setDnfOpen] = useState(false)
   const [altTitles, setAltTitles] = useState<AltTitle[]>([])
   const [mediaLang, setMediaLang] = useState('')
   // Bumped when the progress modal closes, so the reading-progress log refetches.
@@ -685,19 +688,25 @@ export default function MediaOnePage({
                   currentStatus={status}
                   onStatusChange={(s) => {
                     if (s === 'done') { setFinishOpen(true); return }
+                    if (s === 'dnf') { setDnfOpen(true); return }
                     patch({ status: s })
                   }}
                   onEditProgress={status === 'active' ? () => setProgressOpen(true) : undefined}
                   onRemove={handleRemove}
                 />
               </div>
-              {/* Editable reading/watching period — once the item is on the shelf.
+              {/* "Your reads" — each read/reread/attempt as its own cycle with
+                  dates + outcome (renders only once there's a cycle). */}
+              {status !== null && <ReadsList item={item} refreshKey={progressRefresh} />}
+              {/* Editable dates for the *current* read cycle — once on the shelf.
                   Keyed on the loaded dates so it re-initialises when signals arrive. */}
               {status !== null && (
                 <ReadingDates key={`${item.startedAt ?? ''}|${item.finishedAt ?? ''}`} item={item} onSaved={loadItem} />
               )}
-              {/* Per-book reading-progress log (renders only once there's history). */}
-              {status !== null && isBook && <ReadingProgress item={item} total={totalPages} refreshKey={progressRefresh} />}
+              {/* Per-book reading-progress log (renders only once there's history).
+                  Hidden once finished — "where am I now" doesn't apply anymore;
+                  the full history below still shows past progress updates. */}
+              {status !== null && status !== 'done' && isBook && <ReadingProgress item={item} total={totalPages} refreshKey={progressRefresh} />}
               {/* Full interaction timeline — added/started/progress/finished/rated/
                   reviewed, for every media type (renders only once there's history). */}
               {status !== null && <MediaHistory item={item} refreshKey={progressRefresh} />}
@@ -1460,7 +1469,13 @@ export default function MediaOnePage({
         isOpen={finishOpen}
         item={item}
         onClose={() => setFinishOpen(false)}
-        onFinished={() => { setFinishOpen(false); loadItem() }}
+        onFinished={() => { setFinishOpen(false); setProgressRefresh((n) => n + 1); loadItem() }}
+      />
+      <DnfModal
+        isOpen={dnfOpen}
+        item={item}
+        onClose={() => setDnfOpen(false)}
+        onDone={() => { setDnfOpen(false); setProgressRefresh((n) => n + 1); loadItem() }}
       />
       <MediaModal
         isOpen={editing}
