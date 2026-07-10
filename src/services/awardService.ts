@@ -1,5 +1,5 @@
 import { authedFetch } from '../lib/api'
-import type { AppliedAward, AwardBody, AwardStatus } from '../types'
+import type { AppliedAward, AwardBody, AwardStatus, WikidataImportItem, WikidataImportPreview } from '../types'
 
 // Client for nons-library-server's award module: a librarian-curated catalog of
 // recognitions (Oscars, Booker, Hugos…) applied to media and people. Reads are
@@ -35,10 +35,26 @@ async function getPersonAwards(uuid: string): Promise<AppliedAward[]> {
   return data.awards ?? []
 }
 
-type AddInput = { categoryId: number; year: number; status: AwardStatus }
+type AddInput = {
+  categoryId: number
+  year: number
+  status: AwardStatus
+  /** Cross-link to the *other* subject type — e.g. which person a movie-page
+   *  "Best Actor" award is actually for, or (optionally) which media a
+   *  person-page award was for. Only the field matching the category's
+   *  non-matching subject type is used server-side. */
+  personUuid?: string
+  mediaRef?: string
+}
 
 function addBody(input: AddInput): string {
-  return JSON.stringify({ category_id: input.categoryId, year: input.year, status: input.status })
+  return JSON.stringify({
+    category_id: input.categoryId,
+    year: input.year,
+    status: input.status,
+    person_uuid: input.personUuid,
+    media_ref: input.mediaRef,
+  })
 }
 
 async function addMediaAward(mediaId: string, input: AddInput): Promise<void> {
@@ -64,6 +80,38 @@ async function deleteAward(id: number): Promise<void> {
   if (!res.ok) throw new Error('Failed to remove award')
 }
 
+async function suggestMediaWikidata(mediaId: string): Promise<WikidataImportPreview> {
+  const res = await authedFetch(`/api/media/${mediaId}/awards/wikidata-suggest`)
+  if (!res.ok) throw new Error('Failed to fetch Wikidata awards')
+  return res.json()
+}
+
+async function suggestPersonWikidata(uuid: string): Promise<WikidataImportPreview> {
+  const res = await authedFetch(`/api/people/${uuid}/awards/wikidata-suggest`)
+  if (!res.ok) throw new Error('Failed to fetch Wikidata awards')
+  return res.json()
+}
+
+async function importMediaWikidata(mediaId: string, items: WikidataImportItem[]): Promise<{ imported: number; skipped: number }> {
+  const res = await authedFetch(`/api/media/${mediaId}/awards/wikidata-import`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ items }),
+  })
+  if (!res.ok) throw new Error('Failed to import awards')
+  return res.json()
+}
+
+async function importPersonWikidata(uuid: string, items: WikidataImportItem[]): Promise<{ imported: number; skipped: number }> {
+  const res = await authedFetch(`/api/people/${uuid}/awards/wikidata-import`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ items }),
+  })
+  if (!res.ok) throw new Error('Failed to import awards')
+  return res.json()
+}
+
 export const awardService = {
   getTaxonomy,
   getMediaAwards,
@@ -71,4 +119,8 @@ export const awardService = {
   addMediaAward,
   addPersonAward,
   deleteAward,
+  suggestMediaWikidata,
+  suggestPersonWikidata,
+  importMediaWikidata,
+  importPersonWikidata,
 }

@@ -257,13 +257,18 @@ export type AwardCategory = {
 export type AwardBody = {
   key: string
   name: string
-  /** Icon key mapped to a glyph in the frontend award-icon registry. */
-  icon: string
   color: string
   categories: AwardCategory[]
 }
 
-/** One award a media item or person holds. */
+/** One award that touches a page — either the page's own award, or (e.g. a
+ *  movie page also showing its Best Actor win) a cross-linked award whose
+ *  true subject is the other type. The trophy icon is derived from
+ *  `body_key` in the frontend (see AwardIcon), not carried in the data.
+ *  `subject_type`/`subject_name` identify the award's real subject — only
+ *  worth rendering when `subject_type` differs from the page you're on.
+ *  `linked_media_*`/`linked_person_*` are the optional cross-link, present
+ *  when set (e.g. a person's Best Actor win names the film it was for). */
 export type AppliedAward = {
   id: number
   year: number
@@ -271,8 +276,51 @@ export type AppliedAward = {
   category_name: string
   body_name: string
   body_key: string
-  icon: string
   color: string
+  subject_type: AwardSubject
+  subject_uuid?: string
+  subject_name?: string
+  /** Catalog type of whichever media entity this row touches (the subject
+   *  when subject_type is 'media', or the linked media otherwise) — needed
+   *  to build the right /b/ or /m/ link. */
+  media_type?: MediaType
+  linked_media_uuid?: string
+  linked_media_title?: string
+  linked_person_uuid?: string
+  linked_person_name?: string
+}
+
+// ── Wikidata award auto-import ───────────────────────────────────────────────
+// "Auto-import awards" resolves a media item or person on Wikidata and
+// matches its award claims against the taxonomy above. Suggest never writes
+// anything; the librarian confirms (optionally trimming items) before Import.
+
+export type WikidataImportItem = {
+  category_id: number
+  category_name: string
+  body_name: string
+  body_key: string
+  year: number
+  status: AwardStatus
+  subject_type: AwardSubject
+  subject_id: number
+  subject_name: string
+  linked_media_id?: number
+  linked_person_id?: number
+}
+
+export type WikidataUnmatched = {
+  label: string
+  year?: number
+  status: AwardStatus
+  reason: string
+}
+
+export type WikidataImportPreview = {
+  subject_qid?: string
+  subject_label?: string
+  matched: WikidataImportItem[]
+  unmatched: WikidataUnmatched[]
 }
 
 // Shelf status — the Goodreads/IMDb "what am I doing with this" axis.

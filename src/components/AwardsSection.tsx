@@ -1,12 +1,38 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { IoAddOutline, IoCloseCircle } from 'react-icons/io5'
+import { IoAddOutline, IoCloseCircle, IoCloudDownloadOutline } from 'react-icons/io5'
+import { Link } from '@/lib/router'
 import { awardService } from '../services/awardService'
-import { awardIcon } from '../lib/awardIcons'
+import AwardIcon from './AwardIcon'
 import type { AppliedAward, AwardStatus, AwardSubject } from '../types'
 import { useLanguage } from '../contexts/LanguageContext'
+import { mediaPath } from '../lib/paths'
 import AddAwardModal from './AddAwardModal'
+import WikidataImportModal from './WikidataImportModal'
+
+// The clickable "who/what this award is for" line: the cross-shown subject
+// when the award's real subject differs from the page (e.g. a movie page's
+// Best Actor win), otherwise the optional cross-linked entity. Falls back to
+// plain (unlinked) text when there's no uuid to link to.
+function secondaryLine(a: AppliedAward, crossShown: boolean, forWorkLabel: (name: string) => string): { text: string; href?: string } | null {
+  if (crossShown && a.subject_name) {
+    const href =
+      a.subject_type === 'person'
+        ? a.subject_uuid && `/p/${a.subject_uuid}`
+        : a.subject_uuid && a.media_type && mediaPath({ type: a.media_type, uuid: a.subject_uuid, id: a.subject_uuid })
+    return { text: a.subject_name, href: href || undefined }
+  }
+  if (a.linked_media_title) {
+    const href = a.linked_media_uuid && a.media_type ? mediaPath({ type: a.media_type, uuid: a.linked_media_uuid, id: a.linked_media_uuid }) : undefined
+    return { text: forWorkLabel(a.linked_media_title), href }
+  }
+  if (a.linked_person_name) {
+    const href = a.linked_person_uuid ? `/p/${a.linked_person_uuid}` : undefined
+    return { text: forWorkLabel(a.linked_person_name), href }
+  }
+  return null
+}
 
 type Props = {
   subject: AwardSubject
@@ -16,15 +42,20 @@ type Props = {
   canEdit?: boolean
 }
 
-// The awards a media item or person holds — winners shown in the body's color
-// with a filled marker, nominees muted/outlined. Librarians get an "add" button
-// (opens AddAwardModal) and a remove control per chip. Renders nothing for
-// non-librarians when there are no awards, so it never shows an empty card.
+// The awards a media item or person holds — winners shown in the body's color,
+// nominees muted. Same big icon-forward tile everywhere (trophy on top, award
+// name + year below); the row is a fixed-height horizontal scroller rather
+// than wrapping, so an item with a dozen+ awards (Best Visual Effects team,
+// full sound crew, …) stays one line instead of growing the whole page.
+// Librarians get an "add" button (opens AddAwardModal) and a remove control
+// per award. Renders nothing for non-librarians when there are no awards, so
+// it never shows an empty card.
 export default function AwardsSection({ subject, subjectId, canEdit = false }: Props) {
   const { t } = useLanguage()
   const [awards, setAwards] = useState<AppliedAward[]>([])
   const [loaded, setLoaded] = useState(false)
   const [adding, setAdding] = useState(false)
+  const [importing, setImporting] = useState(false)
 
   const load = useCallback(() => {
     const p = subject === 'media' ? awardService.getMediaAwards(subjectId) : awardService.getPersonAwards(subjectId)
@@ -36,7 +67,7 @@ export default function AwardsSection({ subject, subjectId, canEdit = false }: P
   if (!loaded) return null
   if (awards.length === 0 && !canEdit) return null
 
-  const handleAdd = async (input: { categoryId: number; year: number; status: AwardStatus }) => {
+  const handleAdd = async (input: { categoryId: number; year: number; status: AwardStatus; personUuid?: string; mediaRef?: string }) => {
     if (subject === 'media') await awardService.addMediaAward(subjectId, input)
     else await awardService.addPersonAward(subjectId, input)
     load()
@@ -60,45 +91,76 @@ export default function AwardsSection({ subject, subjectId, canEdit = false }: P
             {t('addAward')}
           </button>
         )}
+        {canEdit && (
+          <button
+            onClick={() => setImporting(true)}
+            className="inline-flex items-center gap-0.5 text-[11px] font-medium text-nonsprimary hover:underline"
+          >
+            <IoCloudDownloadOutline className="h-3.5 w-3.5" />
+            {t('awardAutoImport')}
+          </button>
+        )}
       </div>
 
       {awards.length === 0 ? (
         <p className="text-xs text-[var(--text-muted)]">{t('noAwardsYet')}</p>
       ) : (
-        <div className="flex flex-wrap gap-2">
+        // Single-row slider: no wrap, horizontal overflow scrolls instead.
+        <div className="flex gap-4 overflow-x-auto pb-1">
           {awards.map((a) => {
-            const Icon = awardIcon(a.icon)
             const winner = a.status === 'winner'
+            // Cross-shown: this award's real subject is the other type (e.g.
+            // a movie page also lists its Best Actor win) — show who/what it
+            // actually belongs to instead of the (redundant) linked-entity text.
+            const crossShown = a.subject_type !== subject
+            const secondary = secondaryLine(a, crossShown, (name) => t('awardForWorkLabel', { name }))
             return (
-              <span
-                key={a.id}
-                title={`${a.body_name} — ${a.category_name} (${a.year})`}
-                style={winner ? { borderColor: a.color, backgroundColor: `${a.color}1a` } : undefined}
-                className={`group inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs ${
-                  winner ? 'text-[var(--text)]' : 'border-[var(--border-subtle)] bg-[var(--surface)] text-[var(--text-muted)]'
-                }`}
-              >
-                <Icon className="h-3.5 w-3.5 flex-shrink-0" style={{ color: winner ? a.color : 'var(--text-muted)' }} />
-                <span className="font-medium">{a.body_name}</span>
-                <span className="opacity-70">{a.category_name}</span>
-                <span className="opacity-60">· {a.year}</span>
-                {!winner && <span className="opacity-70">· {t('awardNominee')}</span>}
+              <div key={a.id} className="group relative flex w-24 flex-shrink-0 flex-col items-center gap-1.5 text-center">
+                <AwardIcon bodyKey={a.body_key} color={winner ? '#d2b781' : 'var(--text-muted)'} size={72} />
+                <span className="text-xs font-semibold leading-tight text-[var(--text)]">{a.body_name}</span>
+                <span className="text-[11px] leading-tight text-[var(--text-muted)]">
+                  {a.category_name} · {a.year}
+                </span>
+                {secondary && (
+                  secondary.href ? (
+                    <Link
+                      to={secondary.href}
+                      className="text-[11px] leading-tight text-[var(--text-muted)] hover:text-nonsprimary hover:underline"
+                    >
+                      {secondary.text}
+                    </Link>
+                  ) : (
+                    <span className="text-[11px] leading-tight text-[var(--text-muted)]">{secondary.text}</span>
+                  )
+                )}
+                {!winner && (
+                  <span className="rounded-full bg-[var(--surface)] px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide text-[var(--text-muted)]">
+                    {t('awardNominee')}
+                  </span>
+                )}
                 {canEdit && (
                   <button
                     onClick={() => handleRemove(a.id)}
                     title={t('remove') || 'Remove'}
-                    className="ml-0.5 text-[var(--text-muted)] opacity-0 transition-opacity hover:text-red-500 group-hover:opacity-100"
+                    className="absolute -right-1 -top-1 text-[var(--text-muted)] opacity-0 transition-opacity hover:text-red-500 group-hover:opacity-100"
                   >
-                    <IoCloseCircle className="h-3.5 w-3.5" />
+                    <IoCloseCircle className="h-4 w-4" />
                   </button>
                 )}
-              </span>
+              </div>
             )
           })}
         </div>
       )}
 
       <AddAwardModal isOpen={adding} subject={subject} onClose={() => setAdding(false)} onAdd={handleAdd} />
+      <WikidataImportModal
+        isOpen={importing}
+        subject={subject}
+        subjectId={subjectId}
+        onClose={() => setImporting(false)}
+        onImported={load}
+      />
     </div>
   )
 }

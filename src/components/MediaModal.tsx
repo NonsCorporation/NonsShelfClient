@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { IoClose, IoBookOutline, IoFilmOutline, IoTvOutline, IoSearch, IoGitMergeOutline, IoCloudDownloadOutline } from 'react-icons/io5'
+import { IoClose, IoBookOutline, IoFilmOutline, IoTvOutline, IoCloudDownloadOutline } from 'react-icons/io5'
 import { useNavigate } from '@/lib/router'
 import type { MediaItem, MediaType, ShelfStatus } from '../types.ts'
 import { useLanguage } from '../contexts/LanguageContext.tsx'
@@ -10,11 +10,11 @@ import EpisodesManager from './EpisodesManager'
 import CreditsManager from './CreditsManager'
 import ConnectionsManager from './ConnectionsManager'
 import PersonPicker from './PersonPicker'
+import MediaPicker from './MediaPicker'
 import { librarianService } from '../services/librarianService'
 import { downloadCoverToB2 } from '../lib/api'
 import { suggestionService } from '../services/suggestionService'
 import { SuggestionProvider } from '../contexts/SuggestionContext'
-import { catalogService } from '../services/catalogService'
 import type { CatalogItem } from '../services/catalogService'
 
 type MediaModalProps = {
@@ -469,29 +469,7 @@ function MergeIntoSection({
   onMerged: (keep: CatalogItem) => void
 }) {
   const { t } = useLanguage()
-  const [q, setQ] = useState('')
-  const [results, setResults] = useState<CatalogItem[]>([])
-  const [loading, setLoading] = useState(false)
   const [busy, setBusy] = useState(false)
-
-  useEffect(() => {
-    // All setState happens inside the debounce callback (never synchronously in
-    // the effect body), so this doesn't trigger cascading renders.
-    const term = q.trim()
-    const timer = setTimeout(() => {
-      if (!term) {
-        setResults([])
-        return
-      }
-      setLoading(true)
-      catalogService
-        .getCatalog(term)
-        .then((data) => setResults(data.filter((m) => m.type === type && m.id !== mediaId)))
-        .catch(() => setResults([]))
-        .finally(() => setLoading(false))
-    }, 300)
-    return () => clearTimeout(timer)
-  }, [q, type, mediaId])
 
   const pick = async (keep: CatalogItem) => {
     if (busy) return
@@ -506,45 +484,8 @@ function MergeIntoSection({
   }
 
   return (
-    <div>
-      <div className="relative">
-        <IoSearch className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" />
-        <input
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder={t('searchCatalogPlaceholder')}
-          className="h-11 w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--input)] pl-10 pr-3 text-sm text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-ring)]"
-        />
-      </div>
-      {loading && <p className="mt-2 text-xs text-[var(--text-muted)]">…</p>}
-      {results.length > 0 && (
-        <div className="mt-2 flex flex-col gap-1.5">
-          {results.map((m) => (
-            <div key={m.id} className="flex items-center justify-between gap-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] px-3 py-2">
-              <div className="flex min-w-0 items-center gap-2.5">
-                <div className="h-10 w-7 flex-shrink-0 overflow-hidden rounded bg-[var(--container-2)]">
-                  {m.coverUrl ? <img src={m.coverUrl} alt="" className="h-full w-full object-cover" /> : null}
-                </div>
-                <div className="min-w-0">
-                  <p className="truncate text-sm text-[var(--text)]">{m.title}</p>
-                  <p className="truncate text-xs text-[var(--text-muted)]">
-                    {(type === 'book' ? m.author : m.director || m.author) || ''}
-                    {m.year ? ` · ${m.year}` : ''}
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => pick(m)}
-                disabled={busy}
-                className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-lg bg-nonsprimary px-3 py-1.5 text-xs font-semibold text-white hover:bg-nonsprimaryfocus disabled:opacity-50"
-              >
-                <IoGitMergeOutline className="h-3.5 w-3.5" />
-                {t('mergeIntoEntry')}
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
+    <fieldset disabled={busy} className="contents">
+      <MediaPicker type={type} excludeId={mediaId} onPick={pick} />
+    </fieldset>
   )
 }

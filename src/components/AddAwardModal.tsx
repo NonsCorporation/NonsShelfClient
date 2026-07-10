@@ -1,23 +1,33 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { IoClose } from 'react-icons/io5'
+import { IoClose, IoChevronDown } from 'react-icons/io5'
 import { awardService } from '../services/awardService'
-import { awardIcon } from '../lib/awardIcons'
+import AwardIcon from './AwardIcon'
+import PersonPicker from './PersonPicker'
+import MediaPicker from './MediaPicker'
 import type { AwardBody, AwardStatus, AwardSubject } from '../types'
+import type { PersonSummary } from '../services/librarianService'
+import type { CatalogItem } from '../services/catalogService'
 import { useLanguage } from '../contexts/LanguageContext'
 
 type Props = {
   isOpen: boolean
   subject: AwardSubject
   onClose: () => void
-  onAdd: (input: { categoryId: number; year: number; status: AwardStatus }) => Promise<void>
+  onAdd: (input: { categoryId: number; year: number; status: AwardStatus; personUuid?: string; mediaRef?: string }) => Promise<void>
 }
 
-// Librarian-only add-award picker: body → category (filtered to the subject
-// being awarded, so a person picker never offers "Best Picture") → year →
-// winner/nominee. Shared by the media and person award sections.
+// Librarian-only add-award picker: body → category → year → winner/nominee.
+// The full taxonomy is offered regardless of which page opened it (not just
+// categories matching `subject`) — a category whose subject_type differs from
+// the page needs the *actual* subject picked (e.g. "Best Actor" opened from a
+// movie page requires picking the actor; the movie becomes the linked work
+// automatically). A category matching the page's own subject type may
+// additionally cross-link the other side — required when picking a work from
+// a person's award (the headline "for Oppenheimer" case), optional and
+// tucked away when noting a person on a media-subject award.
 export default function AddAwardModal({ isOpen, subject, onClose, onAdd }: Props) {
   const { t } = useLanguage()
   const [bodies, setBodies] = useState<AwardBody[]>([])
@@ -25,6 +35,9 @@ export default function AddAwardModal({ isOpen, subject, onClose, onAdd }: Props
   const [categoryId, setCategoryId] = useState<number | null>(null)
   const [year, setYear] = useState(String(new Date().getFullYear()))
   const [status, setStatus] = useState<AwardStatus>('winner')
+  const [crossPerson, setCrossPerson] = useState<PersonSummary | null>(null)
+  const [crossMedia, setCrossMedia] = useState<CatalogItem | null>(null)
+  const [showOptionalLink, setShowOptionalLink] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -34,24 +47,27 @@ export default function AddAwardModal({ isOpen, subject, onClose, onAdd }: Props
     setCategoryId(null)
     setYear(String(new Date().getFullYear()))
     setStatus('winner')
+    setCrossPerson(null)
+    setCrossMedia(null)
+    setShowOptionalLink(false)
     setError(null)
     awardService.getTaxonomy().then(setBodies)
   }, [isOpen])
 
-  // Only bodies that have at least one category for this subject type are
-  // offered, and within a body only the matching categories.
-  const eligibleBodies = useMemo(
-    () => bodies
-      .map((b) => ({ ...b, categories: b.categories.filter((c) => c.subject_type === subject) }))
-      .filter((b) => b.categories.length > 0),
-    [bodies, subject],
-  )
-  const activeBody = eligibleBodies.find((b) => b.key === bodyKey) ?? null
+  const activeBody = bodies.find((b) => b.key === bodyKey) ?? null
+  const activeCategory = activeBody?.categories.find((c) => c.id === categoryId) ?? null
+
+  // A category whose subject type differs from the page requires picking the
+  // real subject; one that matches may optionally cross-link the other side.
+  const needsPersonSubject = activeCategory?.subject_type === 'person' && subject !== 'person'
+  const needsMediaSubject = activeCategory?.subject_type === 'media' && subject !== 'media'
+  const offerPersonLink = activeCategory?.subject_type === subject && subject === 'media'
+  const offerMediaLink = activeCategory?.subject_type === subject && subject === 'person'
 
   if (!isOpen) return null
 
   const submit = async () => {
-    if (!categoryId) {
+    if (!categoryId || !activeCategory) {
       setError(t('awardPickCategory'))
       return
     }
@@ -60,10 +76,22 @@ export default function AddAwardModal({ isOpen, subject, onClose, onAdd }: Props
       setError(t('awardPickYear'))
       return
     }
+    if (needsPersonSubject && !crossPerson) {
+      setError(t('awardPickPerson'))
+      return
+    }
+    if (needsMediaSubject && !crossMedia) {
+      setError(t('awardPickWork'))
+      return
+    }
     setBusy(true)
     setError(null)
     try {
-      await onAdd({ categoryId, year: y, status })
+      await onAdd({
+        categoryId, year: y, status,
+        personUuid: crossPerson?.uuid,
+        mediaRef: crossMedia?.id,
+      })
       onClose()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to add award')
@@ -95,11 +123,11 @@ export default function AddAwardModal({ isOpen, subject, onClose, onAdd }: Props
           {t('awardBody')}
           <select
             value={bodyKey}
-            onChange={(e) => { setBodyKey(e.target.value); setCategoryId(null) }}
+            onChange={(e) => { setBodyKey(e.target.value); setCategoryId(null); setCrossPerson(null); setCrossMedia(null) }}
             className={selectCls}
           >
             <option value="">{t('awardPickBody')}</option>
-            {eligibleBodies.map((b) => (
+            {bodies.map((b) => (
               <option key={b.key} value={b.key}>{b.name}</option>
             ))}
           </select>
@@ -110,7 +138,7 @@ export default function AddAwardModal({ isOpen, subject, onClose, onAdd }: Props
             {t('awardCategory')}
             <select
               value={categoryId ?? ''}
-              onChange={(e) => setCategoryId(Number(e.target.value) || null)}
+              onChange={(e) => { setCategoryId(Number(e.target.value) || null); setCrossPerson(null); setCrossMedia(null) }}
               className={selectCls}
             >
               <option value="">{t('awardPickCategory')}</option>
@@ -119,6 +147,88 @@ export default function AddAwardModal({ isOpen, subject, onClose, onAdd }: Props
               ))}
             </select>
           </label>
+        )}
+
+        {needsPersonSubject && (
+          <div className="flex flex-col gap-1.5">
+            <span className="text-sm font-medium text-[var(--text)]">{t('awardWho')}</span>
+            {crossPerson ? (
+              <button
+                type="button"
+                onClick={() => setCrossPerson(null)}
+                className="flex items-center justify-between rounded-lg border border-nonsprimary bg-[var(--primary-soft)] px-3 py-2 text-left text-sm text-[var(--text)]"
+              >
+                {crossPerson.name}
+                <IoClose className="h-4 w-4 text-[var(--text-muted)]" />
+              </button>
+            ) : (
+              <PersonPicker onPick={setCrossPerson} />
+            )}
+          </div>
+        )}
+
+        {needsMediaSubject && (
+          <div className="flex flex-col gap-1.5">
+            <span className="text-sm font-medium text-[var(--text)]">{t('awardWhichWork')}</span>
+            {crossMedia ? (
+              <button
+                type="button"
+                onClick={() => setCrossMedia(null)}
+                className="flex items-center justify-between rounded-lg border border-nonsprimary bg-[var(--primary-soft)] px-3 py-2 text-left text-sm text-[var(--text)]"
+              >
+                {crossMedia.title}
+                <IoClose className="h-4 w-4 text-[var(--text-muted)]" />
+              </button>
+            ) : (
+              <MediaPicker onPick={setCrossMedia} />
+            )}
+          </div>
+        )}
+
+        {offerMediaLink && (
+          <div className="flex flex-col gap-1.5">
+            <span className="text-sm font-medium text-[var(--text)]">{t('awardForWork')}</span>
+            {crossMedia ? (
+              <button
+                type="button"
+                onClick={() => setCrossMedia(null)}
+                className="flex items-center justify-between rounded-lg border border-nonsprimary bg-[var(--primary-soft)] px-3 py-2 text-left text-sm text-[var(--text)]"
+              >
+                {crossMedia.title}
+                <IoClose className="h-4 w-4 text-[var(--text-muted)]" />
+              </button>
+            ) : (
+              <MediaPicker onPick={setCrossMedia} />
+            )}
+          </div>
+        )}
+
+        {offerPersonLink && !showOptionalLink && !crossPerson && (
+          <button
+            type="button"
+            onClick={() => setShowOptionalLink(true)}
+            className="inline-flex items-center gap-1 self-start text-xs font-medium text-nonsprimary hover:underline"
+          >
+            <IoChevronDown className="h-3.5 w-3.5" />
+            {t('awardNotePerson')}
+          </button>
+        )}
+        {offerPersonLink && (showOptionalLink || crossPerson) && (
+          <div className="flex flex-col gap-1.5">
+            <span className="text-sm font-medium text-[var(--text)]">{t('awardNotePerson')}</span>
+            {crossPerson ? (
+              <button
+                type="button"
+                onClick={() => setCrossPerson(null)}
+                className="flex items-center justify-between rounded-lg border border-nonsprimary bg-[var(--primary-soft)] px-3 py-2 text-left text-sm text-[var(--text)]"
+              >
+                {crossPerson.name}
+                <IoClose className="h-4 w-4 text-[var(--text-muted)]" />
+              </button>
+            ) : (
+              <PersonPicker onPick={setCrossPerson} />
+            )}
+          </div>
         )}
 
         <div className="grid grid-cols-2 gap-3">
@@ -151,18 +261,16 @@ export default function AddAwardModal({ isOpen, subject, onClose, onAdd }: Props
         </div>
 
         {/* Live preview of the chip that will be added. */}
-        {activeBody && categoryId != null && (() => {
-          const cat = activeBody.categories.find((c) => c.id === categoryId)
-          const Icon = awardIcon(activeBody.icon)
-          if (!cat) return null
-          return (
-            <div className="flex items-center gap-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] px-3 py-2 text-sm">
-              <Icon className="h-4 w-4 flex-shrink-0" style={{ color: status === 'winner' ? activeBody.color : 'var(--text-muted)' }} />
-              <span className="text-[var(--text)]">{activeBody.name} — {cat.name}</span>
-              <span className="ml-auto text-xs text-[var(--text-muted)]">{year} · {status === 'winner' ? t('awardWinner') : t('awardNominee')}</span>
-            </div>
-          )
-        })()}
+        {activeBody && activeCategory && (
+          <div className="flex items-center gap-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] px-3 py-2 text-sm">
+            <AwardIcon bodyKey={activeBody.key} color={status === 'winner' ? activeBody.color : 'var(--text-muted)'} size={20} />
+            <span className="min-w-0 truncate text-[var(--text)]">
+              {activeBody.name} — {activeCategory.name}
+              {(crossPerson || crossMedia) && <> · {crossPerson?.name ?? crossMedia?.title}</>}
+            </span>
+            <span className="ml-auto flex-shrink-0 text-xs text-[var(--text-muted)]">{year} · {status === 'winner' ? t('awardWinner') : t('awardNominee')}</span>
+          </div>
+        )}
 
         {error && <p className="text-sm text-red-500">{error}</p>}
 
