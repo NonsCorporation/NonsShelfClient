@@ -562,9 +562,13 @@ export default function MediaOnePage({
       : isBook ? item.author : item.director || item.author
 
   // The edition currently in focus: from the ?e=<uuid> URL param, falling back to
-  // the user's shelf reading-edition. Its cover/details take over the page.
+  // the user's shelf reading-edition, then the librarian-picked primary edition.
+  // Its cover/details take over the page.
   const selectedEdition =
-    editions.find((e) => e.uuid && e.uuid === params.get('e')) ?? editions.find((e) => e.id === editionId) ?? null
+    editions.find((e) => e.uuid && e.uuid === params.get('e')) ??
+    editions.find((e) => e.id === editionId) ??
+    editions.find((e) => e.is_primary) ??
+    null
   // Cover priority: the in-focus edition (when loaded), then the user's reading
   // edition's own cover (carried from signals, so it shows even before that
   // edition's carousel page loads), then the work's cover.

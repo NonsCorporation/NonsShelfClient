@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { IoTrashOutline, IoCreateOutline, IoAdd, IoCheckmark, IoClose, IoLanguageOutline, IoCloudDownloadOutline, IoSparklesOutline, IoSwapHorizontalOutline, IoSearch, IoGitMergeOutline } from 'react-icons/io5'
+import { IoTrashOutline, IoCreateOutline, IoAdd, IoCheckmark, IoClose, IoLanguageOutline, IoCloudDownloadOutline, IoSparklesOutline, IoSwapHorizontalOutline, IoSearch, IoGitMergeOutline, IoStar, IoStarOutline } from 'react-icons/io5'
 import { authedFetch, downloadCoverToB2 } from '../lib/api'
 import { librarianService } from '../services/librarianService'
 import type { Edition } from '../services/librarianService'
@@ -175,7 +175,10 @@ export default function EditionsManager({
       return
     }
     wrap(async () => {
-      await librarianService.updateEdition(mediaId, id, fromForm(f))
+      // is_primary isn't part of the edit form (set via the star button instead);
+      // carry the current value through so a plain field edit can't clear it.
+      const current = editions.find((e) => e.id === id)
+      await librarianService.updateEdition(mediaId, id, { ...fromForm(f), is_primary: current?.is_primary })
       setEditingId(null)
       reload()
     })
@@ -191,6 +194,19 @@ export default function EditionsManager({
     wrap(async () => {
       await librarianService.deleteEdition(mediaId, id)
       setEditions((eds) => eds.filter((e) => e.id !== id))
+    })
+  }
+
+  // Marks one edition as the default shown on /b/<uuid> when no edition/shelf
+  // copy is picked. The backend clears any other primary on the same work.
+  // UpdateEdition replaces the whole row, so the full form (not just the flag)
+  // has to go along, or every other field on this edition would be wiped.
+  const handleSetPrimary = (id: number) => {
+    const e = editions.find((x) => x.id === id)
+    if (!e) return
+    wrap(async () => {
+      await librarianService.updateEdition(mediaId, id, { ...fromForm(toForm(e)), is_primary: true })
+      setEditions((eds) => eds.map((x) => ({ ...x, is_primary: x.id === id })))
     })
   }
 
@@ -253,6 +269,9 @@ export default function EditionsManager({
       isbn10: pick((e) => e.isbn10),
       cover_url: pick((e) => e.cover_url),
       description: pick((e) => e.description),
+      // A merged-away duplicate may have carried the primary flag; keep it set on
+      // the survivor so the work doesn't lose its default edition.
+      is_primary: all.some((e) => e.is_primary),
     }
     setDeduping(true)
     setDedupError('')
@@ -443,7 +462,15 @@ export default function EditionsManager({
                   {e.cover_url ? <img src={e.cover_url} alt="" loading="lazy" className="h-full w-full object-cover" /> : null}
                 </div>
                 <div className="min-w-0 flex-1 text-sm">
-                  <p className="truncate text-[var(--text)]">{e.title || fallbackTitle}</p>
+                  <p className="truncate text-[var(--text)]">
+                    {e.title || fallbackTitle}
+                    {e.is_primary && (
+                      <span className="ml-1.5 inline-flex items-center gap-1 rounded-full bg-[var(--primary-soft)] px-1.5 py-0.5 text-[10px] font-medium text-nonsprimary align-middle">
+                        <IoStar className="h-2.5 w-2.5" />
+                        Primary
+                      </span>
+                    )}
+                  </p>
                   <p className="truncate text-xs text-[var(--text-muted)]">
                     {[
                       e.publisher,
@@ -456,6 +483,11 @@ export default function EditionsManager({
                   </p>
                   {(e.isbn13 || e.isbn10) && <p className="text-xs text-[var(--text-muted)]">ISBN {e.isbn13 || e.isbn10}</p>}
                 </div>
+                {!dedupMode && !isSuggestionMode && !e.is_primary && (
+                  <button onClick={() => handleSetPrimary(e.id)} title="Set as primary edition" className="flex-shrink-0 rounded-lg p-2 text-[var(--text-muted)] hover:bg-[var(--primary-soft)] hover:text-nonsprimary">
+                    <IoStarOutline className="h-4 w-4" />
+                  </button>
+                )}
                 {!dedupMode && !isSuggestionMode && !hasCyrillic(e.title) && (
                   <button onClick={() => handleRusify(e.id)} title={t('rusify')} className="flex-shrink-0 rounded-lg p-2 text-[var(--text-muted)] hover:bg-[var(--primary-soft)] hover:text-nonsprimary">
                     <IoLanguageOutline className="h-4 w-4" />

@@ -93,6 +93,8 @@ export interface Edition {
   cover_url?: string
   /** Optional per-edition synopsis override; falls back to the work's. */
   description?: string
+  /** The edition shown by default when no ?e= param or shelf copy picks one. */
+  is_primary?: boolean
 }
 
 // An episode of a series. Mirrors media_model.Episode's JSON.
