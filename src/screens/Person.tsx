@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from '@/lib/router'
 import Layout from '../components/layout/Layout'
 import { DetailPageSkeleton } from '../components/Skeletons'
 import PersonModal from '../components/PersonModal'
+import AwardsSection from '../components/AwardsSection'
 import { authedFetch } from '../lib/api'
 import { isLibrarian } from '../services/librarianService'
 import { useLanguage } from '../contexts/LanguageContext'
@@ -161,6 +162,9 @@ export default function PersonPage() {
               <p className="text-sm leading-7 text-[var(--text-muted)]">{person.bio}</p>
             </div>
           )}
+
+          {/* Awards — librarian-curated recognitions (Best Actor, Nobel, …). */}
+          <AwardsSection subject="person" subjectId={person.uuid} canEdit={librarianUser} />
 
           <hr className="border-[var(--divider)]" />
 

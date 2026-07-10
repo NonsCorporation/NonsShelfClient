@@ -13,6 +13,7 @@ import ShelfStatusBar from '../components/ShelfStatusBar'
 import ReadingDates from '../components/ReadingDates'
 import ReadingProgress from '../components/ReadingProgress'
 import ReadsList from '../components/ReadsList'
+import AwardsSection from '../components/AwardsSection'
 import MediaHistory from '../components/MediaHistory'
 import StarsSelector from '../StarsSelector'
 import { libraryService } from '../services/libraryService'
@@ -814,6 +815,10 @@ export default function MediaOnePage({
               </div>
             </div>
           )}
+
+          {/* Awards — librarian-curated recognitions (Oscars, Booker, …) for
+              this media item; librarians get add/remove controls. */}
+          <AwardsSection subject="media" subjectId={item.id} canEdit={isLibrarian(user?.role)} />
 
           {/* User opinions (StoryGraph-style tags) — crowdsourced from the
               "already finished" flow. Collapsed to a short teaser (all tags

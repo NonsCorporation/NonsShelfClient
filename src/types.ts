@@ -239,6 +239,42 @@ export type Challenge = {
   completed_at?: number
 }
 
+// ── Awards ──────────────────────────────────────────────────────────────────
+// A librarian-curated catalog of recognitions (Oscars, Booker, Hugos…) applied
+// to media and people, each with winner/nominee + year. The taxonomy (bodies →
+// categories) drives the add-award picker; AppliedAward is one award a subject
+// holds. Mirrors the backend JSON (snake_case), same convention as CuratedList.
+export type AwardSubject = 'media' | 'person'
+export type AwardStatus = 'winner' | 'nominee'
+
+export type AwardCategory = {
+  id: number
+  key: string
+  name: string
+  subject_type: AwardSubject
+}
+
+export type AwardBody = {
+  key: string
+  name: string
+  /** Icon key mapped to a glyph in the frontend award-icon registry. */
+  icon: string
+  color: string
+  categories: AwardCategory[]
+}
+
+/** One award a media item or person holds. */
+export type AppliedAward = {
+  id: number
+  year: number
+  status: AwardStatus
+  category_name: string
+  body_name: string
+  body_key: string
+  icon: string
+  color: string
+}
+
 // Shelf status — the Goodreads/IMDb "what am I doing with this" axis.
 //   wishlist -> Want to Read / Want to Watch
 //   active   -> Currently Reading / Watching
