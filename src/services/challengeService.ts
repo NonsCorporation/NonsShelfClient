@@ -71,6 +71,24 @@ async function createChallenge(input: CreateChallengeInput): Promise<Challenge> 
   ) as Promise<Challenge>
 }
 
+async function updateChallenge(id: number, input: CreateChallengeInput): Promise<Challenge> {
+  return jsonOrThrow(
+    await authedFetch(`/api/challenges/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: input.title,
+        description: input.description || '',
+        media_type: input.mediaType,
+        target_count: input.targetCount,
+        start_date: input.startDate,
+        end_date: input.endDate,
+        conditions: input.conditions,
+      }),
+    }),
+  ) as Promise<Challenge>
+}
+
 async function joinChallenge(id: number): Promise<Challenge> {
   return jsonOrThrow(await authedFetch(`/api/challenges/${id}/join`, { method: 'POST' })) as Promise<Challenge>
 }
@@ -88,6 +106,7 @@ export const challengeService = {
   getChallenge,
   listUserChallenges,
   createChallenge,
+  updateChallenge,
   joinChallenge,
   leaveChallenge,
   deleteChallenge,

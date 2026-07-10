@@ -13,19 +13,24 @@ import { useLists } from '../contexts/ListContext'
 type Props = {
   isOpen: boolean
   onClose: () => void
-  onCreated: (c: Challenge) => void
+  onSaved: (c: Challenge) => void
+  /** When set, the modal edits this challenge in place instead of creating a
+   *  new one — every field is prefilled from it. */
+  challenge?: Challenge | null
 }
 
 const toUnix = (ymd: string): number => (ymd ? Math.floor(new Date(`${ymd}T00:00:00Z`).getTime() / 1000) : 0)
+const fromUnix = (unix?: number): string => (unix ? new Date(unix * 1000).toISOString().slice(0, 10) : '')
 
-// Create-challenge form: title/description, a media-type scope, a goal
+// Create/edit-challenge form: title/description, a media-type scope, a goal
 // (a specific number, or "complete everything matching"), an optional date
 // window, an optional source (one of the user's curated lists or
 // collections), and a handful of optional filters (genre, a person via
 // search, a year range). Everything but title/type/goal maps onto the same
 // normalized {field,op,value} conditions the backend evaluates — the form is
-// just a guided way to build them.
-export default function CreateChallengeModal({ isOpen, onClose, onCreated }: Props) {
+// just a guided way to build them. Passing `challenge` switches the form into
+// edit mode: same fields, prefilled, PUT instead of POST on submit.
+export default function CreateChallengeModal({ isOpen, onClose, onSaved, challenge }: Props) {
   const { t } = useLanguage()
   const { lists } = useLists()
   const [title, setTitle] = useState('')
@@ -54,22 +59,42 @@ export default function CreateChallengeModal({ isOpen, onClose, onCreated }: Pro
 
   useEffect(() => {
     if (!isOpen) return
-    setTitle('')
-    setDescription('')
-    setMediaType('')
-    setGoalMode('number')
-    setTargetCount('')
-    setStartDate('')
-    setEndDate('')
-    setSource('')
-    setGenre('')
-    setYearMin('')
-    setYearMax('')
-    setPerson(null)
+    if (challenge) {
+      setTitle(challenge.title)
+      setDescription(challenge.description)
+      setMediaType(challenge.media_type)
+      setGoalMode(challenge.target_count == null ? 'all' : 'number')
+      setTargetCount(challenge.target_count != null ? String(challenge.target_count) : '')
+      setStartDate(fromUnix(challenge.start_date))
+      setEndDate(fromUnix(challenge.end_date))
+      const listCond = challenge.conditions.find((c) => c.field === 'list_id')
+      setSource(listCond?.value ?? '')
+      const genreCond = challenge.conditions.find((c) => c.field === 'genre')
+      setGenre(genreCond?.value ?? '')
+      const yearMinCond = challenge.conditions.find((c) => c.field === 'year' && c.op === 'gte')
+      setYearMin(yearMinCond?.value ?? '')
+      const yearMaxCond = challenge.conditions.find((c) => c.field === 'year' && c.op === 'lte')
+      setYearMax(yearMaxCond?.value ?? '')
+      const personCond = challenge.conditions.find((c) => c.field === 'person_uuid')
+      setPerson(personCond ? { uuid: personCond.value, name: personCond.label || personCond.value, creditCount: 0 } : null)
+    } else {
+      setTitle('')
+      setDescription('')
+      setMediaType('')
+      setGoalMode('number')
+      setTargetCount('')
+      setStartDate('')
+      setEndDate('')
+      setSource('')
+      setGenre('')
+      setYearMin('')
+      setYearMax('')
+      setPerson(null)
+    }
     setPersonQuery('')
     setPersonResults([])
     setError(null)
-  }, [isOpen])
+  }, [isOpen, challenge])
 
   useEffect(() => {
     if (!personQuery.trim()) {
@@ -88,7 +113,7 @@ export default function CreateChallengeModal({ isOpen, onClose, onCreated }: Pro
 
   if (!isOpen) return null
 
-  const handleCreate = async () => {
+  const handleSave = async () => {
     if (!title.trim()) {
       setError(t('challengeTitleRequired'))
       return
@@ -103,7 +128,7 @@ export default function CreateChallengeModal({ isOpen, onClose, onCreated }: Pro
       if (yearMin.trim()) conditions.push({ field: 'year', op: 'gte', value: yearMin.trim() })
       if (yearMax.trim()) conditions.push({ field: 'year', op: 'lte', value: yearMax.trim() })
 
-      const created = await challengeService.createChallenge({
+      const input = {
         title: title.trim(),
         description: description.trim(),
         mediaType,
@@ -111,11 +136,14 @@ export default function CreateChallengeModal({ isOpen, onClose, onCreated }: Pro
         startDate: toUnix(startDate),
         endDate: toUnix(endDate),
         conditions,
-      })
-      onCreated(created)
+      }
+      const saved = challenge
+        ? await challengeService.updateChallenge(challenge.id, input)
+        : await challengeService.createChallenge(input)
+      onSaved(saved)
       onClose()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to create challenge')
+      setError(e instanceof Error ? e.message : 'Failed to save challenge')
     } finally {
       setBusy(false)
     }
@@ -138,7 +166,7 @@ export default function CreateChallengeModal({ isOpen, onClose, onCreated }: Pro
         className="flex max-h-[90vh] w-full max-w-lg flex-col gap-4 overflow-y-auto rounded-2xl border border-[var(--border)] bg-[var(--container)] p-5"
       >
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-[var(--text)]">{t('newChallenge')}</h3>
+          <h3 className="text-lg font-semibold text-[var(--text)]">{challenge ? t('editChallenge') : t('newChallenge')}</h3>
           <button
             onClick={onClose}
             className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[var(--surface)] text-[var(--text-muted)] hover:bg-[var(--surface-hover)]"
@@ -335,11 +363,11 @@ export default function CreateChallengeModal({ isOpen, onClose, onCreated }: Pro
             {t('cancel')}
           </button>
           <button
-            onClick={handleCreate}
+            onClick={handleSave}
             disabled={busy}
             className="h-10 rounded-lg bg-nonsprimary px-6 text-sm font-medium text-white hover:bg-nonsprimaryfocus disabled:opacity-50"
           >
-            {busy ? t('saving') : t('create')}
+            {busy ? t('saving') : challenge ? t('save') : t('create')}
           </button>
         </div>
       </div>

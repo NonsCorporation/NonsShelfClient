@@ -287,6 +287,7 @@ export const en = {
   challenges: 'Challenges',
   challengesSubtitle: 'Reading and watching goals the community is working on.',
   newChallenge: 'New challenge',
+  editChallenge: 'Edit challenge',
   noChallengesYet: 'No challenges yet',
   noChallengesHint: 'Be the first to start one.',
   challengeTitlePlaceholder: 'e.g. Read 60 books in 2026',

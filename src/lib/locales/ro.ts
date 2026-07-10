@@ -287,6 +287,7 @@ export const ro = {
   challenges: 'Provocări',
   challengesSubtitle: 'Obiective de citit și vizionat la care lucrează comunitatea.',
   newChallenge: 'Provocare nouă',
+  editChallenge: 'Editează provocarea',
   noChallengesYet: 'Nu există provocări încă',
   noChallengesHint: 'Fii primul care începe una.',
   challengeTitlePlaceholder: 'ex. Citește 60 de cărți în 2026',

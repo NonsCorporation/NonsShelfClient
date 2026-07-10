@@ -287,6 +287,7 @@ export const ru = {
   challenges: 'Челленджи',
   challengesSubtitle: 'Цели по чтению и просмотру, над которыми работает сообщество.',
   newChallenge: 'Новый челлендж',
+  editChallenge: 'Редактировать челлендж',
   noChallengesYet: 'Пока нет челленджей',
   noChallengesHint: 'Станьте первым, кто создаст его.',
   challengeTitlePlaceholder: 'Например: Прочитать 60 книг в 2026',

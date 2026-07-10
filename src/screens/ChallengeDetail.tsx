@@ -2,9 +2,10 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { useParams, Link } from '@/lib/router'
-import { IoTrophyOutline } from 'react-icons/io5'
+import { IoPencilOutline, IoTrophyOutline } from 'react-icons/io5'
 import Layout from '../components/layout/Layout'
 import ChallengeAvatarStack from '../components/ChallengeAvatarStack'
+import CreateChallengeModal from '../components/CreateChallengeModal'
 import { challengeService } from '../services/challengeService'
 import { getFriendUsers, type Activity } from '../services/activityService'
 import { typeWord, goalLabel, conditionText } from '../lib/challenge'
@@ -32,6 +33,7 @@ export default function ChallengeDetailScreen() {
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [editing, setEditing] = useState(false)
   // Friends map (nons user id -> display info), for prioritizing "you" and
   // your friends in the avatar stack — same source Discover's cards use.
   const [friendMap, setFriendMap] = useState<Map<number, Activity['user']>>(new Map())
@@ -83,6 +85,7 @@ export default function ChallengeDetailScreen() {
     return <Layout><div className="py-24 text-center text-[var(--text-muted)]">{t('itemNotFound')}</div></Layout>
   }
 
+  const isOwner = !!authUser && authUser.id === challenge.created_by
   const hasProgress = challenge.joined && typeof challenge.target === 'number' && challenge.target > 0
   const pct = hasProgress ? Math.min(100, Math.round(((challenge.progress ?? 0) / challenge.target!) * 100)) : 0
   const completed = challenge.joined && (challenge.completed_at ?? 0) > 0
@@ -110,6 +113,16 @@ export default function ChallengeDetailScreen() {
               <span className="rounded-full px-3 py-1.5 text-xs font-medium" style={{ backgroundColor: '#3ec98a22', color: '#3ec98a' }}>
                 {t('challengeCompleted')}
               </span>
+            )}
+            {isOwner && (
+              <button
+                onClick={() => setEditing(true)}
+                className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] text-[var(--text-muted)] hover:text-[var(--text)]"
+                aria-label={t('editChallenge')}
+                title={t('editChallenge')}
+              >
+                <IoPencilOutline className="h-4 w-4" />
+              </button>
             )}
             <button
               onClick={toggleJoin}
@@ -179,6 +192,15 @@ export default function ChallengeDetailScreen() {
           </div>
         )}
       </div>
+
+      {isOwner && (
+        <CreateChallengeModal
+          isOpen={editing}
+          onClose={() => setEditing(false)}
+          challenge={challenge}
+          onSaved={(c) => setChallenge(c)}
+        />
+      )}
     </Layout>
   )
 }

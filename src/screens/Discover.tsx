@@ -341,7 +341,7 @@ export default function DiscoverPage() {
           <CreateChallengeModal
             isOpen={showCreateChallenge}
             onClose={() => setShowCreateChallenge(false)}
-            onCreated={(c) => setChallenges((prev) => [c, ...prev])}
+            onSaved={(c) => setChallenges((prev) => [c, ...prev])}
           />
         </div>
       ) : (
