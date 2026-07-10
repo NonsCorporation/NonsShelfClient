@@ -52,6 +52,7 @@ export default function MediaModal({ isOpen, initialData, initialType, catalogOn
     duration: '',
     description: '',
     genre: '',
+    tmdbId: '',
   })
 
   useEffect(() => {
@@ -71,6 +72,7 @@ export default function MediaModal({ isOpen, initialData, initialType, catalogOn
         duration: initialData?.duration || '',
         description: initialData?.description || '',
         genre,
+        tmdbId: initialData?.tmdbId?.toString() || '',
       })
     }
   }, [isOpen, initialData, initialType])
@@ -108,6 +110,7 @@ export default function MediaModal({ isOpen, initialData, initialType, catalogOn
         if (type !== 'book') {
           baseData.director = form.director || form.author
           baseData.duration = form.duration || undefined
+          baseData.tmdbId = form.tmdbId ? parseInt(form.tmdbId, 10) : undefined
         }
         await onSave(baseData)
       }
@@ -136,6 +139,7 @@ export default function MediaModal({ isOpen, initialData, initialType, catalogOn
     if (type !== 'book') {
       baseData.director = form.director || form.author
       baseData.duration = form.duration || undefined
+      baseData.tmdbId = form.tmdbId ? parseInt(form.tmdbId, 10) : undefined
     }
 
     setSaving(true)
@@ -290,6 +294,22 @@ export default function MediaModal({ isOpen, initialData, initialType, catalogOn
               </label>
             )}
           </div>
+
+          {/* TMDB id — editable so a merge that lost it, or a wrong/missing
+              match, can be corrected by hand. Movies/series only; books use
+              ISBN/OpenLibrary identity instead. */}
+          {type !== 'book' && (
+            <label className="flex flex-col gap-1.5 text-sm font-medium text-[var(--text)]">
+              TMDB ID
+              <input
+                type="number"
+                className="h-11 px-3 rounded-lg bg-[var(--input)] border border-[var(--border-subtle)] text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--color-nonsprimaryfocus)] transition-shadow"
+                placeholder="e.g. 872585"
+                value={form.tmdbId}
+                onChange={(e) => setForm(s => ({...s, tmdbId: e.target.value}))}
+              />
+            </label>
+          )}
 
           <label className="flex flex-col gap-1.5 text-sm font-medium text-[var(--text)]">
             {t('genrePlaceholder')}

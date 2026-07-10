@@ -178,6 +178,7 @@ function toMediaBody(item: Partial<MediaItem>) {
     pages: item.pages || 0,
     duration_min: durationMin,
     isbn: item.isbn || '',
+    tmdb_id: item.tmdbId || 0,
   }
 }
 

@@ -22,6 +22,7 @@ export type BackendMedia = {
   maker_uuid: string
   isbn: string
   work_id: string
+  tmdb_id?: number
   details?: { original_language?: string; title_en?: string; ol_work?: string } | null
   created_at: number
   updated_at: number
@@ -68,6 +69,7 @@ export function toMediaItem(m: BackendMedia, s: Signals = {}): MediaItem {
     makerUuid: m.maker_uuid || undefined,
     isbn: m.isbn || undefined,
     workId: m.work_id || undefined,
+    tmdbId: m.tmdb_id || undefined,
     originalLanguage: m.details?.original_language || undefined,
     titleEn: m.original_title || m.details?.title_en || undefined,
     coverUrl: s.editionCover || m.cover_url || undefined,

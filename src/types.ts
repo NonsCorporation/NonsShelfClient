@@ -353,6 +353,9 @@ export type MediaItem = {
   pages?: number
   description?: string
   duration?: string
+  /** TMDB id (movies/series) — editable by librarians so a merge that lost it,
+   *  or a wrong/missing match, can be corrected by hand. */
+  tmdbId?: number
   // Book metadata (from the catalog row / its OpenLibrary work).
   isbn?: string
   workId?: string // OpenLibrary work key, e.g. "/works/OL…W"
