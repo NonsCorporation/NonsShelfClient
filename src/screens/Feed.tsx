@@ -53,14 +53,20 @@ const ACTIVITY_FILTERS: { key: 'all' | ActivityType; labelKey: string }[] = [
 export default function FeedPage() {
   const { t } = useLanguage()
   const { user } = useAuth()
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
   const focusPostId = searchParams.get('post') ? Number(searchParams.get('post')) : null
+  // Zero-based, mirrors ?page= (1-based, param omitted on page 1) — same
+  // convention as Library.tsx so back/forward and deep-links to a given
+  // page work without extra client state.
+  const activityPage = Math.max(1, Number(searchParams.get('page') || '1')) - 1
   const [items, setItems] = useState<MediaItem[]>([])
   const [activity, setActivity] = useState<Activity[]>([])
   const [commentCounts, setCommentCounts] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState(true)
   const [activityTotal, setActivityTotal] = useState(0)
-  const [activityPage, setActivityPage] = useState(0) // zero-based
+  // Bumped to force a refetch of the current activity page (e.g. after
+  // finishing a book) even when activityPage itself hasn't changed.
+  const [activityRefreshKey, setActivityRefreshKey] = useState(0)
   const [activityLoading, setActivityLoading] = useState(false)
   const [finishItem, setFinishItem] = useState<MediaItem | null>(null)
   const activityRef = useRef<HTMLElement>(null)
@@ -81,22 +87,54 @@ export default function FeedPage() {
       .catch(() => {})
   }, [])
 
-  // Initial load (and manual refresh, e.g. after finishing a book): library
-  // items + the first activity page. Returning to page 0 surfaces the new event.
+  // Library items — fetched once per sign-in. Doesn't touch the URL, so a
+  // deep-link like /feed?page=3 lands on page 3 instead of getting reset.
+  useEffect(() => {
+    if (!me) return
+    setLoading(true)
+    libraryService.getItems().then((lib) => {
+      setItems(lib)
+      setLoading(false)
+    })
+  }, [me])
+
+  // Manual refresh (e.g. after finishing a book): reload library items and
+  // jump back to activity page 1 so the new event is visible. Always bumps
+  // activityRefreshKey so the activity effect below refetches even when the
+  // URL was already on page 1 (where the page param itself wouldn't change).
   const load = useCallback(() => {
     if (!me) return
     setLoading(true)
-    setActivityPage(0)
-    Promise.all([libraryService.getItems(), activityService.getFriendsActivity(me, 0, ACTIVITY_PER_PAGE)]).then(([lib, act]) => {
+    libraryService.getItems().then((lib) => {
       setItems(lib)
-      applyActivity(act)
       setLoading(false)
     })
-  }, [me, applyActivity])
+    const next = new URLSearchParams(searchParams)
+    next.delete('page')
+    setSearchParams(next, { replace: true })
+    setActivityRefreshKey((k) => k + 1)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [me])
 
+  // Friends activity — refetched whenever the URL page param changes (or
+  // load() forces a refresh via activityRefreshKey).
   useEffect(() => {
-    load()
-  }, [load])
+    if (!me) return
+    let cancelled = false
+    setActivityLoading(true)
+    activityService
+      .getFriendsActivity(me, activityPage, ACTIVITY_PER_PAGE)
+      .then((res) => {
+        if (cancelled) return
+        applyActivity(res)
+      })
+      .finally(() => {
+        if (!cancelled) setActivityLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [me, activityPage, activityRefreshKey, applyActivity])
 
   // When arriving via a ?post= deep-link, scroll to and highlight that card.
   useEffect(() => {
@@ -105,16 +143,14 @@ export default function FeedPage() {
     return () => clearTimeout(t)
   }, [focusPostId, loading])
 
-  // Jump to the top of the feed, then load the chosen activity page.
+  // Jump to the top of the feed, then push the chosen page into the URL —
+  // the activity effect above owns the actual fetch.
   const goToActivityPage = (page: number) => {
-    if (!me) return
     activityRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    setActivityPage(page)
-    setActivityLoading(true)
-    activityService
-      .getFriendsActivity(me, page, ACTIVITY_PER_PAGE)
-      .then(applyActivity)
-      .finally(() => setActivityLoading(false))
+    const next = new URLSearchParams(searchParams)
+    if (page === 0) next.delete('page')
+    else next.set('page', String(page + 1))
+    setSearchParams(next, { replace: true })
   }
 
   const activityPageCount = Math.ceil(activityTotal / ACTIVITY_PER_PAGE)
