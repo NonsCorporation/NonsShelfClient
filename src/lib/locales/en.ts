@@ -458,6 +458,9 @@ export const en = {
   settingsShowInProgress: 'Show "In progress" on Library',
 
   // Settings modal sections
+  settingsNons: 'Nons account',
+  settingsNonsHint: 'You can manage your profile data, such as displayed name and profile picture on nons.',
+  settingsNonsLink: 'Edit on nons',
   settingsPrivacy: 'Privacy',
   settingsPrivacyHint: 'Choose who can see each part of your profile. Applies across nons.',
   settingsPreferences: 'Preferences',

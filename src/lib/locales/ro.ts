@@ -458,6 +458,9 @@ export const ro = {
   settingsShowInProgress: 'Arată „În progres" în Bibliotecă',
 
   // Settings modal sections
+  settingsNons: 'Cont nons',
+  settingsNonsHint: 'Poți gestiona datele profilului tău, precum numele afișat și poza de profil, pe nons.',
+  settingsNonsLink: 'Editează pe nons',
   settingsPrivacy: 'Confidențialitate',
   settingsPrivacyHint: 'Alege cine poate vedea fiecare parte din profilul tău. Se aplică în tot nons.',
   settingsPreferences: 'Preferințe',

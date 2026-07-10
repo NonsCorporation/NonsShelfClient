@@ -458,6 +458,9 @@ export const ru = {
   settingsShowInProgress: 'Показывать «В процессе» в библиотеке',
 
   // Settings modal sections
+  settingsNons: 'Аккаунт nons',
+  settingsNonsHint: 'Вы можете управлять данными профиля, такими как отображаемое имя и фото профиля, на nons.',
+  settingsNonsLink: 'Редактировать на nons',
   settingsPrivacy: 'Приватность',
   settingsPrivacyHint: 'Выберите, кто видит каждую часть вашего профиля. Действует во всём nons.',
   settingsPreferences: 'Предпочтения',
