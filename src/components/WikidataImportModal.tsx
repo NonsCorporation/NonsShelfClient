@@ -37,7 +37,13 @@ export default function WikidataImportModal({ isOpen, subject, subjectId, onClos
     setLoading(true)
     const suggest = subject === 'media' ? awardService.suggestMediaWikidata(subjectId) : awardService.suggestPersonWikidata(subjectId)
     suggest
-      .then((p) => { setPreview(p); setChecked(p.matched.map(() => true)) })
+      .then((p) => {
+        // Defensive: normalize in case matched/unmatched ever come back
+        // null (e.g. an older server build) rather than an empty array.
+        const normalized = { ...p, matched: p.matched ?? [], unmatched: p.unmatched ?? [] }
+        setPreview(normalized)
+        setChecked(normalized.matched.map(() => true))
+      })
       .catch((e) => setError(e instanceof Error ? e.message : 'Failed to fetch Wikidata awards'))
       .finally(() => setLoading(false))
   }, [isOpen, subject, subjectId])
