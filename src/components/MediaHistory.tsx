@@ -80,7 +80,8 @@ export default function MediaHistory({ item, refreshKey = 0 }: { item: MediaItem
         const parts: string[] = []
         if (e.page) parts.push(t('pageN', { page: e.page }))
         if (e.progress_pct) parts.push(`${e.progress_pct}%`)
-        return { label: t('histProgress'), detail: parts.join(' · ') || e.note || undefined }
+        if (e.note) parts.push(e.note)
+        return { label: t('histProgress'), detail: parts.join(' · ') || undefined }
       }
     }
   }

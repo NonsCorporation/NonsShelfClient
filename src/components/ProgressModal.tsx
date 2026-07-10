@@ -42,6 +42,7 @@ export default function ProgressModal({ isOpen, item, total: totalProp, onClose,
 
   const [mode, setMode] = useState<'pages' | 'pct'>('pages')
   const [page, setPage] = useState('')
+  const [note, setNote] = useState('')
   const [share, setShare] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -57,6 +58,7 @@ export default function ProgressModal({ isOpen, item, total: totalProp, onClose,
     if (!isOpen || !item) return
     setMode('pages')
     setPage('')
+    setNote('')
     setSaved(false)
     setEpisodes(null)
     setOpenSeasons({})
@@ -74,12 +76,16 @@ export default function ProgressModal({ isOpen, item, total: totalProp, onClose,
           setMode('pct')
           setPage(String(latest.progress_pct))
         }
+        if (latest.note) setNote(latest.note)
       })
     } else {
       authedFetch(`/api/media/${item.id}/episodes`)
         .then((r) => (r.ok ? r.json() : null))
         .then((d) => !cancelled && setEpisodes(d))
         .catch(() => {})
+      libraryService.getProgress(item.id).then((entries) => {
+        if (!cancelled && entries[0]?.note) setNote(entries[0].note)
+      })
     }
 
     return () => {
@@ -113,7 +119,23 @@ export default function ProgressModal({ isOpen, item, total: totalProp, onClose,
     setSaving(true)
     setSaved(false)
     try {
-      await libraryService.logProgress(item.id, { page: pageNum, pct: Math.round(pct), share })
+      await libraryService.logProgress(item.id, { page: pageNum, pct: Math.round(pct), note, share })
+      setSaved(true)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  // Series have no single "save" step (each episode toggle saves itself
+  // immediately) — a note needs its own action, logged against the current
+  // watched percentage so it reads the same as a book's "30% — seems boring".
+  const saveSeriesNote = async () => {
+    if (!note.trim()) return
+    setSaving(true)
+    setSaved(false)
+    try {
+      const pct = episodes && episodes.total > 0 ? Math.round((episodes.watched_count / episodes.total) * 100) : 0
+      await libraryService.logProgress(item.id, { pct, note, share })
       setSaved(true)
     } finally {
       setSaving(false)
@@ -244,24 +266,6 @@ export default function ProgressModal({ isOpen, item, total: totalProp, onClose,
                   : `${Math.round(pct)}%`}
               </p>
             )}
-
-            {/* Save + share */}
-            <button
-              onClick={savePage}
-              disabled={saving || !validInput || inputNum <= 0}
-              className="h-10 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] px-4 text-sm font-medium text-[var(--text)] transition-colors hover:border-nonsprimary hover:text-nonsprimary disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {saving ? t('saving') : saved ? t('saved') : t('updateProgress')}
-            </button>
-            <label className="flex cursor-pointer items-center gap-2 text-xs text-[var(--text-muted)]">
-              <input
-                type="checkbox"
-                checked={share}
-                onChange={(e) => setShare(e.target.checked)}
-                className="h-3.5 w-3.5 rounded border-[var(--border-subtle)]"
-              />
-              {t('shareToFeed')}
-            </label>
           </div>
         )}
 
@@ -341,6 +345,48 @@ export default function ProgressModal({ isOpen, item, total: totalProp, onClose,
             )}
           </div>
         )}
+
+        {/* Note — a short thought at this point in the book/series ("30% —
+            seems boring so far"), plus the save action: books update
+            page/percent + note together here; series (no single save step —
+            each episode toggle saves itself) get their own small save action
+            for just the note, logged against the current watched percentage. */}
+        <div className="flex flex-col gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] p-4">
+          <label className="text-sm font-medium text-[var(--text)]">{t('progressNote')}</label>
+          <textarea
+            rows={2}
+            value={note}
+            onChange={(e) => { setNote(e.target.value); setSaved(false) }}
+            placeholder={t('progressNotePlaceholder')}
+            className="resize-none rounded-lg border border-[var(--border-subtle)] bg-[var(--input)] p-2.5 text-sm text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-ring)]"
+          />
+          {isBook ? (
+            <button
+              onClick={savePage}
+              disabled={saving || !validInput || inputNum <= 0}
+              className="h-10 self-start rounded-lg border border-[var(--border-subtle)] bg-[var(--input)] px-4 text-sm font-medium text-[var(--text)] transition-colors hover:border-nonsprimary hover:text-nonsprimary disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {saving ? t('saving') : saved ? t('saved') : t('updateProgress')}
+            </button>
+          ) : (
+            <button
+              onClick={saveSeriesNote}
+              disabled={saving || !note.trim()}
+              className="h-9 self-start rounded-lg border border-[var(--border-subtle)] bg-[var(--input)] px-3 text-xs font-medium text-[var(--text)] transition-colors hover:border-nonsprimary hover:text-nonsprimary disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {saving ? t('saving') : saved ? t('saved') : t('saveNote')}
+            </button>
+          )}
+          <label className="flex cursor-pointer items-center gap-2 text-xs text-[var(--text-muted)]">
+            <input
+              type="checkbox"
+              checked={share}
+              onChange={(e) => setShare(e.target.checked)}
+              className="h-3.5 w-3.5 rounded border-[var(--border-subtle)]"
+            />
+            {t('shareToFeed')}
+          </label>
+        </div>
 
         {/* The "done with it" action — kept visually separate and prominent so it
             isn't mistaken for the update-progress button above. */}
