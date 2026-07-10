@@ -10,6 +10,7 @@ import { libraryService } from '../services/libraryService'
 import ShelfLogo from './ShelfLogo'
 import { mediaPath } from '../lib/paths'
 import { useLanguage } from '../contexts/LanguageContext'
+import { reviewToPlainText } from './review/reviewText'
 
 type TFn = (key: string, vars?: Record<string, string | number>) => string
 
@@ -371,7 +372,7 @@ export default function ShareModal({ isOpen, item, coverUrl, title, author, tota
             </div>
           )}
 
-          {review && (
+          {reviewToPlainText(review) && (
             <p
               style={{
                 margin: '14px 0 0',
@@ -385,7 +386,7 @@ export default function ShareModal({ isOpen, item, coverUrl, title, author, tota
                 overflow: 'hidden',
               }}
             >
-              “{review}”
+              “{reviewToPlainText(review)}”
             </p>
           )}
 

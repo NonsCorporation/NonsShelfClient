@@ -11,6 +11,7 @@ import { mediaPath } from '../lib/paths'
 import { libraryService } from '../services/libraryService'
 import StarsSelector from '../StarsSelector'
 import MediaHistory from './MediaHistory'
+import ReviewContent from './review/ReviewContent'
 
 // Combined detail modal opened from a library card: the rating + review up top,
 // the full interaction history (timeline) below. Wider than the other modals so
@@ -87,7 +88,7 @@ export default function MediaDetailModal({ item, onClose }: { item: MediaItem | 
         {hasReview && (
           <div>
             <div className="mb-1 text-[11px] font-semibold uppercase tracking-widest text-[var(--text-muted)]">{t('yourReview')}</div>
-            <p className="whitespace-pre-line text-sm leading-6 text-[var(--text)]">{item.review}</p>
+            <ReviewContent content={item.review!} className="text-sm leading-6 text-[var(--text)]" />
           </div>
         )}
 

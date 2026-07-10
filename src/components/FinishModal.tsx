@@ -11,6 +11,7 @@ import { useLanguage } from '../contexts/LanguageContext'
 import DatePicker from './DatePicker'
 import NonsPostPreview from './NonsPostPreview'
 import InfoTooltip from './InfoTooltip'
+import ReviewEditor from './review/ReviewEditor'
 
 type Props = {
   isOpen: boolean
@@ -208,16 +209,15 @@ export default function FinishModal({ isOpen, item, onClose, onFinished }: Props
           <StarsSelector initialValue={rating} onChange={setRating} onClear={() => setRating(null)} isEditable />
         </div>
 
-        <label className="flex flex-col gap-1.5 text-sm font-medium text-[var(--text)]">
-          {t('yourReview') || 'Review'}
-          <textarea
-            rows={4}
+        <div className="flex flex-col gap-1.5 text-sm font-medium text-[var(--text)]">
+          <span>{t('yourReview') || 'Review'}</span>
+          <ReviewEditor
             value={review}
-            onChange={(e) => setReview(e.target.value)}
+            onChange={setReview}
             placeholder={t('reviewPlaceholder', { type: isBook ? t('book').toLowerCase() : t('film').toLowerCase() })}
-            className="resize-none rounded-lg border border-[var(--border-subtle)] bg-[var(--input)] p-3 text-sm text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-ring)]"
+            minHeight="5rem"
           />
-        </label>
+        </div>
 
         {/* Community tags (StoryGraph-style): pacing/mood/genre/setting/content
             warnings/… — collapsed to a one-row preview strip (still clickable)

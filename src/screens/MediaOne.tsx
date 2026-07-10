@@ -16,6 +16,8 @@ import ReadsList from '../components/ReadsList'
 import AwardsSection from '../components/AwardsSection'
 import MediaHistory from '../components/MediaHistory'
 import StarsSelector from '../StarsSelector'
+import ReviewEditor from '../components/review/ReviewEditor'
+import ReviewContent from '../components/review/ReviewContent'
 import { libraryService } from '../services/libraryService'
 import { tagService } from '../services/tagService'
 import { librarianService } from '../services/librarianService'
@@ -1186,13 +1188,11 @@ export default function MediaOnePage({
 
                   {editingReview ? (
                     <div className="mt-3 flex flex-col gap-2">
-                      <textarea
+                      <ReviewEditor
                         value={userReview}
-                        onChange={(e) => { setUserReview(e.target.value); setReviewSaved(false) }}
-                        rows={4}
+                        onChange={(html) => { setUserReview(html); setReviewSaved(false) }}
                         autoFocus
                         placeholder={t('reviewPlaceholder', { type: isBook ? t('book').toLowerCase() : t('film').toLowerCase() })}
-                        className="w-full resize-none rounded-md border-0 bg-black/[.04] dark:bg-white/[.04] px-2 py-1 text-sm leading-7 text-[var(--text-muted)] placeholder:text-[var(--placeholder)] focus:outline-none focus:bg-black/[.07] dark:focus:bg-white/[.07] transition-colors"
                       />
                       <div className="flex items-center justify-end gap-3">
                         {reviewSaved && <span className="text-xs text-[var(--text-muted)]">{t('saved') || 'Saved'}</span>}
@@ -1212,12 +1212,11 @@ export default function MediaOnePage({
                       </div>
                     </div>
                   ) : userReview ? (
-                    <p
+                    <ReviewContent
+                      content={userReview}
                       onClick={() => setEditingReview(true)}
                       className="mt-3 cursor-text text-sm leading-7 text-[var(--text-muted)] hover:text-[var(--text)] transition-colors"
-                    >
-                      {userReview}
-                    </p>
+                    />
                   ) : (
                     <p
                       onClick={() => setEditingReview(true)}
@@ -1422,7 +1421,7 @@ export default function MediaOnePage({
                               {r.value > 0 && <StarsSelector initialValue={r.value} isEditable={false} size="sm" />}
                               <span className="text-xs text-[var(--text-muted)]">{reviewDate(r.updatedAt)}</span>
                             </div>
-                            {r.review && <p className="mt-2 pl-10 text-xs leading-6 text-[var(--text-muted)]">{r.review}</p>}
+                            {r.review && <ReviewContent content={r.review} className="mt-2 pl-10 text-xs leading-6 text-[var(--text-muted)]" />}
                           </div>
                         )
                       })}
@@ -1549,7 +1548,7 @@ function FriendRatingRow({ f, mediaType, t }: {
         ) : null}
       </div>
       {f.review && (
-        <p className="mt-2 pl-10 text-xs leading-6 text-[var(--text-muted)]">{f.review}</p>
+        <ReviewContent content={f.review} className="mt-2 pl-10 text-xs leading-6 text-[var(--text-muted)]" />
       )}
       {hasRating && f.status && (
         <p className="mt-1 pl-10 text-[11px] text-[var(--text-muted)]">{statusLabel(mediaType, f.status, t)}</p>

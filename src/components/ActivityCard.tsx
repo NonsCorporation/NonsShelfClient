@@ -17,6 +17,7 @@ import CommentThread from './CommentThread'
 import DropdownMenu from './DropdownMenu'
 import ConfirmModal from './ConfirmModal'
 import ShareModal from './ShareModal'
+import ReviewContent from './review/ReviewContent'
 import LibrarianBadge from './LibrarianBadge'
 import { isLibrarian } from '../services/librarianService'
 
@@ -242,7 +243,7 @@ export default function ActivityCard({
 
       {/* review text, above the media card when present */}
       {a.text && (
-        <p className="mb-3 text-sm leading-6 text-[var(--text)]">{a.text}</p>
+        <ReviewContent content={a.text} className="mb-3 text-sm leading-6 text-[var(--text)]" />
       )}
 
       {/* body: cover + details */}

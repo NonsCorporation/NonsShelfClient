@@ -1,6 +1,7 @@
 import { IoMdStar } from 'react-icons/io'
 import type { MediaItem } from '../types'
 import { useLanguage } from '../contexts/LanguageContext'
+import ReviewContent from './review/ReviewContent'
 
 type Props = {
   item: MediaItem
@@ -32,7 +33,7 @@ export default function NonsPostPreview({ item, title, review, rating }: Props) 
           ))}
         </div>
       ) : null}
-      {review ? <p className="whitespace-pre-wrap text-sm text-[var(--text-muted)]">{review}</p> : null}
+      {review ? <ReviewContent content={review} className="text-sm text-[var(--text-muted)]" /> : null}
       <div className="flex items-center gap-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--container-2)] p-2">
         {item.coverUrl ? (
           <img src={item.coverUrl} alt="" className="h-10 w-7 flex-shrink-0 rounded object-cover" />

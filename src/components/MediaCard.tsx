@@ -18,6 +18,7 @@ import { statusLabel, STATUS_COLOR } from '../lib/shelf'
 import { mediaPath } from '../lib/paths'
 import TypeBadge from './TypeBadge'
 import ShelfStatusBar from './ShelfStatusBar'
+import ReviewContent from './review/ReviewContent'
 
 // The most recent dated milestone we can infer from the item alone (no extra
 // fetch): finished > started > added, by latest date. The full timeline (incl.
@@ -281,9 +282,10 @@ export default function MediaCard({
             onClick={(e) => e.preventDefault()}
             className="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] px-3 py-2"
           >
-            <p className={`whitespace-pre-line text-xs leading-6 text-[var(--text)] ${reviewOpen ? '' : 'line-clamp-2'}`}>
-              {item.review}
-            </p>
+            <ReviewContent
+              content={item.review!}
+              className={`text-xs leading-6 text-[var(--text)] ${reviewOpen ? '' : 'line-clamp-2'}`}
+            />
             <button
               onClick={(e) => {
                 e.preventDefault()
