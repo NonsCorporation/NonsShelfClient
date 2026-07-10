@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, useParams } from '@/lib/router'
 import Layout from '../components/layout/Layout'
 import { ProfileSkeleton } from '../components/Skeletons'
@@ -52,6 +52,11 @@ type Tab = 'all' | ShelfStatus
 
 type Friend = { uuid: string; username: string; name: string; avatarUrl?: string }
 
+// The profile page only ever shows a small preview of the shelf (with a link
+// to the full Goodreads-style /library for everything) — no reason to pull
+// the whole shelf's media rows down just to render this many covers.
+const SHELF_PREVIEW_SIZE = 10
+
 
 // Per-type identity used across the cards: an icon, a label key and an accent
 // colour. Gives books, films and series a distinct, recognisable look instead of
@@ -70,7 +75,6 @@ export default function ProfilePage() {
   const { id: routeId } = useParams<{ id: string }>()
   const { user: authUser, loading: authLoading } = useAuth()
 
-  const [items, setItems] = useState<MediaItem[]>([])
   const [profile, setProfile] = useState<ProfileView | null>(null)
   const [isSelf, setIsSelf] = useState(true)
   const [loading, setLoading] = useState(true)
@@ -80,6 +84,20 @@ export default function ProfilePage() {
   const [importOpen, setImportOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [friends, setFriends] = useState<Friend[]>([])
+  // A small preview of the shelf (server-filtered/sorted, capped at
+  // SHELF_PREVIEW_SIZE) — "Open full library" below is where the whole thing
+  // lives, so this page never fetches more than it shows.
+  const [shown, setShown] = useState<MediaItem[]>([])
+  const [shelfLoading, setShelfLoading] = useState(true)
+  const [counts, setCounts] = useState<Record<Tab, number>>({ all: 0, wishlist: 0, active: 0, done: 0, dnf: 0 })
+  const [typeCounts, setTypeCounts] = useState<Record<MediaType, number>>({ book: 0, movie: 0, series: 0 })
+  const [ratedAvg, setRatedAvg] = useState(0)
+  // The signed-in viewer's own shelf status per media id shown in the
+  // activity feed below (a cheap targeted read — see getStatuses) — only
+  // meaningful, and only fetched, when viewing your own profile.
+  const [myStatuses, setMyStatuses] = useState<Map<string, ShelfStatus>>(new Map())
+  // Bumped to force a refetch of the shelf preview + stats after an import.
+  const [refreshTick, setRefreshTick] = useState(0)
   // Activity posts — feed-style cards with comments, replaces the custom reviews section.
   const [posts, setPosts] = useState<Activity[]>([])
   const [postsTotal, setPostsTotal] = useState(0)
@@ -113,8 +131,6 @@ export default function ProfilePage() {
 
     async function load() {
       if (mine) {
-        const its = await libraryService.getItems()
-        if (cancelled) return
         setIsSelf(true)
         setProfile({
           id: authUser?.id ?? 0,
@@ -123,7 +139,6 @@ export default function ProfilePage() {
           avatar: authUser?.avatar_url || '',
           role: authUser?.role,
         })
-        setItems(its)
         setOtherCollections([])
         // Import friends from nons (best-effort — silently ignored if unreachable).
         try {
@@ -159,12 +174,8 @@ export default function ProfilePage() {
           }
         } catch { /* library server unreachable — no badge */ }
         setProfile({ id: p.id, name: p.name, handle: p.username, avatar: p.avatarUrl || '', role: userRole })
-        const [its, theirCollections] = await Promise.all([
-          libraryService.getUserItems(p.id),
-          collectionService.getUserCollections(p.id),
-        ])
+        const theirCollections = await collectionService.getUserCollections(p.id)
         if (cancelled) return
-        setItems(its)
         setOtherCollections(theirCollections)
       }
       if (!cancelled) setLoading(false)
@@ -175,15 +186,67 @@ export default function ProfilePage() {
     }
   }, [routeId, authUser, authLoading])
 
-  const byNewest = (a: MediaItem, b: MediaItem) => (b.dateAdded ?? '').localeCompare(a.dateAdded ?? '')
-
-
   useEffect(() => {
     if (!profile) return
     let cancelled = false
     challengeService.listUserChallenges(profile.id).then((cs) => { if (!cancelled) setChallenges(cs) })
     return () => { cancelled = true }
   }, [profile])
+
+  // The shelf preview row — server-filtered/sorted/capped, so switching tabs
+  // or a collection chip re-fetches just SHELF_PREVIEW_SIZE items instead of
+  // ever holding the whole shelf client-side.
+  useEffect(() => {
+    if (!profile) return
+    let cancelled = false
+    // Wrapped in an IIFE, not called directly: react-hooks/set-state-in-effect
+    // flags a setState-triggering call made straight from the effect body.
+    ;(async () => {
+      setShelfLoading(true)
+      const res = await libraryService.searchLibrary(
+        {
+          status: tab === 'all' ? undefined : tab,
+          collectionId: collectionFilter ?? undefined,
+          sort: 'added',
+          dir: 'desc',
+          page: 0,
+          perPage: SHELF_PREVIEW_SIZE,
+        },
+        isSelf ? undefined : profile.id,
+      )
+      if (cancelled) return
+      setShown(res.items)
+      setShelfLoading(false)
+    })()
+    return () => { cancelled = true }
+  }, [profile, isSelf, tab, collectionFilter, refreshTick])
+
+  // Header stats — status/type tallies and the average rating, each a cheap
+  // count-only (or SQL-aggregated) request instead of derived from a full
+  // shelf fetch. Independent of tab/collectionFilter (these always reflect
+  // the whole shelf, not the current filter).
+  useEffect(() => {
+    if (!profile) return
+    let cancelled = false
+    const userId = isSelf ? undefined : profile.id
+    Promise.all([
+      libraryService.countLibrary({}, userId),
+      libraryService.countLibrary({ status: 'wishlist' }, userId),
+      libraryService.countLibrary({ status: 'active' }, userId),
+      libraryService.countLibrary({ status: 'done' }, userId),
+      libraryService.countLibrary({ status: 'dnf' }, userId),
+      libraryService.countLibrary({ type: 'book' }, userId),
+      libraryService.countLibrary({ type: 'movie' }, userId),
+      libraryService.countLibrary({ type: 'series' }, userId),
+      libraryService.getRatingAverage(userId),
+    ]).then(([all, wishlist, active, done, dnf, book, movie, series, avg]) => {
+      if (cancelled) return
+      setCounts({ all, wishlist, active, done, dnf })
+      setTypeCounts({ book, movie, series })
+      setRatedAvg(avg.count > 0 ? avg.average / 2 : 0)
+    })
+    return () => { cancelled = true }
+  }, [profile, isSelf, refreshTick])
 
   const POSTS_PER_PAGE = 10
   useEffect(() => {
@@ -212,42 +275,25 @@ export default function ProfilePage() {
 
   const postsPageCount = Math.ceil(postsTotal / POSTS_PER_PAGE)
 
-  const counts = useMemo(
-    () => ({
-      all: items.length,
-      wishlist: items.filter((it) => it.status === 'wishlist').length,
-      active: items.filter((it) => it.status === 'active').length,
-      done: items.filter((it) => it.status === 'done').length,
-      dnf: items.filter((it) => it.status === 'dnf').length,
-    }),
-    [items],
-  )
-  const shown = useMemo(() => {
-    let list = tab === 'all' ? [...items] : items.filter((it) => it.status === tab)
-    if (collectionFilter !== null) list = list.filter((it) => it.collectionIds?.includes(collectionFilter))
-    return list.sort(byNewest)
-  }, [items, tab, collectionFilter])
-
-  const myByMedia = useMemo(() => {
-    if (!isSelf) return new Map<number, MediaItem>()
-    const m = new Map<number, MediaItem>()
-    for (const it of items) m.set(Number(it.id), it)
-    return m
-  }, [isSelf, items])
-
-  const ratedAvg = useMemo(() => {
-    const rated = items.filter((it) => typeof it.rating === 'number' && it.rating > 0)
-    return rated.length ? rated.reduce((s, it) => s + (it.rating || 0), 0) / rated.length / 2 : 0
-  }, [items])
-
-  const typeCounts = useMemo(
-    () => ({
-      book: items.filter((it) => it.type === 'book').length,
-      movie: items.filter((it) => it.type === 'movie').length,
-      series: items.filter((it) => it.type === 'series').length,
-    }),
-    [items],
-  )
+  // The viewer's own shelf status for each media id in the current activity
+  // page — a cheap targeted read (see getStatuses), not a full shelf fetch,
+  // and only needed at all when the viewer is looking at their own profile
+  // (it drives the feed's "You" quick-action row).
+  useEffect(() => {
+    let cancelled = false
+    // Wrapped in an IIFE, not called directly: react-hooks/set-state-in-effect
+    // flags a setState-triggering call made straight from the effect body.
+    ;(async () => {
+      if (!isSelf || posts.length === 0) {
+        if (!cancelled) setMyStatuses(new Map())
+        return
+      }
+      const ids = Array.from(new Set(posts.map((p) => String(p.mediaId))))
+      const m = await libraryService.getStatuses(ids)
+      if (!cancelled) setMyStatuses(m)
+    })()
+    return () => { cancelled = true }
+  }, [isSelf, posts])
 
   if (loading) {
     return (
@@ -434,12 +480,14 @@ export default function ProfilePage() {
         </div>
       )}
 
-      {/* Shelf — a single horizontal row so reviews stay reachable below it. */}
+      {/* Shelf — a single horizontal row so reviews stay reachable below it.
+          A capped preview (SHELF_PREVIEW_SIZE), server-filtered by tab/
+          collection — "Open full library" below is where the rest lives. */}
       <div className="mt-5">
-        {shown.length === 0 ? (
+        {!shelfLoading && shown.length === 0 ? (
           <p className="py-12 text-center text-sm text-[var(--text-muted)]">{t('noResults')}</p>
         ) : (
-          <div className="no-scrollbar -mx-1 flex gap-4 overflow-x-auto px-1 pb-1">
+          <div className={`no-scrollbar -mx-1 flex gap-4 overflow-x-auto px-1 pb-1 transition-opacity ${shelfLoading ? 'opacity-60' : ''}`}>
             {shown.map((it) => {
               const status = it.status ?? 'wishlist'
               const rated = typeof it.rating === 'number' && it.rating > 0
@@ -512,7 +560,7 @@ export default function ProfilePage() {
                 key={a.id}
                 a={a}
                 commentCount={postCommentCounts[String(a.postId)] ?? 0}
-                myItem={myByMedia.get(a.mediaId)}
+                myItem={myStatusItem(a, myStatuses)}
                 onDeleted={(postId) => {
                   setPosts((prev) => prev.filter((x) => x.postId !== postId))
                   setPostsTotal((n) => Math.max(0, n - 1))
@@ -534,9 +582,29 @@ export default function ProfilePage() {
       </section>
 
       <SettingsModal isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} onOpenImport={() => setImportOpen(true)} />
-      <ImportModal isOpen={importOpen} onClose={() => setImportOpen(false)} onImported={() => libraryService.getItems().then(setItems)} />
+      <ImportModal isOpen={importOpen} onClose={() => setImportOpen(false)} onImported={() => setRefreshTick((n) => n + 1)} />
     </Layout>
   )
+}
+
+// A minimal MediaItem stub carrying just the viewer's own shelf status for an
+// activity's media — built from the activity's own snapshot fields (already
+// on hand) plus a targeted status lookup (see getStatuses), instead of a
+// looking up a full item out of the whole shelf. undefined when the viewer
+// hasn't shelved this media at all.
+function myStatusItem(a: Activity, myStatuses: Map<string, ShelfStatus>): MediaItem | undefined {
+  const status = myStatuses.get(String(a.mediaId))
+  if (!status) return undefined
+  return {
+    id: String(a.mediaId),
+    uuid: a.mediaUuid,
+    type: a.mediaType,
+    title: a.mediaTitle,
+    author: a.mediaAuthor ?? '',
+    coverUrl: a.coverUrl,
+    year: a.mediaYear,
+    status,
+  }
 }
 
 // A rotating set of muted, Pantone-ish purple/blue/near-black gradients — a

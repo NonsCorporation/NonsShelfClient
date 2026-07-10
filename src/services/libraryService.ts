@@ -219,6 +219,10 @@ export interface ILibraryService {
    *  /5 display value), formatted to one decimal, or '—' if they haven't
    *  rated anything. Powers Library's header stat card. */
   averageOwnRating(): Promise<string>
+  /** Average rating (1..10 scale) plus count, for the signed-in user or
+   *  (with userId) another user — a single lightweight SQL aggregate, not a
+   *  fetch of every rated item. Powers Profile's header stat. */
+  getRatingAverage(userId?: number): Promise<{ average: number; count: number }>
   /** One page of a user's rated-or-reviewed items, newest first. Pass the numeric
    *  user id for another user, or undefined for the signed-in user. `page` is
    *  zero-based. Powers the profile's paginated "Ratings & reviews" section. */
@@ -446,6 +450,18 @@ class ApiLibraryService implements ILibraryService {
       return (values.reduce((s, v) => s + v, 0) / values.length / 2).toFixed(1)
     } catch {
       return '—'
+    }
+  }
+
+  async getRatingAverage(userId?: number): Promise<{ average: number; count: number }> {
+    const path = userId ? `/api/users/${userId}/ratings/average` : '/api/ratings/average'
+    try {
+      const res = await authedFetch(path)
+      if (!res.ok) return { average: 0, count: 0 }
+      const data: { average?: number; count?: number } = await res.json()
+      return { average: data.average ?? 0, count: data.count ?? 0 }
+    } catch {
+      return { average: 0, count: 0 }
     }
   }
 
