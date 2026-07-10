@@ -11,7 +11,7 @@ import { useLanguage } from '../contexts/LanguageContext'
 import { IoSearchOutline, IoPersonOutline, IoAppsOutline, IoBookOutline, IoFilmOutline, IoTvOutline } from 'react-icons/io5'
 import type { IconType } from 'react-icons'
 import InfinityLoader from '../components/InfinityLoader'
-import { initials, colorFor } from '../lib/user'
+import BoringAvatar from '../components/BoringAvatar'
 
 const keyOf = (it: { type: string; title: string }) => `${it.type}:${it.title.trim().toLowerCase()}`
 // Builds the minimal MediaItem shape FinishModal/ShelfStatusBar need from a catalog row.
@@ -318,12 +318,7 @@ export default function SearchPage() {
                       {p.photoUrl ? (
                         <img src={p.photoUrl} alt={p.name} loading="lazy" className="h-full w-full object-cover" />
                       ) : (
-                        <span
-                          className="flex h-full w-full items-center justify-center text-lg font-semibold text-white"
-                          style={{ backgroundColor: colorFor(p.uuid || p.name) }}
-                        >
-                          {initials(p.name)}
-                        </span>
+                        <BoringAvatar size={64} name={p.uuid || p.name} className="h-full w-full" />
                       )}
                     </div>
                     <p className="mt-2 line-clamp-2 text-xs font-medium leading-snug text-[var(--text)] group-hover:text-nonsprimary">{p.name}</p>

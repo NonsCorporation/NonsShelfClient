@@ -19,8 +19,7 @@ import { librarianService } from '../services/librarianService'
 import { suggestionService } from '../services/suggestionService'
 import { getReviews, getFriendShelfStatuses, type ReviewsPage, type CommunityReview, type FriendShelfStatus } from '../services/reviewService'
 import ShareModal from '../components/ShareModal'
-import { getFriendUsers, colorFor } from '../services/activityService'
-import type { Activity } from '../services/activityService'
+import { getFriendUsers } from '../services/activityService'
 import { userPath } from '../lib/paths'
 import { authedFetch, redirectToNonsLogin } from '../lib/api'
 import type { MediaItem, ShelfStatus, AppliedTag } from '../types'
@@ -184,7 +183,6 @@ export default function MediaOnePage({
   const [commWithReview, setCommWithReview] = useState(false)
   const [reviewsPage, setReviewsPage] = useState<ReviewsPage>({ items: [], total: 0, average: 0, count: 0 })
   const [reviewsLoading, setReviewsLoading] = useState(false)
-  const [friendUsers, setFriendUsers] = useState<Map<number, Activity['user']>>(new Map())
   const [friendReviews, setFriendReviews] = useState<CommunityReview[]>([])
   const [friendStatuses, setFriendStatuses] = useState<FriendShelfStatus[]>([])
   const [friendsLoaded, setFriendsLoaded] = useState(false)
@@ -340,7 +338,6 @@ export default function MediaOnePage({
     const me = { id: userId, name: user?.name || user?.username || '', handle: user?.username || '', uuid: user?.uuid }
     getFriendUsers(me).then((map) => {
       if (cancelled) return
-      setFriendUsers(map)
       setFriendsLoaded(true)
       if (map.size === 0) return
       const userIds = [...map.keys()]
@@ -1286,13 +1283,11 @@ export default function MediaOnePage({
                   ) : (
                     <div className="flex flex-col divide-y divide-[var(--border-subtle)]">
                       {friendReviews.map((r) => {
-                        const u = friendUsers.get(r.userId)
                         const s = friendStatuses.find((s) => s.userId === r.userId)
                         const f = {
                           handle: r.username ?? `user-${r.userId}`,
                           name: r.name || r.username || 'Friend',
                           rating: r.value,
-                          color: u?.color ?? colorFor(r.username ?? ''),
                           review: r.review ?? null,
                           avatarUrl: r.avatarUrl ?? null,
                           userId: r.userId,
@@ -1304,12 +1299,10 @@ export default function MediaOnePage({
                       {friendStatuses
                         .filter((s) => !friendReviews.some((r) => r.userId === s.userId))
                         .map((s) => {
-                          const u = friendUsers.get(s.userId)
                           const f = {
                             handle: s.username ?? `user-${s.userId}`,
                             name: s.name || s.username || 'Friend',
                             rating: 0,
-                            color: u?.color ?? colorFor(s.username ?? ''),
                             review: null,
                             avatarUrl: s.avatarUrl ?? null,
                             userId: s.userId,
@@ -1506,7 +1499,7 @@ export default function MediaOnePage({
 }
 
 function FriendRatingRow({ f, mediaType, t }: {
-  f: { handle: string; name: string; rating: number; color: string; review: string | null; avatarUrl: string | null; userId: number; status?: ShelfStatus }
+  f: { handle: string; name: string; rating: number; review: string | null; avatarUrl: string | null; userId: number; status?: ShelfStatus }
   mediaType: MediaItem['type']
   t: (key: string, vars?: Record<string, string | number>) => string
 }) {
@@ -1517,12 +1510,7 @@ function FriendRatingRow({ f, mediaType, t }: {
         {f.avatarUrl ? (
           <img src={f.avatarUrl} alt={f.name} loading="lazy" className="h-7 w-7 flex-shrink-0 rounded-full object-cover" />
         ) : (
-          <span
-            className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-[11px] font-semibold text-white"
-            style={{ backgroundColor: f.color }}
-          >
-            {f.name[0]}
-          </span>
+          <BoringAvatar size={28} name={`user-${f.userId}`} />
         )}
         <span className="min-w-0 flex-1 truncate text-sm text-[var(--text)]">{f.name}</span>
         {hasRating ? (

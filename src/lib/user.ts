@@ -21,14 +21,3 @@ export function colorFor(handle: string): string {
   for (let i = 0; i < handle.length; i++) h = (h * 31 + handle.charCodeAt(i)) | 0
   return PALETTE[Math.abs(h) % PALETTE.length]
 }
-
-/** Initials for the avatar, e.g. "Timur Cravtov" -> "TC". */
-export function initials(name: string): string {
-  return name
-    .split(' ')
-    .map((p) => p[0])
-    .filter(Boolean)
-    .slice(0, 2)
-    .join('')
-    .toUpperCase()
-}

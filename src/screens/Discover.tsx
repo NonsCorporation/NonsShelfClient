@@ -21,7 +21,6 @@ import { typeWord, goalLabel, conditionText } from '../lib/challenge'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
 import { redirectToNonsLogin } from '../lib/api'
-import { initials, colorFor } from '../lib/user'
 import {
   IoStar, IoPeopleOutline, IoLogInOutline, IoSparklesOutline, IoArrowForward,
   IoChevronBack, IoChevronForward, IoLayersOutline, IoPlanetOutline, IoTrophyOutline, IoAdd,
@@ -703,12 +702,7 @@ function PersonCard({ person, big, t }: { person: Creator; big?: boolean; t: Tra
           </div>
         ))}
         <div className={`relative z-10 flex-shrink-0 overflow-hidden rounded-full border-4 border-[var(--container)] shadow-xl ${big ? 'h-20 w-20' : 'h-14 w-14'}`}>
-          <span
-            className="flex h-full w-full items-center justify-center font-bold text-white"
-            style={{ backgroundColor: colorFor(person.uuid || person.name), fontSize: big ? '1.5rem' : '1rem' }}
-          >
-            {initials(person.name)}
-          </span>
+          <BoringAvatar size={big ? 80 : 56} name={person.uuid || person.name} />
         </div>
       </div>
 
