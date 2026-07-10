@@ -40,8 +40,11 @@ type Filter = 'all' | MediaType
 // repeatable "Load more" button. A type filter narrows the shown results.
 export default function SearchPage() {
   const { t } = useLanguage()
-  const [params] = useSearchParams()
+  const [params, setSearchParams] = useSearchParams()
   const q = params.get('q')?.trim() ?? ''
+  // Mobile-only in-page search field (desktop edits the query via the navbar
+  // search box instead). Kept in sync with ?q= so it reflects nav changes too.
+  const [queryInput, setQueryInput] = useState(q)
   const [catalog, setCatalog] = useState<CatalogItem[]>([])
   // Shelf status per result (by keyOf), seeded from the user's library and
   // updated in place as they change status from the shelf-status bar.
@@ -76,6 +79,17 @@ export default function SearchPage() {
       return next
     })
   }, [])
+
+  useEffect(() => {
+    setQueryInput(q)
+  }, [q])
+
+  const submitQuery = () => {
+    const next = new URLSearchParams(params)
+    if (queryInput) next.set('q', queryInput)
+    else next.delete('q')
+    setSearchParams(next)
+  }
 
   useEffect(() => {
     // All setState happens inside the debounce callback (never synchronously in
@@ -229,6 +243,20 @@ export default function SearchPage() {
 
   return (
     <Layout>
+      {/* Mobile-only query field — desktop edits the query via the navbar search box instead. */}
+      <div className="relative mb-4 lg:hidden">
+        <IoSearchOutline className="pointer-events-none absolute left-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-[var(--text-muted)]" />
+        <input
+          value={queryInput}
+          onChange={(e) => setQueryInput(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && submitQuery()}
+          onBlur={submitQuery}
+          placeholder={t('globalSearch')}
+          aria-label={t('globalSearch')}
+          className="h-11 w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--input)] pl-11 pr-3 text-sm text-[var(--text)] placeholder:text-[var(--placeholder)] focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[var(--primary-ring)]"
+        />
+      </div>
+
       <div className="mb-6">
         <h1 className="text-xl font-bold tracking-tight text-[var(--text)]">
           {q ? t('searchResults', { q }) : t('search')}
