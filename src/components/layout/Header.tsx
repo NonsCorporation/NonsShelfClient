@@ -514,9 +514,11 @@ function HeaderSkeletons() {
 function HeaderSearch() {
   const { t } = useLanguage()
   const navigate = useNavigate()
+  const { pathname } = useLocation()
   const [params] = useSearchParams()
+  const isSearchPage = pathname === '/search'
   const [value, setValue] = useState(params.get('q') ?? '')
-  const [expanded, setExpanded] = useState(false)
+  const [expanded, setExpanded] = useState(isSearchPage)
   const [open, setOpen] = useState(false)
   const [results, setResults] = useState<CatalogItem[]>([])
   const [loading, setLoading] = useState(false)
@@ -529,6 +531,13 @@ function HeaderSearch() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setValue(qParam)
   }, [qParam])
+
+  useEffect(() => {
+    if (isSearchPage) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setExpanded(true)
+    }
+  }, [isSearchPage])
 
   useEffect(() => {
     if (!value || !open) {
@@ -557,12 +566,12 @@ function HeaderSearch() {
     const onClick = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         setOpen(false)
-        if (!value) setExpanded(false)
+        if (!value && !isSearchPage) setExpanded(false)
       }
     }
     document.addEventListener('mousedown', onClick)
     return () => document.removeEventListener('mousedown', onClick)
-  }, [value])
+  }, [value, isSearchPage])
 
   const expand = () => {
     setExpanded(true)
