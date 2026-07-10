@@ -18,7 +18,9 @@ interface PersonResp {
     photo_url?: string
     bio?: string
     birth_year?: number
+    birth_date?: string // YYYY-MM-DD (full or partial)
     death_year?: number
+    death_date?: string // YYYY-MM-DD; empty = living or unknown
   }
   aliases: { name: string; lang?: string }[]
   credits: {
@@ -35,12 +37,25 @@ const ROLE_LABEL: Record<string, string> = {
   actor: 'Actor', director: 'Director', writer: 'Writer', author: 'Author', translator: 'Translator',
 }
 
+// Formats a birth/death date for display: the full date when we have one
+// (localized to the viewer's language), falling back to just the year for
+// entries that only ever recorded that much.
+function formatLifeDate(dateStr: string | undefined, year: number | undefined, language: string): string {
+  if (dateStr && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    const d = new Date(dateStr + 'T00:00:00')
+    if (!isNaN(d.getTime())) {
+      return d.toLocaleDateString(language, { year: 'numeric', month: 'long', day: 'numeric' })
+    }
+  }
+  return year ? String(year) : '?'
+}
+
 // Books live at /b/<uuid>, movies at /m/<uuid>.
 const mediaHref = (m: PersonResp['credits'][number]['media']) =>
   `${m.type === 'book' ? '/b' : '/m'}/${m.uuid}`
 
 export default function PersonPage() {
-  const { t } = useLanguage()
+  const { t, language } = useLanguage()
   const navigate = useNavigate()
   const { user } = useAuth()
   const { uuid } = useParams<{ uuid: string }>()
@@ -114,6 +129,21 @@ export default function PersonPage() {
               </div>
             )}
           </div>
+
+          {/* Desktop only — on mobile these stay in their original spot
+              (below the name, and after the bio) instead of stacking above
+              everything else under a narrow portrait. */}
+          <div className="mt-3 hidden md:block">
+            {(person.birth_date || person.birth_year || person.death_date || person.death_year) ? (
+              <p className="text-sm text-[var(--text-muted)]">
+                {formatLifeDate(person.birth_date, person.birth_year, language)}
+                {(person.death_date || person.death_year) ? ` – ${formatLifeDate(person.death_date, person.death_year, language)}` : ''}
+              </p>
+            ) : null}
+            <div className="mt-3">
+              <AwardsSection subject="person" subjectId={person.uuid} canEdit={librarianUser} layout="grid" />
+            </div>
+          </div>
         </div>
 
         {/* ── Right: identity + credits ── */}
@@ -133,9 +163,10 @@ export default function PersonPage() {
                 </button>
               )}
             </div>
-            {(person.birth_year || person.death_year) ? (
-              <p className="mt-1 text-sm text-[var(--text-muted)]">
-                {person.birth_year ?? '?'}{person.death_year ? ` – ${person.death_year}` : ''}
+            {(person.birth_date || person.birth_year || person.death_date || person.death_year) ? (
+              <p className="mt-1 text-sm text-[var(--text-muted)] md:hidden">
+                {formatLifeDate(person.birth_date, person.birth_year, language)}
+                {(person.death_date || person.death_year) ? ` – ${formatLifeDate(person.death_date, person.death_year, language)}` : ''}
               </p>
             ) : null}
             {aliases.length > 0 && (
@@ -163,8 +194,12 @@ export default function PersonPage() {
             </div>
           )}
 
-          {/* Awards — librarian-curated recognitions (Best Actor, Nobel, …). */}
-          <AwardsSection subject="person" subjectId={person.uuid} canEdit={librarianUser} />
+          {/* Awards — librarian-curated recognitions (Best Actor, Nobel, …).
+              On desktop this renders below the portrait instead (2-col grid,
+              a better fit for that narrow column); mobile keeps it here. */}
+          <div className="md:hidden">
+            <AwardsSection subject="person" subjectId={person.uuid} canEdit={librarianUser} />
+          </div>
 
           <hr className="border-[var(--divider)]" />
 

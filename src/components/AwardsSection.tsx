@@ -40,17 +40,20 @@ type Props = {
   subjectId: string
   /** Show the librarian add/remove controls. */
   canEdit?: boolean
+  /** 'slider' (default): fixed-height single row, horizontal overflow scrolls
+   *  instead of wrapping — for a wide main-content placement. 'grid': a
+   *  2-column wrapping grid — for a narrow sidebar placement (e.g. below a
+   *  person's portrait), where a horizontal scroller would only fit ~2 tiles
+   *  at a time anyway. */
+  layout?: 'slider' | 'grid'
 }
 
 // The awards a media item or person holds — winners shown in the body's color,
 // nominees muted. Same big icon-forward tile everywhere (trophy on top, award
-// name + year below); the row is a fixed-height horizontal scroller rather
-// than wrapping, so an item with a dozen+ awards (Best Visual Effects team,
-// full sound crew, …) stays one line instead of growing the whole page.
-// Librarians get an "add" button (opens AddAwardModal) and a remove control
-// per award. Renders nothing for non-librarians when there are no awards, so
-// it never shows an empty card.
-export default function AwardsSection({ subject, subjectId, canEdit = false }: Props) {
+// name + year below). Librarians get an "add" button (opens AddAwardModal)
+// and a remove control per award. Renders nothing for non-librarians when
+// there are no awards, so it never shows an empty card.
+export default function AwardsSection({ subject, subjectId, canEdit = false, layout = 'slider' }: Props) {
   const { t } = useLanguage()
   const [awards, setAwards] = useState<AppliedAward[]>([])
   const [loaded, setLoaded] = useState(false)
@@ -105,8 +108,7 @@ export default function AwardsSection({ subject, subjectId, canEdit = false }: P
       {awards.length === 0 ? (
         <p className="text-xs text-[var(--text-muted)]">{t('noAwardsYet')}</p>
       ) : (
-        // Single-row slider: no wrap, horizontal overflow scrolls instead.
-        <div className="flex gap-4 overflow-x-auto pb-1">
+        <div className={layout === 'grid' ? 'grid grid-cols-2 gap-4' : 'flex gap-4 overflow-x-auto pb-1'}>
           {awards.map((a) => {
             const winner = a.status === 'winner'
             // Cross-shown: this award's real subject is the other type (e.g.
@@ -115,8 +117,11 @@ export default function AwardsSection({ subject, subjectId, canEdit = false }: P
             const crossShown = a.subject_type !== subject
             const secondary = secondaryLine(a, crossShown, (name) => t('awardForWorkLabel', { name }))
             return (
-              <div key={a.id} className="group relative flex w-24 flex-shrink-0 flex-col items-center gap-1.5 text-center">
-                <AwardIcon bodyKey={a.body_key} color={winner ? '#d2b781' : 'var(--text-muted)'} size={72} />
+              <div
+                key={a.id}
+                className={`group relative flex flex-col items-center gap-1.5 text-center ${layout === 'grid' ? 'w-full' : 'w-24 flex-shrink-0'}`}
+              >
+                <AwardIcon bodyKey={a.body_key} color={winner ? '#d2b781' : 'var(--text-muted)'} size={layout === 'grid' ? 56 : 72} />
                 <span className="text-xs font-semibold leading-tight text-[var(--text)]">{a.body_name}</span>
                 <span className="text-[11px] leading-tight text-[var(--text-muted)]">
                   {a.category_name} · {a.year}
