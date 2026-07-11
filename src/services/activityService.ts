@@ -32,7 +32,18 @@ export type Activity = {
   at: number
   /** Set for `challenge_joined` events (no media): the joined challenge, so the
    *  feed can render a challenge card and link to it. */
-  challenge?: { uuid: string; title: string; official: boolean; period: '' | 'yearly' | 'monthly'; year: number }
+  challenge?: {
+    uuid: string
+    title: string
+    official: boolean
+    period: '' | 'yearly' | 'monthly'
+    year: number
+    /** The subject's numeric goal (their personal goal, else the shared target);
+     *  undefined when the challenge has no fixed number. */
+    goal?: number
+    /** What the goal is counted in ('book' | 'film' | 'series'), for the label. */
+    mediaType?: MediaType
+  }
 }
 
 // ── Wire types ──────────────────────────────────────────────────────────────
@@ -62,7 +73,10 @@ type ActivityEvent = {
   user_role?: string // librarian role, when the server includes it
   media?: { id: number; uuid?: string; type: MediaType; title: string; author?: string; year?: number; description?: string; cover_url: string }
   // Set for challenge_joined events (no media): the full challenge row.
-  challenge?: { uuid: string; title: string; official: boolean; period: string; start_date: number }
+  challenge?: { uuid: string; title: string; official: boolean; period: string; start_date: number; media_type?: string }
+  // The subject's goal on a challenge_joined event (personal goal, else shared
+  // target); absent when the challenge has no fixed number.
+  goal?: number
   // The subject user's chosen edition (when set) — overrides the work's cover/
   // title so the feed matches their library/reading list.
   edition_title?: string
@@ -150,6 +164,8 @@ function toActivity(e: ActivityEvent, user: Activity['user']): Activity {
         official: e.challenge.official,
         period: (e.challenge.period as '' | 'yearly' | 'monthly') || '',
         year: new Date(e.challenge.start_date * 1000).getUTCFullYear(),
+        goal: e.goal || undefined,
+        mediaType: (e.challenge.media_type as MediaType) || undefined,
       },
     }
   }

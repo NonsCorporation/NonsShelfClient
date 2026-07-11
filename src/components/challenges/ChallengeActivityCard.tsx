@@ -41,6 +41,10 @@ export default function ChallengeActivityCard({
 
   const title = ch.official && ch.period === 'yearly' ? t('readingGoalTitle', { year: ch.year }) : ch.title
   const to = `/challenge/${ch.uuid}`
+  // The joiner's numeric goal ("Goal · 10 books"), labelled by what's counted.
+  const goalKey =
+    ch.mediaType === 'movie' ? 'feedGoalFilms' : ch.mediaType === 'series' ? 'feedGoalSeries' : 'feedGoalBooks'
+  const goalText = ch.goal ? t(goalKey, { count: ch.goal }) : ''
   const canDelete = !!user && (user.id === a.userId || user.role === 'admin')
 
   const confirmDelete = async () => {
@@ -109,6 +113,11 @@ export default function ChallengeActivityCard({
           <p className="text-xs uppercase tracking-wide text-[var(--text-muted)]">
             {ch.official ? t('challengeOfficialBadge') : t('challenges')}
           </p>
+          {goalText && (
+            <span className="mt-1.5 inline-flex items-center rounded-full bg-[var(--primary-soft)] px-2 py-0.5 text-xs font-semibold text-nonsprimary">
+              {goalText}
+            </span>
+          )}
         </div>
       </Link>
 

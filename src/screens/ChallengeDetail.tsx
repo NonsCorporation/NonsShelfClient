@@ -239,12 +239,21 @@ export default function ChallengeDetailScreen() {
                 <div className="h-2 w-full overflow-hidden rounded-full bg-[var(--container-2)]">
                   <div className="h-full rounded-full bg-nonsprimary transition-all" style={{ width: `${pct}%` }} />
                 </div>
-                <button
-                  onClick={() => { setEditingGoal(true); setGoalInput(String(challenge.target ?? '')) }}
-                  className="mt-3 text-sm font-medium text-nonsprimary hover:underline"
-                >
-                  {t('changeGoal')}
-                </button>
+                <div className="mt-3 flex items-center gap-4">
+                  <button
+                    onClick={() => { setEditingGoal(true); setGoalInput(String(challenge.target ?? '')) }}
+                    className="text-sm font-medium text-nonsprimary hover:underline"
+                  >
+                    {t('changeGoal')}
+                  </button>
+                  <button
+                    onClick={toggleJoin}
+                    disabled={busy}
+                    className="text-sm font-medium text-[var(--text-muted)] hover:text-[var(--text)] disabled:opacity-50"
+                  >
+                    {t('leaveChallenge')}
+                  </button>
+                </div>
               </>
             ) : (
               <div className="flex items-center gap-2">
