@@ -101,6 +101,19 @@ async function leaveChallenge(id: number): Promise<void> {
   await jsonOrThrow(await authedFetch(`/api/challenges/${id}/join`, { method: 'DELETE' }))
 }
 
+/** Set the caller's personal target on a per-participant goal challenge (the
+ *  yearly reading challenge), joining them if needed. Returns the updated
+ *  challenge with the viewer's own target/progress. */
+async function setChallengeGoal(id: number, targetCount: number): Promise<Challenge> {
+  return jsonOrThrow(
+    await authedFetch(`/api/challenges/${id}/goal`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ target_count: targetCount }),
+    }),
+  ) as Promise<Challenge>
+}
+
 async function deleteChallenge(id: number): Promise<void> {
   await jsonOrThrow(await authedFetch(`/api/challenges/${id}`, { method: 'DELETE' }))
 }
@@ -113,5 +126,6 @@ export const challengeService = {
   updateChallenge,
   joinChallenge,
   leaveChallenge,
+  setChallengeGoal,
   deleteChallenge,
 }

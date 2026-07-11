@@ -224,7 +224,14 @@ export type Challenge = {
   /** "Personal only": the challenge lists publicly, but nobody except its
    *  creator can join. */
   private: boolean
-  /** null means "complete every item matching media_type + conditions". */
+  /** A generic/system challenge — the yearly (and later monthly) reading
+   *  goals seeded server-side — as opposed to a community-authored one. */
+  official: boolean
+  /** Set for a recurring per-participant goal challenge (each reader sets
+   *  their own number); empty for ordinary community challenges. */
+  period: '' | 'yearly' | 'monthly'
+  /** null means "complete every item matching media_type + conditions". For a
+   *  goal challenge (period set) the number is per-participant, in `target`. */
   target_count: number | null
   start_date: number
   end_date: number

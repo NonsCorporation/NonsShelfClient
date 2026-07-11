@@ -2,13 +2,13 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { useParams, Link } from '@/lib/router'
-import { IoLockClosedOutline, IoPencilOutline, IoTrophyOutline } from 'react-icons/io5'
+import { IoLockClosedOutline, IoPencilOutline, IoRibbonOutline, IoTrophyOutline } from 'react-icons/io5'
 import Layout from '../components/layout/Layout'
 import ChallengeAvatarStack from '../components/ChallengeAvatarStack'
 import CreateChallengeModal from '../components/CreateChallengeModal'
 import { challengeService } from '../services/challengeService'
 import { getFriendUsers, type Activity } from '../services/activityService'
-import { typeWord, goalLabel, conditionText } from '../lib/challenge'
+import { typeWord, goalLabel, conditionText, challengeTitle, isGoalChallenge } from '../lib/challenge'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
 import { redirectToNonsLogin } from '../lib/api'
@@ -34,6 +34,10 @@ export default function ChallengeDetailScreen() {
   const [notFound, setNotFound] = useState(false)
   const [busy, setBusy] = useState(false)
   const [editing, setEditing] = useState(false)
+  // For a goal challenge (the yearly reading challenge), the number the viewer
+  // is entering as their personal target. Empty unless the input is open.
+  const [goalInput, setGoalInput] = useState('')
+  const [editingGoal, setEditingGoal] = useState(false)
   // Friends map (nons user id -> display info), for prioritizing "you" and
   // your friends in the avatar stack — same source Discover's cards use.
   const [friendMap, setFriendMap] = useState<Map<number, Activity['user']>>(new Map())
@@ -78,6 +82,25 @@ export default function ChallengeDetailScreen() {
     }
   }
 
+  const saveGoal = async () => {
+    if (!challenge) return
+    if (!isAuthenticated) {
+      redirectToNonsLogin()
+      return
+    }
+    const n = Number(goalInput)
+    if (!n || n <= 0) return
+    setBusy(true)
+    try {
+      const updated = await challengeService.setChallengeGoal(challenge.id, n)
+      setChallenge(updated)
+      setEditingGoal(false)
+      setGoalInput('')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   if (loading) {
     return <Layout><div className="py-24 text-center text-[var(--text-muted)]">{t('loading')}</div></Layout>
   }
@@ -86,6 +109,7 @@ export default function ChallengeDetailScreen() {
   }
 
   const isOwner = !!authUser && authUser.id === challenge.created_by
+  const goal = isGoalChallenge(challenge)
   const hasProgress = challenge.joined && typeof challenge.target === 'number' && challenge.target > 0
   const pct = hasProgress ? Math.min(100, Math.round(((challenge.progress ?? 0) / challenge.target!) * 100)) : 0
   const completed = challenge.joined && (challenge.completed_at ?? 0) > 0
@@ -103,12 +127,18 @@ export default function ChallengeDetailScreen() {
 
         <div className="mt-3 flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
-            <h1 className="text-2xl font-bold tracking-tight text-[var(--text)]">{challenge.title}</h1>
+            <h1 className="text-2xl font-bold tracking-tight text-[var(--text)]">{challengeTitle(t, challenge)}</h1>
             {challenge.creator_name && (
               <p className="mt-1 text-sm text-[var(--text-muted)]">{t('byCreator', { name: challenge.creator_name })}</p>
             )}
           </div>
           <div className="flex flex-shrink-0 items-center gap-2">
+            {challenge.official && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-[var(--primary-soft)] px-3 py-1.5 text-xs font-medium text-nonsprimary">
+                <IoRibbonOutline className="h-3.5 w-3.5" />
+                {t('challengeOfficialBadge')}
+              </span>
+            )}
             {challenge.private && (
               <span className="inline-flex items-center gap-1 rounded-full bg-[var(--surface)] px-3 py-1.5 text-xs font-medium text-[var(--text-muted)]">
                 <IoLockClosedOutline className="h-3.5 w-3.5" />
@@ -132,8 +162,9 @@ export default function ChallengeDetailScreen() {
             )}
             {/* A private ("personal only") challenge can only be joined by its
                 creator, who is auto-joined at creation — so no join action is
-                offered to anyone else. */}
-            {(!challenge.private || isOwner) && (
+                offered to anyone else. Goal challenges use the goal panel below
+                instead of a join button. */}
+            {!goal && (!challenge.private || isOwner) && (
               <button
                 onClick={toggleJoin}
                 disabled={busy}
@@ -157,7 +188,9 @@ export default function ChallengeDetailScreen() {
           {challenge.media_type && (
             <span className="rounded-full border border-[var(--border-subtle)] px-2.5 py-1">{typeWord(t, challenge.media_type)}</span>
           )}
-          <span className="rounded-full border border-[var(--border-subtle)] px-2.5 py-1">{t('goal')}: {goalLabel(t, challenge)}</span>
+          {!goal && (
+            <span className="rounded-full border border-[var(--border-subtle)] px-2.5 py-1">{t('goal')}: {goalLabel(t, challenge)}</span>
+          )}
           {(startLabel || endLabel) && (
             <span className="rounded-full border border-[var(--border-subtle)] px-2.5 py-1">
               {startLabel || '…'} – {endLabel || '…'}
@@ -191,7 +224,50 @@ export default function ChallengeDetailScreen() {
           </div>
         )}
 
-        {hasProgress && (
+        {goal ? (
+          <div className="mt-5 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] p-4">
+            <div className="mb-3 flex items-center gap-2">
+              <IoRibbonOutline className="h-4 w-4 text-nonsprimary" />
+              <span className="text-sm font-semibold text-[var(--text)]">{t('yourGoal')}</span>
+            </div>
+            {hasProgress && !editingGoal ? (
+              <>
+                <div className="mb-1.5 flex items-center justify-between text-sm text-[var(--text-muted)]">
+                  <span>{t('readingGoalProgress', { progress: challenge.progress ?? 0, target: challenge.target ?? 0 })}</span>
+                  <span className="font-semibold text-nonsprimary">{pct}%</span>
+                </div>
+                <div className="h-2 w-full overflow-hidden rounded-full bg-[var(--container-2)]">
+                  <div className="h-full rounded-full bg-nonsprimary transition-all" style={{ width: `${pct}%` }} />
+                </div>
+                <button
+                  onClick={() => { setEditingGoal(true); setGoalInput(String(challenge.target ?? '')) }}
+                  className="mt-3 text-sm font-medium text-nonsprimary hover:underline"
+                >
+                  {t('changeGoal')}
+                </button>
+              </>
+            ) : (
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min={1}
+                  value={goalInput}
+                  onChange={(e) => setGoalInput(e.target.value)}
+                  placeholder="30"
+                  className="h-10 w-24 rounded-lg border border-[var(--border-subtle)] bg-[var(--input)] px-3 text-sm text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-ring)]"
+                />
+                <span className="text-sm text-[var(--text-muted)]">{t('books')}</span>
+                <button
+                  onClick={saveGoal}
+                  disabled={busy || !goalInput}
+                  className="ml-auto h-10 rounded-lg bg-nonsprimary px-5 text-sm font-medium text-white hover:bg-nonsprimaryfocus disabled:opacity-50"
+                >
+                  {t('setGoal')}
+                </button>
+              </div>
+            )}
+          </div>
+        ) : hasProgress ? (
           <div className="mt-5">
             <div className="mb-1.5 flex items-center justify-between text-sm text-[var(--text-muted)]">
               <span>{challenge.progress ?? 0} / {challenge.target}</span>
@@ -201,7 +277,7 @@ export default function ChallengeDetailScreen() {
               <div className="h-full rounded-full bg-nonsprimary transition-all" style={{ width: `${pct}%` }} />
             </div>
           </div>
-        )}
+        ) : null}
       </div>
 
       {isOwner && (

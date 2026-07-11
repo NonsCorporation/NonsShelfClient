@@ -13,6 +13,22 @@ export const typeWord = (t: Translate, type: MediaType) =>
 export const goalLabel = (t: Translate, challenge: Challenge): string =>
   challenge.target_count != null ? String(challenge.target_count) : t('everythingMatching')
 
+/** True for a per-participant goal challenge (each reader sets their own
+ *  number), e.g. the official yearly reading challenge. */
+export const isGoalChallenge = (challenge: Challenge): boolean => challenge.period !== ''
+
+/** The year an official period challenge covers, from its start date. */
+export const challengeYear = (challenge: Challenge): number =>
+  new Date(challenge.start_date * 1000).getUTCFullYear()
+
+/** Display title: the official yearly challenge's title is stored in English
+ *  ("2026 Reading Challenge"); render it localized instead. Ordinary
+ *  challenges use their stored title as-is. */
+export const challengeTitle = (t: Translate, challenge: Challenge): string =>
+  challenge.official && challenge.period === 'yearly'
+    ? t('readingGoalTitle', { year: challengeYear(challenge) })
+    : challenge.title
+
 // A challenge condition → its display text (server-resolved `label` for
 // list/person conditions, the raw value for genre/year, a bare fallback for
 // anything the client doesn't specially know about — e.g. tag_id).

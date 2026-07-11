@@ -17,14 +17,14 @@ import { connectionService } from '../services/connectionService'
 import { challengeService } from '../services/challengeService'
 import { getFriendUsers, type Activity } from '../services/activityService'
 import type { MediaItem, MediaType, ShelfStatus, CuratedListDiscoverEntry, Franchise, Challenge } from '../types'
-import { typeWord, goalLabel, conditionText } from '../lib/challenge'
+import { typeWord, goalLabel, conditionText, challengeTitle, isGoalChallenge } from '../lib/challenge'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
 import { redirectToNonsLogin } from '../lib/api'
 import {
   IoStar, IoPeopleOutline, IoLogInOutline, IoSparklesOutline, IoArrowForward,
   IoChevronBack, IoChevronForward, IoLayersOutline, IoPlanetOutline, IoTrophyOutline, IoAdd,
-  IoLockClosedOutline,
+  IoLockClosedOutline, IoRibbonOutline,
 } from 'react-icons/io5'
 import { mediaPath } from '../lib/paths'
 import TypeBadge from '../components/TypeBadge'
@@ -1028,19 +1028,29 @@ function ChallengeCard({
   // who is auto-joined at creation — so no join action is shown to others.
   const isOwner = !!viewer && viewer.id === challenge.created_by
   const canJoin = !challenge.private || isOwner
+  // A goal challenge (the yearly reading challenge) isn't "joined" with a
+  // shared button — each reader sets their own number on the challenge page.
+  const goal = isGoalChallenge(challenge)
+  const hasGoalSet = challenge.joined && (challenge.target ?? 0) > 0
 
   return (
     <div className="flex flex-col gap-3 rounded-2xl border border-[var(--border-subtle)] bg-[var(--container)] p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <Link to={`/challenge/${challenge.uuid}`} className="block truncate text-base font-semibold text-[var(--text)] hover:text-nonsprimary hover:underline">
-            {challenge.title}
+            {challengeTitle(t, challenge)}
           </Link>
           {challenge.creator_name && (
             <p className="truncate text-xs text-[var(--text-muted)]">{t('byCreator', { name: challenge.creator_name })}</p>
           )}
         </div>
         <div className="flex flex-shrink-0 items-center gap-1.5">
+          {challenge.official && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-[var(--primary-soft)] px-2.5 py-1 text-[11px] font-medium text-nonsprimary">
+              <IoRibbonOutline className="h-3 w-3" />
+              {t('challengeOfficialBadge')}
+            </span>
+          )}
           {challenge.private && (
             <span className="inline-flex items-center gap-1 rounded-full border border-[var(--border-subtle)] bg-[var(--surface)] px-2.5 py-1 text-[11px] font-medium text-[var(--text-muted)]">
               <IoLockClosedOutline className="h-3 w-3" />
@@ -1066,7 +1076,9 @@ function ChallengeCard({
         {challenge.media_type && (
           <span className="rounded-full border border-[var(--border-subtle)] px-2 py-0.5">{typeWord(t, challenge.media_type)}</span>
         )}
-        <span className="rounded-full border border-[var(--border-subtle)] px-2 py-0.5">{t('goal')}: {goalText}</span>
+        {!goal && (
+          <span className="rounded-full border border-[var(--border-subtle)] px-2 py-0.5">{t('goal')}: {goalText}</span>
+        )}
         {challenge.conditions.map((cond, i) => {
           const text = conditionText(t, cond)
           const chipCls = 'rounded-full border border-[var(--border-subtle)] px-2 py-0.5'
@@ -1094,17 +1106,30 @@ function ChallengeCard({
         </div>
       )}
 
-      {canJoin && (
-        <button
-          onClick={() => (challenge.joined ? onLeave(challenge) : onJoin(challenge))}
-          className={`mt-auto h-9 rounded-lg text-sm font-medium transition-colors ${
-            challenge.joined
+      {goal ? (
+        <Link
+          to={`/challenge/${challenge.uuid}`}
+          className={`mt-auto flex h-9 items-center justify-center rounded-lg text-sm font-medium transition-colors ${
+            hasGoalSet
               ? 'border border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--text)]'
               : 'bg-nonsprimary text-white hover:bg-nonsprimaryfocus'
           }`}
         >
-          {challenge.joined ? t('leaveChallenge') : t('joinChallenge')}
-        </button>
+          {hasGoalSet ? t('changeGoal') : t('setGoal')}
+        </Link>
+      ) : (
+        canJoin && (
+          <button
+            onClick={() => (challenge.joined ? onLeave(challenge) : onJoin(challenge))}
+            className={`mt-auto h-9 rounded-lg text-sm font-medium transition-colors ${
+              challenge.joined
+                ? 'border border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--text)]'
+                : 'bg-nonsprimary text-white hover:bg-nonsprimaryfocus'
+            }`}
+          >
+            {challenge.joined ? t('leaveChallenge') : t('joinChallenge')}
+          </button>
+        )
       )}
     </div>
   )
