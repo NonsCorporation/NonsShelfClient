@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { useParams, Link } from '@/lib/router'
-import { IoPencilOutline, IoTrophyOutline } from 'react-icons/io5'
+import { IoLockClosedOutline, IoPencilOutline, IoTrophyOutline } from 'react-icons/io5'
 import Layout from '../components/layout/Layout'
 import ChallengeAvatarStack from '../components/ChallengeAvatarStack'
 import CreateChallengeModal from '../components/CreateChallengeModal'
@@ -109,6 +109,12 @@ export default function ChallengeDetailScreen() {
             )}
           </div>
           <div className="flex flex-shrink-0 items-center gap-2">
+            {challenge.private && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-[var(--surface)] px-3 py-1.5 text-xs font-medium text-[var(--text-muted)]">
+                <IoLockClosedOutline className="h-3.5 w-3.5" />
+                {t('challengePrivateBadge')}
+              </span>
+            )}
             {completed && (
               <span className="rounded-full px-3 py-1.5 text-xs font-medium" style={{ backgroundColor: '#3ec98a22', color: '#3ec98a' }}>
                 {t('challengeCompleted')}
@@ -124,17 +130,22 @@ export default function ChallengeDetailScreen() {
                 <IoPencilOutline className="h-4 w-4" />
               </button>
             )}
-            <button
-              onClick={toggleJoin}
-              disabled={busy}
-              className={`h-10 rounded-lg px-5 text-sm font-medium transition-colors disabled:opacity-50 ${
-                challenge.joined
-                  ? 'border border-[var(--border-subtle)] bg-[var(--surface)] text-[var(--text-muted)] hover:text-[var(--text)]'
-                  : 'bg-nonsprimary text-white hover:bg-nonsprimaryfocus'
-              }`}
-            >
-              {challenge.joined ? t('leaveChallenge') : t('joinChallenge')}
-            </button>
+            {/* A private ("personal only") challenge can only be joined by its
+                creator, who is auto-joined at creation — so no join action is
+                offered to anyone else. */}
+            {(!challenge.private || isOwner) && (
+              <button
+                onClick={toggleJoin}
+                disabled={busy}
+                className={`h-10 rounded-lg px-5 text-sm font-medium transition-colors disabled:opacity-50 ${
+                  challenge.joined
+                    ? 'border border-[var(--border-subtle)] bg-[var(--surface)] text-[var(--text-muted)] hover:text-[var(--text)]'
+                    : 'bg-nonsprimary text-white hover:bg-nonsprimaryfocus'
+                }`}
+              >
+                {challenge.joined ? t('leaveChallenge') : t('joinChallenge')}
+              </button>
+            )}
           </div>
         </div>
 

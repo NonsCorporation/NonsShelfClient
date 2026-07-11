@@ -45,6 +45,8 @@ export type CreateChallengeInput = {
   title: string
   description?: string
   mediaType: '' | 'book' | 'movie' | 'series'
+  /** "Personal only": lists publicly but only the creator can join. */
+  private: boolean
   /** null ⇒ "complete every item matching mediaType + conditions". */
   targetCount: number | null
   /** Unix seconds; 0 ⇒ unset. */
@@ -62,6 +64,7 @@ async function createChallenge(input: CreateChallengeInput): Promise<Challenge> 
         title: input.title,
         description: input.description || '',
         media_type: input.mediaType,
+        private: input.private,
         target_count: input.targetCount,
         start_date: input.startDate,
         end_date: input.endDate,
@@ -80,6 +83,7 @@ async function updateChallenge(id: number, input: CreateChallengeInput): Promise
         title: input.title,
         description: input.description || '',
         media_type: input.mediaType,
+        private: input.private,
         target_count: input.targetCount,
         start_date: input.startDate,
         end_date: input.endDate,

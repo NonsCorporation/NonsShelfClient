@@ -221,6 +221,9 @@ export type Challenge = {
   /** Empty string means "any type". */
   media_type: '' | MediaType
   metric: 'finished' | 'added' | 'rated'
+  /** "Personal only": the challenge lists publicly, but nobody except its
+   *  creator can join. */
+  private: boolean
   /** null means "complete every item matching media_type + conditions". */
   target_count: number | null
   start_date: number

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { IoClose, IoPersonOutline, IoSearch } from 'react-icons/io5'
+import { IoClose, IoLockClosedOutline, IoPersonOutline, IoSearch } from 'react-icons/io5'
 import DatePicker from './DatePicker'
 import { challengeService } from '../services/challengeService'
 import { catalogService, type PersonHit } from '../services/catalogService'
@@ -36,6 +36,7 @@ export default function CreateChallengeModal({ isOpen, onClose, onSaved, challen
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [mediaType, setMediaType] = useState<'' | MediaType>('')
+  const [isPrivate, setIsPrivate] = useState(false)
   const [goalMode, setGoalMode] = useState<'number' | 'all'>('number')
   const [targetCount, setTargetCount] = useState('')
   const [startDate, setStartDate] = useState('')
@@ -63,6 +64,7 @@ export default function CreateChallengeModal({ isOpen, onClose, onSaved, challen
       setTitle(challenge.title)
       setDescription(challenge.description)
       setMediaType(challenge.media_type)
+      setIsPrivate(challenge.private)
       setGoalMode(challenge.target_count == null ? 'all' : 'number')
       setTargetCount(challenge.target_count != null ? String(challenge.target_count) : '')
       setStartDate(fromUnix(challenge.start_date))
@@ -81,6 +83,7 @@ export default function CreateChallengeModal({ isOpen, onClose, onSaved, challen
       setTitle('')
       setDescription('')
       setMediaType('')
+      setIsPrivate(false)
       setGoalMode('number')
       setTargetCount('')
       setStartDate('')
@@ -132,6 +135,7 @@ export default function CreateChallengeModal({ isOpen, onClose, onSaved, challen
         title: title.trim(),
         description: description.trim(),
         mediaType,
+        private: isPrivate,
         targetCount: goalMode === 'all' ? null : (Number(targetCount) || null),
         startDate: toUnix(startDate),
         endDate: toUnix(endDate),
@@ -194,6 +198,33 @@ export default function CreateChallengeModal({ isOpen, onClose, onSaved, challen
             className="resize-none rounded-lg border border-[var(--border-subtle)] bg-[var(--input)] p-3 text-sm text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-ring)]"
           />
         </label>
+
+        {/* Personal only: the challenge still lists publicly, but nobody but
+            the creator can join it. */}
+        <button
+          type="button"
+          onClick={() => setIsPrivate((v) => !v)}
+          className="flex items-center justify-between gap-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] p-3 text-left"
+        >
+          <span className="flex items-start gap-2.5">
+            <IoLockClosedOutline className="mt-0.5 h-4 w-4 flex-shrink-0 text-nonsprimary" />
+            <span className="flex flex-col">
+              <span className="text-sm font-medium text-[var(--text)]">{t('challengePrivate')}</span>
+              <span className="text-xs text-[var(--text-muted)]">{t('challengePrivateHint')}</span>
+            </span>
+          </span>
+          <span
+            className={`relative h-6 w-11 flex-shrink-0 rounded-full transition-colors ${
+              isPrivate ? 'bg-nonsprimary' : 'bg-[var(--container-2)]'
+            }`}
+          >
+            <span
+              className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-transform ${
+                isPrivate ? 'translate-x-[22px]' : 'translate-x-0.5'
+              }`}
+            />
+          </span>
+        </button>
 
         {/* Scope: media type */}
         <div className="flex flex-col gap-1.5">

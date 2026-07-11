@@ -24,6 +24,7 @@ import { redirectToNonsLogin } from '../lib/api'
 import {
   IoStar, IoPeopleOutline, IoLogInOutline, IoSparklesOutline, IoArrowForward,
   IoChevronBack, IoChevronForward, IoLayersOutline, IoPlanetOutline, IoTrophyOutline, IoAdd,
+  IoLockClosedOutline,
 } from 'react-icons/io5'
 import { mediaPath } from '../lib/paths'
 import TypeBadge from '../components/TypeBadge'
@@ -1023,6 +1024,10 @@ function ChallengeCard({
   const hasProgress = challenge.joined && typeof challenge.target === 'number' && challenge.target > 0
   const pct = hasProgress ? Math.min(100, Math.round(((challenge.progress ?? 0) / challenge.target!) * 100)) : 0
   const completed = challenge.joined && (challenge.completed_at ?? 0) > 0
+  // A private ("personal only") challenge can only be joined by its creator,
+  // who is auto-joined at creation — so no join action is shown to others.
+  const isOwner = !!viewer && viewer.id === challenge.created_by
+  const canJoin = !challenge.private || isOwner
 
   return (
     <div className="flex flex-col gap-3 rounded-2xl border border-[var(--border-subtle)] bg-[var(--container)] p-4">
@@ -1036,6 +1041,12 @@ function ChallengeCard({
           )}
         </div>
         <div className="flex flex-shrink-0 items-center gap-1.5">
+          {challenge.private && (
+            <span className="inline-flex items-center gap-1 rounded-full border border-[var(--border-subtle)] bg-[var(--surface)] px-2.5 py-1 text-[11px] font-medium text-[var(--text-muted)]">
+              <IoLockClosedOutline className="h-3 w-3" />
+              {t('challengePrivateBadge')}
+            </span>
+          )}
           {completed && (
             <span className="rounded-full px-2.5 py-1 text-[11px] font-medium" style={{ backgroundColor: '#3ec98a22', color: '#3ec98a' }}>
               {t('challengeCompleted')}
@@ -1083,16 +1094,18 @@ function ChallengeCard({
         </div>
       )}
 
-      <button
-        onClick={() => (challenge.joined ? onLeave(challenge) : onJoin(challenge))}
-        className={`mt-auto h-9 rounded-lg text-sm font-medium transition-colors ${
-          challenge.joined
-            ? 'border border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--text)]'
-            : 'bg-nonsprimary text-white hover:bg-nonsprimaryfocus'
-        }`}
-      >
-        {challenge.joined ? t('leaveChallenge') : t('joinChallenge')}
-      </button>
+      {canJoin && (
+        <button
+          onClick={() => (challenge.joined ? onLeave(challenge) : onJoin(challenge))}
+          className={`mt-auto h-9 rounded-lg text-sm font-medium transition-colors ${
+            challenge.joined
+              ? 'border border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--text)]'
+              : 'bg-nonsprimary text-white hover:bg-nonsprimaryfocus'
+          }`}
+        >
+          {challenge.joined ? t('leaveChallenge') : t('joinChallenge')}
+        </button>
+      )}
     </div>
   )
 }
