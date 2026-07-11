@@ -8,7 +8,7 @@ import { NotificationProvider } from '@/contexts/NotificationContext'
 import { PreferencesProvider } from '@/contexts/PreferencesContext'
 import { CollectionProvider } from '@/contexts/CollectionContext'
 import { ListProvider } from '@/contexts/ListContext'
-import RequireAuth from '@/components/RequireAuth'
+import RequireAuth from '@/components/auth/RequireAuth'
 
 // Mirrors the old src/main.tsx provider tree, with RequireAuth gating every
 // route (the whole app was behind the shared SSO session before, and still is).

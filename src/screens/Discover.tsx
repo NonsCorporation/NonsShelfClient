@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from '@/lib/router'
 import Layout from '../components/layout/Layout'
-import CatalogCard from '../components/CatalogCard'
-import FindSomething from '../components/FindSomething'
-import BoringAvatar from '../components/BoringAvatar'
-import ShelfStatusBar from '../components/ShelfStatusBar'
-import FinishModal from '../components/FinishModal'
-import CreateChallengeModal from '../components/CreateChallengeModal'
-import ChallengeAvatarStack, { type ChallengeViewer } from '../components/ChallengeAvatarStack'
+import CatalogCard from '@/components/media/CatalogCard'
+import FindSomething from '@/components/import-export/FindSomething'
+import BoringAvatar from '@/components/ui/BoringAvatar'
+import ShelfStatusBar from '@/components/media/ShelfStatusBar'
+import FinishModal from '@/components/reading/FinishModal'
+import CreateChallengeModal from '@/components/challenges/CreateChallengeModal'
+import ChallengeAvatarStack, { type ChallengeViewer } from '@/components/challenges/ChallengeAvatarStack'
 import type { CatalogItem } from '../services/catalogService'
 import { discoverService } from '../services/discoverService'
 import type { DiscoverGenre, DiscoverPerson, Spotlights } from '../services/discoverService'
@@ -27,7 +27,7 @@ import {
   IoLockClosedOutline, IoRibbonOutline,
 } from 'react-icons/io5'
 import { mediaPath } from '../lib/paths'
-import TypeBadge from '../components/TypeBadge'
+import TypeBadge from '@/components/badges/TypeBadge'
 
 type Translate = (k: string, v?: Record<string, string | number>) => string
 

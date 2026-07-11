@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams, Link } from '@/lib/router'
 import Layout from '../components/layout/Layout'
-import CatalogCard from '../components/CatalogCard'
-import FinishModal from '../components/FinishModal'
+import CatalogCard from '@/components/media/CatalogCard'
+import FinishModal from '@/components/reading/FinishModal'
 import { catalogService } from '../services/catalogService'
 import type { CatalogItem, PersonHit } from '../services/catalogService'
 import { libraryService } from '../services/libraryService'
@@ -10,8 +10,8 @@ import type { MediaItem, MediaType, ShelfStatus } from '../types'
 import { useLanguage } from '../contexts/LanguageContext'
 import { IoSearchOutline, IoPersonOutline, IoAppsOutline, IoBookOutline, IoFilmOutline, IoTvOutline } from 'react-icons/io5'
 import type { IconType } from 'react-icons'
-import InfinityLoader from '../components/InfinityLoader'
-import BoringAvatar from '../components/BoringAvatar'
+import InfinityLoader from '@/components/ui/InfinityLoader'
+import BoringAvatar from '@/components/ui/BoringAvatar'
 
 const keyOf = (it: { type: string; title: string }) => `${it.type}:${it.title.trim().toLowerCase()}`
 // Builds the minimal MediaItem shape FinishModal/ShelfStatusBar need from a catalog row.

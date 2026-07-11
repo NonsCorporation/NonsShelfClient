@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from '@/lib/router'
 import Layout from '../components/layout/Layout'
-import BoringAvatar from '../components/BoringAvatar'
+import BoringAvatar from '@/components/ui/BoringAvatar'
 import { useNotifications } from '../contexts/NotificationContext'
 import {
   getNotifications,

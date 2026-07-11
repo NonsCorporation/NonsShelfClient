@@ -23,8 +23,8 @@ import {
 import { useLanguage } from '../contexts/LanguageContext'
 import { redirectToNonsLogin } from '../lib/api'
 import { compactCount } from '../services/catalogService'
-import ShelfLogo from '../components/ShelfLogo'
-import NonsLogo from '../components/NonsLogo'
+import ShelfLogo from '@/components/branding/ShelfLogo'
+import NonsLogo from '@/components/branding/NonsLogo'
 
 type Cover = { title: string; src: string; rating: number; ratings: number }
 

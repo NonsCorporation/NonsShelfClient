@@ -1,0 +1,876 @@
+import { useEffect, useState, useCallback } from 'react'
+import { IoTrashOutline, IoCreateOutline, IoAdd, IoCheckmark, IoClose, IoLanguageOutline, IoCloudDownloadOutline, IoSparklesOutline, IoSwapHorizontalOutline, IoSearch, IoGitMergeOutline, IoStar, IoStarOutline } from 'react-icons/io5'
+import { authedFetch, downloadCoverToB2 } from '@/lib/api'
+import { librarianService } from '@/services/librarianService'
+import type { Edition } from '@/services/librarianService'
+import { catalogService } from '@/services/catalogService'
+import type { CatalogItem } from '@/services/catalogService'
+import { useLanguage } from '@/contexts/LanguageContext'
+import { useSuggestion } from '@/contexts/SuggestionContext'
+
+// True when the text contains any Cyrillic letter (already "rusified").
+const hasCyrillic = (s?: string) => !!s && /[Ѐ-ӿ]/.test(s)
+
+const LANG_OPTIONS: { code: string; label: string }[] = [
+  { code: 'en', label: 'EN — English' },
+  { code: 'ru', label: 'RU — Russian' },
+  { code: 'de', label: 'DE — German' },
+  { code: 'fr', label: 'FR — French' },
+  { code: 'es', label: 'ES — Spanish' },
+  { code: 'it', label: 'IT — Italian' },
+  { code: 'pt', label: 'PT — Portuguese' },
+  { code: 'pl', label: 'PL — Polish' },
+  { code: 'uk', label: 'UK — Ukrainian' },
+  { code: 'ro', label: 'RO — Romanian' },
+  { code: 'nl', label: 'NL — Dutch' },
+  { code: 'sv', label: 'SV — Swedish' },
+  { code: 'cs', label: 'CS — Czech' },
+  { code: 'hu', label: 'HU — Hungarian' },
+  { code: 'tr', label: 'TR — Turkish' },
+  { code: 'ja', label: 'JA — Japanese' },
+  { code: 'zh', label: 'ZH — Chinese' },
+  { code: 'ko', label: 'KO — Korean' },
+  { code: 'ar', label: 'AR — Arabic' },
+  { code: 'he', label: 'HE — Hebrew' },
+  { code: 'la', label: 'LA — Latin' },
+]
+
+// Normalize ISO 639-2/B 3-letter codes to 2-letter so existing DB values
+// still match a dropdown option (backend also normalizes on save).
+const LANG_3TO2: Record<string, string> = {
+  eng: 'en', rus: 'ru', ger: 'de', fre: 'fr', fra: 'fr', spa: 'es',
+  ita: 'it', por: 'pt', pol: 'pl', ukr: 'uk', rum: 'ro', ron: 'ro',
+  nld: 'nl', dut: 'nl', swe: 'sv', ces: 'cs', cze: 'cs', hun: 'hu',
+  tur: 'tr', jpn: 'ja', chi: 'zh', zho: 'zh', kor: 'ko', ara: 'ar',
+  heb: 'he', lat: 'la',
+}
+const normEditionLang = (s: string) => {
+  const lc = (s ?? '').trim().toLowerCase()
+  return LANG_3TO2[lc] ?? lc
+}
+
+type EditionForm = {
+  title: string
+  publisher: string
+  language: string
+  published_year: string
+  pages: string
+  isbn13: string
+  cover_url: string
+  description: string
+}
+
+const empty: EditionForm = { title: '', publisher: '', language: '', published_year: '', pages: '', isbn13: '', cover_url: '', description: '' }
+
+function toForm(e: Edition): EditionForm {
+  return {
+    title: e.title ?? '',
+    publisher: e.publisher ?? '',
+    language: normEditionLang(e.language ?? ''),
+    published_year: e.published_year ? String(e.published_year) : '',
+    pages: e.pages ? String(e.pages) : '',
+    isbn13: e.isbn13 ?? e.isbn10 ?? '',
+    cover_url: e.cover_url ?? '',
+    description: e.description ?? '',
+  }
+}
+
+function fromForm(f: EditionForm): Partial<Edition> {
+  const isbn = f.isbn13.replace(/[^0-9Xx]/g, '')
+  return {
+    title: f.title || undefined,
+    publisher: f.publisher || undefined,
+    language: f.language || undefined,
+    published_year: f.published_year ? parseInt(f.published_year, 10) : undefined,
+    pages: f.pages ? parseInt(f.pages, 10) : undefined,
+    isbn13: isbn.length === 13 ? isbn : undefined,
+    isbn10: isbn.length === 10 ? isbn : undefined,
+    cover_url: f.cover_url || undefined,
+    description: f.description.trim() || undefined,
+  }
+}
+
+// Full editions CRUD for a book work: list, add, inline edit, delete, rusify.
+// Reused by the media edit modal and the librarian edit page.
+export default function EditionsManager({
+  mediaId,
+  mediaUuid,
+  fallbackTitle,
+  fallbackAuthor,
+}: {
+  mediaId: string
+  mediaUuid?: string
+  fallbackTitle?: string
+  fallbackAuthor?: string
+}) {
+  const { t } = useLanguage()
+  const { isSuggestionMode, suggest } = useSuggestion()
+  const [editions, setEditions] = useState<Edition[]>([])
+  const [loading, setLoading] = useState(true)
+  const [editingId, setEditingId] = useState<number | null>(null)
+  const [movingId, setMovingId] = useState<number | null>(null)
+  const [adding, setAdding] = useState(false)
+  const [error, setError] = useState('')
+  const [searching, setSearching] = useState(false)
+  const [suggestionToast, setSuggestionToast] = useState('')
+
+  // Dedup (edition merge) state
+  const [dedupMode, setDedupMode] = useState(false)
+  const [dedupSelected, setDedupSelected] = useState<Set<number>>(new Set())
+  const [deduping, setDeduping] = useState(false)
+  const [dedupError, setDedupError] = useState('')
+
+  // ISBN auto-dedup state
+  const [isbnDeduping, setIsbnDeduping] = useState(false)
+  const [isbnDedupResult, setIsbnDedupResult] = useState<string | null>(null)
+
+  const targetRef = mediaUuid ?? mediaId
+
+  const reload = useCallback(() => {
+    setLoading(true)
+    authedFetch(`/api/media/${mediaId}/editions`)
+      .then((r) => (r.ok ? r.json() : { editions: [] }))
+      .then((d) => setEditions(d?.editions ?? []))
+      .catch(() => setEditions([]))
+      .finally(() => setLoading(false))
+  }, [mediaId])
+
+  useEffect(() => {
+    reload()
+  }, [reload])
+
+  const flashSuggestion = () => {
+    setSuggestionToast('Suggestion submitted for librarian review')
+    setTimeout(() => setSuggestionToast(''), 3000)
+  }
+
+  const wrap = async (fn: () => Promise<unknown>) => {
+    setError('')
+    try {
+      await fn()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    }
+  }
+
+  const handleAdd = (f: EditionForm) => {
+    if (isSuggestionMode) {
+      suggest('add_edition', targetRef, fromForm(f))
+        .then(() => { setAdding(false); flashSuggestion() })
+        .catch(() => {})
+      return
+    }
+    wrap(async () => {
+      await librarianService.addEdition(mediaId, fromForm(f))
+      setAdding(false)
+      reload()
+    })
+  }
+
+  const handleUpdate = (id: number, f: EditionForm) => {
+    if (isSuggestionMode) {
+      suggest('update_edition', `${targetRef}/${id}`, fromForm(f))
+        .then(() => { setEditingId(null); flashSuggestion() })
+        .catch(() => {})
+      return
+    }
+    wrap(async () => {
+      // is_primary isn't part of the edit form (set via the star button instead);
+      // carry the current value through so a plain field edit can't clear it.
+      const current = editions.find((e) => e.id === id)
+      await librarianService.updateEdition(mediaId, id, { ...fromForm(f), is_primary: current?.is_primary })
+      setEditingId(null)
+      reload()
+    })
+  }
+
+  const handleDelete = (id: number) => {
+    if (isSuggestionMode) {
+      suggest('delete_edition', `${targetRef}/${id}`, {})
+        .then(() => flashSuggestion())
+        .catch(() => {})
+      return
+    }
+    wrap(async () => {
+      await librarianService.deleteEdition(mediaId, id)
+      setEditions((eds) => eds.filter((e) => e.id !== id))
+    })
+  }
+
+  // Marks one edition as the default shown on /b/<uuid> when no edition/shelf
+  // copy is picked. The backend clears any other primary on the same work.
+  // UpdateEdition replaces the whole row, so the full form (not just the flag)
+  // has to go along, or every other field on this edition would be wiped.
+  const handleSetPrimary = (id: number) => {
+    const e = editions.find((x) => x.id === id)
+    if (!e) return
+    wrap(async () => {
+      await librarianService.updateEdition(mediaId, id, { ...fromForm(toForm(e)), is_primary: true })
+      setEditions((eds) => eds.map((x) => ({ ...x, is_primary: x.id === id })))
+    })
+  }
+
+  const handleMove = (id: number, targetMediaId: number) =>
+    wrap(async () => {
+      await librarianService.moveEdition(mediaId, id, targetMediaId)
+      setMovingId(null)
+      // The edition now belongs to another work, so drop it from this list.
+      setEditions((eds) => eds.filter((e) => e.id !== id))
+    })
+
+  const handleRusify = (id: number) =>
+    wrap(async () => {
+      const updated = await librarianService.rusifyEdition(id)
+      setEditions((eds) => eds.map((e) => (e.id === id ? { ...e, title: updated.title } : e)))
+    })
+
+  const handleRusifyAll = () =>
+    wrap(async () => {
+      for (const e of editions.filter((x) => !hasCyrillic(x.title))) {
+        const updated = await librarianService.rusifyEdition(e.id)
+        setEditions((eds) => eds.map((x) => (x.id === e.id ? { ...x, title: updated.title } : x)))
+      }
+    })
+
+  const exitDedupMode = () => { setDedupMode(false); setDedupSelected(new Set()); setDedupError('') }
+
+  const handleIsbnDedup = async () => {
+    setIsbnDeduping(true)
+    setIsbnDedupResult(null)
+    try {
+      const removed = await librarianService.deduplicateEditions(mediaId)
+      setIsbnDedupResult(removed > 0 ? `Removed ${removed} duplicate${removed === 1 ? '' : 's'}` : 'No duplicates found')
+      if (removed > 0) reload()
+    } catch (e) {
+      setIsbnDedupResult(e instanceof Error ? e.message : 'Failed')
+    } finally {
+      setIsbnDeduping(false)
+    }
+  }
+
+  const toggleDedupSelect = (id: number) =>
+    setDedupSelected((prev) => { const c = new Set(prev); c.has(id) ? c.delete(id) : c.add(id); return c })
+
+  const executeEditionMerge = async (keepId: number) => {
+    const selected = editions.filter((e) => dedupSelected.has(e.id))
+    const keep = selected.find((e) => e.id === keepId)!
+    const dups = selected.filter((e) => e.id !== keepId)
+    // Merge fields: keep's values have priority; fill gaps from dups in order.
+    const all = [keep, ...dups]
+    const pick = <T,>(fn: (e: Edition) => T | undefined | null): T | undefined =>
+      all.map(fn).find((v) => v != null && v !== '' && v !== 0) as T | undefined
+    const merged: Partial<Edition> = {
+      title: pick((e) => e.title),
+      publisher: pick((e) => e.publisher),
+      language: pick((e) => e.language),
+      published_year: pick((e) => e.published_year),
+      pages: pick((e) => e.pages),
+      isbn13: pick((e) => e.isbn13),
+      isbn10: pick((e) => e.isbn10),
+      cover_url: pick((e) => e.cover_url),
+      description: pick((e) => e.description),
+      // A merged-away duplicate may have carried the primary flag; keep it set on
+      // the survivor so the work doesn't lose its default edition.
+      is_primary: all.some((e) => e.is_primary),
+    }
+    setDeduping(true)
+    setDedupError('')
+    try {
+      await librarianService.updateEdition(mediaId, keepId, merged)
+      for (const dup of dups) await librarianService.deleteEdition(mediaId, dup.id)
+      exitDedupMode()
+      reload()
+    } catch (e) {
+      setDedupError(e instanceof Error ? e.message : 'Merge failed')
+    } finally {
+      setDeduping(false)
+    }
+  }
+
+  if (loading) return <p className="text-sm text-[var(--text-muted)]">{t('loading')}</p>
+
+  return (
+    <div className="flex flex-col gap-3">
+      {error && <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-500">{error}</p>}
+      {suggestionToast && (
+        <p className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-600">
+          {suggestionToast}
+        </p>
+      )}
+
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs text-[var(--text-muted)]">
+          {editions.length} {(t('editions') || 'Editions').toLowerCase()}
+        </span>
+        {!isSuggestionMode && (
+          <div className="flex items-center gap-2">
+            {!dedupMode && (
+              <>
+                <button
+                  onClick={() => setSearching((v) => !v)}
+                  className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors ${
+                    searching
+                      ? 'border-nonsprimary bg-[var(--primary-soft)] text-nonsprimary'
+                      : 'border-[var(--border-subtle)] bg-[var(--surface)] text-[var(--text)] hover:border-nonsprimary hover:text-nonsprimary'
+                  }`}
+                >
+                  <IoSearch className="h-3.5 w-3.5" />
+                  {t('autoFindEditions')}
+                </button>
+                {editions.some((e) => !hasCyrillic(e.title)) && (
+                  <button
+                    onClick={handleRusifyAll}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] px-2.5 py-1 text-xs font-medium text-[var(--text)] transition-colors hover:border-nonsprimary hover:text-nonsprimary"
+                  >
+                    <IoLanguageOutline className="h-3.5 w-3.5 text-nonsprimary" />
+                    {t('rusifyAll')}
+                  </button>
+                )}
+              </>
+            )}
+            {editions.length >= 2 && (
+              <>
+                <button
+                  onClick={handleIsbnDedup}
+                  disabled={isbnDeduping || dedupMode}
+                  title="Auto-deduplicate editions by ISBN / OL key"
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] px-2.5 py-1 text-xs font-medium text-[var(--text)] transition-colors hover:border-nonsprimary hover:text-nonsprimary disabled:opacity-50"
+                >
+                  <IoGitMergeOutline className="h-3.5 w-3.5" />
+                  {isbnDeduping ? 'Deduping…' : 'Dedup ISBNs'}
+                </button>
+                <button
+                  onClick={() => dedupMode ? exitDedupMode() : (setDedupMode(true), setEditingId(null), setMovingId(null), setAdding(false))}
+                  className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors ${
+                    dedupMode
+                      ? 'border-nonsprimary bg-[var(--primary-soft)] text-nonsprimary'
+                      : 'border-[var(--border-subtle)] bg-[var(--surface)] text-[var(--text)] hover:border-nonsprimary hover:text-nonsprimary'
+                  }`}
+                >
+                  <IoGitMergeOutline className="h-3.5 w-3.5" />
+                  {dedupMode ? 'Exit dedup' : 'Dedup'}
+                </button>
+              </>
+            )}
+            {isbnDedupResult && (
+              <span className="text-xs text-[var(--text-muted)]">{isbnDedupResult}</span>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Dedup instruction banner */}
+      {dedupMode && (
+        <div className="flex items-center justify-between gap-2 rounded-lg border border-nonsprimary/40 bg-[var(--primary-soft)] px-3 py-2 text-xs text-[var(--text)]">
+          {dedupSelected.size < 2
+            ? 'Select 2 or more editions to merge'
+            : `${dedupSelected.size} selected — choose which one to keep`}
+          {dedupSelected.size > 0 && (
+            <button onClick={() => setDedupSelected(new Set())} className="text-[var(--text-muted)] hover:text-[var(--text)]">
+              Clear
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Dedup "keep which?" panel */}
+      {dedupMode && dedupSelected.size >= 2 && (
+        <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--container)] p-3">
+          <p className="mb-2 text-xs font-semibold text-[var(--text)]">Keep which edition? The rest will be merged into it.</p>
+          {dedupError && <p className="mb-2 text-xs text-red-500">{dedupError}</p>}
+          <div className="flex flex-col gap-1.5">
+            {editions.filter((e) => dedupSelected.has(e.id)).map((e) => (
+              <div key={e.id} className="flex items-center justify-between gap-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] px-2.5 py-2">
+                <div className="flex min-w-0 items-center gap-2">
+                  <div className="h-10 w-7 flex-shrink-0 overflow-hidden rounded bg-[var(--container-2)]">
+                    {e.cover_url && <img src={e.cover_url} alt="" className="h-full w-full object-cover" />}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate text-xs font-medium text-[var(--text)]">{e.title || fallbackTitle}</p>
+                    <p className="truncate text-[10px] text-[var(--text-muted)]">
+                      {[e.publisher, e.published_year, (e.language || '').toUpperCase() || undefined, e.isbn13 || e.isbn10].filter(Boolean).join(' · ')}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => executeEditionMerge(e.id)}
+                  disabled={deduping}
+                  className="inline-flex flex-shrink-0 items-center gap-1 rounded-lg bg-nonsprimary px-2.5 py-1 text-xs font-semibold text-white hover:bg-nonsprimaryfocus disabled:opacity-50"
+                >
+                  <IoGitMergeOutline className="h-3 w-3" />
+                  {deduping ? '…' : 'Keep'}
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {searching && !dedupMode && (
+        <EditionSearchPanel
+          mediaId={mediaId}
+          initialTitle={fallbackTitle ?? ''}
+          initialAuthor={fallbackAuthor ?? ''}
+          onDone={() => { setSearching(false); reload() }}
+          onClose={() => setSearching(false)}
+        />
+      )}
+
+      {editions.length === 0 && <p className="text-sm text-[var(--text-muted)]">{t('noEditionsYet')}</p>}
+
+      <div className="flex flex-col gap-2">
+        {editions.map((e) =>
+          editingId === e.id ? (
+            <EditionRowForm
+              key={e.id}
+              initial={toForm(e)}
+              submitLabel={t('save')}
+              onSubmit={(f) => handleUpdate(e.id, f)}
+              onCancel={() => setEditingId(null)}
+              isEditing
+            />
+          ) : movingId === e.id ? (
+            <MoveEditionPicker
+              key={e.id}
+              currentMediaId={mediaId}
+              editionTitle={e.title || fallbackTitle}
+              onMove={(targetId) => handleMove(e.id, targetId)}
+              onCancel={() => setMovingId(null)}
+            />
+          ) : (() => {
+            const isSelected = dedupSelected.has(e.id)
+            return (
+              <div
+                key={e.id}
+                onClick={dedupMode ? () => toggleDedupSelect(e.id) : undefined}
+                className={`flex items-center gap-3 rounded-xl border p-2.5 transition-colors ${
+                  dedupMode
+                    ? isSelected
+                      ? 'cursor-pointer border-nonsprimary bg-[var(--primary-soft)]'
+                      : 'cursor-pointer border-[var(--border-subtle)] bg-[var(--surface)] hover:border-nonsprimary/50'
+                    : 'border-[var(--border-subtle)] bg-[var(--surface)]'
+                }`}
+              >
+                {dedupMode && (
+                  <div className={`flex h-4 w-4 flex-shrink-0 items-center justify-center rounded border-2 transition-colors ${
+                    isSelected ? 'border-nonsprimary bg-nonsprimary' : 'border-[var(--border-strong)]'
+                  }`}>
+                    {isSelected && <IoCheckmark className="h-2.5 w-2.5 text-white" />}
+                  </div>
+                )}
+                <div className="h-14 w-10 flex-shrink-0 overflow-hidden rounded bg-[var(--container-2)]">
+                  {e.cover_url ? <img src={e.cover_url} alt="" loading="lazy" className="h-full w-full object-cover" /> : null}
+                </div>
+                <div className="min-w-0 flex-1 text-sm">
+                  <p className="truncate text-[var(--text)]">
+                    {e.title || fallbackTitle}
+                    {e.is_primary && (
+                      <span className="ml-1.5 inline-flex items-center gap-1 rounded-full bg-[var(--primary-soft)] px-1.5 py-0.5 text-[10px] font-medium text-nonsprimary align-middle">
+                        <IoStar className="h-2.5 w-2.5" />
+                        Primary
+                      </span>
+                    )}
+                  </p>
+                  <p className="truncate text-xs text-[var(--text-muted)]">
+                    {[
+                      e.publisher,
+                      e.published_year || undefined,
+                      (e.language || '').toUpperCase() || undefined,
+                      e.pages ? t('pagesCount', { count: e.pages }) : undefined,
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </p>
+                  {(e.isbn13 || e.isbn10) && <p className="text-xs text-[var(--text-muted)]">ISBN {e.isbn13 || e.isbn10}</p>}
+                </div>
+                {!dedupMode && !isSuggestionMode && !e.is_primary && (
+                  <button onClick={() => handleSetPrimary(e.id)} title="Set as primary edition" className="flex-shrink-0 rounded-lg p-2 text-[var(--text-muted)] hover:bg-[var(--primary-soft)] hover:text-nonsprimary">
+                    <IoStarOutline className="h-4 w-4" />
+                  </button>
+                )}
+                {!dedupMode && !isSuggestionMode && !hasCyrillic(e.title) && (
+                  <button onClick={() => handleRusify(e.id)} title={t('rusify')} className="flex-shrink-0 rounded-lg p-2 text-[var(--text-muted)] hover:bg-[var(--primary-soft)] hover:text-nonsprimary">
+                    <IoLanguageOutline className="h-4 w-4" />
+                  </button>
+                )}
+                {!dedupMode && !isSuggestionMode && (
+                  <button onClick={() => setMovingId(e.id)} title={t('moveEditionTitle')} className="flex-shrink-0 rounded-lg p-2 text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]">
+                    <IoSwapHorizontalOutline className="h-4 w-4" />
+                  </button>
+                )}
+                {!dedupMode && (
+                  <button onClick={() => setEditingId(e.id)} title={t('edit')} className="flex-shrink-0 rounded-lg p-2 text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]">
+                    <IoCreateOutline className="h-4 w-4" />
+                  </button>
+                )}
+                {!dedupMode && (
+                  <button onClick={() => handleDelete(e.id)} title={t('delete')} className="flex-shrink-0 rounded-lg p-2 text-[var(--text-muted)] hover:bg-red-500/10 hover:text-red-500">
+                    <IoTrashOutline className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+            )
+          })(),
+        )}
+      </div>
+
+      {!dedupMode && (
+        adding ? (
+          <EditionRowForm initial={empty} submitLabel={t('addEdition')} onSubmit={handleAdd} onCancel={() => setAdding(false)} />
+        ) : (
+          <button
+            onClick={() => setAdding(true)}
+            className="inline-flex w-fit items-center gap-2 rounded-lg bg-[var(--surface)] px-4 py-2 text-sm font-semibold text-[var(--text)] hover:bg-[var(--border-subtle)]"
+          >
+            <IoAdd className="h-4 w-4" />
+            {t('addEdition')}
+          </button>
+        )
+      )}
+    </div>
+  )
+}
+
+// Inline add/edit form for one edition.
+function EditionRowForm({
+  initial,
+  submitLabel,
+  onSubmit,
+  onCancel,
+  isEditing,
+}: {
+  initial: EditionForm
+  submitLabel: string
+  onSubmit: (f: EditionForm) => void | Promise<void>
+  onCancel: () => void
+  isEditing?: boolean
+}) {
+  const { t } = useLanguage()
+  const [form, setForm] = useState(initial)
+  const [busy, setBusy] = useState(false)
+  const [finding, setFinding] = useState(false)
+  const [downloadingCover, setDownloadingCover] = useState(false)
+  const [coverError, setCoverError] = useState('')
+  const input =
+    'h-10 rounded-lg border border-[var(--border-subtle)] bg-[var(--input)] px-3 text-sm text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-ring)]'
+
+  const submit = async () => {
+    setBusy(true)
+    try {
+      await onSubmit(form)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const handleDownloadCover = async () => {
+    if (!form.cover_url) return
+    setDownloadingCover(true)
+    setCoverError('')
+    try {
+      const cdnUrl = await downloadCoverToB2(form.cover_url)
+      const updated = { ...form, cover_url: cdnUrl }
+      setForm(updated)
+      if (isEditing) {
+        await onSubmit(updated)
+      }
+    } catch (e) {
+      setCoverError(e instanceof Error ? e.message : 'Failed to download cover')
+    } finally {
+      setDownloadingCover(false)
+    }
+  }
+
+  // Look the ISBN up server-side (Google Books + OpenLibrary) and fill the form.
+  const autofill = async () => {
+    const isbn = form.isbn13.replace(/[^0-9Xx]/g, '')
+    if (!isbn) return
+    setFinding(true)
+    try {
+      const ed = await librarianService.lookupEdition(isbn)
+      if (ed) {
+        setForm((s) => ({
+          ...s,
+          title: ed.title || s.title,
+          publisher: ed.publisher || s.publisher,
+          language: ed.language || s.language,
+          published_year: ed.published_year ? String(ed.published_year) : s.published_year,
+          pages: ed.pages ? String(ed.pages) : s.pages,
+          isbn13: ed.isbn13 || ed.isbn10 || s.isbn13,
+          cover_url: ed.cover_url || s.cover_url,
+        }))
+      }
+    } finally {
+      setFinding(false)
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-2 rounded-xl border border-dashed border-[var(--border-subtle)] p-3">
+      <input className={input} placeholder={t('editionTitle')} value={form.title} onChange={(e) => setForm((s) => ({ ...s, title: e.target.value }))} />
+      <div className="flex gap-2">
+        <input
+          className={`${input} flex-1`}
+          placeholder="ISBN"
+          value={form.isbn13}
+          onChange={(e) => setForm((s) => ({ ...s, isbn13: e.target.value }))}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault()
+              autofill()
+            }
+          }}
+        />
+        <button
+          type="button"
+          onClick={autofill}
+          disabled={!form.isbn13 || finding}
+          className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-lg bg-nonsprimary px-3 text-sm font-medium text-white hover:bg-nonsprimaryfocus disabled:opacity-50"
+        >
+          <IoSparklesOutline className="h-4 w-4" />
+          {finding ? t('looking') : t('autofill')}
+        </button>
+      </div>
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        <input className={input} placeholder={t('publisher')} value={form.publisher} onChange={(e) => setForm((s) => ({ ...s, publisher: e.target.value }))} />
+        <select
+          className={input}
+          value={form.language}
+          onChange={(e) => setForm((s) => ({ ...s, language: e.target.value }))}
+        >
+          <option value="">{t('language') || 'Language'}</option>
+          {LANG_OPTIONS.map((l) => (
+            <option key={l.code} value={l.code}>{l.label}</option>
+          ))}
+        </select>
+        <input className={input} placeholder={t('publishedYear')} value={form.published_year} onChange={(e) => setForm((s) => ({ ...s, published_year: e.target.value }))} />
+        <input className={input} type="number" placeholder={t('pages')} value={form.pages} onChange={(e) => setForm((s) => ({ ...s, pages: e.target.value }))} />
+      </div>
+      <div className="flex gap-2">
+        <input className={`${input} flex-1`} placeholder={t('coverUrl')} value={form.cover_url} onChange={(e) => setForm((s) => ({ ...s, cover_url: e.target.value }))} />
+        <button
+          type="button"
+          onClick={handleDownloadCover}
+          disabled={!form.cover_url || downloadingCover}
+          title="Download cover to CDN"
+          className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] px-3 text-sm font-medium text-[var(--text)] hover:border-nonsprimary hover:text-nonsprimary disabled:opacity-50 transition-colors"
+        >
+          <IoCloudDownloadOutline className="h-4 w-4" />
+          {downloadingCover ? '…' : 'CDN'}
+        </button>
+      </div>
+      {coverError && <p className="text-xs text-red-500">{coverError}</p>}
+      <textarea
+        className={`${input} h-auto resize-y py-2`}
+        rows={3}
+        placeholder={t('editionDescription')}
+        value={form.description}
+        onChange={(e) => setForm((s) => ({ ...s, description: e.target.value }))}
+      />
+      <div className="flex items-center gap-2">
+        <button onClick={submit} disabled={busy} className="inline-flex w-fit items-center gap-2 rounded-lg bg-nonsprimary px-4 py-2 text-sm font-semibold text-white hover:bg-nonsprimaryfocus disabled:opacity-50">
+          <IoCheckmark className="h-4 w-4" />
+          {submitLabel}
+        </button>
+        <button onClick={onCancel} className="inline-flex w-fit items-center gap-2 rounded-lg bg-[var(--surface)] px-4 py-2 text-sm font-medium text-[var(--text-muted)] hover:text-[var(--text)]">
+          <IoClose className="h-4 w-4" />
+          {t('cancel')}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// Auto-imports all editions for a book by title + author (OpenLibrary, Google
+// Books, FantLab). User can adjust the pre-filled title/author before triggering.
+function EditionSearchPanel({
+  mediaId,
+  initialTitle,
+  initialAuthor,
+  onDone,
+  onClose,
+}: {
+  mediaId: string
+  initialTitle: string
+  initialAuthor: string
+  onDone: () => void
+  onClose: () => void
+}) {
+  const { t } = useLanguage()
+  const [title, setTitle] = useState(initialTitle)
+  const [author, setAuthor] = useState(initialAuthor)
+  const [busy, setBusy] = useState(false)
+  const [result, setResult] = useState<number | null>(null)
+  const [err, setErr] = useState('')
+  const input =
+    'h-9 rounded-lg border border-[var(--border-subtle)] bg-[var(--input)] px-3 text-sm text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-ring)]'
+
+  const run = async () => {
+    if (!title.trim() && !author.trim()) return
+    setBusy(true)
+    setErr('')
+    setResult(null)
+    try {
+      const n = await librarianService.autoFindEditions(mediaId, title.trim() || undefined, author.trim() || undefined)
+      setResult(n)
+      onDone()
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-3 rounded-xl border border-dashed border-nonsprimary/40 bg-[var(--surface)] p-3">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm font-medium text-[var(--text)]">{t('autoFindEditions')}</p>
+          <p className="text-xs text-[var(--text-muted)]">OpenLibrary · Google Books · FantLab</p>
+        </div>
+        <button onClick={onClose} className="rounded-lg p-1 text-[var(--text-muted)] hover:text-[var(--text)]">
+          <IoClose className="h-4 w-4" />
+        </button>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <input
+          className={`${input} w-full`}
+          placeholder={t('editionTitle')}
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') run() }}
+        />
+        <div className="flex gap-2">
+          <input
+            className={`${input} flex-1`}
+            placeholder={t('author')}
+            value={author}
+            onChange={(e) => setAuthor(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') run() }}
+          />
+          <button
+            type="button"
+            onClick={run}
+            disabled={busy || (!title.trim() && !author.trim())}
+            className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-lg bg-nonsprimary px-3 text-sm font-medium text-white hover:bg-nonsprimaryfocus disabled:opacity-50"
+          >
+            <IoCloudDownloadOutline className="h-4 w-4" />
+            {busy ? t('importing') : t('autoFindEditions')}
+          </button>
+        </div>
+      </div>
+
+      {err && <p className="text-xs text-red-500">{err}</p>}
+      {result !== null && (
+        <p className="text-xs text-[var(--text-muted)]">
+          <IoCheckmark className="inline h-3.5 w-3.5 text-nonsprimary" /> {result > 0 ? `${result} editions imported` : 'No new editions found'}
+        </p>
+      )}
+    </div>
+  )
+}
+
+// Picker for moving an edition onto a different book work: search the catalog
+// for the destination book, or create a new one from the typed title when it
+// isn't there yet.
+function MoveEditionPicker({
+  currentMediaId,
+  editionTitle,
+  onMove,
+  onCancel,
+}: {
+  currentMediaId: string
+  editionTitle?: string
+  onMove: (targetMediaId: number) => void | Promise<void>
+  onCancel: () => void
+}) {
+  const { t } = useLanguage()
+  const [q, setQ] = useState('')
+  const [results, setResults] = useState<CatalogItem[]>([])
+  const [loading, setLoading] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const input =
+    'h-10 w-full rounded-lg border border-[var(--border-subtle)] bg-[var(--input)] pl-9 pr-3 text-sm text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-ring)]'
+
+  // Debounced catalog search, books only and never the work we're moving from.
+  useEffect(() => {
+    if (!q.trim()) {
+      setResults([])
+      return
+    }
+    setLoading(true)
+    const timer = setTimeout(async () => {
+      const data = await catalogService.getCatalog(q).catch(() => [] as CatalogItem[])
+      setResults(data.filter((c) => c.type === 'book' && c.id !== currentMediaId).slice(0, 8))
+      setLoading(false)
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [q, currentMediaId])
+
+  const run = async (fn: () => Promise<number>) => {
+    setBusy(true)
+    try {
+      await onMove(await fn())
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const moveTo = (item: CatalogItem) => run(async () => Number(item.id))
+  const createAndMove = () =>
+    run(() => librarianService.createMedia({ type: 'book', title: q.trim() }))
+
+  return (
+    <div className="flex flex-col gap-2 rounded-xl border border-dashed border-nonsprimary/40 bg-[var(--surface)] p-3">
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-medium text-[var(--text)]">{t('moveEditionTitle')}</p>
+        <button onClick={onCancel} className="rounded-lg p-1 text-[var(--text-muted)] hover:text-[var(--text)]">
+          <IoClose className="h-4 w-4" />
+        </button>
+      </div>
+      <p className="text-xs text-[var(--text-muted)]">{t('moveEditionHint')}</p>
+      {editionTitle && <p className="truncate text-xs text-[var(--text-muted)]">“{editionTitle}”</p>}
+
+      <div className="relative">
+        <IoSearch className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" />
+        <input autoFocus className={input} placeholder={t('moveBookPlaceholder')} value={q} onChange={(e) => setQ(e.target.value)} />
+      </div>
+
+      {loading ? (
+        <p className="py-2 text-sm text-[var(--text-muted)]">{t('loading')}</p>
+      ) : (
+        <div className="flex flex-col gap-1.5">
+          {results.map((c) => (
+            <button
+              key={c.id}
+              onClick={() => moveTo(c)}
+              disabled={busy}
+              className="flex items-center gap-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--container)] p-2 text-left transition-colors hover:border-nonsprimary disabled:opacity-50"
+            >
+              <div className="h-12 w-8 flex-shrink-0 overflow-hidden rounded bg-[var(--container-2)]">
+                {c.coverUrl ? <img src={c.coverUrl} alt="" loading="lazy" className="h-full w-full object-cover" /> : null}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm text-[var(--text)]">{c.title}</p>
+                <p className="truncate text-xs text-[var(--text-muted)]">{[c.author, c.year].filter(Boolean).join(' · ')}</p>
+              </div>
+              <span className="flex-shrink-0 text-xs font-medium text-nonsprimary">{busy ? t('moving') : t('moveHere')}</span>
+            </button>
+          ))}
+
+          {q.trim() && (
+            <button
+              onClick={createAndMove}
+              disabled={busy}
+              className="inline-flex w-fit items-center gap-2 rounded-lg bg-nonsprimary px-3 py-2 text-sm font-semibold text-white hover:bg-nonsprimaryfocus disabled:opacity-50"
+            >
+              <IoAdd className="h-4 w-4" />
+              {busy ? t('creating') : t('createBook', { title: q.trim() })}
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}

@@ -9,8 +9,8 @@ import type { MediaItem, MediaType } from '../types'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
 import { buildRecap, fmtInt, fmtDuration } from '../lib/recap'
-import RecapStories from '../components/RecapStories.tsx'
-import DatePicker from '../components/DatePicker.tsx'
+import RecapStories from '@/components/feed/RecapStories'
+import DatePicker from '@/components/ui/DatePicker'
 
 // Per-type accent, matching the rest of the app (book amber, film indigo, series teal).
 const TYPE_COLOR: Record<MediaType, string> = { book: '#e0a458', movie: '#7c8cff', series: '#4fd1c5' }

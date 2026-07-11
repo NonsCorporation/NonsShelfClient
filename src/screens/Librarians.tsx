@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link } from '@/lib/router'
 import Layout from '../components/layout/Layout'
-import MediaModal from '../components/MediaModal'
-import ImportSearchModal from '../components/ImportSearchModal'
+import MediaModal from '@/components/media/MediaModal'
+import ImportSearchModal from '@/components/import-export/ImportSearchModal'
 import { catalogService } from '../services/catalogService'
 import type { CatalogItem } from '../services/catalogService'
 import { libraryService } from '../services/libraryService'
@@ -32,8 +32,8 @@ import {
   IoClose,
 } from 'react-icons/io5'
 import type { BulkJob } from '../services/librarianService'
-import PersonModal from '../components/PersonModal'
-import TypeBadge from '../components/TypeBadge'
+import PersonModal from '@/components/person/PersonModal'
+import TypeBadge from '@/components/badges/TypeBadge'
 import { mediaPath } from '../lib/paths'
 
 type Tab = 'catalog' | 'authors' | 'suggestions' | 'users'
