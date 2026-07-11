@@ -19,7 +19,7 @@ import { isLibrarian } from '../services/librarianService'
 import LibrarianBadge from '../components/LibrarianBadge'
 import BoringAvatar from '../components/BoringAvatar'
 import { mediaPath } from '../lib/paths'
-import { isYearlyReadingGoal } from '../lib/challenge'
+import { isYearlyReadingGoal, isGoalChallenge, challengeTitle } from '../lib/challenge'
 import { STATUS_COLOR, statusLabel } from '../lib/shelf'
 import TypeBadge from '../components/TypeBadge'
 import ActivityCard from '../components/ActivityCard'
@@ -118,6 +118,9 @@ export default function ProfilePage() {
   // Challenges this profile's owner has joined, each with their own progress —
   // shown below the library regardless of who's viewing.
   const [challenges, setChallenges] = useState<Challenge[]>([])
+  // On your own profile, the current year's reading challenge even if you
+  // haven't set a goal yet — so its shield (a "join" prompt) still shows.
+  const [readingChallenge, setReadingChallenge] = useState<Challenge | null>(null)
 
 
   useEffect(() => {
@@ -196,6 +199,19 @@ export default function ProfilePage() {
     challengeService.listUserChallenges(profile.id).then((cs) => { if (!cancelled) setChallenges(cs) })
     return () => { cancelled = true }
   }, [profile])
+
+  // Own profile: pull the current year's reading challenge (viewer-aware) even
+  // when unjoined, so its shield appears as a "join" prompt. Other profiles use
+  // only the owner's joined list, so an unset goal simply doesn't show.
+  useEffect(() => {
+    if (!isSelf) { setReadingChallenge(null); return }
+    let cancelled = false
+    challengeService.listChallenges().then((all) => {
+      if (cancelled) return
+      setReadingChallenge(all.find((c) => isYearlyReadingGoal(c, new Date().getFullYear())) ?? null)
+    })
+    return () => { cancelled = true }
+  }, [isSelf, profile])
 
   // The shelf preview row — server-filtered/sorted/capped, so switching tabs
   // or a collection chip re-fetches just SHELF_PREVIEW_SIZE items instead of
@@ -395,10 +411,6 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      {/* Annual reading goal (Goodreads-style) — a quick "set your goal" prompt
-          on your own profile, or the year's progress once it's set. */}
-      <YearlyGoalCard profileChallenges={challenges} isSelf={isSelf} t={t} />
-
       {/* Friends — own profile only, separate card */}
       {isSelf && (
         <div className="mt-4 rounded-2xl border border-[var(--border-subtle)] bg-[var(--container)] p-5 sm:p-6">
@@ -532,14 +544,21 @@ export default function ProfilePage() {
         </Link>
       </div>
 
-      {/* Challenges this profile's owner has joined — a shield per challenge
-          (title + "n/target" progress), solid-outlined once completed, dashed
-          while still in progress. */}
+      {/* Challenges — a shield per challenge (title + "n/target" progress),
+          solid-outlined once completed, dashed while in progress. Official
+          challenges (the reading challenge) get a purple gradient and lead the
+          row; community ones follow in silver. */}
       {(() => {
-        // The current year's reading goal is already surfaced by YearlyGoalCard
-        // above, so keep it out of this general shield row.
-        const shieldChallenges = challenges.filter((c) => !isYearlyReadingGoal(c, new Date().getFullYear()))
-        if (shieldChallenges.length === 0) return null
+        const year = new Date().getFullYear()
+        // The reading challenge: for your own profile use the viewer-aware copy
+        // (shows even when unjoined, as a "join" shield); for others, only their
+        // joined copy. Community challenges are the rest of the joined list.
+        const reading = isSelf ? readingChallenge : (challenges.find((c) => isYearlyReadingGoal(c, year)) ?? null)
+        const rest = challenges.filter((c) => !isYearlyReadingGoal(c, year))
+        const list = [...(reading ? [reading] : []), ...rest]
+        // Official first (purple), then community (silver).
+        const ordered = [...list.filter((c) => c.official), ...list.filter((c) => !c.official)]
+        if (ordered.length === 0) return null
         return (
           <div className="mt-6">
             <div className="mb-3 flex items-center gap-2">
@@ -547,8 +566,8 @@ export default function ProfilePage() {
               <span className="text-sm font-semibold text-[var(--text)]">{t('challenges')}</span>
             </div>
             <div className="no-scrollbar -mx-1 flex gap-4 overflow-x-auto px-1 pb-1">
-              {shieldChallenges.map((c) => (
-                <ChallengeShield key={c.id} challenge={c} />
+              {ordered.map((c) => (
+                <ChallengeShield key={c.id} challenge={c} t={t} />
               ))}
             </div>
           </div>
@@ -621,169 +640,47 @@ function myStatusItem(a: Activity, myStatuses: Map<string, ShelfStatus>): MediaI
   }
 }
 
-// A rotating set of muted, Pantone-ish purple/blue/near-black gradients — a
-// deliberately narrow, cohesive family (not a rainbow) so a row of shields
-// reads as one design language, with just enough variation per challenge id
-// to tell them apart at a glance. Plain hex via inline style rather than
-// Tailwind's palette classes, which run too saturated/bright for this.
-const SHIELD_GRADIENTS = [
-  'linear-gradient(135deg, #4a3382, #16111f)',
-  'linear-gradient(135deg, #33397a, #1c1730)',
-  'linear-gradient(135deg, #3d2f68, #100e1c)',
-  'linear-gradient(135deg, #2c3568, #221a3a)',
-]
+// Shield gradients carry the challenge kind at a glance: a rich purple for
+// official challenges (the reading challenge), a brushed-silver/graphite for
+// community-authored ones. Both keep white shield text readable. Plain hex via
+// inline style rather than Tailwind palette classes, which run too bright here.
+const OFFICIAL_GRADIENT = 'linear-gradient(135deg, #7c4dff, #2b1a66)'
+const COMMUNITY_GRADIENT = 'linear-gradient(135deg, #9aa0ad, #3a3d44)'
 
-// Goodreads-style annual reading goal card. There's one shared official
-// "<year> Reading Challenge"; each reader sets their own number against it.
-// Your own profile shows a "set your goal" prompt (found via the full
-// challenge list, since you may not have joined yet), then live progress once
-// set. Another user's profile shows their progress if they've set a goal,
-// nothing otherwise.
-function YearlyGoalCard({
-  profileChallenges, isSelf, t,
-}: {
-  /** The profile owner's joined challenges — used to read another user's goal. */
-  profileChallenges: Challenge[]
-  isSelf: boolean
-  t: Translate
-}) {
-  const year = new Date().getFullYear()
-  const [selfGoal, setSelfGoal] = useState<Challenge | null>(null)
-  const [selfLoaded, setSelfLoaded] = useState(false)
-  const [count, setCount] = useState('')
-  const [busy, setBusy] = useState(false)
-  const [editing, setEditing] = useState(false)
-
-  useEffect(() => {
-    if (!isSelf) return
-    let cancelled = false
-    challengeService.listChallenges().then((all) => {
-      if (cancelled) return
-      setSelfGoal(all.find((c) => isYearlyReadingGoal(c, year)) ?? null)
-      setSelfLoaded(true)
-    })
-    return () => { cancelled = true }
-  }, [isSelf, year])
-
-  const goal = isSelf ? selfGoal : (profileChallenges.find((c) => isYearlyReadingGoal(c, year)) ?? null)
-  const hasGoalSet = !!goal && goal.joined && (goal.target ?? 0) > 0
-
-  const save = async () => {
-    if (!goal) return
-    const n = Number(count)
-    if (!n || n <= 0) return
-    setBusy(true)
-    try {
-      const updated = await challengeService.setChallengeGoal(goal.id, n)
-      setSelfGoal(updated)
-      setEditing(false)
-      setCount('')
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  // Nothing to show: the yearly challenge isn't seeded / still loading (self),
-  // or another user hasn't set a goal.
-  if (isSelf && !selfLoaded) return null
-  if (!goal) return null
-  if (!isSelf && !hasGoalSet) return null
-
-  const target = goal.target ?? 0
-  const progress = goal.progress ?? 0
-  const pct = target > 0 ? Math.min(100, Math.round((progress / target) * 100)) : 0
-  const done = (goal.completed_at ?? 0) > 0
-  const showInput = isSelf && (!hasGoalSet || editing)
-
-  return (
-    <div className="mt-4 rounded-2xl border border-[var(--border-subtle)] bg-[var(--container)] p-5 sm:p-6">
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <Link to={`/challenge/${goal.uuid}`} className="flex items-center gap-2 text-sm font-semibold text-[var(--text)] hover:text-nonsprimary">
-          <IoRibbonOutline className="h-4 w-4 text-nonsprimary" />
-          {t('readingGoalTitle', { year })}
-        </Link>
-        {done && (
-          <span className="rounded-full px-2.5 py-0.5 text-[11px] font-medium" style={{ backgroundColor: '#3ec98a22', color: '#3ec98a' }}>
-            {t('challengeCompleted')}
-          </span>
-        )}
-      </div>
-
-      {hasGoalSet && !editing && (
-        <>
-          <div className="mb-1.5 flex items-center justify-between text-sm text-[var(--text-muted)]">
-            <span>{t('readingGoalProgress', { progress, target })}</span>
-            <span className="font-semibold text-nonsprimary">{pct}%</span>
-          </div>
-          <div className="h-2 w-full overflow-hidden rounded-full bg-[var(--container-2)]">
-            <div className="h-full rounded-full bg-nonsprimary transition-all" style={{ width: `${pct}%` }} />
-          </div>
-          {isSelf && (
-            <button
-              onClick={() => { setEditing(true); setCount(String(target)) }}
-              className="mt-3 text-sm font-medium text-nonsprimary hover:underline"
-            >
-              {t('changeGoal')}
-            </button>
-          )}
-        </>
-      )}
-
-      {showInput && (
-        <>
-          {!hasGoalSet && <p className="mb-3 text-sm text-[var(--text-muted)]">{t('readingGoalPrompt', { year })}</p>}
-          <div className="flex items-center gap-2">
-            <input
-              type="number"
-              min={1}
-              value={count}
-              onChange={(e) => setCount(e.target.value)}
-              placeholder="30"
-              className="h-10 w-24 rounded-lg border border-[var(--border-subtle)] bg-[var(--input)] px-3 text-sm text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-ring)]"
-            />
-            <span className="text-sm text-[var(--text-muted)]">{t('books')}</span>
-            <button
-              onClick={save}
-              disabled={busy || !count}
-              className="ml-auto h-10 rounded-lg bg-nonsprimary px-5 text-sm font-medium text-white hover:bg-nonsprimaryfocus disabled:opacity-50"
-            >
-              {t('setGoal')}
-            </button>
-          </div>
-        </>
-      )}
-    </div>
-  )
-}
-
-// One joined challenge, as a shield: a gradient badge with the title and
-// "progress/target" inside. Solid border once the target's been hit, dashed
-// while it's still in progress — the outline itself carries the completion
-// state without needing separate copy.
-function ChallengeShield({ challenge }: { challenge: Challenge }) {
+// One challenge, as a shield: a gradient badge (purple for official, silver for
+// community) with the title and "progress/target" inside. Solid border once the
+// target's been hit, dashed while still in progress. A goal challenge with no
+// number set yet (your own unjoined reading challenge) shows a "set goal"
+// prompt instead of progress, so the shield doubles as a join affordance.
+function ChallengeShield({ challenge, t }: { challenge: Challenge; t: Translate }) {
   const target = challenge.target ?? 0
   const progress = challenge.progress ?? 0
   const completed = (challenge.completed_at ?? 0) > 0
-  const gradient = SHIELD_GRADIENTS[challenge.id % SHIELD_GRADIENTS.length]
+  const gradient = challenge.official ? OFFICIAL_GRADIENT : COMMUNITY_GRADIENT
+  const title = challengeTitle(t, challenge)
+  const goalPending = isGoalChallenge(challenge) && target === 0
 
   return (
     <Link
       to={`/challenge/${challenge.uuid}`}
-      title={challenge.title}
+      title={title}
       className="group flex w-24 flex-shrink-0 flex-col items-center"
     >
       <div
         style={{ clipPath: 'polygon(0% 0%, 100% 0%, 100% 68%, 50% 100%, 0% 68%)', background: gradient }}
-        className={`flex h-28 w-24 flex-col items-center justify-center gap-1.5 p-3 text-center transition-transform group-hover:-translate-y-0.5 ${
+        className={`flex h-28 w-24 flex-col items-center justify-center gap-1 p-3 text-center transition-transform group-hover:-translate-y-0.5 ${
           completed ? 'border-2 border-white/80' : 'border-2 border-dashed border-white/45'
         }`}
       >
+        {challenge.official && <IoRibbonOutline className="h-3.5 w-3.5 text-white/90" />}
         <span className="line-clamp-3 text-[11px] font-bold leading-tight text-white drop-shadow-sm">
-          {challenge.title}
+          {title}
         </span>
-        {target > 0 && (
+        {target > 0 ? (
           <span className="text-[10px] font-semibold text-white/85">{progress}/{target}</span>
-        )}
+        ) : goalPending ? (
+          <span className="text-[10px] font-semibold text-white/85">{t('setGoal')}</span>
+        ) : null}
       </div>
     </Link>
   )
