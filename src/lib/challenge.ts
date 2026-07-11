@@ -21,6 +21,11 @@ export const isGoalChallenge = (challenge: Challenge): boolean => challenge.peri
 export const challengeYear = (challenge: Challenge): number =>
   new Date(challenge.start_date * 1000).getUTCFullYear()
 
+/** The shared official reading challenge for a given calendar year — matched on
+ *  official + yearly period, not on creator (it's system-owned). */
+export const isYearlyReadingGoal = (challenge: Challenge, year: number): boolean =>
+  challenge.official && challenge.period === 'yearly' && challengeYear(challenge) === year
+
 /** Display title: the official yearly challenge's title is stored in English
  *  ("2026 Reading Challenge"); render it localized instead. Ordinary
  *  challenges use their stored title as-is. */

@@ -302,6 +302,7 @@ export const ru = {
   yourGoal: 'Ваша цель',
   setGoal: 'Задать цель',
   changeGoal: 'Изменить цель',
+  joinReadingChallenge: 'Присоединиться к читательскому вызову',
   goal: 'Цель',
   specificNumber: 'Конкретное число',
   everythingMatching: 'Всё подходящее',

@@ -19,6 +19,7 @@ import { isLibrarian } from '../services/librarianService'
 import LibrarianBadge from '../components/LibrarianBadge'
 import BoringAvatar from '../components/BoringAvatar'
 import { mediaPath } from '../lib/paths'
+import { isYearlyReadingGoal } from '../lib/challenge'
 import { STATUS_COLOR, statusLabel } from '../lib/shelf'
 import TypeBadge from '../components/TypeBadge'
 import ActivityCard from '../components/ActivityCard'
@@ -631,14 +632,6 @@ const SHIELD_GRADIENTS = [
   'linear-gradient(135deg, #3d2f68, #100e1c)',
   'linear-gradient(135deg, #2c3568, #221a3a)',
 ]
-
-// Identifies the annual reading goal among a set of challenges: the shared
-// official challenge with Period "yearly" whose window is the given calendar
-// year. It's system-owned (no per-user row), so we match on official + period,
-// not on the creator.
-function isYearlyReadingGoal(c: Challenge, year: number): boolean {
-  return c.official && c.period === 'yearly' && new Date(c.start_date * 1000).getUTCFullYear() === year
-}
 
 // Goodreads-style annual reading goal card. There's one shared official
 // "<year> Reading Challenge"; each reader sets their own number against it.

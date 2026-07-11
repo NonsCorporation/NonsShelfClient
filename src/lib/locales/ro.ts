@@ -302,6 +302,7 @@ export const ro = {
   yourGoal: 'Obiectivul tău',
   setGoal: 'Setează obiectivul',
   changeGoal: 'Schimbă obiectivul',
+  joinReadingChallenge: 'Alătură-te provocării de lectură',
   goal: 'Obiectiv',
   specificNumber: 'Număr specific',
   everythingMatching: 'Tot ce se potrivește',

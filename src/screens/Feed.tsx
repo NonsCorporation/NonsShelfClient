@@ -8,19 +8,21 @@ import ProgressModal from '../components/ProgressModal'
 import FinishModal from '../components/FinishModal'
 import { libraryService } from '../services/libraryService'
 import { activityService } from '../services/activityService'
+import { challengeService } from '../services/challengeService'
+import { isYearlyReadingGoal, challengeYear } from '../lib/challenge'
 import type { Activity, ActivityPage, ActivityType } from '../services/activityService'
 import BoringAvatar from '../components/BoringAvatar'
 import Pagination from '../components/Pagination'
 import { getCommentCounts } from '../services/commentService'
 import { catalogService } from '../services/catalogService'
 import type { CatalogItem } from '../services/catalogService'
-import type { MediaItem } from '../types'
+import type { MediaItem, Challenge } from '../types'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
 import { STATUS_COLOR } from '../lib/shelf'
 import type { ShelfStatus } from '../types'
 import { mediaPath } from '../lib/paths'
-import { IoSearch, IoStar, IoPeopleOutline, IoChevronBack, IoChevronForward, IoArrowForward, IoLinkOutline, IoCheckmark } from 'react-icons/io5'
+import { IoSearch, IoStar, IoPeopleOutline, IoChevronBack, IoChevronForward, IoArrowForward, IoLinkOutline, IoCheckmark, IoRibbonOutline } from 'react-icons/io5'
 import ShelfLogo from '../components/ShelfLogo'
 import ShelfStatusBar from '../components/ShelfStatusBar'
 import TypeBadge from '../components/TypeBadge'
@@ -69,6 +71,9 @@ export default function FeedPage() {
   const [activityRefreshKey, setActivityRefreshKey] = useState(0)
   const [activityLoading, setActivityLoading] = useState(false)
   const [finishItem, setFinishItem] = useState<MediaItem | null>(null)
+  // The viewer's yearly reading challenge, shown as the last card in the
+  // in-progress row once they've set a goal for the current year.
+  const [readingChallenge, setReadingChallenge] = useState<Challenge | null>(null)
   const activityRef = useRef<HTMLElement>(null)
   const focusCardRef = useRef<HTMLDivElement>(null)
 
@@ -97,6 +102,20 @@ export default function FeedPage() {
       setLoading(false)
     })
   }, [me])
+
+  // The current year's reading challenge — kept separate from the library fetch
+  // so it can refresh with the feed (finishing a book moves progress). Shown in
+  // the in-progress row either as live progress (goal set) or a "join" nudge.
+  useEffect(() => {
+    if (!me) return
+    let cancelled = false
+    const year = new Date().getFullYear()
+    challengeService.listChallenges().then((all) => {
+      if (cancelled) return
+      setReadingChallenge(all.find((c) => isYearlyReadingGoal(c, year)) ?? null)
+    })
+    return () => { cancelled = true }
+  }, [me, activityRefreshKey])
 
   // Manual refresh (e.g. after finishing a book): reload library items and
   // jump back to activity page 1 so the new event is visible. Always bumps
@@ -255,9 +274,10 @@ export default function FeedPage() {
       </div>
 
       {/* Currently watching / reading */}
-      {!loading && inProgress.length > 0 && (
+      {!loading && (inProgress.length > 0 || readingChallenge) && (
         <InProgressSection
           items={inProgress}
+          readingChallenge={readingChallenge}
           onFinish={openFinish}
           onEditProgress={openProgress}
           onStatusChanged={(id, status) =>
@@ -436,18 +456,22 @@ export default function FeedPage() {
 }
 
 
+type Translate = (key: string, vars?: Record<string, string | number>) => string
+
 function InProgressSection({
   items,
+  readingChallenge,
   onFinish,
   onEditProgress,
   onStatusChanged,
   t,
 }: {
   items: MediaItem[]
+  readingChallenge: Challenge | null
   onFinish: (it: MediaItem) => void
   onEditProgress: (it: MediaItem) => void
   onStatusChanged: (id: string, status: ShelfStatus) => void
-  t: (key: string) => string
+  t: Translate
 }) {
   const rowRef = useRef<HTMLDivElement>(null)
   const [canScrollLeft, setCanScrollLeft] = useState(false)
@@ -512,7 +536,7 @@ function InProgressSection({
           </>
         )}
 
-        <div ref={rowRef} className="no-scrollbar flex items-start gap-3 overflow-x-auto pb-1">
+        <div ref={rowRef} className="no-scrollbar flex items-stretch gap-3 overflow-x-auto pb-1">
           {items.map((it) => (
             <InProgressCard
               key={it.id}
@@ -524,6 +548,7 @@ function InProgressSection({
               t={t}
             />
           ))}
+          {readingChallenge && <ReadingChallengeCard challenge={readingChallenge} t={t} />}
         </div>
       </div>
     </section>
@@ -630,6 +655,65 @@ function InProgressCard({
           />
         </div>
       </div>
+    </div>
+  )
+}
+
+// The yearly reading challenge as an in-progress card — same footprint as an
+// InProgressCard. Shows live books-read progress once the viewer has set a
+// goal, or a dashed "join the reading challenge" nudge if they haven't; both
+// link through to the challenge page.
+function ReadingChallengeCard({ challenge, t }: { challenge: Challenge; t: Translate }) {
+  const target = challenge.target ?? 0
+  const progress = challenge.progress ?? 0
+  const hasGoal = challenge.joined && target > 0
+  const pct = target > 0 ? Math.min(100, Math.round((progress / target) * 100)) : 0
+  const done = (challenge.completed_at ?? 0) > 0
+  const title = t('readingGoalTitle', { year: challengeYear(challenge) })
+
+  if (!hasGoal) {
+    return (
+      <div className="w-72 flex-shrink-0">
+        <Link
+          to={`/challenge/${challenge.uuid}`}
+          className="group flex h-full items-center gap-3 rounded-lg border border-dashed border-[var(--border)] p-3 transition-colors hover:border-nonsprimary"
+        >
+          <div className="flex aspect-[2/3] w-14 flex-shrink-0 items-center justify-center rounded-md bg-[var(--primary-soft)]">
+            <IoRibbonOutline className="h-6 w-6 text-nonsprimary" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <h3 className="truncate text-sm font-semibold text-[var(--text)]">{title}</h3>
+            <p className="text-xs text-[var(--text-muted)]">{t('joinReadingChallenge')}</p>
+          </div>
+          <IoArrowForward className="h-4 w-4 flex-shrink-0 text-[var(--text-muted)] transition-transform group-hover:translate-x-0.5 group-hover:text-nonsprimary" />
+        </Link>
+      </div>
+    )
+  }
+
+  return (
+    <div className="w-72 flex-shrink-0">
+      <Link
+        to={`/challenge/${challenge.uuid}`}
+        className="flex h-full items-center gap-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--container)] p-3 transition-colors hover:border-nonsprimary"
+      >
+        <div className="flex aspect-[2/3] w-14 flex-shrink-0 items-center justify-center rounded-md bg-[var(--primary-soft)]">
+          <IoRibbonOutline className="h-6 w-6 text-nonsprimary" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <h3 className="truncate text-sm font-semibold text-[var(--text)]">{title}</h3>
+          <p className="truncate text-xs text-[var(--text-muted)]">{done ? t('challengeCompleted') : t('yourGoal')}</p>
+          <div className="mt-1.5">
+            <p className="mb-1 text-[11px] text-[var(--text-muted)]">
+              {t('readingGoalProgress', { progress, target })}
+              {pct > 0 && <span className="ml-1 font-semibold text-nonsprimary">{pct}%</span>}
+            </p>
+            <div className="h-1 w-full overflow-hidden rounded-full bg-[var(--container-2)]">
+              <div className="h-full rounded-full bg-nonsprimary transition-all" style={{ width: `${pct}%` }} />
+            </div>
+          </div>
+        </div>
+      </Link>
     </div>
   )
 }
