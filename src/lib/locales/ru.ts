@@ -303,6 +303,7 @@ export const ru = {
   setGoal: 'Задать цель',
   changeGoal: 'Изменить цель',
   joinReadingChallenge: 'Присоединиться к читательскому вызову',
+  verbJoinedChallenge: 'присоединился к',
   goal: 'Цель',
   specificNumber: 'Конкретное число',
   everythingMatching: 'Всё подходящее',

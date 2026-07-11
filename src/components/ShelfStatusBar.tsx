@@ -1,7 +1,7 @@
 'use client'
 
 import { createPortal } from 'react-dom'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useId } from 'react'
 import { IoChevronDown, IoCheckmark, IoAdd, IoTrendingUpOutline, IoClose, IoFolderOutline, IoLayersOutline, IoTrashOutline } from 'react-icons/io5'
 import type { MediaItem, ShelfStatus } from '../types'
 import { STATUS_COLOR, statusLabel } from '../lib/shelf'
@@ -18,8 +18,6 @@ type Props = {
   currentStatus: ShelfStatus | null
   onStatusChange: (status: ShelfStatus) => void
   onEditProgress?: () => void
-  /** Shows a "Remove from shelf" action in the popover when the item is on
-   *  the shelf. Omit to hide it (e.g. surfaces with no sensible local reset). */
   onRemove?: () => void
   variant?: 'bar' | 'button'
 }
@@ -84,13 +82,13 @@ export default function ShelfStatusBar({ item, currentStatus, onStatusChange, on
   // tracks which user curated lists contain this item
   const [itemListIds, setItemListIds] = useState<number[]>(item.listIds ?? [])
   const [listLoading, setListLoading] = useState(false)
-  // placement 'up' anchors the popover's bottom edge above the trigger (grows
-  // upward) instead of the default 'down' (grows downward from the trigger) —
-  // picked per-open based on available viewport space so the collection list
-  // at the bottom of the popover isn't cut off when there isn't enough room below.
+  // positions the popover based on available vertical viewport space
   const [anchor, setAnchor] = useState<{ top?: number; bottom?: number; left: number; width: number; placement: 'up' | 'down' } | null>(null)
   const btnRef = useRef<HTMLDivElement>(null)
   const [confirmingRemove, setConfirmingRemove] = useState(false)
+
+  // uniquely identifies this instance of the component to scope outside-click events
+  const popoverId = useId()
 
   // holds state for the inline new-collection form
   const [creatingNew, setCreatingNew] = useState(false)
@@ -112,9 +110,7 @@ export default function ShelfStatusBar({ item, currentStatus, onStatusChange, on
     setItemListIds(item.listIds ?? [])
   }, [item.listIds])
 
-  // Rough popover height estimate (status pills + collections header + a
-  // handful of chips) used only to pick a placement — the popover itself still
-  // scrolls internally if it ends up taller than the room it got.
+  // provides a baseline height to determine popup placement direction
   const ESTIMATED_POPOVER_HEIGHT = 320
 
   const handleToggle = () => {
@@ -125,9 +121,6 @@ export default function ShelfStatusBar({ item, currentStatus, onStatusChange, on
     const width = Math.max(r.width + extraWidth, 260)
     const spaceBelow = window.innerHeight - r.bottom
     const spaceAbove = r.top
-    // Prefer opening downward; flip upward only when there's clearly more (or
-    // enough) room above and not below, so the collections list at the bottom
-    // of the popover doesn't run off the bottom of the viewport.
     const placement: 'up' | 'down' =
       spaceBelow < ESTIMATED_POPOVER_HEIGHT && spaceAbove > spaceBelow ? 'up' : 'down'
     setAnchor(
@@ -153,31 +146,35 @@ export default function ShelfStatusBar({ item, currentStatus, onStatusChange, on
 
   useEffect(() => {
     if (!anchor) return
-    const close = (e: MouseEvent) => {
-      if (!(e.target as HTMLElement).closest('[data-shelf-popover]')) setAnchor(null)
+    
+    // closes the popover when interacting outside this specific component instance
+    const close = (e: Event) => {
+      const target = e.target as Element
+      if (target?.closest && !target.closest(`[data-shelf-popover="${popoverId}"]`)) {
+        setAnchor(null)
+      }
     }
-    document.addEventListener('mousedown', close)
+    
+    document.addEventListener('pointerdown', close)
+    document.addEventListener('touchstart', close, { passive: true })
 
-    // The desktop popover is pinned to the trigger's on-screen position, so a
-    // *page* scroll should dismiss it. But two scrolls must NOT: a scroll inside
-    // the popover's own scrollable body, and — on mobile — anything at all,
-    // because the mobile popover is a viewport-fixed bottom sheet and the
-    // on-screen keyboard fires spurious scroll events while keeping the focused
-    // input in view, which would otherwise close it (dismissing the keyboard)
-    // the moment the user starts typing a new collection/list name.
+    // closes the popover on scroll events outside of this specific component instance
     const closeOnScroll = (e: Event) => {
-      const target = e.target as Node | null
-      if (target instanceof HTMLElement && target.closest('[data-shelf-popover]')) return
+      const target = e.target as Element
+      if (target?.closest && target.closest(`[data-shelf-popover="${popoverId}"]`)) return
       setAnchor(null)
     }
+    
     if (!isMobile) {
       window.addEventListener('scroll', closeOnScroll, { passive: true, capture: true })
     }
+    
     return () => {
-      document.removeEventListener('mousedown', close)
+      document.removeEventListener('pointerdown', close)
+      document.removeEventListener('touchstart', close)
       if (!isMobile) window.removeEventListener('scroll', closeOnScroll, { capture: true })
     }
-  }, [anchor, isMobile])
+  }, [anchor, isMobile, popoverId])
 
   useEffect(() => {
     if (creatingNew) setTimeout(() => newInputRef.current?.focus(), 30)
@@ -341,7 +338,7 @@ export default function ShelfStatusBar({ item, currentStatus, onStatusChange, on
         )}
       </div>
 
-      {/* renders the curated-list list (Goodreads-style, separate from Collections) */}
+      {/* renders the list of curated lists */}
       <div className="mt-3 border-t border-[var(--border-subtle)] pt-3">
         <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-[var(--text-muted)]">
           Lists
@@ -416,8 +413,7 @@ export default function ShelfStatusBar({ item, currentStatus, onStatusChange, on
         )}
       </div>
 
-      {/* Remove entirely — clears the shelf entry (and its rating/review/note),
-          distinct from picking a status. Only shown once the item is on shelf. */}
+      {/* removes the item from the shelf completely */}
       {onShelf && onRemove && (
         <div className="mt-3 border-t border-[var(--border-subtle)] pt-3">
           <button
@@ -438,7 +434,7 @@ export default function ShelfStatusBar({ item, currentStatus, onStatusChange, on
         // renders a prominent pill for standalone use
         <div ref={btnRef} className="inline-flex max-w-full">
           <button
-            data-shelf-popover
+            data-shelf-popover={popoverId}
             onClick={onShelf ? handleToggle : () => onStatusChange('wishlist')}
             className="inline-flex min-w-0 items-center gap-1.5 rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs font-semibold text-[var(--text)] transition-colors hover:bg-[var(--surface)]"
           >
@@ -458,7 +454,7 @@ export default function ShelfStatusBar({ item, currentStatus, onStatusChange, on
             className="flex min-w-0 flex-1 items-center rounded-r-lg border-l-[3px]"
           >
             <button
-              data-shelf-popover
+              data-shelf-popover={popoverId}
               onClick={onShelf ? handleToggle : () => onStatusChange('wishlist')}
               className="flex min-w-0 flex-1 items-center gap-1.5 py-1.5 pl-2.5 text-xs font-medium transition-opacity hover:opacity-70"
             >
@@ -466,7 +462,7 @@ export default function ShelfStatusBar({ item, currentStatus, onStatusChange, on
               <span className="truncate">{currentLabel}</span>
             </button>
             <button
-              data-shelf-popover
+              data-shelf-popover={popoverId}
               onClick={handleToggle}
               aria-label={t('status') || 'Status'}
               className="flex flex-shrink-0 items-center py-1.5 pl-1 pr-2.5 transition-opacity hover:opacity-70"
@@ -500,7 +496,7 @@ export default function ShelfStatusBar({ item, currentStatus, onStatusChange, on
       {anchor && createPortal(
         isMobile ? (
           <div
-            data-shelf-popover
+            data-shelf-popover={popoverId}
             style={{ position: 'fixed', inset: 0, zIndex: 60 }}
             className="flex items-end bg-[var(--overlay)]"
             onClick={() => setAnchor(null)}
@@ -523,7 +519,7 @@ export default function ShelfStatusBar({ item, currentStatus, onStatusChange, on
           </div>
         ) : (
         <div
-          data-shelf-popover
+          data-shelf-popover={popoverId}
           style={{
             position: 'fixed',
             top: anchor.top,

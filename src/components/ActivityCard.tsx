@@ -39,6 +39,9 @@ const VERB_KEY: Record<ActivityType, string> = {
   reviewed: 'verbReviewed',
   progress: 'verbProgress',
   dnf: 'verbDnf',
+  // Challenge events are rendered by ChallengeActivityCard, not here; this
+  // entry only satisfies the exhaustive Record type.
+  challenge_joined: 'verbJoinedChallenge',
 }
 
 // Five-star display from a 0–10 rating, with half-star steps (matches StarsSelector).

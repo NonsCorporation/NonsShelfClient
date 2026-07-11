@@ -1,7 +1,7 @@
 import { authedFetch, nonsFetch, NONS_API_URL } from '../lib/api'
 import type { MediaType } from '../types'
 
-export type ActivityType = 'rated' | 'finished' | 'started' | 'added' | 'reviewed' | 'progress' | 'dnf'
+export type ActivityType = 'rated' | 'finished' | 'started' | 'added' | 'reviewed' | 'progress' | 'dnf' | 'challenge_joined'
 
 export type Activity = {
   id: string
@@ -30,6 +30,9 @@ export type Activity = {
   timeAgo: string
   /** Absolute event time, Unix seconds — used for date grouping. */
   at: number
+  /** Set for `challenge_joined` events (no media): the joined challenge, so the
+   *  feed can render a challenge card and link to it. */
+  challenge?: { uuid: string; title: string; official: boolean; period: '' | 'yearly' | 'monthly'; year: number }
 }
 
 // ── Wire types ──────────────────────────────────────────────────────────────
@@ -58,6 +61,8 @@ type ActivityEvent = {
   at: number // unix seconds
   user_role?: string // librarian role, when the server includes it
   media?: { id: number; uuid?: string; type: MediaType; title: string; author?: string; year?: number; description?: string; cover_url: string }
+  // Set for challenge_joined events (no media): the full challenge row.
+  challenge?: { uuid: string; title: string; official: boolean; period: string; start_date: number }
   // The subject user's chosen edition (when set) — overrides the work's cover/
   // title so the feed matches their library/reading list.
   edition_title?: string
@@ -119,6 +124,52 @@ function timeAgo(at: number): string {
   return `${Math.floor(s / (7 * 86400))}w`
 }
 
+// Map a wire event to an Activity, branching on whether it's a media event or a
+// non-media challenge event (challenge_joined). Challenge events carry no media,
+// so media fields get harmless placeholders and `challenge` is populated
+// instead; the feed renders those with a dedicated card.
+function toActivity(e: ActivityEvent, user: Activity['user']): Activity {
+  const base = {
+    id: `p-${e.post_id}`,
+    postId: e.post_id,
+    userId: e.user_id,
+    user,
+    type: e.type,
+    timeAgo: timeAgo(e.at),
+    at: e.at,
+  }
+  if (e.type === 'challenge_joined' && e.challenge) {
+    return {
+      ...base,
+      mediaId: 0,
+      mediaTitle: e.challenge.title,
+      mediaType: 'book',
+      challenge: {
+        uuid: e.challenge.uuid,
+        title: e.challenge.title,
+        official: e.challenge.official,
+        period: (e.challenge.period as '' | 'yearly' | 'monthly') || '',
+        year: new Date(e.challenge.start_date * 1000).getUTCFullYear(),
+      },
+    }
+  }
+  return {
+    ...base,
+    mediaId: e.media!.id,
+    mediaUuid: e.media!.uuid || undefined,
+    mediaTitle: e.edition_title || e.media!.title,
+    mediaType: e.media!.type,
+    mediaAuthor: e.media!.author || undefined,
+    mediaYear: e.media!.year || undefined,
+    mediaDescription: e.media!.description || undefined,
+    coverUrl: e.edition_cover || e.media!.cover_url || undefined,
+    rating: e.value || undefined,
+    text: e.note || undefined,
+    progressPct: e.progress_pct || undefined,
+    page: e.page || undefined,
+  }
+}
+
 // One page of friends-activity plus the total event count, for pagination.
 export type ActivityPage = { items: Activity[]; total: number }
 
@@ -140,30 +191,8 @@ class ApiActivityService implements IActivityService {
     const events: ActivityEvent[] = body.items ?? []
 
     const items = events
-      .filter((e) => e.media && friends.has(e.user_id))
-      .map((e) => ({
-        id: `p-${e.post_id}`,
-        postId: e.post_id,
-        userId: e.user_id,
-        user: { ...friends.get(e.user_id)!, ...(e.user_role ? { role: e.user_role } : {}) },
-        type: e.type,
-        mediaId: e.media!.id,
-        mediaUuid: e.media!.uuid || undefined,
-        // A selected edition's title/cover override the work's, matching the
-        // shelf/library (see toItem in lib/mediaMap).
-        mediaTitle: e.edition_title || e.media!.title,
-        mediaType: e.media!.type,
-        mediaAuthor: e.media!.author || undefined,
-        mediaYear: e.media!.year || undefined,
-        mediaDescription: e.media!.description || undefined,
-        coverUrl: e.edition_cover || e.media!.cover_url || undefined,
-        rating: e.value || undefined,
-        text: e.note || undefined,
-        progressPct: e.progress_pct || undefined,
-        page: e.page || undefined,
-        timeAgo: timeAgo(e.at),
-        at: e.at,
-      }))
+      .filter((e) => (e.media || e.challenge) && friends.has(e.user_id))
+      .map((e) => toActivity(e, { ...friends.get(e.user_id)!, ...(e.user_role ? { role: e.user_role } : {}) }))
 
     return { items, total: body.total ?? items.length }
   }
@@ -184,29 +213,11 @@ export async function getUserActivity(
   const body = await res.json()
   const events: ActivityEvent[] = body.items ?? []
   return {
+    // Profile posts stay media-only — challenge_joined events show in the
+    // friends feed, not on the profile's ratings/reviews list.
     items: events
       .filter((e) => e.media)
-      .map((e) => ({
-        id: `p-${e.post_id}`,
-        postId: e.post_id,
-        userId: e.user_id,
-        user: { ...userInfo, ...(e.user_role ? { role: e.user_role } : {}) },
-        type: e.type,
-        mediaId: e.media!.id,
-        mediaUuid: e.media!.uuid || undefined,
-        mediaTitle: e.edition_title || e.media!.title,
-        mediaType: e.media!.type,
-        mediaAuthor: e.media!.author || undefined,
-        mediaYear: e.media!.year || undefined,
-        mediaDescription: e.media!.description || undefined,
-        coverUrl: e.edition_cover || e.media!.cover_url || undefined,
-        rating: e.value || undefined,
-        text: e.note || undefined,
-        progressPct: e.progress_pct || undefined,
-        page: e.page || undefined,
-        timeAgo: timeAgo(e.at),
-        at: e.at,
-      })),
+      .map((e) => toActivity(e, { ...userInfo, ...(e.user_role ? { role: e.user_role } : {}) })),
     total: body.total ?? 0,
   }
 }

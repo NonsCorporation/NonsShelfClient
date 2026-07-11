@@ -303,6 +303,7 @@ export const en = {
   setGoal: 'Set goal',
   changeGoal: 'Change goal',
   joinReadingChallenge: 'Join the reading challenge',
+  verbJoinedChallenge: 'joined',
   goal: 'Goal',
   specificNumber: 'Specific number',
   everythingMatching: 'Everything matching',

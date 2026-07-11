@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from '@/lib/router'
 import Layout from '../components/layout/Layout'
 import ActivityCard from '../components/ActivityCard'
+import ChallengeActivityCard from '../components/ChallengeActivityCard'
 import ProgressModal from '../components/ProgressModal'
 import FinishModal from '../components/FinishModal'
 import { libraryService } from '../services/libraryService'
@@ -403,24 +404,37 @@ export default function FeedPage() {
                 </div>
                 {group.items.map((a) => {
                   const isFocused = focusPostId != null && a.postId === focusPostId
+                  const onDeleted = (postId: number) => {
+                    setActivity((prev) => prev.filter((x) => x.postId !== postId))
+                    setActivityTotal((n) => Math.max(0, n - 1))
+                  }
+                  const onCountChange = (postId: number, n: number) =>
+                    setCommentCounts((m) => ({ ...m, [String(postId)]: n }))
                   return (
                     <div
                       key={a.id}
                       ref={isFocused ? focusCardRef : undefined}
                       className={isFocused ? 'ring-2 ring-nonsprimary/60 rounded-2xl' : undefined}
                     >
-                      <ActivityCard
-                        a={a}
-                        commentCount={commentCounts[String(a.postId)] ?? 0}
-                        myItem={myByMedia.get(a.mediaId)}
-                        openComments={isFocused}
-                        onShelfChange={applyShelfChange}
-                        onDeleted={(postId) => {
-                          setActivity((prev) => prev.filter((x) => x.postId !== postId))
-                          setActivityTotal((n) => Math.max(0, n - 1))
-                        }}
-                        onCountChange={(postId, n) => setCommentCounts((m) => ({ ...m, [String(postId)]: n }))}
-                      />
+                      {a.type === 'challenge_joined' ? (
+                        <ChallengeActivityCard
+                          a={a}
+                          commentCount={commentCounts[String(a.postId)] ?? 0}
+                          openComments={isFocused}
+                          onDeleted={onDeleted}
+                          onCountChange={onCountChange}
+                        />
+                      ) : (
+                        <ActivityCard
+                          a={a}
+                          commentCount={commentCounts[String(a.postId)] ?? 0}
+                          myItem={myByMedia.get(a.mediaId)}
+                          openComments={isFocused}
+                          onShelfChange={applyShelfChange}
+                          onDeleted={onDeleted}
+                          onCountChange={onCountChange}
+                        />
+                      )}
                     </div>
                   )
                 })}
