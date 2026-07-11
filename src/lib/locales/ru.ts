@@ -127,7 +127,9 @@ export const ru = {
   rewatchHint: 'Вы уже смотрели это раньше — это будет пересмотр №{n}.',
   // Reads list (per-cycle)
   yourReads: 'Ваши прочтения',
+  yourWatches: 'Ваши просмотры',
   readingNow: 'Читаю сейчас',
+  watchingNow: 'Смотрю сейчас',
   since: 'с',
   readOnce: 'Прочитано',
   watchedOnce: 'Просмотрено',

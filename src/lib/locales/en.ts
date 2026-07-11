@@ -127,7 +127,9 @@ export const en = {
   rewatchHint: 'You\'ve watched this before — this will be rewatch #{n}.',
   // Reads list (per-cycle)
   yourReads: 'Your reads',
+  yourWatches: 'Your watches',
   readingNow: 'Reading now',
+  watchingNow: 'Watching now',
   since: 'since',
   readOnce: 'Read',
   watchedOnce: 'Watched',

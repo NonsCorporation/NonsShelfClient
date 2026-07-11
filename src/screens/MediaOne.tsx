@@ -48,6 +48,7 @@ import {
   IoChevronDown,
   IoChevronBack,
   IoChevronForward,
+  IoLanguageOutline,
 } from 'react-icons/io5'
 import { useLanguage } from '../contexts/LanguageContext'
 import { usePreferences } from '../contexts/PreferencesContext'
@@ -751,7 +752,8 @@ export default function MediaOnePage({
               {!isBook && altLangs.length > 0 && (
                 <>
                   <span className="text-[var(--border-strong)]">·</span>
-                  <span className="relative inline-flex items-center">
+                  <span className="relative inline-flex items-center gap-1">
+                    <IoLanguageOutline className="h-3.5 w-3.5 text-[var(--text-muted)]" />
                     <select
                       value={mediaLang}
                       onChange={(e) => setMediaLang(e.target.value)}

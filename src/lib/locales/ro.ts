@@ -127,7 +127,9 @@ export const ro = {
   rewatchHint: 'Ai mai vizionat asta — va fi revizionarea #{n}.',
   // Reads list (per-cycle)
   yourReads: 'Lecturile tale',
+  yourWatches: 'Vizionările tale',
   readingNow: 'Citesc acum',
+  watchingNow: 'Vizionez acum',
   since: 'din',
   readOnce: 'Citit',
   watchedOnce: 'Vizionat',

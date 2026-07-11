@@ -43,7 +43,7 @@ export default function ReadsList({ item, refreshKey = 0 }: { item: MediaItem; r
   // The line label for one cycle: "Read", "Reread N", "Attempt N (DNF)",
   // "Reading now" — numbered by chronological index so it reads like a journey.
   const cycleLabel = (c: ReadCycle): string => {
-    if (c.outcome === 'reading') return t('readingNow')
+    if (c.outcome === 'reading') return isBook ? t('readingNow') : t('watchingNow')
     if (c.outcome === 'dnf') return t('readAttempt', { n: c.index })
     // finished
     if (c.index === 1) return isBook ? t('readOnce') : t('watchedOnce')
@@ -66,7 +66,7 @@ export default function ReadsList({ item, refreshKey = 0 }: { item: MediaItem; r
     <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface)] p-3">
       <div className="mb-2.5 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-widest text-[var(--text-muted)]">
         <IoBookmarksOutline className="h-3.5 w-3.5" />
-        {t('yourReads')}
+        {isBook ? t('yourReads') : t('yourWatches')}
         {finishedCount > 1 && (
           <span className="ml-auto rounded-full bg-[var(--primary-soft)] px-2 py-0.5 text-[10px] font-semibold normal-case tracking-normal text-nonsprimary">
             {isBook ? t('readNTimes', { n: finishedCount }) : t('watchedNTimes', { n: finishedCount })}
