@@ -55,7 +55,7 @@ export type BackendMedia = {
   author: string
   director: string
   year: number
-  genres: string // comma-separated
+  genres?: { id: number; name: string; slug: string }[]
   maker_uuid: string
   cover_url: string
   description: string
@@ -83,7 +83,7 @@ export function mapMedia(m: BackendMedia): CatalogItem {
     makerUuid: m.maker_uuid || undefined,
     coverUrl: m.cover_url || undefined,
     year: m.year || undefined,
-    genre: m.genres ? m.genres.split(',').map((g) => g.trim()).filter(Boolean) : [],
+    genre: m.genres?.length ? m.genres.map((g) => g.name) : [],
     description: m.description || undefined,
     communityRating: 0,
     ratingsCount: 0,

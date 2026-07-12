@@ -6,6 +6,8 @@ import { useLanguage } from '@/contexts/LanguageContext.tsx'
 import { STATUS_ORDER, STATUS_COLOR, statusLabel } from '@/lib/shelf'
 import { mediaPath } from '@/lib/paths'
 import EditionsManager from '@/components/media/EditionsManager'
+import GenreSuggestions from '@/components/media/GenreSuggestions'
+import GenrePicker from '@/components/media/GenrePicker'
 import EpisodesManager from '@/components/media/EpisodesManager'
 import CreditsManager from '@/components/person/CreditsManager'
 import ConnectionsManager from '@/components/connections/ConnectionsManager'
@@ -313,8 +315,24 @@ export default function MediaModal({ isOpen, initialData, initialType, catalogOn
 
           <label className="flex flex-col gap-1.5 text-sm font-medium text-[var(--text)]">
             {t('genrePlaceholder')}
-            <input className="h-11 px-3 rounded-lg bg-[var(--input)] border border-[var(--border-subtle)] text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--color-nonsprimaryfocus)] transition-shadow" placeholder={t('genrePlaceholder')} value={form.genre} onChange={(e) => setForm(s => ({...s, genre: e.target.value}))} />
+            <GenrePicker value={form.genre} onChange={(genre) => setForm((s) => ({ ...s, genre }))} />
           </label>
+
+          {/* AI genre suggestions — librarian reviews each proposal; approving
+              writes straight to the catalog row server-side, so mirror it into
+              the form here too. Existing catalog rows only (needs a media id). */}
+          {withEditions && isEditing && initialData?.id && !suggestionMode && (
+            <GenreSuggestions
+              mediaId={initialData.id}
+              onApplied={(genreName) =>
+                setForm((s) => {
+                  const existing = s.genre.split(',').map((g) => g.trim()).filter(Boolean)
+                  if (existing.some((g) => g.toLowerCase() === genreName.toLowerCase())) return s
+                  return { ...s, genre: [...existing, genreName].join(', ') }
+                })
+              }
+            />
+          )}
 
           <label className="flex flex-col gap-1.5 text-sm font-medium text-[var(--text)]">
             {t('synopsis')}

@@ -1494,18 +1494,18 @@ export default function MediaOnePage({
         suggestionMode={!isLibrarian(user?.role)}
         mediaUuid={item.uuid}
         initialData={item}
-        onClose={() => setEditing(false)}
+        onClose={() => { setEditing(false); loadItem() }}
         onSave={async (data) => {
           setEditing(false)
           if (isLibrarian(user?.role)) {
             await librarianService.updateMedia(item.id, data)
             loadItem()
           } else {
-            const genres = Array.isArray(data.genre) ? data.genre.join(', ') : data.genre || ''
+            const genreNames = Array.isArray(data.genre) ? data.genre : data.genre ? [data.genre] : []
             await suggestionService.submit('update_media', item.uuid ?? String(item.id), {
               type: data.type, title: data.title, original_title: data.titleEn || '',
               author: data.author || data.director || '', director: data.director || '',
-              year: data.year || 0, genres, cover_url: data.coverUrl || '',
+              year: data.year || 0, genre_names: genreNames, cover_url: data.coverUrl || '',
               description: data.description || '', pages: data.pages || 0,
               duration_min: data.duration ? parseInt(data.duration, 10) || 0 : 0,
               isbn: data.isbn || '',

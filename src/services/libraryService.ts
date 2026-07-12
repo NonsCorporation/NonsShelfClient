@@ -43,7 +43,7 @@ function parseDuration(d?: string): number {
 
 /** Map a MediaItem (from the add/edit form) onto the backend catalog shape. */
 function toMediaBody(item: Partial<MediaItem>) {
-  const genres = Array.isArray(item.genre) ? item.genre.join(', ') : item.genre || ''
+  const genreNames = Array.isArray(item.genre) ? item.genre : item.genre ? [item.genre] : []
   return {
     type: item.type,
     title: item.title,
@@ -51,7 +51,7 @@ function toMediaBody(item: Partial<MediaItem>) {
     author: item.author || item.director || '',
     director: item.director || '',
     year: item.year || 0,
-    genres,
+    genre_names: genreNames,
     cover_url: item.coverUrl || '',
     description: item.description || '',
     pages: item.pages || 0,

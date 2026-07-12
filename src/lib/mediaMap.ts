@@ -14,7 +14,7 @@ export type BackendMedia = {
   author: string
   director: string
   year: number
-  genres: string // comma-separated
+  genres?: { id: number; name: string; slug: string }[]
   cover_url: string
   description: string
   duration_min: number
@@ -74,7 +74,7 @@ export function toMediaItem(m: BackendMedia, s: Signals = {}): MediaItem {
     titleEn: m.original_title || m.details?.title_en || undefined,
     coverUrl: s.editionCover || m.cover_url || undefined,
     year: m.year || undefined,
-    genre: m.genres ? m.genres.split(',').map((g) => g.trim()).filter(Boolean) : undefined,
+    genre: m.genres?.length ? m.genres.map((g) => g.name) : undefined,
     description: m.description || undefined,
     pages: s.editionPages || m.pages || undefined,
     duration: m.duration_min ? `${m.duration_min} min` : undefined,

@@ -96,11 +96,11 @@ function LibrarianEditContent({ id, suggestionMode }: { id: string; suggestionMo
 
   const handleSaveMeta = async (data: Partial<MediaItem>) => {
     if (suggestionMode) {
-      const genres = Array.isArray(data.genre) ? data.genre.join(', ') : data.genre || ''
+      const genreNames = Array.isArray(data.genre) ? data.genre : data.genre ? [data.genre] : []
       await suggest('update_media', item!.uuid ?? id, {
         type: data.type, title: data.title, original_title: data.titleEn || '',
         author: data.author || data.director || '', director: data.director || '',
-        year: data.year || 0, genres, cover_url: data.coverUrl || '',
+        year: data.year || 0, genre_names: genreNames, cover_url: data.coverUrl || '',
         description: data.description || '', pages: data.pages || 0,
         duration_min: data.duration ? parseInt(data.duration, 10) || 0 : 0,
         isbn: data.isbn || '',

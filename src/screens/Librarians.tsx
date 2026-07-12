@@ -717,7 +717,7 @@ const ACTION_LABELS: Record<string, string> = {
 
 // Payload shapes — one per action type
 interface EditionPayload { title?: string; publisher?: string; language?: string; published_year?: number; pages?: number; isbn13?: string; isbn10?: string; cover_url?: string; description?: string }
-interface MediaPayload { title?: string; original_title?: string; author?: string; director?: string; year?: number; genres?: string; cover_url?: string; description?: string }
+interface MediaPayload { title?: string; original_title?: string; author?: string; director?: string; year?: number; genre_names?: string[]; cover_url?: string; description?: string }
 interface CreditPayload { person_uuid?: string; role?: string; character?: string }
 interface MakerPayload { person_uuid?: string; role?: string }
 interface PersonPayload { name?: string; bio?: string; birth_date?: string; photo_url?: string; name_lang?: string; aliases?: { name: string; lang?: string }[] }
@@ -793,7 +793,7 @@ function SuggestionBody({ sg }: { sg: Suggestion }) {
             {m.title && <p className="font-medium text-[var(--text)]">{m.title}</p>}
             {m.original_title && m.original_title !== m.title && <p className="text-xs text-[var(--text-muted)]">{m.original_title}</p>}
             <p className="mt-0.5 text-xs text-[var(--text-muted)]">
-              {[m.author || m.director, m.year, m.genres].filter(Boolean).join(' · ')}
+              {[m.author || m.director, m.year, m.genre_names?.join(', ')].filter(Boolean).join(' · ')}
             </p>
             {m.description && <p className="mt-1 line-clamp-2 text-xs text-[var(--text-muted)]">{m.description}</p>}
           </div>

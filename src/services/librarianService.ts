@@ -149,6 +149,24 @@ export interface BulkJob {
   error?: string
 }
 
+// A normalized catalog genre (GET /api/genres).
+export interface Genre {
+  id: number
+  name: string
+  slug: string
+}
+
+// One AI-proposed genre for a catalog item, awaiting librarian review
+// (POST /api/ai/genres/:mediaId, GET /api/ai/genres/:mediaId).
+export interface GenreSuggestion {
+  id: number
+  media_id: number
+  genre: Genre
+  reason: string
+  status: 'pending' | 'approved' | 'rejected'
+  created_at: number
+}
+
 async function jsonOrThrow(res: Response): Promise<unknown> {
   if (!res.ok) {
     let msg = `Request failed (${res.status})`
@@ -165,7 +183,7 @@ async function jsonOrThrow(res: Response): Promise<unknown> {
 // libraryService.toMediaBody but lives here so catalog editing doesn't depend on
 // the shelf service.
 function toMediaBody(item: Partial<MediaItem>) {
-  const genres = Array.isArray(item.genre) ? item.genre.join(', ') : item.genre || ''
+  const genreNames = Array.isArray(item.genre) ? item.genre : item.genre ? [item.genre] : []
   const durationMin = item.duration ? parseInt(item.duration, 10) || 0 : 0
   return {
     type: item.type,
@@ -174,7 +192,7 @@ function toMediaBody(item: Partial<MediaItem>) {
     author: item.author || item.director || '',
     director: item.director || '',
     year: item.year || 0,
-    genres,
+    genre_names: genreNames,
     cover_url: item.coverUrl || '',
     description: item.description || '',
     pages: item.pages || 0,
@@ -538,6 +556,41 @@ export const librarianService = {
         body: JSON.stringify({ person_uuid: personUuid, role }),
       }),
     )
+  },
+
+  // The full normalized genre catalog, for the edit form's search/select
+  // picker (so a librarian reuses an existing genre instead of retyping a
+  // near-duplicate).
+  async listGenres(): Promise<Genre[]> {
+    const data = (await jsonOrThrow(await authedFetch('/api/genres'))) as { items: Genre[] }
+    return data.items ?? []
+  },
+
+  // Ask the AI assistant to propose genres for a catalog item (stored as
+  // pending suggestions server-side, normalized against the genre catalog).
+  // Returns the full current suggestion list for the item, including any
+  // from earlier calls.
+  async suggestGenres(mediaId: string): Promise<GenreSuggestion[]> {
+    const data = (await jsonOrThrow(
+      await authedFetch(`/api/ai/genres/${mediaId}`, { method: 'POST' }),
+    )) as { items: GenreSuggestion[] }
+    return data.items ?? []
+  },
+
+  // Read the current genre suggestions (any status) for a catalog item.
+  async listGenreSuggestions(mediaId: string): Promise<GenreSuggestion[]> {
+    const data = (await jsonOrThrow(await authedFetch(`/api/ai/genres/${mediaId}`))) as { items: GenreSuggestion[] }
+    return data.items ?? []
+  },
+
+  // Apply a pending genre suggestion to the media item's genre list.
+  async approveGenreSuggestion(id: number): Promise<void> {
+    await jsonOrThrow(await authedFetch(`/api/ai/genres/suggestions/${id}/approve`, { method: 'POST' }))
+  },
+
+  // Discard a pending genre suggestion.
+  async rejectGenreSuggestion(id: number): Promise<void> {
+    await jsonOrThrow(await authedFetch(`/api/ai/genres/suggestions/${id}/reject`, { method: 'POST' }))
   },
 }
 
