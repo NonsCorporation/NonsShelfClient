@@ -401,6 +401,11 @@ export type MediaItem = {
    *  media page). Backed by the started/finished activity rows. */
   startedAt?: string
   finishedAt?: string
+  /** The most recent time the user did anything with this item (status
+   *  change, note/edition edit, rating, review, progress, DNF). Only
+   *  populated on paths that fetch it (searchLibrary/getItems); used for the
+   *  "Recent activity" sort. */
+  lastActivityAt?: string
   status?: ShelfStatus
   favorite?: boolean
   /** The book edition (printing) the user is reading, when chosen. 0/undefined = none. */

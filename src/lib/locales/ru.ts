@@ -521,6 +521,7 @@ export const ru = {
   sortRating: 'По рейтингу',
   sortReviewed: 'Сначала с отзывом',
   sortDateEnd: 'По дате завершения',
+  sortActivity: 'По активности',
   viewReview: 'Посмотреть отзыв',
   sortTitle: 'Название (А–Я)',
   sortYear: 'По году',

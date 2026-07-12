@@ -47,7 +47,7 @@ import { useCollections } from '../contexts/CollectionContext.tsx'
 import { useLists } from '../contexts/ListContext.tsx'
 
 type ShelfKey = 'all' | 'wishlist' | 'active' | 'done' | 'dnf' | 'favorites'
-type SortKey = 'added' | 'rating' | 'title' | 'year' | 'reviewed' | 'date_end'
+type SortKey = 'added' | 'rating' | 'title' | 'year' | 'reviewed' | 'date_end' | 'activity'
 
 // Maps this screen's SortKey onto searchLibrary's server-side sort — a
 // straight passthrough except 'date_end' (this screen's "date finished"
@@ -127,7 +127,7 @@ export default function LibraryScreen() {
   const [progressMap, setProgressMap] = useState<Map<string, ItemProgress>>(new Map())
 
   const typeFilter = (params.get('type') as 'all' | 'book' | 'movie' | 'series') || 'all'
-  const sort = (params.get('sort') as SortKey) || 'added'
+  const sort = (params.get('sort') as SortKey) || 'activity'
   const sortDir = (params.get('dir') as 'asc' | 'desc') || 'desc'
   const page = Math.max(1, Number(params.get('page') || '1'))
   const PAGE_SIZE = 25
@@ -440,6 +440,15 @@ export default function LibraryScreen() {
         sorted.sort((a, b) => has(b) - has(a) || (b.dateAdded ?? '').localeCompare(a.dateAdded ?? ''))
         break
       }
+      case 'activity': {
+        // Client-side fallback only (readOnly/unsupported-filter paths) — the
+        // server-search path (canUseServerSearch) sorts by this in SQL
+        // instead. lastActivityAt is server-computed (see LastActivityDates);
+        // fall back to dateAdded for the rare item missing it.
+        const lastActivity = (it: MediaItem) => it.lastActivityAt ?? it.dateAdded ?? ''
+        sorted.sort((a, b) => lastActivity(b).localeCompare(lastActivity(a)))
+        break
+      }
       case 'date_end': {
         // Most recently finished first; items without a finished date fall to the bottom.
         sorted.sort((a, b) => {
@@ -551,6 +560,7 @@ export default function LibraryScreen() {
     title: t('sortTitle'),
     year: t('sortYear'),
     date_end: t('sortDateEnd'),
+    activity: t('sortActivity'),
   }
 
   // In server-search mode, `items` (and so `filtered`, which just re-applies
@@ -634,7 +644,7 @@ export default function LibraryScreen() {
   }
   const setSortParam = (k: SortKey) => {
     const next = new URLSearchParams(params)
-    if (k === 'added') next.delete('sort')
+    if (k === 'activity') next.delete('sort')
     else next.set('sort', k)
     next.delete('page')
     setParams(next, { replace: true })

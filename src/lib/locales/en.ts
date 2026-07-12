@@ -521,6 +521,7 @@ export const en = {
   sortRating: 'Highest rated',
   sortReviewed: 'Reviewed first',
   sortDateEnd: 'Date finished',
+  sortActivity: 'Recent activity',
   viewReview: 'View review',
   sortTitle: 'Title (A–Z)',
   sortYear: 'Newest',

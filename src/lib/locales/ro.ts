@@ -521,6 +521,7 @@ export const ro = {
   sortRating: 'Cu nota cea mai mare',
   sortReviewed: 'Cu recenzie primul',
   sortDateEnd: 'Data finalizării',
+  sortActivity: 'Activitate recentă',
   viewReview: 'Vezi recenzia',
   sortTitle: 'Titlu (A–Z)',
   sortYear: 'Cele mai noi',

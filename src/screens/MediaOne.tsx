@@ -242,7 +242,9 @@ export default function MediaOnePage({
       // Signals carry unix seconds; MediaItem holds ISO strings for dates.
       const toIso = (s?: number) => (s ? new Date(s * 1000).toISOString() : undefined)
       setItem((prev) =>
-        prev ? { ...prev, ...sig, startedAt: toIso(sig.startedAt), finishedAt: toIso(sig.finishedAt) } : prev,
+        prev
+          ? { ...prev, ...sig, startedAt: toIso(sig.startedAt), finishedAt: toIso(sig.finishedAt), lastActivityAt: toIso(sig.lastActivityAt) }
+          : prev,
       )
       setUserRating(sig.rating ?? null)
       setUserReview(sig.review ?? '')

@@ -52,6 +52,9 @@ export type Signals = {
   /** The user's reading period (unix seconds; 0/undefined = unset). */
   startedAt?: number
   finishedAt?: number
+  /** Unix seconds of the most recent activity on this item (status change,
+   *  rating, review, progress, DNF, etc). */
+  lastActivityAt?: number
   /** IDs of the user's custom collections that contain this item. */
   collectionIds?: number[]
 }
@@ -87,6 +90,7 @@ export function toMediaItem(m: BackendMedia, s: Signals = {}): MediaItem {
     dateAdded: s.createdAt ? new Date(s.createdAt * 1000).toISOString() : undefined,
     startedAt: s.startedAt ? new Date(s.startedAt * 1000).toISOString() : undefined,
     finishedAt: s.finishedAt ? new Date(s.finishedAt * 1000).toISOString() : undefined,
+    lastActivityAt: s.lastActivityAt ? new Date(s.lastActivityAt * 1000).toISOString() : undefined,
     collectionIds: s.collectionIds?.length ? s.collectionIds : undefined,
   }
 }
