@@ -6,6 +6,7 @@ import { Link } from '@/lib/router'
 import { mediaPath } from '@/lib/paths'
 import { recommendationService } from '@/services/recommendationService'
 import { useLanguage } from '@/contexts/LanguageContext'
+import TypeBadge from '@/components/badges/TypeBadge'
 import type { RecommendationItem, Recommendations } from '@/types'
 
 // Read-only "You might also like" rail on a book/film page. Generation is
@@ -66,9 +67,12 @@ function RecommendationCard({ item }: { item: RecommendationItem }) {
     >
       <div className="relative aspect-[2/3] w-full overflow-hidden rounded-xl border border-[var(--border-subtle)] bg-[var(--container-2)] transition-transform group-hover:-translate-y-0.5">
         {m.cover_url && <img src={m.cover_url} alt="" loading="lazy" className="h-full w-full object-cover" />}
+        <TypeBadge type={m.type} position="top-1.5 right-1.5" size="h-6 w-6" iconSize="h-3 w-3" />
       </div>
       <p className="mt-1 truncate text-xs font-medium text-[var(--text)]">{m.title}</p>
-      <p className="truncate text-[11px] text-[var(--text-muted)]">{m.year || ' '}</p>
+      <p className="truncate text-[11px] text-[var(--text-muted)]">
+        {[m.author || m.director, m.year || undefined].filter(Boolean).join(' · ') || ' '}
+      </p>
     </Link>
   )
 }
