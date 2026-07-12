@@ -222,6 +222,7 @@ function AdaptationFinder({ mediaId, mediaType, onDone }: { mediaId: number; med
   const [candidates, setCandidates] = useState<AdaptationCandidate[] | null>(null)
   const [error, setError] = useState('')
   const [linkingId, setLinkingId] = useState<number | null>(null)
+  const [fillingIndex, setFillingIndex] = useState<number | null>(null)
 
   const run = async () => {
     setBusy(true); setError(''); setCandidates(null)
@@ -256,6 +257,37 @@ function AdaptationFinder({ mediaId, mediaType, onDone }: { mediaId: number; med
       setError(e instanceof Error ? e.message : 'Failed')
     } finally {
       setLinkingId(null)
+    }
+  }
+
+  // c has no catalog match yet — search Google Books/OpenLibrary/TMDB (the
+  // same "search & fill" the catalog search box uses) and, if that finds and
+  // imports the work, fold the freshly created row into this candidate's
+  // matches so it can be linked like any other match.
+  const fillCandidate = async (index: number, title: string) => {
+    setFillingIndex(index)
+    setError('')
+    try {
+      const { items } = await catalogService.searchFill(title, { limit: 1 })
+      const matches: MediaSummary[] = items
+        .filter((it) => Number(it.id) !== mediaId)
+        .map((it) => ({
+          id: Number(it.id),
+          uuid: it.uuid ?? it.id,
+          type: it.type,
+          title: it.title,
+          author: it.author,
+          director: it.director,
+          year: it.year,
+          cover_url: it.coverUrl,
+        }))
+      setCandidates((prev) =>
+        prev?.map((c, i) => (i === index ? { ...c, matches: [...c.matches, ...matches] } : c)) ?? null,
+      )
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed')
+    } finally {
+      setFillingIndex(null)
     }
   }
 
@@ -297,7 +329,16 @@ function AdaptationFinder({ mediaId, mediaType, onDone }: { mediaId: number; med
               </p>
               <p className="text-xs text-[var(--text-muted)]">{c.reason}</p>
               {c.matches.length === 0 ? (
-                <p className="mt-1.5 text-xs text-[var(--text-muted)]">{t('autoFindAdaptationNoMatch') || 'Not found in the catalog.'}</p>
+                <div className="mt-1.5 flex items-center justify-between gap-2">
+                  <p className="text-xs text-[var(--text-muted)]">{t('autoFindAdaptationNoMatch') || 'Not found in the catalog.'}</p>
+                  <button
+                    onClick={() => fillCandidate(i, c.title)}
+                    disabled={fillingIndex === i}
+                    className="flex-shrink-0 rounded-md bg-[var(--primary-soft)] px-2 py-1 text-[10px] font-semibold text-[var(--text)] hover:opacity-80 disabled:opacity-50"
+                  >
+                    {fillingIndex === i ? (t('autoFindAdaptationFilling') || 'Searching…') : (t('autoFindAdaptationFill') || 'Search & import')}
+                  </button>
+                </div>
               ) : (
                 <div className="mt-1.5 flex flex-col gap-1">
                   {c.matches.map((m) => (

@@ -819,6 +819,8 @@ export const en = {
   autoFindAdaptationHint: 'Ask AI whether this has a known book/movie counterpart.',
   autoFindAdaptationNone: 'No known adaptation found.',
   autoFindAdaptationNoMatch: 'Not found in the catalog.',
+  autoFindAdaptationFill: 'Search & import',
+  autoFindAdaptationFilling: 'Searching…',
   linkAsAdaptation: 'Link',
 
   // Private note
