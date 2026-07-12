@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { IoSparklesOutline } from 'react-icons/io5'
+import { useEffect, useRef, useState } from 'react'
+import { IoSparklesOutline, IoChevronBack, IoChevronForward } from 'react-icons/io5'
 import { Link } from '@/lib/router'
 import { mediaPath } from '@/lib/paths'
 import { recommendationService } from '@/services/recommendationService'
@@ -39,21 +39,53 @@ export default function RecommendationsPanel({ mediaId }: { mediaId: string }) {
       {data === null ? (
         <RecommendationsSkeleton />
       ) : (
-        groups.map((g) => (
-          <div key={g.label}>
-            <div className="mb-2 flex items-center gap-2">
-              <IoSparklesOutline className="h-4 w-4 text-[var(--text-muted)]" />
-              <h3 className="text-[10px] uppercase tracking-widest text-[var(--text-muted)]">{g.label}</h3>
-            </div>
-            <div className="no-scrollbar -mx-1 flex gap-3 overflow-x-auto px-1 pb-1">
-              {g.items.map((item) => (
-                <RecommendationCard key={item.media.id} item={item} />
-              ))}
-            </div>
-          </div>
-        ))
+        groups.map((g) => <RecommendationRail key={g.label} label={g.label} items={g.items} />)
       )}
     </section>
+  )
+}
+
+// A titled, horizontally-scrolling rail with desktop chevron controls — same
+// slider pattern as the book page's editions carousel.
+function RecommendationRail({ label, items }: { label: string; items: RecommendationItem[] }) {
+  const railRef = useRef<HTMLDivElement>(null)
+  const scroll = (dir: number) => railRef.current?.scrollBy({ left: dir * 340, behavior: 'smooth' })
+  const showArrows = items.length > 4
+
+  return (
+    <div>
+      <div className="mb-2 flex items-center gap-2">
+        <IoSparklesOutline className="h-4 w-4 text-[var(--text-muted)]" />
+        <h3 className="text-[10px] uppercase tracking-widest text-[var(--text-muted)]">{label}</h3>
+      </div>
+      <div className="relative">
+        {showArrows && (
+          <>
+            <button
+              type="button"
+              aria-label="Scroll left"
+              onClick={() => scroll(-1)}
+              className="absolute -left-3 top-[38%] z-10 hidden h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--border-subtle)] bg-[var(--container)] text-[var(--text)] shadow-md transition-colors hover:bg-[var(--surface-hover)] sm:flex"
+            >
+              <IoChevronBack className="h-5 w-5" />
+            </button>
+            <button
+              type="button"
+              aria-label="Scroll right"
+              onClick={() => scroll(1)}
+              className="absolute -right-3 top-[38%] z-10 hidden h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--border-subtle)] bg-[var(--container)] text-[var(--text)] shadow-md transition-colors hover:bg-[var(--surface-hover)] sm:flex"
+            >
+              <IoChevronForward className="h-5 w-5" />
+            </button>
+          </>
+        )}
+        <div ref={railRef} className="no-scrollbar -mx-1 flex gap-3 overflow-x-auto px-1 pb-1">
+          {items.map((item) => (
+            <RecommendationCard key={item.media.id} item={item} />
+          ))}
+        </div>
+      </div>
+    </div>
   )
 }
 
