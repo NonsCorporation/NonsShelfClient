@@ -229,10 +229,8 @@ export async function getUserActivity(
   const body = await res.json()
   const events: ActivityEvent[] = body.items ?? []
   return {
-    // Profile posts stay media-only — challenge_joined events show in the
-    // friends feed, not on the profile's ratings/reviews list.
     items: events
-      .filter((e) => e.media)
+      .filter((e) => e.media || e.challenge)
       .map((e) => toActivity(e, { ...userInfo, ...(e.user_role ? { role: e.user_role } : {}) })),
     total: body.total ?? 0,
   }

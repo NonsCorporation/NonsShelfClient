@@ -23,6 +23,7 @@ import { isYearlyReadingGoal, isGoalChallenge, challengeTitle } from '../lib/cha
 import { STATUS_COLOR, statusLabel } from '../lib/shelf'
 import TypeBadge from '@/components/badges/TypeBadge'
 import ActivityCard from '@/components/feed/ActivityCard'
+import ChallengeActivityCard from '@/components/challenges/ChallengeActivityCard'
 import { getUserActivity, colorFor, type Activity } from '../services/activityService'
 import { getCommentCounts } from '../services/commentService'
 import {
@@ -296,15 +297,15 @@ export default function ProfilePage() {
   const postsPageCount = Math.ceil(postsTotal / POSTS_PER_PAGE)
 
   // The viewer's own shelf status for each media id in the current activity
-  // page — a cheap targeted read (see getStatuses), not a full shelf fetch,
-  // and only needed at all when the viewer is looking at their own profile
-  // (it drives the feed's "You" quick-action row).
+  // page — a cheap targeted read (see getStatuses), not a full shelf fetch.
+  // Fetched regardless of whose profile this is: it drives each ActivityCard's
+  // "your status vs. this post" comparison even when browsing someone else's page.
   useEffect(() => {
     let cancelled = false
     // Wrapped in an IIFE, not called directly: react-hooks/set-state-in-effect
     // flags a setState-triggering call made straight from the effect body.
     ;(async () => {
-      if (!isSelf || posts.length === 0) {
+      if (posts.length === 0) {
         if (!cancelled) setMyStatuses(new Map())
         return
       }
@@ -313,7 +314,7 @@ export default function ProfilePage() {
       if (!cancelled) setMyStatuses(m)
     })()
     return () => { cancelled = true }
-  }, [isSelf, posts])
+  }, [posts])
 
   if (loading) {
     return (
@@ -588,19 +589,32 @@ export default function ProfilePage() {
           )
         ) : (
           <div className={`flex flex-col gap-4 transition-opacity ${postsLoading ? 'opacity-60' : ''}`}>
-            {posts.map((a) => (
-              <ActivityCard
-                key={a.id}
-                a={a}
-                commentCount={postCommentCounts[String(a.postId)] ?? 0}
-                myItem={myStatusItem(a, myStatuses)}
-                onDeleted={(postId) => {
-                  setPosts((prev) => prev.filter((x) => x.postId !== postId))
-                  setPostsTotal((n) => Math.max(0, n - 1))
-                }}
-                onCountChange={(postId, n) => setPostCommentCounts((m) => ({ ...m, [String(postId)]: n }))}
-              />
-            ))}
+            {posts.map((a) => {
+              const onDeleted = (postId: number) => {
+                setPosts((prev) => prev.filter((x) => x.postId !== postId))
+                setPostsTotal((n) => Math.max(0, n - 1))
+              }
+              const onCountChange = (postId: number, n: number) =>
+                setPostCommentCounts((m) => ({ ...m, [String(postId)]: n }))
+              return a.type === 'challenge_joined' ? (
+                <ChallengeActivityCard
+                  key={a.id}
+                  a={a}
+                  commentCount={postCommentCounts[String(a.postId)] ?? 0}
+                  onDeleted={onDeleted}
+                  onCountChange={onCountChange}
+                />
+              ) : (
+                <ActivityCard
+                  key={a.id}
+                  a={a}
+                  commentCount={postCommentCounts[String(a.postId)] ?? 0}
+                  myItem={myStatusItem(a, myStatuses)}
+                  onDeleted={onDeleted}
+                  onCountChange={onCountChange}
+                />
+              )
+            })}
             <Pagination
               currentPage={postsPage + 1}
               totalPages={postsPageCount}
