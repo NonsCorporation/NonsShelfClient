@@ -538,8 +538,15 @@ export default function MediaOnePage({
     <Link
       key={p.uuid}
       to={`/p/${p.uuid}`}
-      className="rounded-full border border-[var(--border-subtle)] bg-[var(--surface)] px-3 py-1 text-xs text-[var(--text)] transition-colors hover:border-nonsprimary hover:bg-[var(--primary-soft)]"
+      className="flex items-center gap-1.5 rounded-full border border-[var(--border-subtle)] bg-[var(--surface)] py-1 pl-1 pr-3 text-xs text-[var(--text)] transition-colors hover:border-nonsprimary hover:bg-[var(--primary-soft)]"
     >
+      {p.photo_url ? (
+        <img src={p.photo_url} alt="" loading="lazy" className="h-5 w-5 flex-shrink-0 rounded-full object-cover" />
+      ) : (
+        <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-[var(--primary-soft)] text-[9px] font-semibold text-nonsprimary">
+          {p.name.charAt(0).toUpperCase()}
+        </span>
+      )}
       {p.name}
       {sub ? <span className="text-[var(--text-muted)]"> · {sub}</span> : null}
     </Link>
