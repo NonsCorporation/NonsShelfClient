@@ -74,7 +74,7 @@ export function toMediaItem(m: BackendMedia, s: Signals = {}): MediaItem {
     titleEn: m.original_title || m.details?.title_en || undefined,
     coverUrl: s.editionCover || m.cover_url || undefined,
     year: m.year || undefined,
-    genre: m.genres?.length ? m.genres.map((g) => g.name) : undefined,
+    genre: Array.isArray(m.genres) && m.genres.length ? m.genres.map((g) => g.name) : undefined,
     description: m.description || undefined,
     pages: s.editionPages || m.pages || undefined,
     duration: m.duration_min ? `${m.duration_min} min` : undefined,
