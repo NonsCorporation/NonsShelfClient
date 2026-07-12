@@ -18,7 +18,7 @@ import { catalogService, type CatalogItem } from '@/services/catalogService'
 import SeriesEditor from '@/components/media/SeriesEditor'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { useSuggestion } from '@/contexts/SuggestionContext'
-import type { Connections, Franchise, MediaItem, RelationKind, Series } from '@/types'
+import type { AdaptationCandidate, Connections, Franchise, MediaItem, MediaSummary, RelationKind, Series } from '@/types'
 
 const SERIES_ROLES = ['main', 'spinoff', 'prequel', 'sequel', 'interquel']
 
@@ -148,6 +148,7 @@ export default function ConnectionsManager({ item }: { item: MediaItem }) {
             )}
           </Row>
         ))}
+        {!isSuggestionMode && <AdaptationFinder mediaId={mediaId} mediaType={item.type} onDone={reload} />}
         <RelationAdder mediaId={mediaId} mediaUuid={mediaUuid} mediaType={item.type} onDone={reload} />
       </Group>
     </div>
@@ -207,6 +208,118 @@ function AutoFind({ item, onDone }: { item: MediaItem; onDone: () => void }) {
         </p>
       )}
       {error && <p className="mt-2 text-xs text-red-400">{error}</p>}
+    </div>
+  )
+}
+
+// ── Auto-find adaptation (AI) ──────────────────────────────────────────────────
+// Asks the AI whether this work has a known book<->movie/series counterpart,
+// then shows any catalog matches for each proposed title so the librarian can
+// link one with a click — nothing is written until "Link" is pressed.
+function AdaptationFinder({ mediaId, mediaType, onDone }: { mediaId: number; mediaType: MediaItem['type']; onDone: () => void }) {
+  const { t } = useLanguage()
+  const [busy, setBusy] = useState(false)
+  const [candidates, setCandidates] = useState<AdaptationCandidate[] | null>(null)
+  const [error, setError] = useState('')
+  const [linkingId, setLinkingId] = useState<number | null>(null)
+
+  const run = async () => {
+    setBusy(true); setError(''); setCandidates(null)
+    try {
+      const sug = await connectionService.suggestAdaptations(String(mediaId))
+      setCandidates(sug.candidates)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  // A book<->adaptation edge is always stored book="from", derived work="to" —
+  // whichever side is the book wins that slot regardless of which item we
+  // started from.
+  const link = async (match: MediaSummary) => {
+    setLinkingId(match.id)
+    try {
+      const matchIsBook = match.type === 'book'
+      const currentIsBook = mediaType === 'book'
+      const fromId = matchIsBook && !currentIsBook ? match.id : mediaId
+      const toId = matchIsBook && !currentIsBook ? mediaId : match.id
+      await connectionService.createRelation({ from_media_id: fromId, to_media_id: toId, kind: 'adaptation' })
+      // Surgical: drop only the linked match from whichever candidate offered
+      // it, leaving every other candidate (and every other match) untouched.
+      setCandidates((prev) =>
+        prev?.map((c) => ({ ...c, matches: c.matches.filter((m) => m.id !== match.id) })) ?? null,
+      )
+      onDone()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed')
+    } finally {
+      setLinkingId(null)
+    }
+  }
+
+  return (
+    <div className="rounded-xl border border-dashed border-[var(--border-subtle)] bg-[var(--surface)] p-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-[var(--text)]">{t('autoFindAdaptation') || 'Auto-find adaptation (AI)'}</p>
+          <p className="text-xs text-[var(--text-muted)]">{t('autoFindAdaptationHint') || 'Ask AI whether this has a known book/movie counterpart.'}</p>
+        </div>
+        <button
+          onClick={run}
+          disabled={busy}
+          className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-lg bg-nonsprimary px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-nonsprimaryfocus disabled:opacity-50"
+        >
+          <IoSparklesOutline className="h-4 w-4" />
+          {busy ? (t('autoFinding') || 'Finding…') : (t('autoFindAdaptation') || 'Auto-find')}
+        </button>
+      </div>
+
+      {error && <p className="mt-2 text-xs text-red-400">{error}</p>}
+
+      {candidates && candidates.length === 0 && !error && (
+        <p className="mt-2 text-xs text-[var(--text-muted)]">{t('autoFindAdaptationNone') || 'No known adaptation found.'}</p>
+      )}
+
+      {candidates && candidates.length > 0 && (
+        <div className="mt-3 flex flex-col gap-2">
+          {candidates.map((c, i) => (
+            <div key={`${c.title}-${c.type}-${i}`} className="rounded-lg border border-[var(--border-subtle)] bg-[var(--input)] p-2.5">
+              <p className="text-sm font-medium text-[var(--text)]">
+                {c.title}
+                {c.year ? ` (${c.year})` : ''}
+                {c.type && (
+                  <span className="ml-1.5 rounded-full bg-[var(--primary-soft)] px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--text-muted)]">
+                    {c.type}
+                  </span>
+                )}
+              </p>
+              <p className="text-xs text-[var(--text-muted)]">{c.reason}</p>
+              {c.matches.length === 0 ? (
+                <p className="mt-1.5 text-xs text-[var(--text-muted)]">{t('autoFindAdaptationNoMatch') || 'Not found in the catalog.'}</p>
+              ) : (
+                <div className="mt-1.5 flex flex-col gap-1">
+                  {c.matches.map((m) => (
+                    <div key={m.id} className="flex items-center justify-between gap-2 rounded-md bg-[var(--surface)] px-2 py-1.5">
+                      <span className="min-w-0 flex-1 truncate text-xs text-[var(--text)]">
+                        {m.title}{m.year ? ` (${m.year})` : ''}
+                      </span>
+                      <button
+                        onClick={() => link(m)}
+                        disabled={linkingId === m.id}
+                        className="flex-shrink-0 rounded-md bg-nonsprimary px-2 py-1 text-[10px] font-semibold text-white hover:bg-nonsprimaryfocus disabled:opacity-50"
+                      >
+                        {t('linkAsAdaptation') || 'Link'}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

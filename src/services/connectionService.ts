@@ -1,5 +1,6 @@
 import { authedFetch } from '../lib/api'
 import type {
+  AdaptationSuggestions,
   AutoConnectSummary,
   Connections,
   Franchise,
@@ -200,6 +201,17 @@ async function autoConnect(mediaId: string): Promise<AutoConnectSummary> {
   ) as Promise<AutoConnectSummary>
 }
 
+// ── Auto-find (AI) ───────────────────────────────────────────────────────────────
+
+/** Ask the AI whether this work has a known book<->movie/series adaptation
+ *  counterpart, with catalog matches for each candidate (writer/admin).
+ *  Nothing is written — pair a result with createRelation to confirm. */
+async function suggestAdaptations(mediaId: string): Promise<AdaptationSuggestions> {
+  return jsonOrThrow(
+    await authedFetch(`/api/media/${mediaId}/connections/ai-suggest`, { method: 'POST' }),
+  ) as Promise<AdaptationSuggestions>
+}
+
 export const connectionService = {
   getConnections,
   getSeries,
@@ -219,4 +231,5 @@ export const connectionService = {
   createRelation,
   deleteRelation,
   autoConnect,
+  suggestAdaptations,
 }

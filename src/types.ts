@@ -150,6 +150,20 @@ export type AutoConnectSummary = {
   created: boolean
 }
 
+/** One AI-proposed adaptation/source work, with any catalog matches found for
+ *  its title (POST /api/media/:id/connections/ai-suggest). */
+export type AdaptationCandidate = {
+  title: string
+  year?: number
+  type: MediaType | ''
+  reason: string
+  matches: MediaSummary[]
+}
+
+export type AdaptationSuggestions = {
+  candidates: AdaptationCandidate[]
+}
+
 // ── Community tags (StoryGraph-style) ───────────────────────────────────────
 // A normalized taxonomy (group -> facet -> tag) crowdsourced from users who
 // mark an item finished. A facet's `multi` says whether its picker allows

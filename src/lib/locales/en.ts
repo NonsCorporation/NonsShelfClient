@@ -798,6 +798,11 @@ export const en = {
   autoFinding: 'Finding…',
   autoFoundResult: 'Linked {linked} · {skipped} not in catalog',
   autoFoundNone: 'This film isn’t part of a TMDB collection.',
+  autoFindAdaptation: 'Auto-find adaptation (AI)',
+  autoFindAdaptationHint: 'Ask AI whether this has a known book/movie counterpart.',
+  autoFindAdaptationNone: 'No known adaptation found.',
+  autoFindAdaptationNoMatch: 'Not found in the catalog.',
+  linkAsAdaptation: 'Link',
 
   // Private note
   privateNote: 'Private note',
