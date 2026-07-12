@@ -83,7 +83,7 @@ export function mapMedia(m: BackendMedia): CatalogItem {
     makerUuid: m.maker_uuid || undefined,
     coverUrl: m.cover_url || undefined,
     year: m.year || undefined,
-    genre: m.genres?.length ? m.genres.map((g) => g.name) : [],
+    genre: Array.isArray(m.genres) && m.genres.length ? m.genres.map((g) => g.name) : [],
     description: m.description || undefined,
     communityRating: 0,
     ratingsCount: 0,
