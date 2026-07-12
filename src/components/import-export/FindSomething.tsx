@@ -132,22 +132,79 @@ function drawHand(
   return { items: chosen.slice(0, HAND_SIZE), widened: chosen.some((i) => !strict.has(i.id)) }
 }
 
+// Session persistence for the draw — see the comment in FindSomething for why
+// this is sessionStorage rather than search params.
+const FIND_STORAGE_KEY = 'nons:find-something'
+
+type PersistedFind = {
+  sel: Selection
+  view: 'wizard' | 'cards'
+  step: number
+  draw: CatalogItem[]
+  widened: boolean
+  flipped: number[]
+  revealOrder: number[]
+}
+
+function loadPersisted(): PersistedFind | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = sessionStorage.getItem(FIND_STORAGE_KEY)
+    if (!raw) return null
+    const data = JSON.parse(raw)
+    return { ...data, sel: { ...data.sel, moods: new Set(data.sel.moods), genres: new Set(data.sel.genres) } }
+  } catch {
+    return null
+  }
+}
+
+function savePersisted(data: PersistedFind) {
+  if (typeof window === 'undefined') return
+  try {
+    sessionStorage.setItem(FIND_STORAGE_KEY, JSON.stringify({ ...data, sel: { ...data.sel, moods: [...data.sel.moods], genres: [...data.sel.genres] } }))
+  } catch {
+    // storage full or disabled — the draw just won't survive navigation
+  }
+}
+
+function clearPersisted() {
+  if (typeof window === 'undefined') return
+  sessionStorage.removeItem(FIND_STORAGE_KEY)
+}
+
 export default function FindSomething({ t }: { t: Translate }) {
-  const [open, setOpen] = useState(false)
+  // Restores the last draw session (if any) so navigating into a card and
+  // back doesn't dump the user back at a blank wizard — Next's App Router
+  // fully unmounts this page on that round trip, so state has to survive
+  // outside React. sessionStorage (not the URL) because a dealt hand carries
+  // full CatalogItem payloads that would make an ugly, unstable query string.
+  const persisted = useMemo(loadPersisted, [])
+
+  const [open, setOpen] = useState(!!persisted)
   const [pool, setPool] = useState<CatalogItem[]>([])
   const [loading, setLoading] = useState(false)
   const loadedRef = useRef(false)
 
-  const [sel, setSel] = useState<Selection>(freshSelection)
-  const [view, setView] = useState<'wizard' | 'cards'>('wizard')
-  const [step, setStep] = useState(0)
-  const [draw, setDraw] = useState<CatalogItem[]>([])
-  const [widened, setWidened] = useState(false)
-  const [flipped, setFlipped] = useState<Set<number>>(new Set())
-  
+  const [sel, setSel] = useState<Selection>(persisted?.sel ?? freshSelection)
+  const [view, setView] = useState<'wizard' | 'cards'>(persisted?.view ?? 'wizard')
+  const [step, setStep] = useState(persisted?.step ?? 0)
+  const [draw, setDraw] = useState<CatalogItem[]>(persisted?.draw ?? [])
+  const [widened, setWidened] = useState(persisted?.widened ?? false)
+  const [flipped, setFlipped] = useState<Set<number>>(new Set(persisted?.flipped ?? []))
+
   // tracks picked cards and reveal order
-  const [revealOrder, setRevealOrder] = useState<number[]>([])
-  const lastDrawRef = useRef<Set<string>>(new Set())
+  const [revealOrder, setRevealOrder] = useState<number[]>(persisted?.revealOrder ?? [])
+  const lastDrawRef = useRef<Set<string>>(new Set(persisted?.draw?.map((i) => i.id) ?? []))
+
+  // Persists the live session while the modal is open; dropped the moment it's
+  // explicitly closed, so a fresh "Find something" always starts clean.
+  useEffect(() => {
+    if (!open) {
+      clearPersisted()
+      return
+    }
+    savePersisted({ sel, view, step, draw, widened, flipped: [...flipped], revealOrder })
+  }, [open, sel, view, step, draw, widened, flipped, revealOrder])
 
   // fetches a broad pool of catalog items on first open
   useEffect(() => {
