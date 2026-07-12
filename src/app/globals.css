@@ -276,9 +276,10 @@ html[data-theme="light"] .app-ambient::before {
 }
 
 /* ── Reviews (rich text) ───────────────────────────────────────────────────
-   Shared styling for the bold/italic/spoiler review editor (.review-editor)
-   and its read-only renderer (.review-content). Kept intentionally small: a
-   review is only ever bold, italic or spoiler-tagged text. */
+   Shared styling for the bold/italic/spoiler/quote review editor
+   (.review-editor) and its read-only renderer (.review-content). Kept
+   intentionally small: a review is only ever bold, italic, spoiler-tagged or
+   quoted text. */
 .review-editor,
 .review-content {
   font-size: inherit;
@@ -293,6 +294,32 @@ html[data-theme="light"] .app-ambient::before {
 .review-content p { margin: 0; }
 .review-editor p + p,
 .review-content p + p { margin-top: 0.6em; }
+/* Telegram-style quote: a tinted rounded container with an accent bar on the
+   left and a quotation mark tucked in the top-right corner. */
+.review-editor blockquote,
+.review-content blockquote {
+  position: relative;
+  margin: 0.6em 0;
+  padding: 0.4em 1.6em 0.4em 0.75em;
+  border-radius: 0 8px 8px 0;
+  border-left: 3px solid var(--color-nonsprimary);
+  background: color-mix(in srgb, var(--color-nonsprimary) 10%, transparent);
+  color: var(--text);
+}
+.review-editor blockquote::after,
+.review-content blockquote::after {
+  content: '\201D';
+  position: absolute;
+  top: -0.1em;
+  right: 0.35em;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 1.6em;
+  line-height: 1;
+  color: var(--color-nonsprimary);
+  opacity: 0.55;
+}
+.review-editor blockquote p,
+.review-content blockquote p { margin: 0; }
 
 /* Empty-editor placeholder (TipTap adds .is-editor-empty to the first node). */
 .review-editor p.is-editor-empty:first-child::before {

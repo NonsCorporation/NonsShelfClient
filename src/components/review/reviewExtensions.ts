@@ -50,15 +50,13 @@ declare module '@tiptap/core' {
 }
 
 // The full extension set for a review editor: the core document primitives plus
-// bold, italic and spoilers — and nothing else. Everything StarterKit would
-// otherwise bring (headings, lists, blockquote, code, strike, underline, links,
-// horizontal rules) is turned off so a review can only ever be bold, italic or
-// spoiler-tagged text.
+// bold, italic, spoilers and blockquotes — and nothing else. Everything else
+// StarterKit would otherwise bring (headings, lists, code, strike, underline,
+// links, horizontal rules) is turned off so a review stays simple.
 export function reviewExtensions(placeholder?: string): Extensions {
   return [
     StarterKit.configure({
       heading: false,
-      blockquote: false,
       bulletList: false,
       orderedList: false,
       listItem: false,

@@ -52,6 +52,7 @@ export const en = {
   cast: 'Cast',
   yourReview: 'Your Review',
   reviewPlaceholder: 'What did you think of this {type}?',
+  saveReview: 'Save',
   editDetails: 'Edit Details',
   updateInfo: 'Update the information for this {type}',
   pages: 'Pages',

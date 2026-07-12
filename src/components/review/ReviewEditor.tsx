@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react'
 import { useEditor, EditorContent, type Editor } from '@tiptap/react'
-import { BsTypeBold, BsTypeItalic, BsEyeSlash } from 'react-icons/bs'
+import { BsTypeBold, BsTypeItalic, BsEyeSlash, BsBlockquoteLeft } from 'react-icons/bs'
 import { reviewExtensions } from './reviewExtensions'
 
 export interface ReviewEditorProps {
@@ -67,6 +67,9 @@ function Toolbar({ editor }: { editor: Editor }) {
       </ToolbarButton>
       <ToolbarButton title="Spoiler" active={editor.isActive('spoiler')} onToggle={() => editor.chain().focus().toggleSpoiler().run()}>
         <BsEyeSlash className="h-4 w-4" />
+      </ToolbarButton>
+      <ToolbarButton title="Quote" active={editor.isActive('blockquote')} onToggle={() => editor.chain().focus().toggleBlockquote().run()}>
+        <BsBlockquoteLeft className="h-4 w-4" />
       </ToolbarButton>
     </div>
   )

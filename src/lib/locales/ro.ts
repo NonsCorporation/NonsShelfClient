@@ -52,6 +52,7 @@ export const ro = {
   cast: 'Distribuție',
   yourReview: 'Recenzia ta',
   reviewPlaceholder: 'Ce părere ai despre acest {type}?',
+  saveReview: 'Salvează',
   editDetails: 'Editează detaliile',
   updateInfo: 'Actualizează informațiile despre acest {type}',
   pages: 'Pagini',

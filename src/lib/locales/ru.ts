@@ -52,6 +52,7 @@ export const ru = {
   cast: 'В ролях',
   yourReview: 'Ваш отзыв',
   reviewPlaceholder: 'Что вы думаете об этой {type}?',
+  saveReview: 'Сохранить',
   editDetails: 'Редактировать детали',
   updateInfo: 'Обновить информацию об этой {type}',
   pages: 'Страницы',
