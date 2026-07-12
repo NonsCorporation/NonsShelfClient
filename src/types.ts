@@ -164,6 +164,17 @@ export type AdaptationSuggestions = {
   candidates: AdaptationCandidate[]
 }
 
+/** One "you might also like" recommendation (GET /api/media/:id/recommendations). */
+export type RecommendationItem = {
+  media: MediaSummary
+  reason?: string
+}
+
+export type Recommendations = {
+  ai: RecommendationItem[]
+  system: RecommendationItem[]
+}
+
 // ── Community tags (StoryGraph-style) ───────────────────────────────────────
 // A normalized taxonomy (group -> facet -> tag) crowdsourced from users who
 // mark an item finished. A facet's `multi` says whether its picker allows

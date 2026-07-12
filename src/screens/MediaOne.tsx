@@ -5,6 +5,7 @@ import { useParams, useNavigate, useSearchParams, Link } from '@/lib/router'
 import Layout from '../components/layout/Layout'
 import { DetailPageSkeleton } from '@/components/ui/Skeletons'
 import ConnectionsPanel from '@/components/connections/ConnectionsPanel'
+import RecommendationsPanel from '@/components/media/RecommendationsPanel'
 import MediaModal from '@/components/media/MediaModal'
 import ProgressModal from '@/components/reading/ProgressModal'
 import FinishModal from '@/components/reading/FinishModal'
@@ -1176,6 +1177,9 @@ export default function MediaOnePage({
 
           {/* ── Connections: series, universe, adaptations ── */}
           {mediaNumId && <ConnectionsPanel mediaId={mediaNumId} />}
+
+          {/* ── You might also like (AI) ── */}
+          {mediaNumId && <RecommendationsPanel mediaId={mediaNumId} />}
 
           {/* ── My review ── */}
           {canInteract && (

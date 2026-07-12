@@ -739,6 +739,8 @@ export const en = {
 
   // Connections (series / franchise / adaptations)
   connectionsTitle: 'Connections',
+  recommendationsAI: 'You might also like',
+  recommendationsSystem: 'More like this',
   previous: 'Previous',
   thisTitle: 'This',
   ofTotal: 'of',
