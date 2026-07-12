@@ -22,12 +22,14 @@ import {
   IoClose,
   IoCheckmark,
   IoDownloadOutline,
+  IoBarcodeOutline,
 } from 'react-icons/io5'
 import { BsSortDown, BsSortUp } from 'react-icons/bs'
 import Layout from '../components/layout/Layout.tsx'
 import MediaCard, { type ItemProgress } from '@/components/media/MediaCard'
 import MediaModal from '@/components/media/MediaModal'
 import ImportModal from '@/components/import-export/ImportModal'
+import ScanIsbnModal from '@/components/media/ScanIsbnModal'
 import ExportModal from '@/components/import-export/ExportModal'
 import MediaDetailModal from '@/components/media/MediaDetailModal'
 import FinishModal from '@/components/reading/FinishModal'
@@ -162,6 +164,7 @@ export default function LibraryScreen() {
 
   const [showForm, setShowForm] = useState<null | 'book' | 'movie'>(null)
   const [showImport, setShowImport] = useState(false)
+  const [showScan, setShowScan] = useState(false)
   const [detailItem, setDetailItem] = useState<MediaItem | null>(null)
 
   // Whether the current filters can be pushed down to searchLibrary() (real
@@ -1338,6 +1341,14 @@ export default function LibraryScreen() {
         {!readOnly && (
           <>
             <button
+              onClick={() => setShowScan(true)}
+              title={t('scanBarcode')}
+              className="flex h-10 items-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] px-3 text-sm text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
+            >
+              <IoBarcodeOutline className="h-4 w-4" />
+              <span className="hidden sm:inline">{t('scanBarcode')}</span>
+            </button>
+            <button
               onClick={() => setShowImport(true)}
               title={t('importLibrary') || 'Import'}
               className="flex h-10 items-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] px-3 text-sm text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
@@ -1371,6 +1382,11 @@ export default function LibraryScreen() {
         isOpen={showImport}
         onClose={() => setShowImport(false)}
         onImported={() => libraryService.getItems().then(setItems)}
+      />
+      <ScanIsbnModal
+        isOpen={showScan}
+        onClose={() => setShowScan(false)}
+        onAdded={() => libraryService.getItems().then(setItems)}
       />
       <MediaDetailModal item={detailItem} onClose={() => setDetailItem(null)} />
       <FinishModal

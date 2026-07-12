@@ -10,6 +10,8 @@
     "generate-og": "node scripts/generate-og.mjs"
   },
   "dependencies": {
+    "@zxing/browser": "^0.1.5",
+    "@zxing/library": "^0.21.3",
     "@tiptap/extension-placeholder": "^3.27.3",
     "@tiptap/pm": "^3.27.3",
     "@tiptap/react": "^3.27.3",

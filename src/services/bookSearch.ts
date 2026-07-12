@@ -116,6 +116,35 @@ export async function fetchWorkEditions(workId: string, title?: string, author?:
   }
 }
 
+// Direct ISBN lookup (Google Books + OpenLibrary merge), for a scanned barcode
+// that the local catalog / free-text search couldn't turn up. Returns null if
+// no source has that ISBN.
+export async function lookupIsbn(isbn: string): Promise<ServerEdition | null> {
+  const clean = isbn.trim()
+  if (!clean) return null
+  try {
+    const res = await authedFetch(`/api/books/isbn?isbn=${encodeURIComponent(clean)}`)
+    if (!res.ok) return null
+    return await res.json()
+  } catch {
+    return null
+  }
+}
+
+// Shape a scanned-ISBN edition lookup as a BookCandidate, for the same import
+// path as a regular search result.
+export function isbnEditionToCandidate(isbn: string, e: ServerEdition): BookCandidate {
+  return {
+    title: e.title || isbn,
+    author: '',
+    year: e.published_year,
+    coverUrl: e.cover_url,
+    isbn: e.isbn13 || e.isbn10 || isbn,
+    description: e.description,
+    source: e.source || 'isbn',
+  }
+}
+
 // Shape a candidate as the MediaItem the catalog create form expects.
 export function bookCandidateToItem(c: BookCandidate): Partial<MediaItem> {
   return {

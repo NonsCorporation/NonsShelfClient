@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
-import { IoClose, IoSearch, IoBookOutline, IoFilmOutline, IoTvOutline, IoCloudDownloadOutline, IoOpenOutline } from 'react-icons/io5'
+import { IoClose, IoSearch, IoBookOutline, IoFilmOutline, IoTvOutline, IoCloudDownloadOutline, IoOpenOutline, IoBarcodeOutline } from 'react-icons/io5'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { librarianService } from '@/services/librarianService'
 import type { TmdbCandidate } from '@/services/librarianService'
-import { searchBooks, bookCandidateToItem, fetchWorkEditions, sourceLabel } from '@/services/bookSearch'
+import { searchBooks, bookCandidateToItem, fetchWorkEditions, sourceLabel, lookupIsbn, isbnEditionToCandidate } from '@/services/bookSearch'
 import InfinityLoader from '@/components/ui/InfinityLoader'
+import BarcodeScannerModal from '@/components/import-export/BarcodeScannerModal'
 
 type Kind = 'book' | 'movie' | 'series'
 
@@ -28,6 +29,8 @@ type Props = {
 
 // Librarian import: search OpenLibrary (books, keyless) or TMDB (movies/series,
 // via the server proxy) by name/ISBN, then create a catalog row in one click.
+const ISBN_LIKE = /^[0-9Xx-]{10,17}$/
+
 export default function ImportSearchModal({ isOpen, onClose, onImported }: Props) {
   const { t } = useLanguage()
   const [kind, setKind] = useState<Kind>('book')
@@ -38,6 +41,11 @@ export default function ImportSearchModal({ isOpen, onClose, onImported }: Props
   const [pending, setPending] = useState(false)
   const [importingKey, setImportingKey] = useState<string | null>(null)
   const [error, setError] = useState('')
+  const [scannerOpen, setScannerOpen] = useState(false)
+  // Set right after a barcode scan so the next search fires immediately
+  // instead of waiting out the normal typing debounce.
+  const [instant, setInstant] = useState(false)
+  const [isbnLookup, setIsbnLookup] = useState<'idle' | 'loading' | 'not-found'>('idle')
 
   // Reset when reopened.
   useEffect(() => {
@@ -46,13 +54,15 @@ export default function ImportSearchModal({ isOpen, onClose, onImported }: Props
       setRows([])
       setError('')
       setPending(false)
+      setIsbnLookup('idle')
     }
   }, [isOpen])
 
   // Debounced search. Shows skeleton immediately on keystroke (pending),
-  // then fires the real request after 3 s.
+  // then fires the real request after 3 s (instantly after a barcode scan).
   useEffect(() => {
     if (!isOpen) return
+    setIsbnLookup('idle')
     if (!q.trim()) {
       setRows([])
       setLoading(false)
@@ -61,7 +71,9 @@ export default function ImportSearchModal({ isOpen, onClose, onImported }: Props
     }
     setError('')
     setPending(true)
+    const delay = instant ? 0 : 3000
     const timer = setTimeout(async () => {
+      setInstant(false)
       setPending(false)
       setLoading(true)
       try {
@@ -73,9 +85,9 @@ export default function ImportSearchModal({ isOpen, onClose, onImported }: Props
       } finally {
         setLoading(false)
       }
-    }, 3000)
+    }, delay)
     return () => { clearTimeout(timer); setPending(false) }
-  }, [q, kind, isOpen])
+  }, [q, kind, isOpen, instant])
 
   if (!isOpen) return null
 
@@ -90,6 +102,44 @@ export default function ImportSearchModal({ isOpen, onClose, onImported }: Props
     } finally {
       setImportingKey(null)
     }
+  }
+
+  const handleScanned = (isbn: string) => {
+    setScannerOpen(false)
+    setKind('book')
+    setInstant(true)
+    setQ(isbn)
+  }
+
+  // Fallback for a scanned/typed ISBN the local + external search couldn't
+  // surface: hit the server's direct-ISBN lookup (Google Books + OpenLibrary).
+  const tryIsbnLookup = async () => {
+    setIsbnLookup('loading')
+    const edition = await lookupIsbn(q)
+    if (!edition) {
+      setIsbnLookup('not-found')
+      return
+    }
+    const candidate = isbnEditionToCandidate(q, edition)
+    setRows([
+      {
+        key: `isbn-${candidate.isbn ?? q}`,
+        title: candidate.title,
+        subtitle: [candidate.author, candidate.year].filter(Boolean).join(' · '),
+        coverUrl: candidate.coverUrl,
+        source: sourceLabel(candidate.source),
+        existing: false,
+        run: async () => {
+          const id = await librarianService.createMedia(bookCandidateToItem(candidate))
+          const editions = await fetchWorkEditions('', candidate.title).catch(() => [])
+          for (const ed of editions.slice(0, 80)) {
+            await librarianService.addEdition(String(id), ed).catch(() => {})
+          }
+          return id
+        },
+      },
+    ])
+    setIsbnLookup('idle')
   }
 
   const tabs: { key: Kind; label: string; Icon: typeof IoBookOutline }[] = [
@@ -134,8 +184,8 @@ export default function ImportSearchModal({ isOpen, onClose, onImported }: Props
           </div>
         </div>
 
-        <div className="flex-shrink-0 px-5 pt-3">
-          <div className="relative">
+        <div className="flex flex-shrink-0 items-center gap-2 px-5 pt-3">
+          <div className="relative flex-1">
             <IoSearch className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" />
             <input
               autoFocus
@@ -145,6 +195,15 @@ export default function ImportSearchModal({ isOpen, onClose, onImported }: Props
               className="h-11 w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--input)] pl-10 pr-3 text-sm text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-ring)]"
             />
           </div>
+          {kind === 'book' && (
+            <button
+              onClick={() => setScannerOpen(true)}
+              title={t('scanBarcode')}
+              className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
+            >
+              <IoBarcodeOutline className="h-5 w-5" />
+            </button>
+          )}
         </div>
 
         <div className="flex-1 overflow-y-auto px-5 py-4">
@@ -163,8 +222,21 @@ export default function ImportSearchModal({ isOpen, onClose, onImported }: Props
 
           {/* No results → show the infinity loader so it feels alive */}
           {!pending && !loading && q.trim() && rows.length === 0 && (
-            <div className="flex justify-center py-6">
+            <div className="flex flex-col items-center gap-4 py-6">
               <InfinityLoader hint={t('searchingMore')} />
+              {kind === 'book' && ISBN_LIKE.test(q.trim()) && (
+                <div className="flex flex-col items-center gap-2 text-center">
+                  <p className="text-xs text-[var(--text-muted)]">{t('isbnNotFoundLocally')}</p>
+                  <button
+                    onClick={tryIsbnLookup}
+                    disabled={isbnLookup === 'loading'}
+                    className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] px-3 py-2 text-xs font-semibold text-[var(--text)] transition-colors hover:bg-[var(--surface-hover)] disabled:opacity-50"
+                  >
+                    {isbnLookup === 'loading' ? t('looking') : t('lookUpIsbnDirectly')}
+                  </button>
+                  {isbnLookup === 'not-found' && <p className="text-xs text-red-500">{t('isbnNotFound')}</p>}
+                </div>
+              )}
             </div>
           )}
 
@@ -213,6 +285,7 @@ export default function ImportSearchModal({ isOpen, onClose, onImported }: Props
           )}
         </div>
       </div>
+      <BarcodeScannerModal isOpen={scannerOpen} onClose={() => setScannerOpen(false)} onDetected={handleScanned} />
     </div>
   )
 }
