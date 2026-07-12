@@ -23,7 +23,10 @@ import { useAuth } from '../contexts/AuthContext'
 import { STATUS_COLOR } from '../lib/shelf'
 import type { ShelfStatus } from '../types'
 import { mediaPath } from '../lib/paths'
-import { IoSearch, IoStar, IoPeopleOutline, IoChevronBack, IoChevronForward, IoArrowForward, IoLinkOutline, IoCheckmark, IoRibbonOutline } from 'react-icons/io5'
+import {
+  IoSearch, IoPeopleOutline, IoArrowForward, IoLinkOutline,
+  IoCheckmark, IoRibbonOutline, IoTimeOutline,
+} from 'react-icons/io5'
 import ShelfLogo from '@/components/branding/ShelfLogo'
 import ShelfStatusBar from '@/components/media/ShelfStatusBar'
 import TypeBadge from '@/components/badges/TypeBadge'
@@ -225,8 +228,8 @@ export default function FeedPage() {
     return h < 12 ? 'greetingMorning' : h < 18 ? 'greetingAfternoon' : 'greetingEvening'
   })()
 
-  // A quiet at-a-glance line under the greeting: only the segments that apply.
-  const statLine = useMemo(() => {
+  // Shared counts behind both the header's stat line and the sidebar's stats card.
+  const stats = useMemo(() => {
     const now = new Date()
     const finishedThisMonth = items.filter((it) => {
       if (it.status !== 'done' || !it.finishedAt) return false
@@ -234,13 +237,18 @@ export default function FeedPage() {
       return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()
     }).length
     const activeFriends = new Set(activity.map((a) => a.user.handle)).size
+    return { inProgress: inProgress.length, finishedThisMonth, activeFriends }
+  }, [items, activity, inProgress])
+
+  // A quiet at-a-glance line under the greeting: only the segments that apply.
+  const statLine = useMemo(() => {
     const segs = [
-      inProgress.length > 0 && t('statInProgress', { count: inProgress.length }),
-      finishedThisMonth > 0 && t('statFinishedThisMonth', { count: finishedThisMonth }),
-      activeFriends > 0 && t('statFriendsActive', { count: activeFriends }),
+      stats.inProgress > 0 && t('statInProgress', { count: stats.inProgress }),
+      stats.finishedThisMonth > 0 && t('statFinishedThisMonth', { count: stats.finishedThisMonth }),
+      stats.activeFriends > 0 && t('statFriendsActive', { count: stats.activeFriends }),
     ].filter(Boolean) as string[]
     return segs.join(' · ')
-  }, [items, activity, inProgress, t])
+  }, [stats, t])
 
   // Group the (filtered) activity page into day buckets, preserving newest-first order.
   const activityGroups = useMemo(() => {
@@ -279,6 +287,7 @@ export default function FeedPage() {
         <InProgressSection
           items={inProgress}
           readingChallenge={readingChallenge}
+          stats={stats}
           onFinish={openFinish}
           onEditProgress={openProgress}
           onStatusChanged={(id, status) =>
@@ -472,9 +481,13 @@ export default function FeedPage() {
 
 type Translate = (key: string, vars?: Record<string, string | number>) => string
 
+// The feed's top area, split into three side-by-side containers — mirroring
+// the /m/ page's habit of many small bordered blocks rather than one dense
+// one: what's in progress, the reading challenge, and a few quick numbers.
 function InProgressSection({
   items,
   readingChallenge,
+  stats,
   onFinish,
   onEditProgress,
   onStatusChanged,
@@ -482,90 +495,147 @@ function InProgressSection({
 }: {
   items: MediaItem[]
   readingChallenge: Challenge | null
+  stats: { inProgress: number; finishedThisMonth: number; activeFriends: number }
   onFinish: (it: MediaItem) => void
   onEditProgress: (it: MediaItem) => void
   onStatusChanged: (id: string, status: ShelfStatus) => void
   t: Translate
 }) {
-  const rowRef = useRef<HTMLDivElement>(null)
-  const [canScrollLeft, setCanScrollLeft] = useState(false)
-  const [canScrollRight, setCanScrollRight] = useState(false)
-  const [expandedId, setExpandedId] = useState<string | null>(null)
-
-  const updateArrows = () => {
-    const el = rowRef.current
-    if (!el) return
-    setCanScrollLeft(el.scrollLeft > 4)
-    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 4)
-  }
-
-  useEffect(() => {
-    updateArrows()
-    const el = rowRef.current
-    if (!el) return
-    el.addEventListener('scroll', updateArrows, { passive: true })
-    const ro = new ResizeObserver(updateArrows)
-    ro.observe(el)
-    return () => {
-      el.removeEventListener('scroll', updateArrows)
-      ro.disconnect()
-    }
-  }, [items])
-
-  const scroll = (dir: 'left' | 'right') => {
-    rowRef.current?.scrollBy({ left: dir === 'left' ? -300 : 300, behavior: 'smooth' })
-  }
-
-  const toggle = (id: string) => setExpandedId((cur) => (cur === id ? null : id))
+  const VISIBLE_COUNT = 3
+  const [showAll, setShowAll] = useState(false)
+  const visibleItems = showAll ? items : items.slice(0, VISIBLE_COUNT)
 
   return (
-    <section className="mb-10">
-      <div className="mb-3 flex items-center gap-3">
-        <h2 className="flex items-center gap-2 text-base font-semibold text-[var(--text)]">
-          <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: STATUS_COLOR.active }} />
+    <section className="mb-10 grid grid-cols-1 gap-4 lg:grid-cols-3 lg:items-start">
+      <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface)] p-4 lg:col-span-2">
+        <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-[var(--text)]">
+          <span className="h-2 w-2 rounded-full" style={{ backgroundColor: STATUS_COLOR.active }} />
           {t('shelfActive')}
         </h2>
-        <p className="hidden text-sm text-[var(--text-muted)] sm:block">{t('continueHint')}</p>
-      </div>
-
-      <div className="relative">
-        {canScrollLeft && (
-          <button
-            onClick={() => scroll('left')}
-            className="absolute -left-3 top-1/2 z-10 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-full border border-[var(--border-subtle)] bg-[var(--container)] text-[var(--text)] shadow-lg hover:bg-[var(--surface-hover)]"
-          >
-            <IoChevronBack className="h-4 w-4" />
-          </button>
-        )}
-
-        {canScrollRight && (
+        {items.length === 0 ? (
+          <p className="text-xs text-[var(--text-muted)]">{t('continueHint')}</p>
+        ) : (
           <>
-            <div className="pointer-events-none absolute right-0 top-0 z-10 h-full w-24 bg-gradient-to-l from-[var(--bg)] to-transparent" />
-            <button
-              onClick={() => scroll('right')}
-              className="absolute -right-3 top-1/2 z-20 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-full border border-[var(--border-subtle)] bg-[var(--container)] text-[var(--text)] shadow-lg hover:bg-[var(--surface-hover)]"
-            >
-              <IoChevronForward className="h-4 w-4" />
-            </button>
+            <div className="flex flex-col divide-y divide-[var(--border-subtle)]">
+              {visibleItems.map((it) => (
+                <InProgressCard
+                  key={it.id}
+                  item={it}
+                  onFinish={() => onFinish(it)}
+                  onEditProgress={() => onEditProgress(it)}
+                  onStatusChanged={onStatusChanged}
+                  t={t}
+                />
+              ))}
+            </div>
+            {items.length > VISIBLE_COUNT && (
+              <button
+                type="button"
+                onClick={() => setShowAll((v) => !v)}
+                className="mt-2 text-xs font-medium text-[var(--text-muted)] hover:text-nonsprimary"
+              >
+                {showAll ? t('showLess') : t('showAll')}
+              </button>
+            )}
           </>
         )}
+      </div>
 
-        <div ref={rowRef} className="no-scrollbar flex items-stretch gap-3 overflow-x-auto pb-1">
-          {items.map((it) => (
-            <InProgressCard
-              key={it.id}
-              item={it}
-              expanded={expandedId === it.id}
-              onFinish={() => onFinish(it)}
-              onEditProgress={() => onEditProgress(it)}
-              onStatusChanged={onStatusChanged}
-              t={t}
-            />
-          ))}
-          {readingChallenge && <ReadingChallengeCard challenge={readingChallenge} t={t} />}
+      <div className="flex flex-col gap-4">
+        <ChallengeBlock challenge={readingChallenge} t={t} />
+        <div className="hidden lg:block">
+          <StatsBlock stats={stats} t={t} />
         </div>
       </div>
     </section>
+  )
+}
+
+// Reading challenge, as its own fluid-width block (not the fixed-width rail
+// card it used to share a row with) — the goal or "join" nudge, plus progress.
+function ChallengeBlock({ challenge, t }: { challenge: Challenge | null; t: Translate }) {
+  if (!challenge) {
+    return (
+      <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface)] p-4">
+        <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-[var(--text)]">
+          <IoRibbonOutline className="h-4 w-4 text-nonsprimary" />
+          {t('readingChallenge')}
+        </h2>
+        <p className="text-xs text-[var(--text-muted)]">{t('noReadingChallenge')}</p>
+      </div>
+    )
+  }
+
+  const target = challenge.target ?? 0
+  const progress = challenge.progress ?? 0
+  const hasGoal = challenge.joined && target > 0
+  const pct = target > 0 ? Math.min(100, Math.round((progress / target) * 100)) : 0
+  const done = (challenge.completed_at ?? 0) > 0
+  const title = t('readingGoalTitle', { year: challengeYear(challenge) })
+
+  return (
+    <Link
+      to={`/challenge/${challenge.uuid}`}
+      className={`group flex items-center gap-3 rounded-2xl border p-4 transition-colors hover:border-nonsprimary ${
+        hasGoal ? 'border-[var(--border-subtle)] bg-[var(--surface)]' : 'border-dashed border-[var(--border)]'
+      }`}
+    >
+      <div className="flex aspect-square w-11 flex-shrink-0 items-center justify-center rounded-xl bg-[var(--primary-soft)]">
+        <IoRibbonOutline className="h-5 w-5 text-nonsprimary" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <h3 className="truncate text-sm font-semibold text-[var(--text)]">{title}</h3>
+        {hasGoal ? (
+          <>
+            <p className="truncate text-xs text-[var(--text-muted)]">
+              {t('readingGoalProgress', { progress, target })}
+              {pct > 0 && <span className="ml-1 font-semibold text-nonsprimary">{pct}%</span>}
+            </p>
+            <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-[var(--container-2)]">
+              <div className="h-full rounded-full bg-nonsprimary transition-all" style={{ width: `${pct}%` }} />
+            </div>
+          </>
+        ) : (
+          <p className="truncate text-xs text-[var(--text-muted)]">{t('joinReadingChallenge')}</p>
+        )}
+      </div>
+      {hasGoal && done && <IoCheckmark className="h-4 w-4 flex-shrink-0 text-nonsprimary" />}
+      {!hasGoal && (
+        <IoArrowForward className="h-4 w-4 flex-shrink-0 text-[var(--text-muted)] transition-transform group-hover:translate-x-0.5 group-hover:text-nonsprimary" />
+      )}
+    </Link>
+  )
+}
+
+// Quick numbers — reuses the same counts behind the header's stat line, just
+// broken out as its own small block instead of buried in muted text.
+function StatsBlock({
+  stats,
+  t,
+}: {
+  stats: { inProgress: number; finishedThisMonth: number; activeFriends: number }
+  t: Translate
+}) {
+  const rows = [
+    { icon: IoTimeOutline, label: t('sidebarInProgress'), value: stats.inProgress },
+    { icon: IoCheckmark, label: t('sidebarFinishedMonth'), value: stats.finishedThisMonth },
+    { icon: IoPeopleOutline, label: t('sidebarFriendsActive'), value: stats.activeFriends },
+  ]
+  return (
+    <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface)] p-4">
+      <h2 className="mb-3 text-sm font-semibold text-[var(--text)]">{t('sidebarYourStats')}</h2>
+      <div className="flex flex-col gap-2.5">
+        {rows.map((r) => (
+          <div key={r.label} className="flex items-center gap-2.5">
+            <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-[var(--primary-soft)] text-nonsprimary">
+              <r.icon className="h-3.5 w-3.5" />
+            </span>
+            <span className="flex-1 truncate text-xs text-[var(--text-muted)]">{r.label}</span>
+            <span className="text-sm font-semibold text-[var(--text)]">{r.value}</span>
+          </div>
+        ))}
+      </div>
+    </div>
   )
 }
 
@@ -577,11 +647,10 @@ function InProgressCard({
   t,
 }: {
   item: MediaItem
-  expanded: boolean
   onFinish: () => void
   onEditProgress: () => void
   onStatusChanged: (id: string, status: ShelfStatus) => void
-  t: (key: string) => string
+  t: Translate
 }) {
   const [latestPage, setLatestPage] = useState<number>(0)
   const [episodeStats, setEpisodeStats] = useState<{ watched: number; total: number } | null>(null)
@@ -609,58 +678,30 @@ function InProgressCard({
   }
 
   return (
-    <div className="w-72 flex-shrink-0">
-      <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--container)]">
-        <Link to={mediaPath(item)} className="flex items-center gap-3 p-3">
-          <div className="relative aspect-[2/3] w-14 flex-shrink-0">
-            {item.coverUrl ? (
-              <img src={item.coverUrl} alt={item.title} loading="lazy" className="h-full w-full rounded-md object-cover" />
-            ) : (
-              <div className="h-full w-full rounded-md bg-[var(--container-2)]" />
-            )}
-            <TypeBadge type={item.type} position="top-1 right-1" size="h-6 w-6" iconSize="h-3 w-3" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <h3 className="truncate text-sm font-semibold text-[var(--text)]">{item.title}</h3>
-            <p className="truncate text-xs text-[var(--text-muted)]">{item.author}</p>
-            {item.type === 'book' && latestPage > 0 && (
-              <div className="mt-1.5">
-                <p className="mb-1 text-[11px] text-[var(--text-muted)]">
-                  {totalPages > 0 ? `Page ${latestPage} / ${totalPages}` : `Page ${latestPage}`}
-                  {pct > 0 && <span className="ml-1 font-semibold text-nonsprimary">{pct}%</span>}
-                </p>
-                {pct > 0 && (
-                  <div className="h-1 w-full overflow-hidden rounded-full bg-[var(--container-2)]">
-                    <div className="h-full rounded-full bg-nonsprimary transition-all" style={{ width: `${pct}%` }} />
-                  </div>
-                )}
-              </div>
-            )}
-            {item.type === 'series' && episodeStats && episodeStats.watched > 0 && (
-              <div className="mt-1.5">
-                <p className="mb-1 text-[11px] text-[var(--text-muted)]">
-                  {episodeStats.total > 0 ? `Ep ${episodeStats.watched} / ${episodeStats.total}` : `${episodeStats.watched} ep`}
-                  {pct > 0 && <span className="ml-1 font-semibold text-nonsprimary">{pct}%</span>}
-                </p>
-                {pct > 0 && (
-                  <div className="h-1 w-full overflow-hidden rounded-full bg-[var(--container-2)]">
-                    <div className="h-full rounded-full bg-nonsprimary transition-all" style={{ width: `${pct}%` }} />
-                  </div>
-                )}
-              </div>
-            )}
-            {typeof item.rating === 'number' && item.rating > 0 && (
-              <span className="mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-[var(--text)]">
-                <IoStar className="h-3 w-3 text-nonsprimary" />
-                {(item.rating / 2).toFixed(1)}
-              </span>
-            )}
-          </div>
+    <div className="flex items-start gap-3 py-3 first:pt-0 last:pb-0">
+      <Link to={mediaPath(item)} className="relative aspect-[2/3] w-14 flex-shrink-0">
+        {item.coverUrl ? (
+          <img src={item.coverUrl} alt={item.title} loading="lazy" className="h-full w-full rounded-md object-cover" />
+        ) : (
+          <div className="h-full w-full rounded-md bg-[var(--container-2)]" />
+        )}
+        <TypeBadge type={item.type} position="top-1 right-1" size="h-6 w-6" iconSize="h-3 w-3" />
+      </Link>
+      <div className="min-w-0 flex-1">
+        <Link to={mediaPath(item)}>
+          <h3 className="truncate text-sm font-semibold text-[var(--text)]">{item.title}</h3>
+          <p className="truncate text-xs text-[var(--text-muted)]">
+            {item.author}
+            {pct > 0 && <span className="ml-1 font-semibold text-nonsprimary">{pct}%</span>}
+          </p>
         </Link>
+        {pct > 0 && (
+          <div className="mt-1 h-1 w-full overflow-hidden rounded-full bg-[var(--container-2)]">
+            <div className="h-full rounded-full bg-nonsprimary transition-all" style={{ width: `${pct}%` }} />
+          </div>
+        )}
 
-        <div className="mx-3 h-px bg-[var(--border-subtle)]" />
-
-        <div className="p-1.5">
+        <div className="mt-1.5">
           <ShelfStatusBar
             item={item}
             currentStatus="active"
@@ -669,65 +710,6 @@ function InProgressCard({
           />
         </div>
       </div>
-    </div>
-  )
-}
-
-// The yearly reading challenge as an in-progress card — same footprint as an
-// InProgressCard. Shows live books-read progress once the viewer has set a
-// goal, or a dashed "join the reading challenge" nudge if they haven't; both
-// link through to the challenge page.
-function ReadingChallengeCard({ challenge, t }: { challenge: Challenge; t: Translate }) {
-  const target = challenge.target ?? 0
-  const progress = challenge.progress ?? 0
-  const hasGoal = challenge.joined && target > 0
-  const pct = target > 0 ? Math.min(100, Math.round((progress / target) * 100)) : 0
-  const done = (challenge.completed_at ?? 0) > 0
-  const title = t('readingGoalTitle', { year: challengeYear(challenge) })
-
-  if (!hasGoal) {
-    return (
-      <div className="w-72 flex-shrink-0">
-        <Link
-          to={`/challenge/${challenge.uuid}`}
-          className="group flex h-full items-center gap-3 rounded-lg border border-dashed border-[var(--border)] p-3 transition-colors hover:border-nonsprimary"
-        >
-          <div className="flex aspect-[2/3] w-14 flex-shrink-0 items-center justify-center rounded-md bg-[var(--primary-soft)]">
-            <IoRibbonOutline className="h-6 w-6 text-nonsprimary" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <h3 className="truncate text-sm font-semibold text-[var(--text)]">{title}</h3>
-            <p className="text-xs text-[var(--text-muted)]">{t('joinReadingChallenge')}</p>
-          </div>
-          <IoArrowForward className="h-4 w-4 flex-shrink-0 text-[var(--text-muted)] transition-transform group-hover:translate-x-0.5 group-hover:text-nonsprimary" />
-        </Link>
-      </div>
-    )
-  }
-
-  return (
-    <div className="w-72 flex-shrink-0">
-      <Link
-        to={`/challenge/${challenge.uuid}`}
-        className="flex h-full items-center gap-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--container)] p-3 transition-colors hover:border-nonsprimary"
-      >
-        <div className="flex aspect-[2/3] w-14 flex-shrink-0 items-center justify-center rounded-md bg-[var(--primary-soft)]">
-          <IoRibbonOutline className="h-6 w-6 text-nonsprimary" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <h3 className="truncate text-sm font-semibold text-[var(--text)]">{title}</h3>
-          <p className="truncate text-xs text-[var(--text-muted)]">{done ? t('challengeCompleted') : t('yourGoal')}</p>
-          <div className="mt-1.5">
-            <p className="mb-1 text-[11px] text-[var(--text-muted)]">
-              {t('readingGoalProgress', { progress, target })}
-              {pct > 0 && <span className="ml-1 font-semibold text-nonsprimary">{pct}%</span>}
-            </p>
-            <div className="h-1 w-full overflow-hidden rounded-full bg-[var(--container-2)]">
-              <div className="h-full rounded-full bg-nonsprimary transition-all" style={{ width: `${pct}%` }} />
-            </div>
-          </div>
-        </div>
-      </Link>
     </div>
   )
 }

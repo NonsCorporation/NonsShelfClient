@@ -31,7 +31,7 @@ const SHARE_STATUS: Partial<Record<ActivityType, ShelfStatus>> = {
   dnf: 'dnf',
 }
 
-const VERB_KEY: Record<ActivityType, string> = {
+export const VERB_KEY: Record<ActivityType, string> = {
   rated: 'verbRated',
   finished: 'verbFinished',
   started: 'verbStarted',
