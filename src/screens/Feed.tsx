@@ -17,21 +17,24 @@ import Pagination from '@/components/ui/Pagination'
 import { getCommentCounts } from '../services/commentService'
 import { catalogService } from '../services/catalogService'
 import type { CatalogItem } from '../services/catalogService'
+import { discoverService } from '../services/discoverService'
 import type { MediaItem, Challenge } from '../types'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
+import { usePreferences, type FeedBlock } from '../contexts/PreferencesContext'
 import { STATUS_COLOR } from '../lib/shelf'
 import type { ShelfStatus } from '../types'
 import { mediaPath } from '../lib/paths'
 import {
   IoSearch, IoPeopleOutline, IoArrowForward, IoLinkOutline,
-  IoCheckmark, IoRibbonOutline, IoTimeOutline,
+  IoCheckmark, IoRibbonOutline, IoTimeOutline, IoSettingsOutline,
 } from 'react-icons/io5'
 import ShelfLogo from '@/components/branding/ShelfLogo'
 import ShelfStatusBar from '@/components/media/ShelfStatusBar'
 import TypeBadge from '@/components/badges/TypeBadge'
 import { ActivityCardSkeleton } from '@/components/ui/Skeletons'
 import InfinityLoader from '@/components/ui/InfinityLoader'
+import FeedSettingsModal from '@/components/settings/FeedSettingsModal'
 
 // Friends-activity is paginated server-side; this many cards per page.
 const ACTIVITY_PER_PAGE = 10
@@ -59,6 +62,11 @@ const ACTIVITY_FILTERS: { key: 'all' | ActivityType; labelKey: string }[] = [
 export default function FeedPage() {
   const { t } = useLanguage()
   const { user } = useAuth()
+  const { feedBlocks } = usePreferences()
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  // Mobile only: hides the logo/wordmark while the catalog search is active,
+  // so the input gets the full row width instead of a cramped sliver.
+  const [searchFocused, setSearchFocused] = useState(false)
   const [searchParams, setSearchParams] = useSearchParams()
   const focusPostId = searchParams.get('post') ? Number(searchParams.get('post')) : null
   // Zero-based, mirrors ?page= (1-based, param omitted on page 1) — same
@@ -78,6 +86,9 @@ export default function FeedPage() {
   // The viewer's yearly reading challenge, shown as the last card in the
   // in-progress row once they've set a goal for the current year.
   const [readingChallenge, setReadingChallenge] = useState<Challenge | null>(null)
+  // A few catalog-wide trending picks for the "Talked about" block — fetched
+  // once on mount, independent of the library/activity fetches above.
+  const [trending, setTrending] = useState<CatalogItem[]>([])
   const activityRef = useRef<HTMLElement>(null)
   const focusCardRef = useRef<HTMLDivElement>(null)
 
@@ -120,6 +131,11 @@ export default function FeedPage() {
     })
     return () => { cancelled = true }
   }, [me, activityRefreshKey])
+
+  useEffect(() => {
+    if (!me) return
+    discoverService.trending().then((items) => setTrending(items.slice(0, 5)))
+  }, [me])
 
   // Manual refresh (e.g. after finishing a book): reload library items and
   // jump back to activity page 1 so the new event is visible. Always bumps
@@ -266,28 +282,53 @@ export default function FeedPage() {
   return (
     <Layout>
       <div className="mb-5 flex items-center gap-3 lg:hidden">
-        <div className="flex flex-shrink-0 items-center gap-2">
-          <ShelfLogo className="h-6 w-6 text-[var(--text)]" />
-          <span className="text-xl font-bold tracking-tight text-[var(--text)]">Nons Shelf</span>
-        </div>
+        {!searchFocused && (
+          <div className="flex flex-shrink-0 items-center gap-2">
+            <ShelfLogo className="h-6 w-6 text-[var(--text)]" />
+            <span className="text-xl font-bold tracking-tight text-[var(--text)]">Nons Shelf</span>
+          </div>
+        )}
         <div className="min-w-0 flex-1">
-          <MobileCatalogSearch t={t} />
+          <MobileCatalogSearch t={t} onFocusChange={setSearchFocused} />
         </div>
       </div>
 
-      <div className="mb-6 hidden lg:block">
-        <h1 className="text-xl font-bold tracking-tight text-[var(--text)]">
-          {t(greetingKey)}{me?.name ? `, ${me.name}` : ''}
-        </h1>
-        <p className="mt-1 text-sm text-[var(--text-muted)]">{statLine || t('feedSubtitle')}</p>
+      <div className="mb-6 hidden items-start justify-between gap-3 lg:flex">
+        <div>
+          <h1 className="text-xl font-bold tracking-tight text-[var(--text)]">
+            {t(greetingKey)}{me?.name ? `, ${me.name}` : ''}
+          </h1>
+          <p className="mt-1 text-sm text-[var(--text-muted)]">{statLine || t('feedSubtitle')}</p>
+        </div>
+        <button
+          onClick={() => setSettingsOpen(true)}
+          aria-label={t('settingsTitle')}
+          className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl border border-[var(--border-subtle)] text-[var(--text-muted)] transition-colors hover:bg-[var(--surface)] hover:text-[var(--text)]"
+        >
+          <IoSettingsOutline className="h-5 w-5" />
+        </button>
       </div>
 
       {/* Currently watching / reading */}
-      {!loading && (inProgress.length > 0 || readingChallenge) && (
+      {!loading && (feedBlocks.progress || feedBlocks.challenge || feedBlocks.stats || feedBlocks.trending) && (
+        <div className="mb-2 flex justify-start lg:hidden">
+          <button
+            onClick={() => setSettingsOpen(true)}
+            aria-label={t('settingsTitle')}
+            className="flex items-center gap-1.5 text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text)]"
+          >
+            <IoSettingsOutline className="h-3.5 w-3.5" />
+            {t('settingsFeedLayout')}
+          </button>
+        </div>
+      )}
+      {!loading && (feedBlocks.progress || feedBlocks.challenge || feedBlocks.stats || feedBlocks.trending) && (
         <InProgressSection
           items={inProgress}
           readingChallenge={readingChallenge}
           stats={stats}
+          trending={trending}
+          visibleBlocks={feedBlocks}
           onFinish={openFinish}
           onEditProgress={openProgress}
           onStatusChanged={(id, status) =>
@@ -474,6 +515,7 @@ export default function FeedPage() {
           load()
         }}
       />
+      <FeedSettingsModal isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </Layout>
   )
 }
@@ -488,6 +530,8 @@ function InProgressSection({
   items,
   readingChallenge,
   stats,
+  trending,
+  visibleBlocks,
   onFinish,
   onEditProgress,
   onStatusChanged,
@@ -496,6 +540,8 @@ function InProgressSection({
   items: MediaItem[]
   readingChallenge: Challenge | null
   stats: { inProgress: number; finishedThisMonth: number; activeFriends: number }
+  trending: CatalogItem[]
+  visibleBlocks: Record<FeedBlock, boolean>
   onFinish: (it: MediaItem) => void
   onEditProgress: (it: MediaItem) => void
   onStatusChanged: (id: string, status: ShelfStatus) => void
@@ -506,47 +552,55 @@ function InProgressSection({
   const visibleItems = showAll ? items : items.slice(0, VISIBLE_COUNT)
 
   return (
-    <section className="mb-10 grid grid-cols-1 gap-4 lg:grid-cols-3 lg:items-start">
-      <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface)] p-4 lg:col-span-2">
-        <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-[var(--text)]">
-          <span className="h-2 w-2 rounded-full" style={{ backgroundColor: STATUS_COLOR.active }} />
-          {t('shelfActive')}
-        </h2>
-        {items.length === 0 ? (
-          <p className="text-xs text-[var(--text-muted)]">{t('continueHint')}</p>
-        ) : (
-          <>
-            <div className="flex flex-col divide-y divide-[var(--border-subtle)]">
-              {visibleItems.map((it) => (
-                <InProgressCard
-                  key={it.id}
-                  item={it}
-                  onFinish={() => onFinish(it)}
-                  onEditProgress={() => onEditProgress(it)}
-                  onStatusChanged={onStatusChanged}
-                  t={t}
-                />
-              ))}
-            </div>
-            {items.length > VISIBLE_COUNT && (
-              <button
-                type="button"
-                onClick={() => setShowAll((v) => !v)}
-                className="mt-2 text-xs font-medium text-[var(--text-muted)] hover:text-nonsprimary"
-              >
-                {showAll ? t('showLess') : t('showAll')}
-              </button>
-            )}
-          </>
-        )}
-      </div>
-
-      <div className="flex flex-col gap-4">
-        <ChallengeBlock challenge={readingChallenge} t={t} />
-        <div className="hidden lg:block">
-          <StatsBlock stats={stats} t={t} />
+    <section className="no-scrollbar mb-10 flex snap-x snap-mandatory gap-4 overflow-x-auto pb-1 lg:grid lg:grid-cols-3 lg:items-start lg:overflow-visible lg:pb-0 lg:snap-none">
+      {visibleBlocks.progress && (
+        <div className="w-[85%] flex-shrink-0 snap-center rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface)] p-4 lg:w-auto lg:flex-shrink lg:snap-align-none">
+          <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-[var(--text)]">
+            <span className="h-2 w-2 rounded-full" style={{ backgroundColor: STATUS_COLOR.active }} />
+            {t('shelfActive')}
+          </h2>
+          {items.length === 0 ? (
+            <p className="text-xs text-[var(--text-muted)]">{t('continueHint')}</p>
+          ) : (
+            <>
+              <div className="flex flex-col divide-y divide-[var(--border-subtle)]">
+                {visibleItems.map((it) => (
+                  <InProgressCard
+                    key={it.id}
+                    item={it}
+                    onFinish={() => onFinish(it)}
+                    onEditProgress={() => onEditProgress(it)}
+                    onStatusChanged={onStatusChanged}
+                    t={t}
+                  />
+                ))}
+              </div>
+              {items.length > VISIBLE_COUNT && (
+                <button
+                  type="button"
+                  onClick={() => setShowAll((v) => !v)}
+                  className="mt-2 text-xs font-medium text-[var(--text-muted)] hover:text-nonsprimary"
+                >
+                  {showAll ? t('showLess') : t('showAll')}
+                </button>
+              )}
+            </>
+          )}
         </div>
-      </div>
+      )}
+
+      {(visibleBlocks.challenge || visibleBlocks.stats) && (
+        <div className="flex w-[85%] flex-shrink-0 snap-center flex-col gap-4 lg:w-auto lg:flex-shrink lg:snap-align-none">
+          {visibleBlocks.challenge && <ChallengeBlock challenge={readingChallenge} t={t} />}
+          {visibleBlocks.stats && (
+            <div className="hidden lg:block">
+              <StatsBlock stats={stats} t={t} />
+            </div>
+          )}
+        </div>
+      )}
+
+      {visibleBlocks.trending && trending.length > 0 && <TalkedAboutBlock items={trending} t={t} />}
     </section>
   )
 }
@@ -639,6 +693,44 @@ function StatsBlock({
   )
 }
 
+// Catalog-wide trending picks — one featured (bigger) poster beside the rest
+// as a 2x2 grid. Something to browse even on a quiet day for friends'
+// activity, and independent of the viewer's own library/friends.
+function TalkedAboutBlock({ items, t }: { items: CatalogItem[]; t: Translate }) {
+  const [featured, ...rest] = items
+  return (
+    <div className="w-[85%] flex-shrink-0 snap-center rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface)] p-4 lg:w-auto lg:flex-shrink lg:snap-align-none">
+      <h2 className="mb-3 text-sm font-semibold text-[var(--text)]">{t('talkedAbout')}</h2>
+      <div className="flex items-stretch gap-2.5">
+        <Link to={mediaPath(featured)} className="group flex w-1/2 flex-shrink-0 flex-col">
+          <div className="relative min-h-0 flex-1 overflow-hidden rounded-md bg-[var(--container-2)]">
+            {featured.coverUrl && (
+              <img
+                src={featured.coverUrl}
+                alt=""
+                loading="lazy"
+                className="absolute inset-0 h-full w-full object-cover transition-transform group-hover:scale-105"
+              />
+            )}
+          </div>
+          <p className="mt-1 truncate text-xs font-medium text-[var(--text)] group-hover:text-nonsprimary">{featured.title}</p>
+        </Link>
+
+        <div className="grid w-1/2 grid-cols-2 gap-2">
+          {rest.map((it) => (
+            <Link key={it.id} to={mediaPath(it)} className="group min-w-0">
+              <div className="relative aspect-[2/3] w-full overflow-hidden rounded-md bg-[var(--container-2)]">
+                {it.coverUrl && <img src={it.coverUrl} alt="" loading="lazy" className="h-full w-full object-cover transition-transform group-hover:scale-105" />}
+              </div>
+              <p className="mt-1 truncate text-[11px] font-medium text-[var(--text)] group-hover:text-nonsprimary">{it.title}</p>
+            </Link>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function InProgressCard({
   item,
   onFinish,
@@ -714,7 +806,15 @@ function InProgressCard({
   )
 }
 
-function MobileCatalogSearch({ t }: { t: (key: string) => string }) {
+function MobileCatalogSearch({
+  t,
+  onFocusChange,
+}: {
+  t: (key: string) => string
+  /** Fires as the input gains/loses focus — lets the parent hide its logo
+   *  while the search bar is active, so it gets the full row width. */
+  onFocusChange?: (focused: boolean) => void
+}) {
   const navigate = useNavigate()
   const inputRef = useRef<HTMLInputElement>(null)
   const [q, setQ] = useState('')
@@ -722,6 +822,16 @@ function MobileCatalogSearch({ t }: { t: (key: string) => string }) {
   const [loading, setLoading] = useState(false)
   const [importing, setImporting] = useState(false)
   const [open, setOpen] = useState(false)
+  const [focused, setFocused] = useState(false)
+
+  // Collapses the dropdown and hands focus state back to the parent. Not
+  // wired to onBlur — blur fires before a result Link's click resolves, which
+  // would close everything before the navigation click lands.
+  const collapse = () => {
+    setOpen(false)
+    setFocused(false)
+    onFocusChange?.(false)
+  }
 
   useEffect(() => {
     if (!q.trim()) { setResults([]); setLoading(false); setImporting(false); setOpen(false); return }
@@ -741,7 +851,7 @@ function MobileCatalogSearch({ t }: { t: (key: string) => string }) {
 
   const submit = () => {
     if (!q.trim()) return
-    setOpen(false)
+    collapse()
     navigate({ pathname: '/search', search: `?q=${encodeURIComponent(q.trim())}` })
   }
 
@@ -754,15 +864,20 @@ function MobileCatalogSearch({ t }: { t: (key: string) => string }) {
           value={q}
           onChange={(e) => setQ(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && submit()}
-          onFocus={() => q.trim() && setOpen(true)}
+          onFocus={() => { setFocused(true); onFocusChange?.(true); if (q.trim()) setOpen(true) }}
           placeholder={t('globalSearch') || 'Search books, films…'}
           className="h-11 w-full rounded-2xl border border-[var(--border-subtle)] bg-[var(--input)] pl-11 pr-4 text-sm text-[var(--text)] placeholder:text-[var(--placeholder)] focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[var(--primary-ring)]"
         />
       </div>
 
+      {/* Invisible outside-click catcher — active whenever the field is
+          focused, not just when a dropdown is showing, so an empty-query
+          focus (logo hidden, row expanded) also collapses back on an
+          outside tap. */}
+      {focused && <div className="fixed inset-0 z-30" onClick={collapse} />}
+
       {open && (
         <>
-          <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} />
           <div className="absolute inset-x-0 top-full z-40 mt-2 overflow-hidden rounded-2xl border border-[var(--border-subtle)] bg-[var(--container)] shadow-2xl">
             {loading && !importing && (
               <div className="flex flex-col gap-2 p-3">
@@ -788,7 +903,7 @@ function MobileCatalogSearch({ t }: { t: (key: string) => string }) {
                   <Link
                     key={item.id}
                     to={mediaPath(item)}
-                    onClick={() => setOpen(false)}
+                    onClick={collapse}
                     className="flex items-center gap-3 rounded-xl p-2.5 transition-colors hover:bg-[var(--surface)]"
                   >
                     <div className="relative aspect-[2/3] w-8 flex-shrink-0">

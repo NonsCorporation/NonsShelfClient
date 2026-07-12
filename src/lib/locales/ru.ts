@@ -258,6 +258,7 @@ export const ru = {
   sidebarInProgress: 'В процессе',
   sidebarFinishedMonth: 'Завершено в этом месяце',
   sidebarFriendsActive: 'Друзей активны',
+  talkedAbout: 'Обсуждают',
   groupToday: 'Сегодня',
   groupThisWeek: 'На этой неделе',
   groupEarlier: 'Ранее',
@@ -489,6 +490,12 @@ export const ru = {
   settingsPrivacyHint: 'Выберите, кто видит каждую часть вашего профиля. Действует во всём nons.',
   settingsPreferences: 'Предпочтения',
   settingsAccount: 'Аккаунт',
+  settingsFeedLayout: 'Вид ленты',
+  settingsFeedLayoutHint: 'Выберите, какие блоки показывать вверху ленты.',
+  settingsFeedBlockProgress: 'В процессе',
+  settingsFeedBlockChallenge: 'Читательский вызов',
+  settingsFeedBlockStats: 'Ваша статистика',
+  settingsFeedBlockTrending: 'Обсуждают',
 
   // Privacy facets
   privacyShelf: 'Моя полка',

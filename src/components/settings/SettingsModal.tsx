@@ -19,8 +19,10 @@ import NonsLogo from '@/components/branding/NonsLogo'
 import {
   usePreferences,
   PRIVACY_FACETS,
+  FEED_BLOCKS,
   type PrivacyFacet,
   type Visibility,
+  type FeedBlock,
 } from '@/contexts/PreferencesContext'
 import { MEDIA_LANG_OPTIONS } from '@/lib/mediaLangs'
 import { useAuth } from '@/contexts/AuthContext'
@@ -49,9 +51,20 @@ const FACET_META: Record<PrivacyFacet, { labelKey: string; icon: IconType }> = {
   activity: { labelKey: 'privacyActivity', icon: IoPulseOutline },
 }
 
+// Copy for the feed's top-row block toggles.
+const FEED_BLOCK_META: Record<FeedBlock, string> = {
+  progress: 'settingsFeedBlockProgress',
+  challenge: 'settingsFeedBlockChallenge',
+  stats: 'settingsFeedBlockStats',
+  trending: 'settingsFeedBlockTrending',
+}
+
 export default function SettingsModal({ isOpen, onClose, onOpenImport }: Props) {
   const { t, language, setLanguage } = useLanguage()
-  const { showInProgress, setShowInProgress, privacy, setVisibility, preferredMediaLang, setPreferredMediaLang } = usePreferences()
+  const {
+    showInProgress, setShowInProgress, privacy, setVisibility,
+    preferredMediaLang, setPreferredMediaLang, feedBlocks, setFeedBlockVisible,
+  } = usePreferences()
   const { logout, user } = useAuth()
   // Two-step delete: 0 = idle, 1 = first confirm, 2 = final confirm.
   const [wipeStep, setWipeStep] = useState(0)
@@ -157,6 +170,28 @@ export default function SettingsModal({ isOpen, onClose, onOpenImport }: Props) 
                   <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition-transform ${showInProgress ? 'translate-x-4' : 'translate-x-0.5'}`} />
                 </span>
               </button>
+            </div>
+          </section>
+
+          {/* ── Feed layout ─────────────────────────────────────────────── */}
+          <section>
+            <SectionHeader title={t('settingsFeedLayout')} hint={t('settingsFeedLayoutHint')} />
+            <div className="flex flex-col gap-3">
+              {FEED_BLOCKS.map((block) => {
+                const visible = feedBlocks[block]
+                return (
+                  <button
+                    key={block}
+                    onClick={() => setFeedBlockVisible(block, !visible)}
+                    className="flex items-center justify-between gap-3 text-left"
+                  >
+                    <span className="text-sm text-[var(--text)]">{t(FEED_BLOCK_META[block])}</span>
+                    <span className={`relative h-5 w-9 flex-shrink-0 rounded-full transition-colors ${visible ? 'bg-nonsprimary' : 'bg-[var(--border-strong)]'}`}>
+                      <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition-transform ${visible ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                    </span>
+                  </button>
+                )
+              })}
             </div>
           </section>
 

@@ -258,6 +258,7 @@ export const ro = {
   sidebarInProgress: 'În desfășurare',
   sidebarFinishedMonth: 'Terminate luna asta',
   sidebarFriendsActive: 'Prieteni activi',
+  talkedAbout: 'Se discută',
   groupToday: 'Astăzi',
   groupThisWeek: 'Săptămâna aceasta',
   groupEarlier: 'Mai devreme',
@@ -489,6 +490,12 @@ export const ro = {
   settingsPrivacyHint: 'Alege cine poate vedea fiecare parte din profilul tău. Se aplică în tot nons.',
   settingsPreferences: 'Preferințe',
   settingsAccount: 'Cont',
+  settingsFeedLayout: 'Aspect flux',
+  settingsFeedLayoutHint: 'Alege ce blocuri apar în partea de sus a fluxului tău.',
+  settingsFeedBlockProgress: 'În desfășurare',
+  settingsFeedBlockChallenge: 'Provocare de lectură',
+  settingsFeedBlockStats: 'Statisticile tale',
+  settingsFeedBlockTrending: 'Se discută',
 
   // Privacy facets
   privacyShelf: 'Raftul meu',

@@ -258,6 +258,7 @@ export const en = {
   sidebarInProgress: 'In progress',
   sidebarFinishedMonth: 'Finished this month',
   sidebarFriendsActive: 'Friends active',
+  talkedAbout: 'Talked about',
   groupToday: 'Today',
   groupThisWeek: 'This week',
   groupEarlier: 'Earlier',
@@ -489,6 +490,12 @@ export const en = {
   settingsPrivacyHint: 'Choose who can see each part of your profile. Applies across nons.',
   settingsPreferences: 'Preferences',
   settingsAccount: 'Account',
+  settingsFeedLayout: 'Feed layout',
+  settingsFeedLayoutHint: 'Choose which blocks show at the top of your feed.',
+  settingsFeedBlockProgress: 'In progress',
+  settingsFeedBlockChallenge: 'Reading challenge',
+  settingsFeedBlockStats: 'Your stats',
+  settingsFeedBlockTrending: 'Talked about',
 
   // Privacy facets
   privacyShelf: 'My shelf',
