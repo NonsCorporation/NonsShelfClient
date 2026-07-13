@@ -50,6 +50,8 @@ import {
   IoChevronBack,
   IoChevronForward,
   IoLanguageOutline,
+  IoCalendarOutline,
+  IoBookmarksOutline,
 } from 'react-icons/io5'
 import { useLanguage } from '../contexts/LanguageContext'
 import { usePreferences } from '../contexts/PreferencesContext'
@@ -198,6 +200,9 @@ export default function MediaOnePage({
   const scrollEditions = (dir: number) => editionsRef.current?.scrollBy({ left: dir * 340, behavior: 'smooth' })
   const [shareOpen, setShareOpen] = useState(false)
   const [editing, setEditing] = useState(false)
+  // Reads/dates/progress/history are collapsed by default on mobile (a lot of
+  // vertical space); always shown on desktop regardless of this flag.
+  const [detailsOpen, setDetailsOpen] = useState(false)
   const [suggestionToast, setSuggestionToast] = useState('')
   const flashSuggestion = () => {
     setSuggestionToast('Suggestion submitted for librarian review')
@@ -645,10 +650,76 @@ export default function MediaOnePage({
         {t('back')}
       </button>
 
+      {/* Compact mobile header: small cover on the left, title/byline/type/year
+          on the right. The full-size cover + the desktop title block below are
+          hidden on mobile so this doesn't duplicate on screen. */}
+      <div className="mb-6 flex gap-4 md:hidden">
+        <div className="relative aspect-[2/3] w-24 flex-shrink-0 overflow-hidden rounded-xl border border-[var(--border-subtle)]">
+          {coverUrl ? (
+            <img src={coverUrl} alt={displayTitle} className="h-full w-full object-cover" />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center bg-[var(--container-2)]">
+              <Icon className="h-6 w-6 text-[var(--placeholder)]" />
+            </div>
+          )}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="mb-1.5 flex flex-wrap items-center gap-1.5 text-[10px] uppercase tracking-widest text-[var(--text-muted)]">
+            <Icon className="h-3 w-3" />
+            <span>{typeLabel}</span>
+            {item.year && (
+              <>
+                <span className="text-[var(--border-strong)]">·</span>
+                <span>{item.year}</span>
+              </>
+            )}
+          </div>
+          <h1 className="text-xl font-bold leading-tight tracking-tight text-[var(--text)]">
+            {displayTitle}
+          </h1>
+          <p className="mt-1.5 text-sm text-[var(--text-muted)]">
+            {isBook ? t('writtenBy') : t('directedBy')}{' '}
+            {makers && makers.length > 0 ? (
+              makers.map((m, i) => (
+                <span key={m.person.uuid}>
+                  {i > 0 ? ', ' : ''}
+                  <Link to={`/p/${m.person.uuid}`} className="font-medium text-[var(--text)] hover:text-nonsprimary">
+                    {m.person.name}
+                  </Link>
+                </span>
+              ))
+            ) : item.makerUuid ? (
+              <Link to={`/p/${item.makerUuid}`} className="font-medium text-[var(--text)] hover:text-nonsprimary">
+                {isBook ? item.author : item.director || item.author}
+              </Link>
+            ) : (
+              <span className="font-medium text-[var(--text)]">{isBook ? item.author : item.director || item.author}</span>
+            )}
+          </p>
+          {/* Shelf status control, surfaced right under the byline on mobile —
+              its original spot (below the action buttons) is desktop-only now. */}
+          {canInteract && (
+            <div className="mt-3 rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface)] p-3">
+              <ShelfStatusBar
+                item={item}
+                currentStatus={status}
+                onStatusChange={(s) => {
+                  if (s === 'done') { setFinishOpen(true); return }
+                  if (s === 'dnf') { setDnfOpen(true); return }
+                  patch({ status: s })
+                }}
+                onEditProgress={status === 'active' ? () => setProgressOpen(true) : undefined}
+                onRemove={handleRemove}
+              />
+            </div>
+          )}
+        </div>
+      </div>
+
       <div className="flex flex-col gap-8 md:flex-row md:gap-10">
         {/* ── Left: cover + actions ── */}
         <div className="flex w-full flex-shrink-0 flex-col gap-3 md:w-64 md:sticky md:top-[88px] md:self-start">
-          <div className="relative aspect-[2/3] overflow-hidden rounded-2xl border border-[var(--border-subtle)]">
+          <div className="relative hidden aspect-[2/3] overflow-hidden rounded-2xl border border-[var(--border-subtle)] md:block">
             {coverUrl ? (
               <img src={coverUrl} alt={displayTitle} className="h-full w-full object-cover" />
             ) : (
@@ -700,7 +771,7 @@ export default function MediaOnePage({
           {/* Status shelf control — signed in; otherwise a sign-in prompt. */}
           {canInteract ? (
             <div className="flex flex-col gap-3">
-              <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface)] p-3">
+              <div className="hidden rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface)] p-3 md:block">
                 <ShelfStatusBar
                   item={item}
                   currentStatus={status}
@@ -713,21 +784,41 @@ export default function MediaOnePage({
                   onRemove={handleRemove}
                 />
               </div>
-              {/* "Your reads" — each read/reread/attempt as its own cycle with
-                  dates + outcome (renders only once there's a cycle). */}
-              {status !== null && <ReadsList item={item} refreshKey={progressRefresh} />}
-              {/* Editable dates for the *current* read cycle — once on the shelf.
-                  Keyed on the loaded dates so it re-initialises when signals arrive. */}
               {status !== null && (
-                <ReadingDates key={`${item.startedAt ?? ''}|${item.finishedAt ?? ''}`} item={item} onSaved={loadItem} />
+                <>
+                  {/* Toggle for the reads/dates/progress/history cluster below —
+                      collapsed by default on mobile to cut down scroll length;
+                      always expanded on desktop. Shows what's inside instead of
+                      a plain "History" label. */}
+                  <button
+                    type="button"
+                    onClick={() => setDetailsOpen((v) => !v)}
+                    className="flex items-center justify-between gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] px-3 py-2.5 text-xs font-medium text-[var(--text-muted)] md:hidden"
+                  >
+                    <span className="flex items-center gap-3">
+                      <span className="flex items-center gap-1"><IoCalendarOutline className="h-3.5 w-3.5" />{t('exportGroupDates')}</span>
+                      <span className="flex items-center gap-1"><IoBookmarksOutline className="h-3.5 w-3.5" />{isBook ? t('yourReads') : t('yourWatches')}</span>
+                      <span className="flex items-center gap-1"><IoTimeOutline className="h-3.5 w-3.5" />{t('historyTitle')}</span>
+                    </span>
+                    <IoChevronDown className={`h-4 w-4 flex-shrink-0 transition-transform duration-200 ${detailsOpen ? 'rotate-180' : ''}`} />
+                  </button>
+                  <div className={`flex-col gap-3 ${detailsOpen ? 'flex' : 'hidden'} md:flex`}>
+                    {/* "Your reads" — each read/reread/attempt as its own cycle with
+                        dates + outcome (renders only once there's a cycle). */}
+                    <ReadsList item={item} refreshKey={progressRefresh} />
+                    {/* Editable dates for the *current* read cycle — once on the shelf.
+                        Keyed on the loaded dates so it re-initialises when signals arrive. */}
+                    <ReadingDates key={`${item.startedAt ?? ''}|${item.finishedAt ?? ''}`} item={item} onSaved={loadItem} />
+                    {/* Per-book reading-progress log (renders only once there's history).
+                        Hidden once finished — "where am I now" doesn't apply anymore;
+                        the full history below still shows past progress updates. */}
+                    {status !== 'done' && isBook && <ReadingProgress item={item} total={totalPages} refreshKey={progressRefresh} />}
+                    {/* Full interaction timeline — added/started/progress/finished/rated/
+                        reviewed, for every media type (renders only once there's history). */}
+                    <MediaHistory item={item} refreshKey={progressRefresh} />
+                  </div>
+                </>
               )}
-              {/* Per-book reading-progress log (renders only once there's history).
-                  Hidden once finished — "where am I now" doesn't apply anymore;
-                  the full history below still shows past progress updates. */}
-              {status !== null && status !== 'done' && isBook && <ReadingProgress item={item} total={totalPages} refreshKey={progressRefresh} />}
-              {/* Full interaction timeline — added/started/progress/finished/rated/
-                  reviewed, for every media type (renders only once there's history). */}
-              {status !== null && <MediaHistory item={item} refreshKey={progressRefresh} />}
             </div>
           ) : showSignIn ? (
             signInPrompt
@@ -736,7 +827,7 @@ export default function MediaOnePage({
 
         {/* ── Right: info ── */}
         <div className="flex min-w-0 flex-1 flex-col gap-6">
-          <div>
+          <div className="hidden md:block">
             <div className="mb-2 flex flex-wrap items-center gap-2 text-xs uppercase tracking-widest text-[var(--text-muted)]">
               <Icon className="h-3.5 w-3.5" />
               <span>{typeLabel}</span>
