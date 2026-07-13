@@ -20,9 +20,7 @@ import TypeBadge from '@/components/badges/TypeBadge'
 import ShelfStatusBar from '@/components/media/ShelfStatusBar'
 import ReviewContent from '@/components/review/ReviewContent'
 
-// The most recent dated milestone we can infer from the item alone (no extra
-// fetch): finished > started > added, by latest date. The full timeline (incl.
-// rating/review timing) lives in the history modal.
+// gets latest dated event
 function latestEvent(item: MediaItem): { key: 'histFinished' | 'histStarted' | 'histAdded'; date: string } | null {
   const candidates: { key: 'histFinished' | 'histStarted' | 'histAdded'; date?: string }[] = [
     { key: 'histFinished', date: item.finishedAt },
@@ -34,44 +32,35 @@ function latestEvent(item: MediaItem): { key: 'histFinished' | 'histStarted' | '
   return dated.sort((a, b) => b.date.localeCompare(a.date))[0]
 }
 
+// formats date to short string
 function shortDate(iso: string): string {
   const d = new Date(iso)
   return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
 }
 
-// The viewer's own shelf entry for an item, when comparing against another
-// user's library. undefined ⇒ the item isn't in the viewer's library.
+// shelf comparison for another user's library
 export type ShelfCompare = { status?: ShelfStatus; rating?: number } | undefined
 
+// reading or watching progress
 export type ItemProgress = { label: string; pct: number }
 
+// media card props
 type MediaCardProps = {
   item: MediaItem
   view: 'grid' | 'list'
-  // Omitted in read-only views (e.g. another user's library) — the favorite
-  // button is then hidden.
   onToggleFavorite?: () => void
-  // List view: show the rating + an expandable review snippet.
   showReview?: boolean
-  // Opens the combined detail modal (rating/review + history). Grid: the
-  // bottom-left "last updated" button; list: the latest-event line + clock button.
   onOpenDetail?: (item: MediaItem) => void
-  // List view: when set, render a comparison chip vs the viewer's own shelf.
-  // `compareName` present ⇒ comparison mode; `myEntry` undefined ⇒ not in lib.
   compareName?: string
   myEntry?: ShelfCompare
-  // Lets the viewer manage their own shelf entry for this item straight from
-  // the comparison chip (opens ShelfStatusBar's status/collections/lists
-  // popover). Omit to keep the chip a plain, non-interactive badge.
   onMyStatusChange?: (item: MediaItem, status: ShelfStatus) => void
   onMyRemove?: (item: MediaItem) => void
-  // Grid view: make the corner badges quick-filter the library.
   onFilterStatus?: (status: ShelfStatus) => void
   onFilterType?: (type: MediaItem['type']) => void
-  /** Reading/watching progress for active items — shows a badge below the status chip. */
   progress?: ItemProgress
 }
 
+// renders media cover image or placeholder
 function Cover({ item, className, fill }: { item: MediaItem; className?: string; fill?: boolean }) {
   const Icon = item.type === 'book' ? IoBookOutline : item.type === 'series' ? IoTvOutline : IoFilmOutline
   if (item.coverUrl) {
@@ -102,15 +91,18 @@ export default function MediaCard({
   onFilterType,
   progress,
 }: MediaCardProps) {
-  // Stops a corner badge click from following the card's link.
+  // prevents default event propagation
   const stop = (e: MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
   }
+
+  // triggers detail modal
   const openDetail = (e: MouseEvent) => {
     stop(e)
     onOpenDetail?.(item)
   }
+
   const { t } = useLanguage()
   const navigate = useNavigate()
   const [reviewOpen, setReviewOpen] = useState(false)
@@ -119,8 +111,7 @@ export default function MediaCard({
   const genres = Array.isArray(item.genre) ? item.genre : item.genre ? [item.genre] : []
   const status = item.status ?? 'wishlist'
 
-  // Byline: the author/director name. When we know the person's uuid it links to
-  // their /p/<uuid> page — via navigate (not a nested <a>, the card is a Link).
+  // creator byline text or profile link
   const byline = item.makerUuid ? (
     <button
       onClick={(e) => {
@@ -145,14 +136,14 @@ export default function MediaCard({
       }}
       title={item.favorite ? t('unmarkFavorite') : t('markFavorite')}
       className={`flex items-center justify-center transition-colors ${
-        item.favorite ? 'text-nonslightred' : 'text-white/70 hover:text-white'
+        item.favorite ? 'text-nonslightred' : 'text-[var(--text-muted)] hover:text-[var(--text)]'
       }`}
     >
       {item.favorite ? <IoHeart className="h-[18px] w-[18px]" /> : <IoHeartOutline className="h-[18px] w-[18px]" />}
     </button>
   ) : null
 
-  // ── List view ─────────────────────────────────────────────────────────────
+  // list view layout
   if (view === 'list') {
     const hasReview = showReview && !!item.review?.trim()
     const rated = typeof item.rating === 'number' && item.rating > 0
@@ -166,7 +157,7 @@ export default function MediaCard({
         <div className="flex items-start gap-4">
           <div className="relative h-28 w-[74px] flex-shrink-0 overflow-hidden rounded-lg">
             <Cover item={item} fill className="rounded-lg" />
-            {/* Type + year sit on the cover itself, like the grid card's corner badges. */}
+            {/* item type badge */}
             <span className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/55 text-white/90">
               <TypeIcon className="h-3 w-3" />
             </span>
@@ -177,7 +168,7 @@ export default function MediaCard({
             ) : null}
           </div>
           <div className="min-w-0 flex-1">
-            {/* Status — its own line above the title, not crowded into a meta row. */}
+            {/* shelf status chip */}
             <span
               className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-medium"
               style={{ backgroundColor: `${STATUS_COLOR[status]}22`, color: STATUS_COLOR[status] }}
@@ -189,7 +180,7 @@ export default function MediaCard({
             {item.description && (
               <p className="mt-1 line-clamp-2 text-xs leading-5 text-[var(--text-muted)]">{item.description}</p>
             )}
-            {/* Latest event — clickable to open the detail modal (rating/review + history). */}
+            {/* latest event line */}
             {latest && (
               <button
                 onClick={openDetail}
@@ -214,7 +205,7 @@ export default function MediaCard({
               </div>
             )}
 
-            {/* Comparison vs the viewer's own shelf (read-only other-user libraries) */}
+            {/* comparison view elements */}
             {compareName && (
               <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[10px]">
                 {onMyStatusChange ? (
@@ -250,25 +241,33 @@ export default function MediaCard({
               </div>
             )}
           </div>
-          {/* Indicators (rating / reviewed) + history button — replaces the
-              favorite toggle in the list row. */}
-          <div className="flex flex-shrink-0 items-center gap-2.5 pr-1">
-            {rated && (
-              <span className="flex items-center gap-1 text-sm font-semibold text-[var(--text)]">
-                <IoStar className="h-3.5 w-3.5 text-nonsprimary" />
-                {(item.rating! / 2).toFixed(1)}
-              </span>
-            )}
-            {item.review?.trim() && (
-              <span title={t('hasReview')} className="text-[var(--text-muted)]">
-                <IoChatbubbleOutline className="h-4 w-4" />
-              </span>
-            )}
+
+          {/* indicators and actions column */}
+          <div className="flex flex-col items-end self-stretch flex-shrink-0 pr-1 py-1">
+            {/* top right corner favorite toggle */}
+            {favBtn}
+
+            {/* rating and review below top corner */}
+            <div className="flex flex-col items-end gap-1 mt-2 mb-auto">
+              {rated && (
+                <span className="flex items-center gap-1 text-sm font-semibold text-[var(--text)]">
+                  <IoStar className="h-3.5 w-3.5 text-nonsprimary" />
+                  {(item.rating! / 2).toFixed(1)}
+                </span>
+              )}
+              {item.review?.trim() && (
+                <span title={t('hasReview')} className="text-[var(--text-muted)]">
+                  <IoChatbubbleOutline className="h-4 w-4" />
+                </span>
+              )}
+            </div>
+
+            {/* history detail button at bottom */}
             {onOpenDetail && (
               <button
                 onClick={openDetail}
                 title={t('historyTitle')}
-                className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--text-muted)] transition-colors hover:bg-[var(--surface)] hover:text-[var(--text)]"
+                className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--text-muted)] transition-colors hover:bg-[var(--surface)] hover:text-[var(--text)] mt-2"
               >
                 <IoTimeOutline className="h-[18px] w-[18px]" />
               </button>
@@ -276,7 +275,7 @@ export default function MediaCard({
           </div>
         </div>
 
-        {/* Inline review — snippet with expand, kept out of the row's Link nav. */}
+        {/* inline review snippet */}
         {hasReview && (
           <div
             onClick={(e) => e.preventDefault()}
@@ -302,7 +301,7 @@ export default function MediaCard({
     )
   }
 
-  // ── Grid view ─────────────────────────────────────────────────────────────
+  // grid view layout
   return (
     <Link
       to={mediaPath(item)}
@@ -312,11 +311,7 @@ export default function MediaCard({
         <Cover item={item} fill className="transition-transform duration-500 group-hover:scale-105" />
         <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
 
-        {/* Interactive corner zones — each ~a quarter of the cover so they're easy
-            targets; the visible badge is pinned in the corner, the whole zone
-            clicks. The card centre stays a link to the media page. */}
-
-        {/* Status (top-left) — filter the library by this shelf status. */}
+        {/* top-left status zone */}
         {(() => {
           const badgeCls = 'inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-semibold text-white'
           const style = { backgroundColor: `${STATUS_COLOR[status]}d0` }
@@ -344,7 +339,7 @@ export default function MediaCard({
           )
         })()}
 
-        {/* Type (top-right) — filter the library by this media type. */}
+        {/* top-right type zone */}
         {onFilterType ? (
           <button
             onClick={(e) => { stop(e); onFilterType(item.type) }}
@@ -359,8 +354,7 @@ export default function MediaCard({
           <TypeBadge type={item.type} position="top-2.5 right-2.5" />
         )}
 
-        {/* Bottom-left — rating/review icons above the last-updated date; the whole
-            zone opens the detail modal (rating/review + history). */}
+        {/* bottom-left detail zone */}
         {onOpenDetail && (() => {
           const rated = typeof item.rating === 'number' && item.rating > 0
           const reviewed = !!item.review?.trim()
@@ -406,7 +400,6 @@ export default function MediaCard({
           {item.title}
         </h3>
         {byline}
-
       </div>
     </Link>
   )
