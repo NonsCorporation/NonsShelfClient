@@ -1512,6 +1512,17 @@ export default function MediaOnePage({
           setEditing(false)
           if (isLibrarian(user?.role)) {
             await librarianService.updateMedia(item.id, data)
+            // The /b and /m pages serve from Next's server-side data cache
+            // (revalidate: 3600 in serverApi.ts) — without this, a reload right
+            // after saving still shows the pre-edit genres/synopsis/etc. for up
+            // to an hour, even with a hard refresh (that only busts the browser
+            // cache, not Next's). Best-effort: a failed revalidation just means
+            // the cache catches up on its own hourly schedule.
+            fetch('/api/revalidate-media', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ type: item.type, id: item.id, uuid: item.uuid }),
+            }).catch(() => {})
             loadItem()
           } else {
             const genreNames = Array.isArray(data.genre) ? data.genre : data.genre ? [data.genre] : []
