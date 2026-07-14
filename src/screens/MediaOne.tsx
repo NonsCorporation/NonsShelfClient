@@ -146,6 +146,7 @@ export default function MediaOnePage({
   // Collapsed by default (a 1-2 line teaser of all tags flattened together);
   // expanding switches to the full facet-grouped, underline-colored view.
   const [tagsExpanded, setTagsExpanded] = useState(false)
+  const [castExpanded, setCastExpanded] = useState(false)
   const [editions, setEditions] = useState<Edition[]>(initialEditions)
   const [editionsTotal, setEditionsTotal] = useState(initialEditions.length)
   const [editionsLoadingMore, setEditionsLoadingMore] = useState(false)
@@ -545,7 +546,7 @@ export default function MediaOnePage({
     <Link
       key={p.uuid}
       to={`/p/${p.uuid}`}
-      className="flex items-center gap-1.5 rounded-full border border-[var(--border-subtle)] bg-[var(--surface)] py-1 pl-1 pr-3 text-xs text-[var(--text)] transition-colors hover:border-nonsprimary hover:bg-[var(--primary-soft)]"
+      className="flex items-center gap-1.5 rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface)] py-1 pl-1 pr-3 text-xs text-[var(--text)] transition-colors hover:border-nonsprimary hover:bg-[var(--primary-soft)]"
     >
       {p.photo_url ? (
         <img src={p.photo_url} alt="" loading="lazy" className="h-5 w-5 flex-shrink-0 rounded-full object-cover" />
@@ -554,8 +555,10 @@ export default function MediaOnePage({
           {p.name.charAt(0).toUpperCase()}
         </span>
       )}
-      {p.name}
-      {sub ? <span className="text-[var(--text-muted)]"> · {sub}</span> : null}
+      <span className="flex flex-col leading-tight">
+        <span>{p.name}</span>
+        {sub ? <span className="text-[var(--text-muted)]">{sub}</span> : null}
+      </span>
     </Link>
   )
 
@@ -995,7 +998,18 @@ export default function MediaOnePage({
             <div>
               <h3 className="mb-2.5 text-[10px] uppercase tracking-widest text-[var(--text-muted)]">{t('cast')}</h3>
               <div className="flex flex-wrap gap-2">
-                {credits.cast.map((c) => personChip(c.person, c.character))}
+                {(castExpanded || credits.cast.length - 7 <= 1 ? credits.cast : credits.cast.slice(0, 7)).map((c) =>
+                  personChip(c.person, c.character),
+                )}
+                {!castExpanded && credits.cast.length - 7 > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => setCastExpanded(true)}
+                    className="flex items-center rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface)] px-3 py-1 text-xs text-[var(--text-muted)] transition-colors hover:border-nonsprimary hover:bg-[var(--primary-soft)] hover:text-nonsprimary"
+                  >
+                    +{credits.cast.length - 7} more
+                  </button>
+                )}
               </div>
             </div>
           )}
