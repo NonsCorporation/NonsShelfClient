@@ -9,6 +9,7 @@ import type { Recap } from '@/lib/recap'
 import { fmtInt, fmtDuration } from '@/lib/recap'
 import { mediaPath } from '@/lib/paths'
 import ShelfLogo from '@/components/branding/ShelfLogo'
+import TypeBadge from '@/components/badges/TypeBadge'
 
 type TFn = (key: string, vars?: Record<string, string | number>) => string
 
@@ -37,7 +38,7 @@ async function waitForImages(node: HTMLElement) {
 
 function Stars({ rating, size = 16 }: { rating: number; size?: number }) {
   return (
-    <span style={{ display: 'inline-flex', gap: 1, color: '#f5a623' }}>
+    <span style={{ display: 'inline-flex', gap: 1, color: PRIMARY }}>
       {Array.from({ length: 5 }).map((_, i) => {
         const v = (i + 1) * 2
         if (rating >= v) return <IoStar key={i} size={size} />
@@ -48,11 +49,82 @@ function Stars({ rating, size = 16 }: { rating: number; size?: number }) {
   )
 }
 
-function Cover({ url, w = 44, h = 66 }: { url?: string; w?: number; h?: number }) {
-  const src = corsCover(url)
+// Deterministic hue from a string (title+author), so the same book always
+// gets the same generated cover color across renders/exports.
+function hashHue(seed: string): number {
+  let h = 0
+  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0
+  return h % 360
+}
+
+// Only two sizes are ever passed to Cover (the small list cover and the
+// larger cover-wall cover), so the badge's Tailwind size classes are picked
+// from that instead of interpolated (arbitrary values must be static for JIT).
+function typeBadgeProps(w: number) {
+  const small = w <= 44
+  return { size: small ? 'h-4 w-4' : 'h-6 w-6', iconSize: small ? 'h-2 w-2' : 'h-3 w-3', textPad: small ? 16 : 24 }
+}
+
+// Fallback "cover" for items with no cover image: a generated color field
+// with the author at top and the title centered, in place of an empty box.
+function MediaCoverDerived({ title, author, type, w, h }: { title?: string; author?: string; type?: MediaType; w: number; h: number }) {
+  const hue = hashHue(`${title || ''}${author || ''}`)
+  const bg = `hsl(${hue}, 22%, 15%)`
+  const { textPad } = typeBadgeProps(w)
   return (
-    <span style={{ width: w, height: h, borderRadius: 6, overflow: 'hidden', flexShrink: 0, background: '#1a1a24', display: 'inline-block' }}>
-      {src && <img src={src} crossOrigin="anonymous" alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />}
+    <span
+      style={{
+        width: w, height: h, borderRadius: 6, overflow: 'hidden', flexShrink: 0,
+        background: bg, display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+        padding: Math.max(3, Math.round(w * 0.08)), boxSizing: 'border-box',
+      }}
+    >
+      {author && (
+        <span style={{ fontSize: Math.max(6, w * 0.11), color: INK, opacity: 0.75, lineHeight: 1.1, paddingRight: type ? textPad : 0, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical' }}>
+          {author}
+        </span>
+      )}
+      <span style={{ fontSize: Math.max(7, w * 0.14), fontWeight: 800, color: INK, lineHeight: 1.15, textAlign: 'center', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical' }}>
+        {title}
+      </span>
+      <span />
+    </span>
+  )
+}
+
+// OpenLibrary (and some other hosts) return a 200 OK with a 1x1 placeholder
+// gif for ISBNs with no real cover, instead of a 404 — so "has a URL" isn't
+// enough; treat any tiny decoded image as no cover too.
+const MIN_COVER_DIM = 4
+
+// The type badge is layered on top of every cover in this component — real
+// image or derived fallback alike — so covers in the recap always show what
+// kind of media they are.
+function Cover({ url, title, author, type, w = 44, h = 66 }: { url?: string; title?: string; author?: string; type?: MediaType; w?: number; h?: number }) {
+  const src = corsCover(url)
+  const [broken, setBroken] = useState(!src)
+  useEffect(() => setBroken(!src), [src])
+  const { size, iconSize } = typeBadgeProps(w)
+  return (
+    <span style={{ position: 'relative', width: w, height: h, flexShrink: 0 }}>
+      {broken ? (
+        <MediaCoverDerived title={title} author={author} type={type} w={w} h={h} />
+      ) : (
+        <span style={{ display: 'block', width: w, height: h, borderRadius: 6, overflow: 'hidden', background: '#1a1a24' }}>
+          <img
+            src={src}
+            crossOrigin="anonymous"
+            alt=""
+            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+            onError={() => setBroken(true)}
+            onLoad={(e) => {
+              const img = e.currentTarget
+              if (img.naturalWidth < MIN_COVER_DIM || img.naturalHeight < MIN_COVER_DIM) setBroken(true)
+            }}
+          />
+        </span>
+      )}
+      {type && <TypeBadge type={type} position="top-1 right-1" size={size} iconSize={iconSize} />}
     </span>
   )
 }
@@ -227,7 +299,7 @@ function buildSlides(r: Recap, label: string, locale: string, t: TFn, authorPhot
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {r.topRated.map((i) => (
               <div key={i.id} style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                <Cover url={i.coverUrl} />
+                <Cover url={i.coverUrl} title={i.title} author={i.author} type={i.type} />
                 <div style={{ minWidth: 0, flex: 1 }}>
                   <p style={{ fontSize: 15, fontWeight: 700, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{i.title}</p>
                   <p style={{ fontSize: 12, color: MUTED, margin: '2px 0 4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{i.author}</p>
@@ -290,7 +362,7 @@ function buildSlides(r: Recap, label: string, locale: string, t: TFn, authorPhot
                   rel="noopener noreferrer"
                   style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, textDecoration: 'none' }}
                 >
-                  <Cover url={i.coverUrl} w={72} h={108} />
+                  <Cover url={i.coverUrl} title={i.title} author={i.author} type={i.type} w={72} h={108} />
                   {typeof i.rating === 'number' && i.rating > 0 ? (
                     <span style={{ fontSize: 11, fontWeight: 700, color: PRIMARY }}>★ {(i.rating / 2).toFixed(1)}</span>
                   ) : (

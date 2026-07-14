@@ -9,6 +9,8 @@ import { userPath } from '@/lib/paths'
 import { getComments, addComment, deleteComment, type FeedComment } from '@/services/commentService'
 import BoringAvatar from '@/components/ui/BoringAvatar'
 import DropdownMenu from '@/components/ui/DropdownMenu'
+import UserHoverCard from '@/components/ui/UserHoverCard'
+import UsernameCommentHover from '@/components/ui/UsernameCommentHover'
 
 // Stop indenting past this depth so deep reply chains don't march off-screen.
 // 3 → top-level plus two nested indents = three visual levels; deeper replies
@@ -171,7 +173,7 @@ function Avatar({ id, name, username, avatar, small }: { id: number; name: strin
   return (
     <Link
       to={userPath(username)}
-      className="flex-shrink-0 overflow-hidden rounded-full"
+      className="inline-block flex-shrink-0 overflow-hidden rounded-full"
       style={{ width: px, height: px }}
       title={name}
     >
@@ -213,7 +215,8 @@ function CommentNode({
   // Derived from the tree (parent_id → parent comment), not stored in the
   // body — so the mention always reflects the current username and never
   // has to be typed or stripped by the user.
-  const replyingToUsername = comment.parent_id != null ? byId.get(comment.parent_id)?.author.username : undefined
+  const replyingToComment = comment.parent_id != null ? byId.get(comment.parent_id) : undefined
+  const replyingToUsername = replyingToComment?.author.username
   // Replies are always allowed, but indentation stops deepening past MAX_DEPTH
   // levels: a reply to an already-maxed comment renders flush at the same level
   // as its parent (so threads can't march off-screen). Indent the *replies*
@@ -223,14 +226,20 @@ function CommentNode({
   return (
     <div>
       <div className="flex items-start gap-2.5">
-        <Avatar id={comment.author.id} name={comment.author.name} username={comment.author.username} avatar={comment.author.avatar_url} small />
+        <UserHoverCard username={comment.author.username}>
+          <Avatar id={comment.author.id} name={comment.author.name} username={comment.author.username} avatar={comment.author.avatar_url} small />
+        </UserHoverCard>
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-1">
             <div className="flex flex-wrap items-center gap-x-1.5 text-xs">
-              <Link to={userPath(comment.author.username)} className="font-semibold text-[var(--text)] hover:text-nonsprimary">
-                {comment.author.name}
-              </Link>
-              <span className="text-[var(--text-muted)]">@{comment.author.username}</span>
+              <UserHoverCard username={comment.author.username}>
+                <Link to={userPath(comment.author.username)} className="font-semibold text-[var(--text)] hover:text-nonsprimary">
+                  {comment.author.name}
+                </Link>
+              </UserHoverCard>
+              <UserHoverCard username={comment.author.username}>
+                <span className="text-[var(--text-muted)]">@{comment.author.username}</span>
+              </UserHoverCard>
               <span className="text-[var(--text-muted)]">· {timeAgo(comment.created_at)}</span>
             </div>
             {isOwn && (
@@ -241,10 +250,12 @@ function CommentNode({
             )}
           </div>
           <p className="mt-0.5 whitespace-pre-wrap break-words text-sm leading-6 text-[var(--text)]">
-            {replyingToUsername && (
-              <Link to={userPath(replyingToUsername)} className="mr-1 font-medium text-nonsprimary hover:underline">
-                @{replyingToUsername}
-              </Link>
+            {replyingToUsername && replyingToComment && (
+              <UsernameCommentHover comment={replyingToComment}>
+                <Link to={userPath(replyingToUsername)} className="mr-1 font-medium text-nonsprimary hover:underline">
+                  @{replyingToUsername}
+                </Link>
+              </UsernameCommentHover>
             )}
             {comment.body}
           </p>
