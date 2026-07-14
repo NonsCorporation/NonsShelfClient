@@ -218,7 +218,14 @@ export default function FeedPage() {
   const openFinish = (it: MediaItem) => setFinishItem(it)
   const openProgress = (it: MediaItem) => setProgressItem(it)
 
-  const inProgress = useMemo(() => items.filter((it) => it.status === 'active'), [items])
+  const inProgress = useMemo(() => {
+    const active = items.filter((it) => it.status === 'active')
+    // Most recently touched (status/progress/rating/etc.) first, so what
+    // you're actively working through surfaces above stuff you started once
+    // and forgot about.
+    active.sort((a, b) => (b.lastActivityAt ?? '').localeCompare(a.lastActivityAt ?? ''))
+    return active
+  }, [items])
   const [typeFilter, setTypeFilter] = useState<'all' | ActivityType>('all')
   const [invited, setInvited] = useState(false)
 
