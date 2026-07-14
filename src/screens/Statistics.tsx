@@ -254,6 +254,13 @@ export default function Statistics() {
     return Array.from({ length: 12 }, (_, i) => urls[i % urls.length])
   }, [recap.items])
 
+  // A tiny peek of 3 covers on the export button, so it reads as "here's what
+  // you'll get" rather than a bare label.
+  const exportPreview = useMemo(
+    () => recap.items.map((i) => i.coverUrl).filter((u): u is string => !!u).slice(0, 3),
+    [recap.items],
+  )
+
   // "What you finished" grouped by month when the period spans more than one
   // calendar month (year / custom range) — a single-month recap stays flat,
   // a longer one reads like a reading log instead of one undifferentiated list.
@@ -276,7 +283,7 @@ export default function Statistics() {
     <div className="flex flex-col gap-6">
       {/* Recap — pick any period, see a detailed breakdown, generate story cards */}
       <section className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--container)] p-4 shadow-sm sm:p-6">
-        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mb-4 flex flex-wrap items-center gap-3">
           <div>
             <h2 className="text-base font-semibold text-[var(--text)]">{t('recapHeading')}</h2>
             <p className="mt-0.5 text-xs text-[var(--text-muted)]">{recapLabel}</p>
@@ -284,10 +291,24 @@ export default function Statistics() {
           <button
             onClick={() => setRecapOpen(true)}
             disabled={recap.counts.total === 0}
-            className="flex items-center justify-center gap-1.5 rounded-xl px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md disabled:pointer-events-none disabled:opacity-40"
-            style={{ backgroundImage: 'linear-gradient(135deg, var(--color-nonsprimaryfocus), var(--color-nonsprimary))' }}
+            className="flex items-center gap-2 rounded-full border border-[color-mix(in_srgb,var(--color-nonsprimary)_45%,transparent)] px-3 py-1.5 text-xs font-semibold text-[var(--color-nonsprimary)] transition-colors hover:bg-[color-mix(in_srgb,var(--color-nonsprimary)_10%,transparent)] disabled:pointer-events-none disabled:opacity-40"
           >
-            <IoAlbumsOutline className="h-4 w-4" /> {t('recapCreateCards')}
+            {exportPreview.length > 0 ? (
+              <span className="flex -space-x-3">
+                {exportPreview.map((src, i) => (
+                  <span
+                    key={i}
+                    className="h-6 w-4.5 overflow-hidden rounded-sm shadow-sm ring-2 ring-[var(--container)]"
+                    style={{ transform: `rotate(${(i - (exportPreview.length - 1) / 2) * 8}deg)`, zIndex: i }}
+                  >
+                    <img src={src} alt="" className="h-full w-full object-cover" />
+                  </span>
+                ))}
+              </span>
+            ) : (
+              <IoAlbumsOutline className="h-4 w-4" />
+            )}
+            {t('recapCreateCards')}
           </button>
         </div>
 

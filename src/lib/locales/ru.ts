@@ -214,7 +214,7 @@ export const ru = {
   statsRatedShare: 'оценено из библиотеки',
   recapHeading: 'Итоги за период',
   recapTitle: 'Итоги',
-  recapCreateCards: 'Создать карточки',
+  recapCreateCards: 'Экспорт',
   recapModeMonth: 'Месяц',
   recapModeMonths: 'Месяцы',
   recapModeYear: 'Год',

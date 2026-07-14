@@ -214,7 +214,7 @@ export const ro = {
   statsRatedShare: 'din bibliotecă notate',
   recapHeading: 'Rezumatul perioadei',
   recapTitle: 'Rezumat',
-  recapCreateCards: 'Creează carduri',
+  recapCreateCards: 'Exportă',
   recapModeMonth: 'Lună',
   recapModeMonths: 'Luni',
   recapModeYear: 'An',

@@ -214,7 +214,7 @@ export const en = {
   statsRatedShare: 'of library rated',
   recapHeading: 'Period recap',
   recapTitle: 'Recap',
-  recapCreateCards: 'Create story cards',
+  recapCreateCards: 'Export',
   recapModeMonth: 'Month',
   recapModeMonths: 'Months',
   recapModeYear: 'Year',
