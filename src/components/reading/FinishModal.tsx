@@ -134,6 +134,9 @@ export default function FinishModal({ isOpen, item, onClose, onFinished }: Props
 
   const isBook = item.type === 'book'
   const finishedLabel = isBook ? t('dateRead') || 'Date read' : t('dateWatched') || 'Date watched'
+  // A movie is watched in one sitting, so "started" is meaningless for it —
+  // unlike a book or an ongoing series, which can span a real date range.
+  const hasStartDate = item.type !== 'movie'
 
   const post = async () => {
     setBusy(true)
@@ -144,7 +147,7 @@ export default function FinishModal({ isOpen, item, onClose, onFinished }: Props
       // Persist the chosen started/finished dates as the authoritative reading
       // period (so they match what shows on the media page and the calendar).
       await libraryService.setReadDates(item.id, {
-        started_at: started ? Math.floor(new Date(started).getTime() / 1000) : 0,
+        started_at: hasStartDate && started ? Math.floor(new Date(started).getTime() / 1000) : 0,
         finished_at: finishedAt ?? 0,
       })
       // Best-effort, like the cross-post below — a tag-save hiccup shouldn't
@@ -274,19 +277,21 @@ export default function FinishModal({ isOpen, item, onClose, onFinished }: Props
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-3">
-          <div className="flex flex-col gap-1">
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--text-muted)]">
-              {t('dateStarted') || 'Date started'}
-            </p>
-            <DatePicker
-              value={started}
-              onChange={setStarted}
-              max={finished || undefined}
-              placeholder="—"
-              openUp={true}
-            />
-          </div>
+        <div className={hasStartDate ? 'grid grid-cols-2 gap-3' : ''}>
+          {hasStartDate && (
+            <div className="flex flex-col gap-1">
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--text-muted)]">
+                {t('dateStarted') || 'Date started'}
+              </p>
+              <DatePicker
+                value={started}
+                onChange={setStarted}
+                max={finished || undefined}
+                placeholder="—"
+                centered
+              />
+            </div>
+          )}
           <div className="flex flex-col gap-1">
             <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--text-muted)]">
               {finishedLabel}
@@ -294,9 +299,9 @@ export default function FinishModal({ isOpen, item, onClose, onFinished }: Props
             <DatePicker
               value={finished}
               onChange={setFinished}
-              min={started || undefined}
+              min={hasStartDate ? started || undefined : undefined}
               placeholder="—"
-              openUp={true}
+              centered
             />
           </div>
         </div>

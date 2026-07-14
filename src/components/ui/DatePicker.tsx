@@ -13,6 +13,11 @@ interface Props {
   max?: string
   placeholder?: string
   openUp?: boolean       // open panel above trigger (default: true)
+  // Renders the panel centered over the viewport (with a backdrop) instead
+  // of anchored to the trigger — use this when the trigger can sit near an
+  // edge (e.g. the right column of a two-up date grid), where an
+  // anchored-left panel would overflow past that edge.
+  centered?: boolean
 }
 
 const DAYS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su']
@@ -42,7 +47,7 @@ function yearGridBase(y: number): number {
   return Math.floor(y / 12) * 12
 }
 
-export default function DatePicker({ value, onChange, min, max, placeholder, openUp = true }: Props) {
+export default function DatePicker({ value, onChange, min, max, placeholder, openUp = true, centered = false }: Props) {
   const { language, t } = useLanguage()
   const locale = language === 'ru' ? 'ru-RU' : 'en-US'
   const selected = parseDate(value)
@@ -92,8 +97,9 @@ export default function DatePicker({ value, onChange, min, max, placeholder, ope
 
   // Fixed-viewport coordinates for the portalled panel, so an ancestor with
   // `overflow-hidden`/`overflow-auto` (e.g. a scrollable filter dropdown)
-  // never crops the calendar.
-  const coords = useFloatingPosition(ref, open, openUp)
+  // never crops the calendar. Skipped in centered mode, which doesn't anchor
+  // to the trigger at all.
+  const coords = useFloatingPosition(ref, open && !centered, openUp)
 
   // ── Month navigation (days view) ──────────────────────────────────────────
   function prevMonth() {
@@ -166,6 +172,142 @@ export default function DatePicker({ value, onChange, min, max, placeholder, ope
       })
     : ''
 
+  // Shared between the anchored and centered panel wrappers below.
+  const panelBody = (
+    <>
+      {view === 'days' ? (
+        <>
+          {/* Month nav */}
+          <div className="flex items-center justify-between px-4 py-3">
+            <button
+              type="button"
+              onClick={prevMonth}
+              className="flex h-7 w-7 items-center justify-center rounded-lg text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] transition-colors"
+            >
+              <IoChevronBack className="h-4 w-4" />
+            </button>
+
+            <button
+              type="button"
+              onClick={openYearView}
+              className="rounded-lg px-2 py-1 text-sm font-semibold capitalize text-[var(--text)] hover:bg-[var(--surface-hover)] transition-colors"
+              title="Pick year"
+            >
+              {monthLabel} {year}
+            </button>
+
+            <button
+              type="button"
+              onClick={nextMonth}
+              className="flex h-7 w-7 items-center justify-center rounded-lg text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] transition-colors"
+            >
+              <IoChevronForward className="h-4 w-4" />
+            </button>
+          </div>
+
+          {/* Day-of-week labels */}
+          <div className="grid grid-cols-7 px-3 pb-1">
+            {DAYS.map(d => (
+              <div key={d} className="py-1 text-center text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+                {d}
+              </div>
+            ))}
+          </div>
+
+          {/* Day cells — always 42 so height is constant */}
+          <div className="grid grid-cols-7 gap-y-0.5 px-3 pb-3">
+            {cells.map((d, i) => {
+              if (!d) return <div key={i} className="h-8 w-8" />
+              const isSelected = selected && ymd(d) === ymd(selected)
+              const disabled = isDisabled(d)
+              const isToday = ymd(d) === todayYmd
+              return (
+                <button
+                  key={i}
+                  type="button"
+                  disabled={disabled}
+                  onClick={() => select(d)}
+                  className={`mx-auto flex h-8 w-8 items-center justify-center rounded-xl text-sm font-medium transition-colors
+                    ${isSelected
+                      ? 'bg-nonsprimary/5 text-[var(--text)] ring-1 ring-nonsprimary/60'
+                      : isToday
+                        ? 'bg-[var(--surface-active)] text-[var(--text)] ring-1 ring-[var(--border)]'
+                        : disabled
+                          ? 'cursor-not-allowed text-[var(--text-muted)] opacity-30'
+                          : 'text-[var(--text)] hover:bg-[var(--surface-hover)]'
+                    }`}
+                >
+                  {d.getUTCDate()}
+                </button>
+              )
+            })}
+          </div>
+        </>
+      ) : (
+        <>
+          {/* Year-block nav */}
+          <div className="flex items-center justify-between px-4 py-3">
+            <button
+              type="button"
+              onClick={prevYearBlock}
+              className="flex h-7 w-7 items-center justify-center rounded-lg text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] transition-colors"
+            >
+              <IoChevronBack className="h-4 w-4" />
+            </button>
+
+            <span className="text-sm font-semibold text-[var(--text)]">
+              {yearBase} – {yearBase + 11}
+            </span>
+
+            <button
+              type="button"
+              onClick={nextYearBlock}
+              className="flex h-7 w-7 items-center justify-center rounded-lg text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] transition-colors"
+            >
+              <IoChevronForward className="h-4 w-4" />
+            </button>
+          </div>
+
+          {/* Year grid — 3 columns × 4 rows to roughly match panel height */}
+          <div className="grid grid-cols-3 gap-1.5 px-3 pb-4 pt-1">
+            {yearCells.map(y => {
+              const isCurrent = y === year
+              const isThisYear = y === today.getFullYear()
+              return (
+                <button
+                  key={y}
+                  type="button"
+                  onClick={() => pickYear(y)}
+                  className={`rounded-xl py-2 text-sm font-medium transition-colors ${
+                    isCurrent
+                      ? 'bg-nonsprimary/5 text-[var(--text)] ring-1 ring-nonsprimary/60'
+                      : isThisYear
+                        ? 'bg-[var(--surface-active)] text-[var(--text)] ring-1 ring-[var(--border)]'
+                        : 'text-[var(--text)] hover:bg-[var(--surface-hover)]'
+                  }`}
+                >
+                  {y}
+                </button>
+              )
+            })}
+          </div>
+        </>
+      )}
+
+      {/* Floating quick-jump to today, always visible regardless of view. */}
+      <div className="flex justify-center border-t border-[var(--border-subtle)] px-3 py-2">
+        <button
+          type="button"
+          onClick={() => select(todayAsUTC)}
+          disabled={isDisabled(todayAsUTC)}
+          className="rounded-full bg-[var(--surface)] px-4 py-1.5 text-xs font-semibold text-nonsprimaryfocus transition-colors hover:bg-[var(--surface-hover)] disabled:cursor-not-allowed disabled:text-[var(--text-muted)] disabled:opacity-40"
+        >
+          {t('today') || 'Today'}
+        </button>
+      </div>
+    </>
+  )
+
   return (
     <div ref={ref} className="relative flex-1">
 
@@ -194,146 +336,32 @@ export default function DatePicker({ value, onChange, min, max, placeholder, ope
         )}
       </button>
 
-      {/* ── Calendar panel — portalled to document.body with fixed viewport
-          coordinates, so a scrollable/overflow-hidden ancestor never crops it ── */}
-      {open && coords && typeof document !== 'undefined' && createPortal(
-        <div
-          ref={panelRef}
-          style={{ position: 'fixed', left: coords.left, top: coords.top, bottom: coords.bottom }}
-          className="z-[110] w-64 overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--container)] shadow-xl"
-        >
-
-          {view === 'days' ? (
-            <>
-              {/* Month nav */}
-              <div className="flex items-center justify-between px-4 py-3">
-                <button
-                  type="button"
-                  onClick={prevMonth}
-                  className="flex h-7 w-7 items-center justify-center rounded-lg text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] transition-colors"
-                >
-                  <IoChevronBack className="h-4 w-4" />
-                </button>
-
-                <button
-                  type="button"
-                  onClick={openYearView}
-                  className="rounded-lg px-2 py-1 text-sm font-semibold capitalize text-[var(--text)] hover:bg-[var(--surface-hover)] transition-colors"
-                  title="Pick year"
-                >
-                  {monthLabel} {year}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={nextMonth}
-                  className="flex h-7 w-7 items-center justify-center rounded-lg text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] transition-colors"
-                >
-                  <IoChevronForward className="h-4 w-4" />
-                </button>
-              </div>
-
-              {/* Day-of-week labels */}
-              <div className="grid grid-cols-7 px-3 pb-1">
-                {DAYS.map(d => (
-                  <div key={d} className="py-1 text-center text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">
-                    {d}
-                  </div>
-                ))}
-              </div>
-
-              {/* Day cells — always 42 so height is constant */}
-              <div className="grid grid-cols-7 gap-y-0.5 px-3 pb-3">
-                {cells.map((d, i) => {
-                  if (!d) return <div key={i} className="h-8 w-8" />
-                  const isSelected = selected && ymd(d) === ymd(selected)
-                  const disabled = isDisabled(d)
-                  const isToday = ymd(d) === todayYmd
-                  return (
-                    <button
-                      key={i}
-                      type="button"
-                      disabled={disabled}
-                      onClick={() => select(d)}
-                      className={`mx-auto flex h-8 w-8 items-center justify-center rounded-xl text-sm font-medium transition-colors
-                        ${isSelected
-                          ? 'bg-nonsprimary/5 text-[var(--text)] ring-1 ring-nonsprimary/60'
-                          : isToday
-                            ? 'bg-[var(--surface-active)] text-[var(--text)] ring-1 ring-[var(--border)]'
-                            : disabled
-                              ? 'cursor-not-allowed text-[var(--text-muted)] opacity-30'
-                              : 'text-[var(--text)] hover:bg-[var(--surface-hover)]'
-                        }`}
-                    >
-                      {d.getUTCDate()}
-                    </button>
-                  )
-                })}
-              </div>
-            </>
-          ) : (
-            <>
-              {/* Year-block nav */}
-              <div className="flex items-center justify-between px-4 py-3">
-                <button
-                  type="button"
-                  onClick={prevYearBlock}
-                  className="flex h-7 w-7 items-center justify-center rounded-lg text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] transition-colors"
-                >
-                  <IoChevronBack className="h-4 w-4" />
-                </button>
-
-                <span className="text-sm font-semibold text-[var(--text)]">
-                  {yearBase} – {yearBase + 11}
-                </span>
-
-                <button
-                  type="button"
-                  onClick={nextYearBlock}
-                  className="flex h-7 w-7 items-center justify-center rounded-lg text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] transition-colors"
-                >
-                  <IoChevronForward className="h-4 w-4" />
-                </button>
-              </div>
-
-              {/* Year grid — 3 columns × 4 rows to roughly match panel height */}
-              <div className="grid grid-cols-3 gap-1.5 px-3 pb-4 pt-1">
-                {yearCells.map(y => {
-                  const isCurrent = y === year
-                  const isThisYear = y === today.getFullYear()
-                  return (
-                    <button
-                      key={y}
-                      type="button"
-                      onClick={() => pickYear(y)}
-                      className={`rounded-xl py-2 text-sm font-medium transition-colors ${
-                        isCurrent
-                          ? 'bg-nonsprimary/5 text-[var(--text)] ring-1 ring-nonsprimary/60'
-                          : isThisYear
-                            ? 'bg-[var(--surface-active)] text-[var(--text)] ring-1 ring-[var(--border)]'
-                            : 'text-[var(--text)] hover:bg-[var(--surface-hover)]'
-                      }`}
-                    >
-                      {y}
-                    </button>
-                  )
-                })}
-              </div>
-            </>
-          )}
-
-          {/* Floating quick-jump to today, always visible regardless of view. */}
-          <div className="flex justify-center border-t border-[var(--border-subtle)] px-3 py-2">
-            <button
-              type="button"
-              onClick={() => select(todayAsUTC)}
-              disabled={isDisabled(todayAsUTC)}
-              className="rounded-full bg-[var(--surface)] px-4 py-1.5 text-xs font-semibold text-nonsprimaryfocus transition-colors hover:bg-[var(--surface-hover)] disabled:cursor-not-allowed disabled:text-[var(--text-muted)] disabled:opacity-40"
+      {/* ── Calendar panel — portalled to document.body. In centered mode it's
+          a backdrop-covered overlay centered on the viewport (so a trigger
+          near an edge, e.g. the right column of a two-up date grid, can
+          never have its panel spill past that edge); otherwise it's anchored
+          to the trigger with fixed viewport coordinates, so a
+          scrollable/overflow-hidden ancestor never crops it ── */}
+      {open && (centered || coords) && typeof document !== 'undefined' && createPortal(
+        centered ? (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/40" onMouseDown={() => setOpen(false)}>
+            <div
+              ref={panelRef}
+              onMouseDown={(e) => e.stopPropagation()}
+              className="w-64 overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--container)] shadow-xl"
             >
-              {t('today') || 'Today'}
-            </button>
+              {panelBody}
+            </div>
           </div>
-        </div>,
+        ) : (
+          <div
+            ref={panelRef}
+            style={{ position: 'fixed', left: coords!.left, top: coords!.top, bottom: coords!.bottom }}
+            className="z-[110] w-64 overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--container)] shadow-xl"
+          >
+            {panelBody}
+          </div>
+        ),
         document.body,
       )}
     </div>
