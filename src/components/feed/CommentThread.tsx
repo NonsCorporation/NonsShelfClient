@@ -71,6 +71,10 @@ export default function CommentThread({ postId, onCountChange }: { postId: numbe
     return map
   }, [comments])
 
+  // So a reply can show "@parent-author" derived from the tree, without that
+  // mention ever being baked into the stored comment body.
+  const byId = useMemo(() => new Map(comments.map((c) => [c.id, c])), [comments])
+
   const post: PostFn = async (text, parentId) => {
     const trimmed = text.trim()
     if (!trimmed) return
@@ -116,6 +120,7 @@ export default function CommentThread({ postId, onCountChange }: { postId: numbe
               key={c.id}
               comment={c}
               childrenOf={childrenOf}
+              byId={byId}
               depth={0}
               replyTo={replyTo}
               setReplyTo={setReplyTo}
@@ -180,6 +185,7 @@ function Avatar({ id, name, username, avatar, small }: { id: number; name: strin
 function CommentNode({
   comment,
   childrenOf,
+  byId,
   depth,
   replyTo,
   setReplyTo,
@@ -190,6 +196,7 @@ function CommentNode({
 }: {
   comment: FeedComment
   childrenOf: Map<number | null, FeedComment[]>
+  byId: Map<number, FeedComment>
   depth: number
   replyTo: number | null
   setReplyTo: (id: number | null) => void
@@ -203,6 +210,10 @@ function CommentNode({
   const replies = childrenOf.get(comment.id) ?? []
   const replying = replyTo === comment.id
   const isOwn = meId != null && comment.author.id === meId
+  // Derived from the tree (parent_id → parent comment), not stored in the
+  // body — so the mention always reflects the current username and never
+  // has to be typed or stripped by the user.
+  const replyingToUsername = comment.parent_id != null ? byId.get(comment.parent_id)?.author.username : undefined
   // Replies are always allowed, but indentation stops deepening past MAX_DEPTH
   // levels: a reply to an already-maxed comment renders flush at the same level
   // as its parent (so threads can't march off-screen). Indent the *replies*
@@ -229,7 +240,14 @@ function CommentNode({
               />
             )}
           </div>
-          <p className="mt-0.5 whitespace-pre-wrap break-words text-sm leading-6 text-[var(--text)]">{comment.body}</p>
+          <p className="mt-0.5 whitespace-pre-wrap break-words text-sm leading-6 text-[var(--text)]">
+            {replyingToUsername && (
+              <Link to={userPath(replyingToUsername)} className="mr-1 font-medium text-nonsprimary hover:underline">
+                @{replyingToUsername}
+              </Link>
+            )}
+            {comment.body}
+          </p>
 
           <div className="mt-1 flex items-center gap-3 text-xs">
             <button
@@ -281,6 +299,7 @@ function CommentNode({
               key={r.id}
               comment={r}
               childrenOf={childrenOf}
+              byId={byId}
               depth={depth + 1}
               replyTo={replyTo}
               setReplyTo={setReplyTo}
