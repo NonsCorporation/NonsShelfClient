@@ -5,8 +5,6 @@ import {
   IoBookOutline,
   IoFilmOutline,
   IoTvOutline,
-  IoHeart,
-  IoHeartOutline,
   IoStar,
   IoLibraryOutline,
   IoChatbubbleOutline,
@@ -127,22 +125,6 @@ export default function MediaCard({
     <p className="truncate text-sm text-[var(--text-muted)]">{item.author}</p>
   )
 
-  const favBtn = onToggleFavorite ? (
-    <button
-      onClick={(e) => {
-        e.preventDefault()
-        e.stopPropagation()
-        onToggleFavorite()
-      }}
-      title={item.favorite ? t('unmarkFavorite') : t('markFavorite')}
-      className={`flex items-center justify-center transition-colors ${
-        item.favorite ? 'text-nonslightred' : 'text-[var(--text-muted)] hover:text-[var(--text)]'
-      }`}
-    >
-      {item.favorite ? <IoHeart className="h-[18px] w-[18px]" /> : <IoHeartOutline className="h-[18px] w-[18px]" />}
-    </button>
-  ) : null
-
   // list view layout
   if (view === 'list') {
     const hasReview = showReview && !!item.review?.trim()
@@ -244,19 +226,17 @@ export default function MediaCard({
 
           {/* indicators and actions column */}
           <div className="flex flex-col items-end self-stretch flex-shrink-0 pr-1 py-1">
-            {/* top right corner favorite toggle */}
-            {favBtn}
-
-            {/* rating and review below top corner */}
-            <div className="flex flex-col items-end gap-1 mt-2 mb-auto">
+            {/* rating and review — icon column aligned with the history icon
+                below; the rating number sits to its left of the star. */}
+            <div className="flex flex-col items-end gap-1 mb-auto">
               {rated && (
                 <span className="flex items-center gap-1 text-sm font-semibold text-[var(--text)]">
-                  <IoStar className="h-3.5 w-3.5 text-nonsprimary" />
                   {(item.rating! / 2).toFixed(1)}
+                  <IoStar className="h-[18px] w-[18px] flex-shrink-0 text-nonsprimary" />
                 </span>
               )}
               {item.review?.trim() && (
-                <span title={t('hasReview')} className="text-[var(--text-muted)]">
+                <span title={t('hasReview')} className="flex items-center justify-center text-[var(--text-muted)]">
                   <IoChatbubbleOutline className="h-4 w-4" />
                 </span>
               )}
@@ -267,7 +247,7 @@ export default function MediaCard({
               <button
                 onClick={openDetail}
                 title={t('historyTitle')}
-                className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--text-muted)] transition-colors hover:bg-[var(--surface)] hover:text-[var(--text)] mt-2"
+                className="flex h-8 w-8 items-center justify-end rounded-full text-[var(--text-muted)] transition-colors hover:bg-[var(--surface)] hover:text-[var(--text)] mt-2"
               >
                 <IoTimeOutline className="h-[18px] w-[18px]" />
               </button>
