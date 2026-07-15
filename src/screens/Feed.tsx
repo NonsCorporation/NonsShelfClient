@@ -27,7 +27,7 @@ import type { ShelfStatus } from '../types'
 import { mediaPath } from '../lib/paths'
 import {
   IoSearch, IoPeopleOutline, IoArrowForward, IoLinkOutline,
-  IoCheckmark, IoRibbonOutline, IoTimeOutline, IoSettingsOutline,
+  IoCheckmark, IoBookOutline, IoTimeOutline, IoSettingsOutline,
 } from 'react-icons/io5'
 import ShelfLogo from '@/components/branding/ShelfLogo'
 import ShelfStatusBar from '@/components/media/ShelfStatusBar'
@@ -612,17 +612,38 @@ function InProgressSection({
   )
 }
 
+// A handful of book-jacket-ish gradients — picked deterministically by year
+// (not truly random) so a given year's challenge always wears the same
+// "cover" instead of reshuffling on every render.
+const COVER_PALETTE: [string, string][] = [
+  ['#6768ab', '#4e4f86'], // nonsprimary (default)
+  ['#e0704f', '#a84a2f'], // terracotta
+  ['#3f9d7c', '#276a51'], // forest
+  ['#4a7fc9', '#2c548f'], // ocean
+  ['#c9a13f', '#8f6f22'], // ochre
+  ['#b25fa8', '#7a3f73'], // plum
+]
+
+function coverColors(year: number): [string, string] {
+  const idx = ((year % COVER_PALETTE.length) + COVER_PALETTE.length) % COVER_PALETTE.length
+  return COVER_PALETTE[idx]
+}
+
 // Reading challenge, as its own fluid-width block (not the fixed-width rail
-// card it used to share a row with) — the goal or "join" nudge, plus progress.
+// card it used to share a row with) — a bigger card fronted by a "book cover"
+// panel (its own gradient, book icon, and the year stamped on it like jacket
+// art) instead of a plain icon tile.
 function ChallengeBlock({ challenge, t }: { challenge: Challenge | null; t: Translate }) {
   if (!challenge) {
     return (
-      <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface)] p-4">
-        <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-[var(--text)]">
-          <IoRibbonOutline className="h-4 w-4 text-nonsprimary" />
-          {t('readingChallenge')}
-        </h2>
-        <p className="text-xs text-[var(--text-muted)]">{t('noReadingChallenge')}</p>
+      <div className="flex items-center gap-4 rounded-2xl border border-dashed border-[var(--border)] bg-[var(--surface)] p-5">
+        <div className="flex aspect-[2/3] w-14 flex-shrink-0 items-center justify-center rounded-lg bg-[var(--primary-soft)]">
+          <IoBookOutline className="h-6 w-6 text-nonsprimary" />
+        </div>
+        <div className="min-w-0">
+          <h2 className="text-base font-semibold text-[var(--text)]">{t('readingChallenge')}</h2>
+          <p className="mt-0.5 text-xs text-[var(--text-muted)]">{t('noReadingChallenge')}</p>
+        </div>
       </div>
     )
   }
@@ -632,38 +653,53 @@ function ChallengeBlock({ challenge, t }: { challenge: Challenge | null; t: Tran
   const hasGoal = challenge.joined && target > 0
   const pct = target > 0 ? Math.min(100, Math.round((progress / target) * 100)) : 0
   const done = (challenge.completed_at ?? 0) > 0
-  const title = t('readingGoalTitle', { year: challengeYear(challenge) })
+  const year = challengeYear(challenge)
+  const title = t('readingGoalTitle', { year })
+  const [coverFrom, coverTo] = coverColors(year)
 
   return (
     <Link
       to={`/challenge/${challenge.uuid}`}
-      className={`group flex items-center gap-3 rounded-2xl border p-4 transition-colors hover:border-nonsprimary ${
+      className={`group block rounded-2xl border p-5 transition-colors hover:border-nonsprimary ${
         hasGoal ? 'border-[var(--border-subtle)] bg-[var(--surface)]' : 'border-dashed border-[var(--border)]'
       }`}
     >
-      <div className="flex aspect-square w-11 flex-shrink-0 items-center justify-center rounded-xl bg-[var(--primary-soft)]">
-        <IoRibbonOutline className="h-5 w-5 text-nonsprimary" />
-      </div>
-      <div className="min-w-0 flex-1">
-        <h3 className="truncate text-sm font-semibold text-[var(--text)]">{title}</h3>
-        {hasGoal ? (
-          <>
-            <p className="truncate text-xs text-[var(--text-muted)]">
-              {t('readingGoalProgress', { progress, target })}
-              {pct > 0 && <span className="ml-1 font-semibold text-nonsprimary">{pct}%</span>}
-            </p>
-            <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-[var(--container-2)]">
-              <div className="h-full rounded-full bg-nonsprimary transition-all" style={{ width: `${pct}%` }} />
+      <div className="flex items-center gap-4">
+        <div
+          className="relative flex aspect-[2/3] w-16 flex-shrink-0 flex-col items-center justify-center gap-1 overflow-hidden rounded-lg text-white shadow-sm"
+          style={{ backgroundImage: `linear-gradient(to bottom right, ${coverFrom}, ${coverTo})` }}
+        >
+          <IoBookOutline className="h-5 w-5 opacity-80" />
+          <span className="text-xl font-black leading-none">{year}</span>
+          <span className="px-1 text-center text-[7px] font-semibold uppercase leading-tight tracking-wider opacity-80">
+            {t('readingChallenge')}
+          </span>
+          {hasGoal && done && (
+            <span className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full bg-nonsprimary text-white ring-2 ring-[var(--surface)]">
+              <IoCheckmark className="h-3.5 w-3.5" />
+            </span>
+          )}
+        </div>
+        <div className="min-w-0 flex-1">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-nonsprimary">{t('readingChallenge')}</span>
+          <h3 className="truncate text-lg font-bold text-[var(--text)]">{title}</h3>
+          {!hasGoal && <p className="mt-0.5 truncate text-sm text-[var(--text-muted)]">{t('joinReadingChallenge')}</p>}
+          {hasGoal && (
+            <div className="mt-2">
+              <div className="flex items-center justify-between text-sm text-[var(--text-muted)]">
+                <span>{t('readingGoalProgress', { progress, target })}</span>
+                {pct > 0 && <span className="font-semibold text-nonsprimary">{pct}%</span>}
+              </div>
+              <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-[var(--container-2)]">
+                <div className="h-full rounded-full bg-nonsprimary transition-all" style={{ width: `${pct}%` }} />
+              </div>
             </div>
-          </>
-        ) : (
-          <p className="truncate text-xs text-[var(--text-muted)]">{t('joinReadingChallenge')}</p>
+          )}
+        </div>
+        {!hasGoal && (
+          <IoArrowForward className="h-5 w-5 flex-shrink-0 text-[var(--text-muted)] transition-transform group-hover:translate-x-0.5 group-hover:text-nonsprimary" />
         )}
       </div>
-      {hasGoal && done && <IoCheckmark className="h-4 w-4 flex-shrink-0 text-nonsprimary" />}
-      {!hasGoal && (
-        <IoArrowForward className="h-4 w-4 flex-shrink-0 text-[var(--text-muted)] transition-transform group-hover:translate-x-0.5 group-hover:text-nonsprimary" />
-      )}
     </Link>
   )
 }

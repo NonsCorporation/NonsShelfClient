@@ -510,11 +510,6 @@ export default function LibraryScreen() {
     setShowForm(null)
   }
 
-  async function toggleFavorite(item: MediaItem) {
-    const updated = await libraryService.updateItem(item.id, { favorite: !item.favorite })
-    setItems((prev) => prev.map((it) => (it.id === item.id ? updated : it)))
-  }
-
   // Comparison view (another user's library): let the viewer manage their own
   // shelf entry for `item` without leaving the page. `item` here is *their*
   // object, but its id is the shared catalog id, so these calls act on the
@@ -1437,7 +1432,6 @@ export default function LibraryScreen() {
                 key={it.id}
                 item={it}
                 view="grid"
-                onToggleFavorite={readOnly ? undefined : () => toggleFavorite(it)}
                 onOpenDetail={setDetailItem}
                 onFilterStatus={(s) => {
                   const next = new URLSearchParams(params)
@@ -1460,7 +1454,6 @@ export default function LibraryScreen() {
                 key={it.id}
                 item={it}
                 view="list"
-                onToggleFavorite={readOnly ? undefined : () => toggleFavorite(it)}
                 showReview
                 onOpenDetail={setDetailItem}
                 compareName={readOnly ? ownerName : undefined}

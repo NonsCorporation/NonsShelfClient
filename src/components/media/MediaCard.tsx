@@ -46,7 +46,6 @@ export type ItemProgress = { label: string; pct: number }
 type MediaCardProps = {
   item: MediaItem
   view: 'grid' | 'list'
-  onToggleFavorite?: () => void
   showReview?: boolean
   onOpenDetail?: (item: MediaItem) => void
   compareName?: string
@@ -78,7 +77,6 @@ function Cover({ item, className, fill }: { item: MediaItem; className?: string;
 export default function MediaCard({
   item,
   view,
-  onToggleFavorite,
   showReview = false,
   onOpenDetail,
   compareName,
