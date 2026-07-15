@@ -8,6 +8,8 @@ import { libraryService } from '../services/libraryService'
 import type { MediaItem, MediaType } from '../types'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
+import { Link } from '@/lib/router'
+import { mediaPath } from '@/lib/paths'
 import { buildRecap, fmtInt, fmtDuration } from '../lib/recap'
 import RecapStories from '@/components/feed/RecapStories'
 import DatePicker from '@/components/ui/DatePicker'
@@ -416,22 +418,44 @@ export default function Statistics() {
                   <IoPersonOutline className="h-3.5 w-3.5" /> {t('recapMostReadAuthor')}
                 </p>
                 <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
-                  <div className="flex items-center gap-3">
-                    <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-[var(--container-2)] ring-2 ring-[color-mix(in_srgb,var(--color-nonsprimary)_35%,transparent)] ring-offset-2 ring-offset-[var(--container)]">
-                      {topAuthorPhoto ? (
-                        <img src={topAuthorPhoto} alt="" className="h-full w-full object-cover" />
-                      ) : (
-                        <IoPersonOutline className="h-5 w-5 text-[var(--placeholder)]" />
-                      )}
-                    </span>
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-lg font-bold text-[var(--text)]">{recap.authors[0].name}</span>
-                      <span className="text-sm text-[var(--text-muted)]">{t('recapAuthorCount', { n: recap.authors[0].count })}</span>
+                  {topAuthorUuid ? (
+                    <Link to={`/p/${topAuthorUuid}`} className="group/author flex items-center gap-3">
+                      <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-[var(--container-2)] ring-2 ring-[color-mix(in_srgb,var(--color-nonsprimary)_35%,transparent)] ring-offset-2 ring-offset-[var(--container)]">
+                        {topAuthorPhoto ? (
+                          <img src={topAuthorPhoto} alt="" className="h-full w-full object-cover" />
+                        ) : (
+                          <IoPersonOutline className="h-5 w-5 text-[var(--placeholder)]" />
+                        )}
+                      </span>
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-lg font-bold text-[var(--text)] group-hover/author:text-nonsprimary">{recap.authors[0].name}</span>
+                        <span className="text-sm text-[var(--text-muted)]">{t('recapAuthorCount', { n: recap.authors[0].count })}</span>
+                      </div>
+                    </Link>
+                  ) : (
+                    <div className="flex items-center gap-3">
+                      <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-[var(--container-2)] ring-2 ring-[color-mix(in_srgb,var(--color-nonsprimary)_35%,transparent)] ring-offset-2 ring-offset-[var(--container)]">
+                        {topAuthorPhoto ? (
+                          <img src={topAuthorPhoto} alt="" className="h-full w-full object-cover" />
+                        ) : (
+                          <IoPersonOutline className="h-5 w-5 text-[var(--placeholder)]" />
+                        )}
+                      </span>
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-lg font-bold text-[var(--text)]">{recap.authors[0].name}</span>
+                        <span className="text-sm text-[var(--text-muted)]">{t('recapAuthorCount', { n: recap.authors[0].count })}</span>
+                      </div>
                     </div>
-                  </div>
-                  {recap.authors.slice(1, 4).map((a) => (
-                    <span key={a.name} className="text-xs text-[var(--text-muted)]">{a.name} · {a.count}</span>
-                  ))}
+                  )}
+                  {recap.authors.slice(1, 4).map((a) =>
+                    a.makerUuid ? (
+                      <Link key={a.name} to={`/p/${a.makerUuid}`} className="text-xs text-[var(--text-muted)] hover:text-nonsprimary hover:underline">
+                        {a.name} · {a.count}
+                      </Link>
+                    ) : (
+                      <span key={a.name} className="text-xs text-[var(--text-muted)]">{a.name} · {a.count}</span>
+                    ),
+                  )}
                 </div>
               </div>
             )}
@@ -451,7 +475,11 @@ export default function Statistics() {
                     )}
                     <div className="grid grid-cols-4 gap-3 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-7">
                       {group.items.map((i) => (
-                        <div key={i.id} className="group/cover flex flex-col gap-1.5">
+                        <Link
+                          key={i.id}
+                          to={mediaPath({ type: i.type, uuid: i.uuid, id: i.id })}
+                          className="group/cover flex flex-col gap-1.5"
+                        >
                           <span className="relative block aspect-[2/3] overflow-hidden rounded-lg shadow-sm ring-1 ring-black/5 transition-transform duration-200 group-hover/cover:-translate-y-1 group-hover/cover:shadow-md">
                             <FinishedCover url={i.coverUrl} title={i.title} author={i.author} type={i.type} />
                             {typeof i.rating === 'number' && i.rating > 0 && (
@@ -465,7 +493,7 @@ export default function Statistics() {
                           <p className="truncate text-[10px] text-[var(--text-muted)]">
                             {i.finishedAt ? new Date(i.finishedAt).toLocaleDateString(locale, { day: 'numeric', month: 'short' }) : i.author}
                           </p>
-                        </div>
+                        </Link>
                       ))}
                     </div>
                   </div>
