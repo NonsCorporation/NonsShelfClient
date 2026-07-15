@@ -16,6 +16,8 @@ export type Activity = {
   mediaTitle: string
   mediaType: MediaType
   mediaAuthor?: string
+  /** Public uuid of the primary author/director, for linking to /p/<uuid>. */
+  makerUuid?: string
   mediaYear?: number
   mediaDescription?: string
   coverUrl?: string
@@ -71,7 +73,7 @@ type ActivityEvent = {
   page?: number // progress: current page (books)
   at: number // unix seconds
   user_role?: string // librarian role, when the server includes it
-  media?: { id: number; uuid?: string; type: MediaType; title: string; author?: string; year?: number; description?: string; cover_url: string }
+  media?: { id: number; uuid?: string; type: MediaType; title: string; author?: string; maker_uuid?: string; year?: number; description?: string; cover_url: string }
   // Set for challenge_joined events (no media): the full challenge row.
   challenge?: { uuid: string; title: string; official: boolean; period: string; start_date: number; media_type?: string }
   // The subject's goal on a challenge_joined event (personal goal, else shared
@@ -176,6 +178,7 @@ function toActivity(e: ActivityEvent, user: Activity['user']): Activity {
     mediaTitle: e.edition_title || e.media!.title,
     mediaType: e.media!.type,
     mediaAuthor: e.media!.author || undefined,
+    makerUuid: e.media!.maker_uuid || undefined,
     mediaYear: e.media!.year || undefined,
     mediaDescription: e.media!.description || undefined,
     coverUrl: e.edition_cover || e.media!.cover_url || undefined,

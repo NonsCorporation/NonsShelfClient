@@ -271,7 +271,14 @@ export default function ActivityCard({
           </Link>
           {a.mediaAuthor && (
             <p className="mt-0.5 text-sm text-[var(--text-muted)]">
-              {t('by')} <span className="text-[var(--text)]">{a.mediaAuthor}</span>
+              {t('by')}{' '}
+              {a.makerUuid ? (
+                <Link to={`/p/${a.makerUuid}`} className="text-[var(--text)] hover:text-nonsprimary hover:underline">
+                  {a.mediaAuthor}
+                </Link>
+              ) : (
+                <span className="text-[var(--text)]">{a.mediaAuthor}</span>
+              )}
             </p>
           )}
           <p className="mt-0.5 text-xs uppercase tracking-wide text-[var(--text-muted)]">
