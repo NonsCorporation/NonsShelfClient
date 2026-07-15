@@ -688,6 +688,7 @@ export const en = {
   continueReading: ' …more',
   like: 'Like',
   comment: 'Comment',
+  viewAllComments: 'View all {count} comments',
   writeComment: 'Write a comment…',
   writeReply: 'Write a reply…',
   reply: 'Reply',

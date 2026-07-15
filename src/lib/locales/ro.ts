@@ -688,6 +688,7 @@ export const ro = {
   continueReading: ' …mai mult',
   like: 'Îmi place',
   comment: 'Comentează',
+  viewAllComments: 'Vezi toate cele {count} comentarii',
   writeComment: 'Scrie un comentariu…',
   writeReply: 'Scrie un răspuns…',
   reply: 'Răspunde',

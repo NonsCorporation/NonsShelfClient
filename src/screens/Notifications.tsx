@@ -15,6 +15,7 @@ import { NONS_LOGIN_URL } from '../lib/api'
 import {
   IoChatbubbleOutline,
   IoReturnDownForwardOutline,
+  IoChevronUp,
   IoCheckmarkCircleOutline,
   IoCloseCircleOutline,
   IoNotificationsOutline,
@@ -43,6 +44,7 @@ const VERB: Record<string, string> = {
 const TYPE_ICON: Record<NotificationType, React.ComponentType<{ className?: string }>> = {
   comment:              IoChatbubbleOutline,
   reply:                IoReturnDownForwardOutline,
+  like:                 IoChevronUp,
   suggestion_approved:  IoCheckmarkCircleOutline,
   suggestion_rejected:  IoCloseCircleOutline,
 }
@@ -50,6 +52,7 @@ const TYPE_ICON: Record<NotificationType, React.ComponentType<{ className?: stri
 const TYPE_COLOR: Record<NotificationType, string> = {
   comment:              'text-blue-400',
   reply:                'text-violet-400',
+  like:                 'text-nonsprimary',
   suggestion_approved:  'text-emerald-400',
   suggestion_rejected:  'text-red-400',
 }
@@ -85,6 +88,8 @@ function NotificationCard({ n, onNavigate }: { n: LibNotification; onNavigate: (
     label = `commented on your ${VERB[n.post?.kind ?? ''] ?? 'activity'}`
   } else if (n.type === 'reply') {
     label = 'replied to your comment'
+  } else if (n.type === 'like') {
+    label = `liked your ${VERB[n.post?.kind ?? ''] ?? 'activity'}`
   } else if (n.type === 'suggestion_approved') {
     label = 'Your catalog edit was approved'
   } else {

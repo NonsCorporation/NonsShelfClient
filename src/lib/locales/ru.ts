@@ -688,6 +688,7 @@ export const ru = {
   continueReading: ' …подробнее',
   like: 'Нравится',
   comment: 'Комментировать',
+  viewAllComments: 'Посмотреть все комментарии ({count})',
   writeComment: 'Написать комментарий…',
   writeReply: 'Написать ответ…',
   reply: 'Ответить',

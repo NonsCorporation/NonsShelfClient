@@ -6,8 +6,10 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { userPath } from '@/lib/paths'
 import BoringAvatar from '@/components/ui/BoringAvatar'
-import { IoHeart, IoHeartOutline, IoChatbubbleOutline, IoTrashOutline, IoRibbonOutline } from 'react-icons/io5'
+import { IoChatbubbleOutline, IoTrashOutline, IoRibbonOutline } from 'react-icons/io5'
 import CommentThread from '@/components/feed/CommentThread'
+import CommentPreview from '@/components/feed/CommentPreview'
+import LikeButton from '@/components/feed/LikeButton'
 import DropdownMenu from '@/components/ui/DropdownMenu'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 import LibrarianBadge from '@/components/badges/LibrarianBadge'
@@ -31,7 +33,6 @@ export default function ChallengeActivityCard({
 }) {
   const { t } = useLanguage()
   const { user } = useAuth()
-  const [liked, setLiked] = useState(false)
   const [showComments, setShowComments] = useState(initialOpenComments ?? false)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -123,15 +124,7 @@ export default function ChallengeActivityCard({
 
       {/* footer: like · comment */}
       <div className="mt-4 flex items-center gap-4 border-t border-[var(--divider)] pt-3 text-sm">
-        <button
-          onClick={() => setLiked((v) => !v)}
-          className={`inline-flex items-center gap-1.5 font-medium transition-colors ${
-            liked ? 'text-nonsprimary' : 'text-[var(--text-muted)] hover:text-[var(--text)]'
-          }`}
-        >
-          {liked ? <IoHeart className="h-4 w-4" /> : <IoHeartOutline className="h-4 w-4" />}
-          {t('like')}
-        </button>
+        <LikeButton postId={a.postId} />
         <button
           onClick={() => setShowComments((v) => !v)}
           className={`inline-flex items-center gap-1.5 font-medium transition-colors ${
@@ -139,9 +132,13 @@ export default function ChallengeActivityCard({
           }`}
         >
           <IoChatbubbleOutline className="h-4 w-4" />
-          {commentCount > 0 ? commentCount : t('comment')}
+          {commentCount > 0 && commentCount}
         </button>
       </div>
+
+      {!showComments && commentCount > 0 && (
+        <CommentPreview postId={a.postId} commentCount={commentCount} onViewAll={() => setShowComments(true)} />
+      )}
 
       {showComments && <CommentThread postId={a.postId} onCountChange={(n) => onCountChange?.(a.postId, n)} />}
 
