@@ -48,11 +48,15 @@ export default function CatalogCard({ item, inLibrary, onAdd, showReason, shelfS
           <TypeBadge type={item.type} position="right-2 top-2" />
         </div>
 
-        <div className="mt-2.5 min-w-0">
+        {/* Fixed height regardless of what's actually there — a missing
+            author/director or year must not shrink this card relative to its
+            neighbors in the row/grid, so the three text lines get a set box
+            (overflow-hidden) instead of shrinking to their content. */}
+        <div className="mt-2.5 h-14 min-w-0 overflow-hidden">
           <h3 className="truncate text-sm font-semibold text-[var(--text)] group-hover:underline">
             {item.title}
           </h3>
-          <p className="truncate text-xs text-[var(--text-muted)]">{credit}</p>
+          <p className="truncate text-xs text-[var(--text-muted)]">{credit || ' '}</p>
 
           {/* Real popularity signal (members who shelved it); fall back to year. */}
           <div className="mt-1 flex items-center gap-1.5 text-[11px] text-[var(--text-muted)]">
@@ -61,15 +65,17 @@ export default function CatalogCard({ item, inLibrary, onAdd, showReason, shelfS
                 <IoPeopleOutline className="h-3.5 w-3.5" />
                 <span>{t('inLibrariesLabel', { n: compactCount(item.popularity) })}</span>
               </>
+            ) : item.year ? (
+              <span>{item.year}</span>
             ) : (
-              item.year && <span>{item.year}</span>
+              <span>&nbsp;</span>
             )}
           </div>
-
-          {showReason && item.recommendedBecause && (
-            <p className="mt-1 line-clamp-2 text-[11px] italic text-[var(--text-muted)]/80">{item.recommendedBecause}</p>
-          )}
         </div>
+
+        {showReason && item.recommendedBecause && (
+          <p className="mt-1 line-clamp-2 text-[11px] italic text-[var(--text-muted)]/80">{item.recommendedBecause}</p>
+        )}
       </Link>
 
       {shelfStatus ? (

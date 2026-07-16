@@ -11,7 +11,7 @@ import { getFriendUsers, type Activity } from '../services/activityService'
 import { typeWord, goalLabel, conditionText, challengeTitle, isGoalChallenge } from '../lib/challenge'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
-import { redirectToNonsLogin } from '../lib/api'
+import { useLoginModal } from '../contexts/LoginModalContext'
 import type { Challenge } from '../types'
 
 // A unix-seconds timestamp → a short localized date, or '' if unset.
@@ -27,6 +27,7 @@ function shortDate(unix?: number): string {
 export default function ChallengeDetailScreen() {
   const { t } = useLanguage()
   const { user: authUser, isAuthenticated } = useAuth()
+  const { openLogin } = useLoginModal()
   const { uuid = '' } = useParams<{ uuid: string }>()
 
   const [challenge, setChallenge] = useState<Challenge | null>(null)
@@ -65,7 +66,7 @@ export default function ChallengeDetailScreen() {
   const toggleJoin = async () => {
     if (!challenge) return
     if (!isAuthenticated) {
-      redirectToNonsLogin()
+      openLogin()
       return
     }
     setBusy(true)
@@ -85,7 +86,7 @@ export default function ChallengeDetailScreen() {
   const saveGoal = async () => {
     if (!challenge) return
     if (!isAuthenticated) {
-      redirectToNonsLogin()
+      openLogin()
       return
     }
     const n = Number(goalInput)

@@ -8,10 +8,13 @@ import { NotificationProvider } from '@/contexts/NotificationContext'
 import { PreferencesProvider } from '@/contexts/PreferencesContext'
 import { CollectionProvider } from '@/contexts/CollectionContext'
 import { ListProvider } from '@/contexts/ListContext'
+import { LoginModalProvider } from '@/contexts/LoginModalContext'
 import RequireAuth from '@/components/auth/RequireAuth'
 
-// Mirrors the old src/main.tsx provider tree, with RequireAuth gating every
-// route (the whole app was behind the shared SSO session before, and still is).
+// Mirrors the old src/main.tsx provider tree, with RequireAuth gating the
+// personal routes behind the shared SSO session ('/' and '/discover' stay
+// browsable when signed out). LoginModalProvider sits above RequireAuth because
+// the gate itself opens the modal when it turns a visitor away.
 //
 // LanguageProvider and PreferencesProvider read localStorage/navigator in their
 // useState initializers, so they cannot run on the server. We render nothing
@@ -30,9 +33,11 @@ export default function Providers({ children }: { children: ReactNode }) {
           <LanguageProvider>
             <PreferencesProvider>
               <NotificationProvider>
-                <RequireAuth>
-                  {children}
-                </RequireAuth>
+                <LoginModalProvider>
+                  <RequireAuth>
+                    {children}
+                  </RequireAuth>
+                </LoginModalProvider>
               </NotificationProvider>
             </PreferencesProvider>
           </LanguageProvider>

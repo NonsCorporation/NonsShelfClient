@@ -22,7 +22,8 @@ import { useLanguage } from '../../contexts/LanguageContext'
 import LanguageSelect from '@/components/ui/LanguageSelect'
 import { useAuth } from '../../contexts/AuthContext'
 import { useNotifications } from '../../contexts/NotificationContext'
-import { redirectToNonsLogin, NONS_LOGIN_URL } from '../../lib/api'
+import { NONS_LOGIN_URL } from '../../lib/api'
+import { useLoginModal } from '../../contexts/LoginModalContext'
 import BoringAvatar from '@/components/ui/BoringAvatar'
 import { userPath, mediaPath } from '../../lib/paths'
 import { isLibrarian } from '../../services/librarianService'
@@ -40,6 +41,7 @@ export default function Header() {
   const { language, setLanguage, t } = useLanguage()
   const { user, logout, isAuthenticated, loading } = useAuth()
   const { totalUnread, unreadCount } = useNotifications()
+  const { openLogin } = useLoginModal()
 
   const [accountOpen, setAccountOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
@@ -272,7 +274,7 @@ export default function Header() {
               </div>
             ) : !loading ? (
               <button
-                onClick={() => redirectToNonsLogin()}
+                onClick={openLogin}
                 className="hidden items-center gap-2 rounded-full bg-nonsprimary px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 lg:flex"
               >
                 <IoLogInOutline className="h-[18px] w-[18px]" />
@@ -424,7 +426,7 @@ export default function Header() {
                   </button>
                 ) : (
                   <button
-                    onClick={() => { redirectToNonsLogin(); setProfileOpen(false) }}
+                    onClick={() => { openLogin(); setProfileOpen(false) }}
                     className="flex w-full items-center gap-3 px-4 py-3 text-sm font-medium text-nonsprimary transition-colors hover:bg-[var(--surface)]"
                   >
                     <IoLogInOutline className="h-[18px] w-[18px]" />

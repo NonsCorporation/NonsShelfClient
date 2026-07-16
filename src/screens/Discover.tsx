@@ -3,6 +3,7 @@ import { Link } from '@/lib/router'
 import Layout from '../components/layout/Layout'
 import CatalogCard from '@/components/media/CatalogCard'
 import FindSomething from '@/components/import-export/FindSomething'
+import NonsAboutBadge from '@/components/discover/NonsAboutBadge'
 import BoringAvatar from '@/components/ui/BoringAvatar'
 import ShelfStatusBar from '@/components/media/ShelfStatusBar'
 import FinishModal from '@/components/reading/FinishModal'
@@ -20,7 +21,7 @@ import type { MediaItem, MediaType, ShelfStatus, CuratedListDiscoverEntry, Franc
 import { typeWord, goalLabel, conditionText, challengeTitle, isGoalChallenge } from '../lib/challenge'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
-import { redirectToNonsLogin } from '../lib/api'
+import { useLoginModal } from '../contexts/LoginModalContext'
 import {
   IoStar, IoPeopleOutline, IoLogInOutline, IoSparklesOutline, IoArrowForward,
   IoChevronBack, IoChevronForward, IoLayersOutline, IoPlanetOutline, IoTrophyOutline, IoAdd,
@@ -54,6 +55,7 @@ type PageTab = 'discover' | 'challenges'
 export default function DiscoverPage() {
   const { t } = useLanguage()
   const { user: authUser, isAuthenticated, loading: authLoading } = useAuth()
+  const { openLogin } = useLoginModal()
 
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all')
   const [pageTab, setPageTab] = useState<PageTab>('discover')
@@ -183,7 +185,7 @@ export default function DiscoverPage() {
 
   const handleJoinChallenge = async (c: Challenge) => {
     if (!isAuthenticated) {
-      redirectToNonsLogin()
+      openLogin()
       return
     }
     const updated = await challengeService.joinChallenge(c.id)
@@ -200,7 +202,7 @@ export default function DiscoverPage() {
 
   const handleAdd = async (it: CatalogItem) => {
     if (!isAuthenticated) {
-      redirectToNonsLogin()
+      openLogin()
       return
     }
     const payload: Omit<MediaItem, 'id'> & { id?: string } = {
@@ -211,15 +213,17 @@ export default function DiscoverPage() {
     setShelfStatus((prev) => new Map(prev).set(it.id, 'wishlist'))
     setAdded((prev) => new Set(prev).add(it.id))
   }
-  // Pass an add handler only to signed-in users; anonymous cards hide the button.
-  const addProp = (it: CatalogItem) => (isAuthenticated ? () => handleAdd(it) : undefined)
+  // Anonymous visitors get a plain "Add" button that just opens the login
+  // modal; signed-in visitors get the full shelf status bar via
+  // shelfStatusProp below instead, so this only ever fires for signed-out cards.
+  const addProp = (_it: CatalogItem) => (isAuthenticated ? undefined : () => openLogin())
 
   // Full status picker (want to / reading / finished / dnf), used by the hero
   // carousel instead of a plain add button. Adds the item on first pick, then
   // patches its shelf status on every pick after that.
   const handleStatusChange = async (it: CatalogItem, status: ShelfStatus) => {
     if (!isAuthenticated) {
-      redirectToNonsLogin()
+      openLogin()
       return
     }
     // "Finished" gets the full rate/review/dates flow (same as the "in
@@ -242,6 +246,15 @@ export default function DiscoverPage() {
     setAdded((prev) => new Set(prev).add(it.id))
   }
 
+  // Full ShelfStatusBar for signed-in cards (want to/reading/finished/dnf +
+  // collections, same as the library/media pages); undefined for signed-out
+  // visitors, so their cards fall back to the plain "Add" button (addProp)
+  // above, which just opens the login modal.
+  const shelfStatusProp = (it: CatalogItem) =>
+    isAuthenticated
+      ? { current: statusOf(it), onChange: (status: ShelfStatus) => handleStatusChange(it, status) }
+      : undefined
+
   const toggles: { key: TypeFilter; label: string }[] = [
     { key: 'all', label: t('filterAll') },
     { key: 'book', label: t('books') },
@@ -256,6 +269,12 @@ export default function DiscoverPage() {
 
   return (
     <Layout>
+      {/* Compact "about Nons" strip — the condensed stand-in for the old full
+          marketing landing page. Signed-out only; a signed-in visitor already
+          knows what the app is. Above the Discover/Challenges tabs, so it's
+          the first thing seen regardless of which tab is active. */}
+      {!authLoading && !isAuthenticated && <NonsAboutBadge t={t} />}
+
       {/* Top bar — minimal, home-page feel: the scope segmented control leads. */}
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-lg font-bold tracking-tight text-[var(--text)]">{t('discover')}</h1>
@@ -301,7 +320,7 @@ export default function DiscoverPage() {
           <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-[var(--text-muted)]">{t('challengesSubtitle') || 'Reading and watching goals the community is working on.'}</p>
             <button
-              onClick={() => (isAuthenticated ? setShowCreateChallenge(true) : redirectToNonsLogin())}
+              onClick={() => (isAuthenticated ? setShowCreateChallenge(true) : openLogin())}
               className="flex flex-shrink-0 items-center gap-1.5 rounded-xl bg-nonsprimary px-3.5 py-2 text-sm font-medium text-white transition-colors hover:bg-nonsprimaryfocus"
             >
               <IoAdd className="h-4 w-4" />
@@ -355,7 +374,7 @@ export default function DiscoverPage() {
       {/* Sign-in nudge for anonymous visitors. */}
       {!authLoading && !isAuthenticated && (
         <button
-          onClick={redirectToNonsLogin}
+          onClick={openLogin}
           className="mb-6 flex w-full items-center justify-center gap-2 rounded-xl border border-nonsprimary/40 bg-[var(--primary-soft)] px-4 py-2.5 text-sm font-medium text-nonsprimaryfocus transition-colors hover:bg-[var(--primary-soft)]/70"
         >
           <IoLogInOutline className="h-4 w-4" />
@@ -380,7 +399,7 @@ export default function DiscoverPage() {
           {/* ── Explore by genre — leads the page; genres are the primary way
               in, with matching curated lists surfaced as "sublists" once a
               genre is picked. ── */}
-          <GenreExplorer genres={genres} lists={curatedLists} inLibrary={inLibrary} addProp={addProp} t={t} />
+          <GenreExplorer genres={genres} lists={curatedLists} inLibrary={inLibrary} addProp={addProp} shelfStatusProp={shelfStatusProp} t={t} />
 
           {/* ── Community curated lists ── */}
           <CuratedListsRail lists={curatedLists} />
@@ -395,22 +414,22 @@ export default function DiscoverPage() {
           <PeopleSpotlights creators={creators} t={t} />
 
           {/* ── Just added ── */}
-          <Row title={t('newestAdditions')} icon={<IoSparklesOutline className="h-4 w-4 text-nonsprimaryfocus" />} items={newest} inLibrary={inLibrary} addProp={addProp} />
+          <Row title={t('newestAdditions')} icon={<IoSparklesOutline className="h-4 w-4 text-nonsprimaryfocus" />} items={newest} inLibrary={inLibrary} addProp={addProp} shelfStatusProp={shelfStatusProp} />
 
           {typeFilter === 'all' && (
             <>
-              <Row title={t('newestBooks')} items={newestBooks} inLibrary={inLibrary} addProp={addProp} />
-              <Row title={t('newestMovies')} items={newestMovies} inLibrary={inLibrary} addProp={addProp} />
+              <Row title={t('newestBooks')} items={newestBooks} inLibrary={inLibrary} addProp={addProp} shelfStatusProp={shelfStatusProp} />
+              <Row title={t('newestMovies')} items={newestMovies} inLibrary={inLibrary} addProp={addProp} shelfStatusProp={shelfStatusProp} />
             </>
           )}
 
-          <Row title={t('newReleases')} items={newReleases} inLibrary={inLibrary} addProp={addProp} />
+          <Row title={t('newReleases')} items={newReleases} inLibrary={inLibrary} addProp={addProp} shelfStatusProp={shelfStatusProp} />
 
           {typeFilter === 'all' && spotlights && (
             <>
-              <Row title={t('popularBooks')} items={spotlights.book} inLibrary={inLibrary} addProp={addProp} />
-              <Row title={t('popularFilms')} items={spotlights.movie} inLibrary={inLibrary} addProp={addProp} />
-              <Row title={t('popularSeries')} items={spotlights.series} inLibrary={inLibrary} addProp={addProp} />
+              <Row title={t('popularBooks')} items={spotlights.book} inLibrary={inLibrary} addProp={addProp} shelfStatusProp={shelfStatusProp} />
+              <Row title={t('popularFilms')} items={spotlights.movie} inLibrary={inLibrary} addProp={addProp} shelfStatusProp={shelfStatusProp} />
+              <Row title={t('popularSeries')} items={spotlights.series} inLibrary={inLibrary} addProp={addProp} shelfStatusProp={shelfStatusProp} />
             </>
           )}
         </div>
@@ -446,6 +465,7 @@ function HeroCarousel({
   onStatusChange: (it: CatalogItem, status: ShelfStatus) => void
   t: Translate
 }) {
+  const { openLogin } = useLoginModal()
   const [idx, setIdx] = useState(0)
   const [paused, setPaused] = useState(false)
   const count = items.length
@@ -524,7 +544,7 @@ function HeroCarousel({
               </div>
             ) : (
               <button
-                onClick={redirectToNonsLogin}
+                onClick={openLogin}
                 className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-nonsprimary px-5 text-sm font-semibold text-white hover:bg-nonsprimaryfocus"
               >
                 <IoLogInOutline className="h-4 w-4" />{t('signInToAdd')}
@@ -574,7 +594,7 @@ function HeroCarousel({
 // signed-in users (undefined ⇒ no add button). An optional `icon` sits before
 // the title.
 function Row({
-  title, icon, items, showReason, inLibrary, addProp,
+  title, icon, items, showReason, inLibrary, addProp, shelfStatusProp,
 }: {
   title: string
   icon?: React.ReactNode
@@ -582,6 +602,7 @@ function Row({
   showReason?: boolean
   inLibrary: (it: CatalogItem) => boolean
   addProp: (it: CatalogItem) => (() => void) | undefined
+  shelfStatusProp: (it: CatalogItem) => { current: ShelfStatus | null; onChange: (status: ShelfStatus) => void } | undefined
 }) {
   if (items.length === 0) return null
   return (
@@ -593,7 +614,13 @@ function Row({
       <div className="no-scrollbar -mx-1 flex gap-4 overflow-x-auto px-1 pb-1">
         {items.map((it) => (
           <div key={it.id} className="w-32 flex-shrink-0 sm:w-40">
-            <CatalogCard item={it} inLibrary={inLibrary(it)} onAdd={addProp(it)} showReason={showReason} />
+            <CatalogCard
+              item={it}
+              inLibrary={inLibrary(it)}
+              onAdd={addProp(it)}
+              shelfStatus={shelfStatusProp(it)}
+              showReason={showReason}
+            />
           </div>
         ))}
       </div>
@@ -866,12 +893,13 @@ function UniverseCard({ franchise }: { franchise: Franchise }) {
 // picking a genre swaps in its full item grid plus any curated lists tagged
 // with that genre ("sublists" — Listopia-by-genre).
 function GenreExplorer({
-  genres, lists, inLibrary, addProp, t,
+  genres, lists, inLibrary, addProp, shelfStatusProp, t,
 }: {
   genres: { genre: string; items: CatalogItem[] }[]
   lists: CuratedListDiscoverEntry[]
   inLibrary: (it: CatalogItem) => boolean
   addProp: (it: CatalogItem) => (() => void) | undefined
+  shelfStatusProp: (it: CatalogItem) => { current: ShelfStatus | null; onChange: (status: ShelfStatus) => void } | undefined
   t: Translate
 }) {
   const [selected, setSelected] = useState<string | null>(null)
@@ -897,7 +925,13 @@ function GenreExplorer({
         <div>
           <div className="grid grid-cols-3 gap-4 sm:grid-cols-5 lg:grid-cols-6">
             {active.items.slice(0, 18).map((it) => (
-              <CatalogCard key={it.id} item={it} inLibrary={inLibrary(it)} onAdd={addProp(it)} />
+              <CatalogCard
+                key={it.id}
+                item={it}
+                inLibrary={inLibrary(it)}
+                onAdd={addProp(it)}
+                shelfStatus={shelfStatusProp(it)}
+              />
             ))}
           </div>
 

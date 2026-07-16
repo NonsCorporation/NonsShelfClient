@@ -27,7 +27,8 @@ import { getReviews, getFriendShelfStatuses, type ReviewsPage, type CommunityRev
 import ShareModal from '@/components/feed/ShareModal'
 import { getFriendUsers } from '../services/activityService'
 import { userPath } from '../lib/paths'
-import { authedFetch, redirectToNonsLogin } from '../lib/api'
+import { authedFetch } from '../lib/api'
+import { useLoginModal } from '../contexts/LoginModalContext'
 import type { MediaItem, ShelfStatus, AppliedTag } from '../types'
 import type { CreditPerson, MediaCredits, Edition } from '../lib/mediaMap'
 import {
@@ -134,6 +135,7 @@ export default function MediaOnePage({
   const { preferredMediaLang } = usePreferences()
   const navigate = useNavigate()
   const { user, isAuthenticated, loading: authLoading } = useAuth()
+  const { openLogin } = useLoginModal()
   const { id } = useParams<{ id: string }>()
   const [params, setParams] = useSearchParams()
   const [item, setItem] = useState<MediaItem | null>(initialItem)
@@ -635,7 +637,7 @@ export default function MediaOnePage({
       <p className="text-sm font-semibold text-[var(--text)]">{t('signInToShelfTitle')}</p>
       <p className="mt-1 text-xs leading-5 text-[var(--text-muted)]">{t('signInToShelfText')}</p>
       <button
-        onClick={() => redirectToNonsLogin()}
+        onClick={openLogin}
         className="mt-3 w-full rounded-xl bg-nonsprimary py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
       >
         {t('login')}
