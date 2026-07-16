@@ -7,6 +7,8 @@ import { PreferencesProvider } from '@/contexts/PreferencesContext'
 import { CollectionProvider } from '@/contexts/CollectionContext'
 import { ListProvider } from '@/contexts/ListContext'
 import { LoginModalProvider } from '@/contexts/LoginModalContext'
+import { NotificationProvider } from '@/contexts/NotificationContext'
+import Header from '@/components/layout/Header'
 
 // Providers for the public /b and /m pages. Same context tree as the app, but
 // WITHOUT the mount gate and RequireAuth: these pages render their public
@@ -16,6 +18,8 @@ import { LoginModalProvider } from '@/contexts/LoginModalContext'
 // server, so it doesn't disturb the SSR'd HTML).
 // The contexts are SSR-safe (they guard localStorage), and AuthProvider simply
 // resolves to "anonymous" on the server / before the session check completes.
+// Header is rendered here too (mirrors app/(app)/providers.tsx) so the nav
+// persists when navigating into a public book/film page instead of vanishing.
 export default function PublicProviders({ children }: { children: ReactNode }) {
   return (
     <AuthProvider>
@@ -24,7 +28,10 @@ export default function PublicProviders({ children }: { children: ReactNode }) {
           <CollectionProvider>
             <ListProvider>
               <LoginModalProvider>
-                {children}
+                <NotificationProvider>
+                  <Header />
+                  {children}
+                </NotificationProvider>
               </LoginModalProvider>
             </ListProvider>
           </CollectionProvider>
