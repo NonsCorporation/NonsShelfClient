@@ -96,6 +96,14 @@ export default function ActivityCard({
   const { t } = useLanguage()
   const { user } = useAuth()
   const [showComments, setShowComments] = useState(initialOpenComments ?? false)
+  // Once opened, CommentThread stays mounted (just visually collapsed) so
+  // toggling it closed and back open animates smoothly instead of re-fetching
+  // and popping in with no prior collapsed state to transition from.
+  const [commentsMounted, setCommentsMounted] = useState(initialOpenComments ?? false)
+  const toggleComments = () => {
+    setShowComments((v) => !v)
+    setCommentsMounted(true)
+  }
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [shareOpen, setShareOpen] = useState(false)
@@ -310,7 +318,7 @@ export default function ActivityCard({
       <div className="mt-4 flex items-center gap-4 border-t border-[var(--divider)] pt-3 text-sm">
         <LikeButton postId={a.postId} />
         <button
-          onClick={() => setShowComments((v) => !v)}
+          onClick={toggleComments}
           className={`inline-flex items-center gap-1.5 font-medium transition-colors ${
             showComments ? 'text-nonsprimary' : 'text-[var(--text-muted)] hover:text-[var(--text)]'
           }`}
@@ -321,10 +329,16 @@ export default function ActivityCard({
       </div>
 
       {!showComments && commentCount > 0 && (
-        <CommentPreview postId={a.postId} commentCount={commentCount} onViewAll={() => setShowComments(true)} />
+        <CommentPreview postId={a.postId} commentCount={commentCount} onViewAll={toggleComments} />
       )}
 
-      {showComments && <CommentThread postId={a.postId} onCountChange={(n) => onCountChange?.(a.postId, n)} />}
+      {/* Grid-rows accordion trick: animates from 0fr to 1fr so the thread
+          expands/collapses smoothly without knowing its content height. */}
+      <div className={`grid transition-[grid-template-rows] duration-300 ease-out ${showComments ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
+        <div className={`overflow-hidden transition-opacity duration-200 ${showComments ? 'opacity-100 delay-100' : 'opacity-0'}`}>
+          {commentsMounted && <CommentThread postId={a.postId} onCountChange={(n) => onCountChange?.(a.postId, n)} />}
+        </div>
+      </div>
 
       {confirmingDelete && (
         <ConfirmModal
