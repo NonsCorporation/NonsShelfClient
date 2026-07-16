@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { toPng } from 'html-to-image'
 import { IoClose, IoDownloadOutline, IoChevronBack, IoChevronForward, IoBookOutline, IoFilmOutline, IoTvOutline, IoStar, IoStarHalf, IoStarOutline, IoTimeOutline, IoLibraryOutline, IoPersonOutline } from 'react-icons/io5'
@@ -144,6 +144,18 @@ function PersonPhoto({ url, size = 84 }: { url?: string; size?: number }) {
   )
 }
 
+// Links to the author's /p/<uuid> page in the live preview when a uuid is
+// known; otherwise renders the same layout inert (a plain div), same idea as
+// the cover-wall links above.
+function AuthorLink({ uuid, style, children }: { uuid?: string; style: CSSProperties; children: ReactNode }) {
+  if (!uuid) return <div style={style}>{children}</div>
+  return (
+    <a href={`/p/${uuid}`} target="_blank" rel="noopener noreferrer" style={style}>
+      {children}
+    </a>
+  )
+}
+
 // Builds a smooth cubic-bezier path through a series of points — a lightweight
 // "wave" curve (control points sit at each segment's horizontal midpoint, at
 // each endpoint's own height) with no charting dependency.
@@ -268,18 +280,20 @@ function buildSlides(r: Recap, label: string, locale: string, t: TFn, authorPhot
       render: () => (
         <Slide accent="#e0a458" footer={footer}>
           <p style={{ fontSize: 20, fontWeight: 800, margin: '2px 0 18px' }}>{t('recapMostReadAuthor')}</p>
-          <div style={{ marginBottom: 18 }}>
-            <PersonPhoto url={authorPhotoUrl} size={96} />
-          </div>
-          <p style={{ fontSize: 30, fontWeight: 800, margin: 0 }}>{top.name}</p>
-          <p style={{ fontSize: 15, color: MUTED, margin: '6px 0 0' }}>{t('recapAuthorCount', { n: top.count })}</p>
+          <AuthorLink uuid={top.makerUuid} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textDecoration: 'none', color: 'inherit' }}>
+            <div style={{ marginBottom: 18 }}>
+              <PersonPhoto url={authorPhotoUrl} size={96} />
+            </div>
+            <p style={{ fontSize: 30, fontWeight: 800, margin: 0 }}>{top.name}</p>
+            <p style={{ fontSize: 15, color: MUTED, margin: '6px 0 0' }}>{t('recapAuthorCount', { n: top.count })}</p>
+          </AuthorLink>
           {r.authors.length > 1 && (
             <div style={{ marginTop: 22, display: 'flex', flexDirection: 'column', gap: 8 }}>
               {r.authors.slice(1, 5).map((a) => (
-                <div key={a.name} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, color: MUTED }}>
+                <AuthorLink key={a.name} uuid={a.makerUuid} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, color: MUTED, textDecoration: 'none' }}>
                   <span style={{ color: INK }}>{a.name}</span>
                   <span>{a.count}</span>
-                </div>
+                </AuthorLink>
               ))}
             </div>
           )}
@@ -298,14 +312,20 @@ function buildSlides(r: Recap, label: string, locale: string, t: TFn, authorPhot
           <p style={{ fontSize: 20, fontWeight: 800, margin: '2px 0 18px' }}>{t('recapTopRated')}</p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {r.topRated.map((i) => (
-              <div key={i.id} style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+              <a
+                key={i.id}
+                href={mediaPath({ type: i.type, uuid: i.uuid, id: i.id })}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ display: 'flex', gap: 12, alignItems: 'center', textDecoration: 'none', color: 'inherit' }}
+              >
                 <Cover url={i.coverUrl} title={i.title} author={i.author} type={i.type} />
                 <div style={{ minWidth: 0, flex: 1 }}>
                   <p style={{ fontSize: 15, fontWeight: 700, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{i.title}</p>
                   <p style={{ fontSize: 12, color: MUTED, margin: '2px 0 4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{i.author}</p>
                   <Stars rating={i.rating || 0} size={14} />
                 </div>
-              </div>
+              </a>
             ))}
           </div>
         </Slide>
