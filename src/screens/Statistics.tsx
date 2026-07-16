@@ -8,7 +8,7 @@ import { libraryService } from '../services/libraryService'
 import type { MediaItem, MediaType } from '../types'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
-import { Link } from '@/lib/router'
+import { Link, useSearchParams } from '@/lib/router'
 import { mediaPath } from '@/lib/paths'
 import { buildRecap, fmtInt, fmtDuration } from '../lib/recap'
 import RecapStories from '@/components/feed/RecapStories'
@@ -23,6 +23,14 @@ type Axis = 'all' | MediaType
 // Recap period selection: single month, span of months, whole year, or any range.
 type PMode = 'month' | 'months' | 'year' | 'custom'
 type YM = { y: number; m: number }
+const PMODES: PMode[] = ['month', 'months', 'year', 'custom']
+
+// "YYYY-MM" → { y, m } (0-indexed month), for reading the recap period back out of the URL.
+function parseYM(v: string | null): YM | null {
+  const m = v ? /^(\d{4})-(\d{2})$/.exec(v) : null
+  return m ? { y: Number(m[1]), m: Number(m[2]) - 1 } : null
+}
+const fmtYM = (ym: YM) => `${ym.y}-${String(ym.m + 1).padStart(2, '0')}`
 
 export default function Statistics() {
   const { t, language } = useLanguage()
@@ -39,19 +47,45 @@ export default function Statistics() {
 
   // Recap period: a single month, a span of months, a whole year, or any custom
   // date range. Each resolves to a [from, to) unix window fed to buildRecap.
+  // Kept in sync with the URL (?pmode=...) so a recap is shareable/bookmarkable;
+  // with no params present it defaults to the current month.
+  const [searchParams, setSearchParams] = useSearchParams()
   const now0 = new Date()
-  const [pmode, setPmode] = useState<PMode>('month')
-  const [pMonth, setPMonth] = useState<YM>({ y: now0.getFullYear(), m: now0.getMonth() })
-  const [pFrom, setPFrom] = useState<YM>({ y: now0.getFullYear(), m: 0 })
-  const [pTo, setPTo] = useState<YM>({ y: now0.getFullYear(), m: now0.getMonth() })
-  const [pYear, setPYear] = useState(now0.getFullYear())
-  const [cFrom, setCFrom] = useState(() => new Date(now0.getFullYear(), 0, 1).toISOString().slice(0, 10))
-  const [cTo, setCTo] = useState(() => now0.toISOString().slice(0, 10))
+  const pmodeParam = searchParams.get('pmode') as PMode | null
+  const [pmode, setPmode] = useState<PMode>(pmodeParam && PMODES.includes(pmodeParam) ? pmodeParam : 'month')
+  const [pMonth, setPMonth] = useState<YM>(() => parseYM(searchParams.get('month')) || { y: now0.getFullYear(), m: now0.getMonth() })
+  const [pFrom, setPFrom] = useState<YM>(() => parseYM(searchParams.get('mfrom')) || { y: now0.getFullYear(), m: 0 })
+  const [pTo, setPTo] = useState<YM>(() => parseYM(searchParams.get('mto')) || { y: now0.getFullYear(), m: now0.getMonth() })
+  const [pYear, setPYear] = useState(() => {
+    const y = Number(searchParams.get('year'))
+    return y ? y : now0.getFullYear()
+  })
+  const [cFrom, setCFrom] = useState(() => searchParams.get('dfrom') || new Date(now0.getFullYear(), 0, 1).toISOString().slice(0, 10))
+  const [cTo, setCTo] = useState(() => searchParams.get('dto') || now0.toISOString().slice(0, 10))
   const [recapOpen, setRecapOpen] = useState(false)
   // Media-type filter for the recap: 'all' or a single type (books / films / series).
   const [recapType, setRecapType] = useState<Axis>('all')
   // Photo of the recap's top author (fetched by uuid), shown instead of a book cover.
   const [topAuthorPhoto, setTopAuthorPhoto] = useState<string | undefined>(undefined)
+
+  // Mirror the selected period into the URL (replacing, not pushing, so paging
+  // through months doesn't spam history) — only the keys the active mode uses.
+  useEffect(() => {
+    const next = new URLSearchParams(searchParams)
+    ;['month', 'mfrom', 'mto', 'year', 'dfrom', 'dto'].forEach((k) => next.delete(k))
+    next.set('pmode', pmode)
+    if (pmode === 'month') next.set('month', fmtYM(pMonth))
+    else if (pmode === 'months') {
+      next.set('mfrom', fmtYM(pFrom))
+      next.set('mto', fmtYM(pTo))
+    } else if (pmode === 'year') next.set('year', String(pYear))
+    else if (pmode === 'custom') {
+      next.set('dfrom', cFrom)
+      next.set('dto', cTo)
+    }
+    setSearchParams(next, { replace: true, scroll: false })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pmode, pMonth, pFrom, pTo, pYear, cFrom, cTo])
 
   useEffect(() => {
     libraryService.getItems().then(setItems)
