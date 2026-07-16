@@ -675,14 +675,17 @@ export default function ProfilePage() {
           <button
             key={tb.key}
             onClick={() => setTab(tb.key)}
-            className={`flex items-center gap-1.5 whitespace-nowrap border-b-2 px-3 py-2.5 text-sm font-medium transition-colors ${
-              tab === tb.key
-                ? 'border-nonsprimary text-[var(--text)]'
-                : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text)]'
+            className={`relative flex items-center gap-1.5 whitespace-nowrap px-3 py-2.5 text-sm font-medium transition-colors duration-200 ${
+              tab === tb.key ? 'text-[var(--text)]' : 'text-[var(--text-muted)] hover:text-[var(--text)]'
             }`}
           >
             {tb.label}
             <span className="text-xs text-[var(--text-muted)]">{tb.count}</span>
+            <span
+              className={`absolute inset-x-0 -bottom-px h-0.5 origin-center rounded-full bg-nonsprimary transition-all duration-200 ease-out ${
+                tab === tb.key ? 'scale-x-100 opacity-100' : 'scale-x-[0.8] opacity-0'
+              }`}
+            />
           </button>
         ))}
       </div>
