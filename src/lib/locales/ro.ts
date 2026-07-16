@@ -734,6 +734,8 @@ export const ro = {
 
   // Share
   share: 'Distribuie',
+  shareProfile: 'Distribuie profilul',
+  shareAppHint: 'Pe mobil, deschide meniul de distribuire cu imaginea atașată. Pe desktop, deschide linkul — descarcă imaginea de mai sus ca s-o atașezi manual.',
   copy: 'Copiază',
   copied: 'Copiat',
   saveAsImage: 'Salvează ca imagine',

@@ -805,6 +805,8 @@ export const en = {
 
   // Share
   share: 'Share',
+  shareProfile: 'Share profile',
+  shareAppHint: 'On mobile, opens your share sheet with the image attached. On desktop, opens the link — download the image above to attach it yourself.',
   copy: 'Copy',
   copied: 'Copied',
   saveAsImage: 'Save as image',

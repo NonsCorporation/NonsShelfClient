@@ -18,12 +18,13 @@ import { currentUser } from '../lib/user'
 import { isLibrarian } from '../services/librarianService'
 import LibrarianBadge from '@/components/badges/LibrarianBadge'
 import BoringAvatar from '@/components/ui/BoringAvatar'
-import { mediaPath } from '../lib/paths'
+import { mediaPath, userPath } from '../lib/paths'
 import { isYearlyReadingGoal, isGoalChallenge, challengeTitle } from '../lib/challenge'
 import { STATUS_COLOR, statusLabel } from '../lib/shelf'
 import TypeBadge from '@/components/badges/TypeBadge'
 import ActivityCard from '@/components/feed/ActivityCard'
 import ChallengeActivityCard from '@/components/challenges/ChallengeActivityCard'
+import ProfileShareModal from '@/components/profile/ProfileShareModal'
 import { getUserActivity, colorFor, type Activity } from '../services/activityService'
 import { getCommentCounts } from '../services/commentService'
 import {
@@ -39,6 +40,7 @@ import {
   IoInformationCircleOutline,
   IoTrophyOutline,
   IoRibbonOutline,
+  IoShareOutline,
 } from 'react-icons/io5'
 import type { IconType } from 'react-icons'
 import type { MediaType } from '../types'
@@ -88,6 +90,7 @@ export default function ProfilePage() {
   const [collectionFilter, setCollectionFilter] = useState<number | null>(null)
   const [importOpen, setImportOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [shareOpen, setShareOpen] = useState(false)
   const [friends, setFriends] = useState<Friend[]>([])
   // A small preview of the shelf (server-filtered/sorted, capped at
   // SHELF_PREVIEW_SIZE) — "Open full library" below is where the whole thing
@@ -371,16 +374,27 @@ export default function ProfilePage() {
             )}
           </div>
 
-          {/* Settings — own profile only; opens the full settings modal */}
-          {isSelf && (
+          {/* Share — any profile; opens the shareable image/QR card */}
+          <div className="flex flex-shrink-0 items-center gap-2">
             <button
-              onClick={() => setSettingsOpen(true)}
-              aria-label={t('settingsTitle')}
-              className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl border border-[var(--border-subtle)] text-[var(--text-muted)] transition-colors hover:bg-[var(--surface)] hover:text-[var(--text)]"
+              onClick={() => setShareOpen(true)}
+              aria-label={t('shareProfile')}
+              className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border-subtle)] text-[var(--text-muted)] transition-colors hover:bg-[var(--surface)] hover:text-[var(--text)]"
             >
-              <IoSettingsOutline className="h-5 w-5" />
+              <IoShareOutline className="h-5 w-5" />
             </button>
-          )}
+
+            {/* Settings — own profile only; opens the full settings modal */}
+            {isSelf && (
+              <button
+                onClick={() => setSettingsOpen(true)}
+                aria-label={t('settingsTitle')}
+                className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border-subtle)] text-[var(--text-muted)] transition-colors hover:bg-[var(--surface)] hover:text-[var(--text)]"
+              >
+                <IoSettingsOutline className="h-5 w-5" />
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Stats — type composition + avg rating; tab bar below carries status counts */}
@@ -630,6 +644,20 @@ export default function ProfilePage() {
 
       <SettingsModal isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} onOpenImport={() => setImportOpen(true)} />
       <ImportModal isOpen={importOpen} onClose={() => setImportOpen(false)} onImported={() => setRefreshTick((n) => n + 1)} />
+      <ProfileShareModal
+        isOpen={shareOpen}
+        onClose={() => setShareOpen(false)}
+        stats={{
+          name: profile.name,
+          handle: profile.handle,
+          avatar: profile.avatar,
+          typeCounts,
+          ratedAvg,
+          reviewCount: postsTotal,
+        }}
+        shelfUrl={`${typeof window !== 'undefined' ? window.location.origin : ''}${userPath(profile.handle)}`}
+        nonsUrl={nonsProfileUrl(profile.handle)}
+      />
     </Layout>
   )
 }
