@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from '@/lib/router'
 import Layout from '../components/layout/Layout'
+import MobileHeaderRow from '../components/layout/MobileHeaderRow'
 import CatalogCard from '@/components/media/CatalogCard'
 import FindSomething from '@/components/import-export/FindSomething'
 import NonsAboutBadge from '@/components/discover/NonsAboutBadge'
@@ -269,6 +270,12 @@ export default function DiscoverPage() {
 
   return (
     <Layout>
+      {/* Mobile-only logo + catalog search row — the bottom nav pill has no
+          search entry and desktop's inline HeaderSearch isn't reachable on
+          small screens, so without this mobile visitors here (including
+          signed-out ones landing on Home) had no way to search at all. */}
+      <MobileHeaderRow t={t} />
+
       {/* Compact "about Nons" strip — the condensed stand-in for the old full
           marketing landing page. Signed-out only; a signed-in visitor already
           knows what the app is. Above the Discover/Challenges tabs, so it's
