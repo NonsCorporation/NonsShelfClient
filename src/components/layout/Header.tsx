@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate, useSearchParams } from '@/lib/router'
 import {
   IoHomeOutline,
@@ -97,36 +97,6 @@ export default function Header() {
     setProfileOpen(false)
   }, [path])
 
-  const navRef = useRef<HTMLElement>(null)
-  const [indicator, setIndicator] = useState<{ left: number; top: number; width: number; height: number } | null>(null)
-
-  const measureIndicator = useCallback(() => {
-    const navEl = navRef.current
-    const activeItem = nav.find((item) => item.match(path))
-    if (!navEl || !activeItem) {
-      setIndicator((prev) => (prev === null ? prev : null))
-      return
-    }
-    const linkEl = navEl.querySelector<HTMLElement>(`[data-nav-key="${activeItem.to}"]`)
-    if (!linkEl) return
-    const next = { left: linkEl.offsetLeft, top: linkEl.offsetTop, width: linkEl.offsetWidth, height: linkEl.offsetHeight }
-    setIndicator((prev) => {
-      if (prev && prev.left === next.left && prev.top === next.top && prev.width === next.width && prev.height === next.height) {
-        return prev
-      }
-      return next
-    })
-  }, [nav, path])
-
-  useLayoutEffect(() => {
-    measureIndicator()
-  }, [measureIndicator])
-
-  useEffect(() => {
-    window.addEventListener('resize', measureIndicator)
-    return () => window.removeEventListener('resize', measureIndicator)
-  }, [measureIndicator])
-
   return (
     <>
       {/* ── Top header (desktop only) ── */}
@@ -149,13 +119,7 @@ export default function Header() {
               when the search button inside it expands into an input, the whole pill grows
               symmetrically and stays centered automatically — no extra logic needed. */}
           <div className="absolute left-1/2 hidden -translate-x-1/2 items-center gap-1 rounded-full border border-[var(--border-subtle)] bg-[var(--surface)] p-1 lg:flex">
-            <nav ref={navRef} className="relative flex items-center gap-1">
-              {indicator && (
-                <span
-                  className="absolute -z-10 rounded-full bg-[var(--surface-active)] ring-1 ring-inset ring-[var(--border-subtle)] transition-[left,width] duration-300 ease-out"
-                  style={{ left: indicator.left, top: indicator.top, width: indicator.width, height: indicator.height }}
-                />
-              )}
+            <nav className="relative flex items-center gap-1">
               {nav.map((item) => {
                 const active = item.match(path)
                 const Icon = item.icon
@@ -163,13 +127,17 @@ export default function Header() {
                   <Link
                     key={item.to}
                     to={item.to}
-                    data-nav-key={item.to}
-                    className={`group flex items-center gap-2 rounded-full px-3.5 py-2 text-sm transition-colors ${
-                      active ? 'text-[var(--text)]' : 'text-[var(--text-muted)] hover:text-[var(--text)]'
-                    }`}
+                    className="group relative flex items-center gap-2 rounded-full px-3.5 py-2 text-sm"
                   >
-                    <Icon className="h-[17px] w-[17px]" />
-                    {item.label}
+                    <span
+                      className={`absolute inset-0 origin-center rounded-full bg-[var(--surface-active)] ring-1 ring-inset ring-[var(--border-subtle)] transition-all duration-200 ease-out ${
+                        active ? 'scale-100 opacity-100' : 'scale-[0.8] opacity-0'
+                      }`}
+                    />
+                    <Icon className={`relative h-[17px] w-[17px] transition-colors duration-200 ${active ? 'text-[var(--text)]' : 'text-[var(--text-muted)] group-hover:text-[var(--text)]'}`} />
+                    <span className={`relative transition-colors duration-200 ${active ? 'text-[var(--text)]' : 'text-[var(--text-muted)] group-hover:text-[var(--text)]'}`}>
+                      {item.label}
+                    </span>
                   </Link>
                 )
               })}
@@ -300,14 +268,19 @@ export default function Header() {
             <Link
               key={to}
               to={to}
-              className={`flex flex-col items-center gap-1 rounded-2xl px-3.5 py-1.5 transition-colors ${
-                active ? 'bg-[var(--surface)] text-[var(--text)] ring-1 ring-inset ring-[var(--border-subtle)]' : 'text-[var(--text-muted)]'
-              }`}
+              className="relative flex flex-col items-center gap-1 rounded-2xl px-3.5 py-1.5"
             >
-              <span className="flex h-[22px] items-center justify-center">
-                <Icon className="h-[22px] w-[22px]" />
+              <span
+                className={`absolute inset-0 origin-center rounded-2xl bg-[var(--surface)] ring-1 ring-inset ring-[var(--border-subtle)] transition-all duration-200 ease-out ${
+                  active ? 'scale-100 opacity-100' : 'scale-[0.8] opacity-0'
+                }`}
+              />
+              <span className="relative flex h-[22px] items-center justify-center">
+                <Icon className={`h-[22px] w-[22px] transition-colors duration-200 ${active ? 'text-[var(--text)]' : 'text-[var(--text-muted)]'}`} />
               </span>
-              <span className="text-[10px] font-medium leading-none">{label}</span>
+              <span className={`relative text-[10px] font-medium leading-none transition-colors duration-200 ${active ? 'text-[var(--text)]' : 'text-[var(--text-muted)]'}`}>
+                {label}
+              </span>
             </Link>
           ))}
 
@@ -315,19 +288,22 @@ export default function Header() {
           <div ref={profileRef} className="relative">
             <button
               onClick={() => setProfileOpen((v) => !v)}
-              className={`flex flex-col items-center gap-1 rounded-2xl px-3.5 py-1.5 transition-colors ${
-                profileOpen ? 'bg-[var(--surface)] text-[var(--text)] ring-1 ring-inset ring-[var(--border-subtle)]' : 'text-[var(--text-muted)]'
-              }`}
+              className="relative flex flex-col items-center gap-1 rounded-2xl px-3.5 py-1.5"
             >
-              <span className="flex h-[22px] items-center justify-center">
-                {display ? <Avatar display={display} /> : <IoPersonOutline className="h-[22px] w-[22px]" />}
+              <span
+                className={`absolute inset-0 origin-center rounded-2xl bg-[var(--surface)] ring-1 ring-inset ring-[var(--border-subtle)] transition-all duration-200 ease-out ${
+                  profileOpen ? 'scale-100 opacity-100' : 'scale-[0.8] opacity-0'
+                }`}
+              />
+              <span className="relative flex h-[22px] items-center justify-center">
+                {display ? <Avatar display={display} /> : <IoPersonOutline className={`h-[22px] w-[22px] transition-colors duration-200 ${profileOpen ? 'text-[var(--text)]' : 'text-[var(--text-muted)]'}`} />}
               </span>
-              <span className="text-[10px] font-medium leading-none">{t('profile') || 'Profile'}</span>
+              <span className={`relative text-[10px] font-medium leading-none transition-colors duration-200 ${profileOpen ? 'text-[var(--text)]' : 'text-[var(--text-muted)]'}`}>{t('profile') || 'Profile'}</span>
             </button>
 
             {/* Compact popover */}
             {profileOpen && (
-              <div className="absolute bottom-full right-0 mb-3 w-56 overflow-hidden rounded-2xl border border-[var(--border-subtle)] bg-[color-mix(in_srgb,var(--container)_96%,transparent)] shadow-2xl backdrop-blur-xl">
+              <div className="animate-fade-up absolute bottom-full right-0 mb-3 w-56 overflow-hidden rounded-2xl border border-[var(--border-subtle)] bg-[color-mix(in_srgb,var(--container)_96%,transparent)] shadow-2xl backdrop-blur-xl">
                 {isAuthenticated && display ? (
                   <Link
                     to={userPath(display.profileId)}

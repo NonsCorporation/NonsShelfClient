@@ -10,6 +10,7 @@ import { CollectionProvider } from '@/contexts/CollectionContext'
 import { ListProvider } from '@/contexts/ListContext'
 import { LoginModalProvider } from '@/contexts/LoginModalContext'
 import RequireAuth from '@/components/auth/RequireAuth'
+import Header from '@/components/layout/Header'
 
 // Mirrors the old src/main.tsx provider tree, with RequireAuth gating the
 // personal routes behind the shared SSO session ('/' and '/discover' stay
@@ -34,6 +35,12 @@ export default function Providers({ children }: { children: ReactNode }) {
             <PreferencesProvider>
               <NotificationProvider>
                 <LoginModalProvider>
+                  {/* Rendered once here (not inside each screen's <Layout>) so it
+                      persists across client-side navigations instead of
+                      remounting on every route change — remounting reset the
+                      nav items' transition state, making the active-tab
+                      highlight pop in instantly instead of animating. */}
+                  <Header />
                   <RequireAuth>
                     {children}
                   </RequireAuth>
