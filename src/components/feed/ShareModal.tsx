@@ -8,6 +8,7 @@ import { IoMdStar, IoMdStarHalf, IoMdStarOutline } from 'react-icons/io'
 import type { MediaItem, MediaType, ShelfStatus } from '@/types'
 import { libraryService } from '@/services/libraryService'
 import ShelfLogo from '@/components/branding/ShelfLogo'
+import TypeBadge from '@/components/badges/TypeBadge'
 import { mediaPath } from '@/lib/paths'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { reviewToPlainText } from '@/components/review/reviewText'
@@ -92,14 +93,14 @@ async function waitForImages(node: HTMLElement) {
   )
 }
 
-function Stars({ rating }: { rating: number }) {
+function Stars({ rating, color = PRIMARY }: { rating: number; color?: string }) {
   return (
-    <div style={{ display: 'flex', gap: 2, color: PRIMARY }}>
+    <div style={{ display: 'flex', gap: 4, color }}>
       {Array.from({ length: 5 }).map((_, i) => {
         const v = (i + 1) * 2
-        if (rating >= v) return <IoMdStar key={i} size={18} />
-        if (rating === v - 1) return <IoMdStarHalf key={i} size={18} />
-        return <IoMdStarOutline key={i} size={18} style={{ color: FAINT }} />
+        if (rating >= v) return <IoMdStar key={i} size={28} />
+        if (rating === v - 1) return <IoMdStarHalf key={i} size={28} />
+        return <IoMdStarOutline key={i} size={28} style={{ color: FAINT }} />
       })}
     </div>
   )
@@ -128,7 +129,10 @@ async function loadCoverImage(src: string, attempt = 0): Promise<CoverLoad | nul
         ctx.drawImage(img, 0, 0)
         const dataUrl = canvas.toDataURL('image/jpeg', 0.92)
 
-        // Sample a small region for the dominant accent color.
+        // Sample a small region and bucket pixels into a coarse color
+        // histogram, so the accent is the color that actually *dominates*
+        // the cover rather than whichever single pixel happens to be most
+        // saturated (a rare bright fleck could otherwise win).
         const size = 60
         const sampleCanvas = document.createElement('canvas')
         sampleCanvas.width = size
@@ -138,17 +142,31 @@ async function loadCoverImage(src: string, attempt = 0): Promise<CoverLoad | nul
         if (sampleCtx) {
           sampleCtx.drawImage(img, 0, 0, size, size)
           const { data } = sampleCtx.getImageData(0, 0, size, size)
-          let bestScore = -1
-          let bestR = 0, bestG = 0, bestB = 0
+          const STEP = 24
+          const buckets = new Map<string, { count: number; r: number; g: number; b: number }>()
           for (let i = 0; i < data.length; i += 4) {
             const r = data[i], g = data[i + 1], b = data[i + 2], a = data[i + 3]
             if (a < 128) continue
             const max = Math.max(r, g, b), min = Math.min(r, g, b)
             const sat = max === 0 ? 0 : (max - min) / max
-            const score = sat * (max / 255)
-            if (score > bestScore) { bestScore = score; bestR = r; bestG = g; bestB = b }
+            // Skip near-white/near-black/near-gray pixels — they're rarely
+            // what anyone means by a cover's "color" and would otherwise
+            // dominate the histogram on covers with lots of white margin.
+            if (sat < 0.15 || max < 30 || max > 250) continue
+            const key = `${Math.round(r / STEP)},${Math.round(g / STEP)},${Math.round(b / STEP)}`
+            const bucket = buckets.get(key)
+            if (bucket) {
+              bucket.count++
+              bucket.r += r; bucket.g += g; bucket.b += b
+            } else {
+              buckets.set(key, { count: 1, r, g, b })
+            }
           }
-          color = bestScore > 0.1 ? { r: bestR, g: bestG, b: bestB } : null
+          let best: { count: number; r: number; g: number; b: number } | null = null
+          for (const bucket of buckets.values()) {
+            if (!best || bucket.count > best.count) best = bucket
+          }
+          color = best ? { r: Math.round(best.r / best.count), g: Math.round(best.g / best.count), b: Math.round(best.b / best.count) } : null
         }
         resolve({ color, dataUrl })
       } catch {
@@ -259,7 +277,6 @@ export default function ShareModal({ isOpen, item, coverUrl, title, author, tota
 
   const url = `${window.location.origin}${mediaPath({ type: item.type, uuid: item.uuid, id: String(item.id) })}`
   const pct = currentPage > 0 && totalPages > 0 ? Math.min(100, Math.round((currentPage / totalPages) * 100)) : 0
-  const typeLabel = item.type === 'book' ? t('book') : item.type === 'series' ? t('series') : t('film')
   const byline = author || item.author
 
   const copyLink = async () => {
@@ -320,24 +337,25 @@ export default function ShareModal({ isOpen, item, coverUrl, title, author, tota
 
       {/* body: cover (2:3) left, details right */}
       <div style={{ display: 'flex', gap: 18, alignItems: 'flex-start' }}>
-        <div style={{ width: 116, aspectRatio: '2 / 3', flexShrink: 0, borderRadius: 8, overflow: 'hidden', border: `1px solid ${LINE}` }}>
+        <div style={{ position: 'relative', width: 116, aspectRatio: '2 / 3', flexShrink: 0, borderRadius: 8, overflow: 'hidden', border: `1px solid ${LINE}` }}>
           {coverDataUrl ? (
             <img src={coverDataUrl} alt={item.title} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
           ) : (
             <div style={{ width: '100%', height: '100%', background: LINE }} />
           )}
+          <TypeBadge type={item.type} position="bottom-1.5 right-1.5" size="h-6 w-6" iconSize="h-3 w-3" />
         </div>
 
         <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={{ margin: 0, fontSize: 18, fontWeight: 700, lineHeight: 1.25 }}>{title || item.title}</p>
-          {byline && <p style={{ margin: '4px 0 0', fontSize: 13, color: MUTED }}>{byline}</p>}
-          <p style={{ margin: '6px 0 0', fontSize: 10.5, letterSpacing: '0.1em', textTransform: 'uppercase', color: MUTED }}>
-            {typeLabel}{item.year ? ` · ${item.year}` : ''}
+          <p style={{ margin: 0, fontSize: 22, fontWeight: 700, lineHeight: 1.2 }}>
+            {title || item.title}
+            {item.year && <span style={{ fontSize: 14, fontWeight: 400, color: MUTED }}> ({item.year})</span>}
           </p>
+          {byline && <p style={{ margin: '4px 0 0', fontSize: 13, color: MUTED }}>{byline}</p>}
 
           {typeof rating === 'number' && rating > 0 && (
-            <div style={{ marginTop: 12 }}>
-              <Stars rating={rating} />
+            <div style={{ marginTop: 14 }}>
+              <Stars rating={rating} color={progressColor} />
             </div>
           )}
 
@@ -390,14 +408,29 @@ export default function ShareModal({ isOpen, item, coverUrl, title, author, tota
             </p>
           )}
 
-          {showDates && (item.startedAt || item.finishedAt) && (() => {
+          {showDates && status === 'done' && item.finishedAt && (() => {
             const start = fmtDate(item.startedAt)
             const end = fmtDate(item.finishedAt)
+            // Movies/series are watched in one sitting-ish — only the
+            // finish date is meaningful. Books show the full range when
+            // a start date is known.
+            const label = item.type !== 'book' || !start ? end : `${start} → ${end}`
             return (
-              <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: MUTED }}>
-                <IoTimeOutline style={{ width: 13, height: 13, flexShrink: 0, color: INK, opacity: 0.8 }} />
-                <span>
-                  {start && end ? `${start} → ${end}` : start ? `Started ${start}` : `Finished ${end}`}
+              <div style={{ marginTop: 14 }}>
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    border: `1px solid ${LINE}`,
+                    borderRadius: 999,
+                    padding: '4px 12px',
+                    fontSize: 11,
+                    color: MUTED,
+                  }}
+                >
+                  <IoTimeOutline style={{ width: 12, height: 12, flexShrink: 0, color: INK, opacity: 0.8 }} />
+                  {label}
                 </span>
               </div>
             )
@@ -467,7 +500,7 @@ export default function ShareModal({ isOpen, item, coverUrl, title, author, tota
           </button>
 
           {/* dates toggle */}
-          {(item.startedAt || item.finishedAt) && (
+          {status === 'done' && item.finishedAt && (
             <button
               onClick={() => setShowDates((v) => !v)}
               className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${

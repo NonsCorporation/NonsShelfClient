@@ -130,6 +130,9 @@ export default function ActivityCard({
     coverUrl: a.coverUrl,
     year: a.mediaYear,
     pages: sharePages,
+    // The activity's own timestamp is the only date this post carries — used
+    // as the share card's finish date for 'finished' posts.
+    finishedAt: a.type === 'finished' ? new Date(a.at * 1000).toISOString() : undefined,
   }
   const shareStatus = SHARE_STATUS[a.type] ?? null
   const shareCurrentPage = a.type === 'progress' ? (a.page ?? 0) : 0
