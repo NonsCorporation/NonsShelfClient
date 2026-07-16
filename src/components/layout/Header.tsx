@@ -340,7 +340,20 @@ export default function Header() {
                       <span className="block truncate text-xs text-[var(--text-muted)]">@{display.handle}</span>
                     </span>
                   </Link>
-                ) : null}
+                ) : (
+                  <button
+                    onClick={() => { openLogin(); setProfileOpen(false) }}
+                    className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors hover:bg-[var(--surface)]"
+                  >
+                    <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-[var(--surface)] ring-1 ring-inset ring-[var(--border-subtle)]">
+                      <IoPersonOutline className="h-[18px] w-[18px] text-[var(--text-muted)]" />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block text-sm font-semibold text-[var(--text)]">{t('login') || 'Sign in'}</span>
+                      <span className="block truncate text-xs text-[var(--text-muted)]">{t('loginSubtitle') || 'Sign in with your nons account.'}</span>
+                    </span>
+                  </button>
+                )}
 
                 <div className="h-px bg-[var(--border-subtle)]" />
 
@@ -366,33 +379,6 @@ export default function Header() {
                 <div className="h-px bg-[var(--border-subtle)]" />
 
                 <Link
-                  to="/notifications"
-                  onClick={() => setProfileOpen(false)}
-                  className={`relative flex w-full items-center gap-3 px-4 py-3 text-sm transition-colors hover:bg-[var(--surface)] hover:text-[var(--text)] ${path === '/notifications' ? 'text-[var(--text)]' : 'text-[var(--text-muted)]'}`}
-                >
-                  <IoNotificationsOutline className="h-[18px] w-[18px]" />
-                  {t('notifications') || 'Notifications'}
-                  {totalUnread > 0 && (
-                    <span className="ml-auto flex h-5 min-w-[20px] items-center justify-center rounded-full bg-nonsprimary px-1.5 text-[10px] font-bold text-white">
-                      {totalUnread > 99 ? '99+' : totalUnread}
-                    </span>
-                  )}
-                </Link>
-
-                <div className="h-px bg-[var(--border-subtle)]" />
-
-                <Link
-                  to="/statistics"
-                  onClick={() => setProfileOpen(false)}
-                  className={`flex w-full items-center gap-3 px-4 py-3 text-sm transition-colors hover:bg-[var(--surface)] hover:text-[var(--text)] ${path === '/statistics' ? 'text-[var(--text)]' : 'text-[var(--text-muted)]'}`}
-                >
-                  <IoCalendarOutline className="h-[18px] w-[18px]" />
-                  {t('statistics') || 'Statistics'}
-                </Link>
-
-                <div className="h-px bg-[var(--border-subtle)]" />
-
-                <Link
                   to="/about"
                   onClick={() => setProfileOpen(false)}
                   className={`flex w-full items-center gap-3 px-4 py-3 text-sm transition-colors hover:bg-[var(--surface)] hover:text-[var(--text)] ${path === '/about' ? 'text-[var(--text)]' : 'text-[var(--text-muted)]'}`}
@@ -414,24 +400,17 @@ export default function Header() {
                   {t('goToNons') || 'Go to Nons'}
                 </a>
 
-                <div className="h-px bg-[var(--border-subtle)]" />
-
-                {isAuthenticated ? (
-                  <button
-                    onClick={() => { logout(); setProfileOpen(false) }}
-                    className="flex w-full items-center gap-3 px-4 py-3 text-sm text-[var(--text-muted)] transition-colors hover:bg-[var(--surface)] hover:text-[var(--text)]"
-                  >
-                    <IoLogOutOutline className="h-[18px] w-[18px]" />
-                    {t('logout') || 'Log out'}
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => { openLogin(); setProfileOpen(false) }}
-                    className="flex w-full items-center gap-3 px-4 py-3 text-sm font-medium text-nonsprimary transition-colors hover:bg-[var(--surface)]"
-                  >
-                    <IoLogInOutline className="h-[18px] w-[18px]" />
-                    {t('login') || 'Sign in'}
-                  </button>
+                {isAuthenticated && (
+                  <>
+                    <div className="h-px bg-[var(--border-subtle)]" />
+                    <button
+                      onClick={() => { logout(); setProfileOpen(false) }}
+                      className="flex w-full items-center gap-3 px-4 py-3 text-sm text-[var(--text-muted)] transition-colors hover:bg-[var(--surface)] hover:text-[var(--text)]"
+                    >
+                      <IoLogOutOutline className="h-[18px] w-[18px]" />
+                      {t('logout') || 'Log out'}
+                    </button>
+                  </>
                 )}
               </div>
             )}

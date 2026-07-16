@@ -396,6 +396,7 @@ export const en = {
   goToNons: 'Go to Nons',
   notifications: 'Notifications',
   login: 'Sign in',
+  signUp: 'Sign up',
   loginSubtitle: 'Sign in with your nons account.',
   loginEmailOrUsername: 'Email or username',
   loginPassword: 'Password',

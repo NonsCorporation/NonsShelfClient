@@ -396,6 +396,7 @@ export const ru = {
   goToNons: 'Перейти в Nons',
   notifications: 'Уведомления',
   login: 'Войти',
+  signUp: 'Регистрация',
   loginSubtitle: 'Войдите с аккаунтом nons.',
   loginEmailOrUsername: 'Эл. почта или имя пользователя',
   loginPassword: 'Пароль',

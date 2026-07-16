@@ -656,24 +656,46 @@ function TrendingList({
             key={it.id}
             className="flex flex-col gap-3 border-b border-[var(--border-subtle)] p-3 transition-colors last:border-0 hover:bg-[var(--surface)] sm:flex-row sm:items-center"
           >
-            <Link to={mediaPath(it)} className="flex min-w-0 flex-1 items-start gap-3">
-              <div className="relative h-20 w-14 flex-shrink-0 overflow-hidden rounded-md border border-[var(--border-subtle)] bg-[var(--container-2)]">
+            <div className="flex min-w-0 flex-1 gap-3">
+              <Link to={mediaPath(it)} className="relative h-20 w-14 flex-shrink-0 overflow-hidden rounded-md border border-[var(--border-subtle)] bg-[var(--container-2)]">
                 {it.coverUrl && <img src={it.coverUrl} alt={it.title} loading="lazy" className="h-full w-full object-cover" />}
                 <TypeBadge type={it.type} position="top-1 right-1" size="h-5 w-5" iconSize="h-2.5 w-2.5" />
-              </div>
+              </Link>
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-semibold text-[var(--text)]">{it.title}</p>
-                <p className="truncate text-xs text-[var(--text-muted)]">
-                  {creditOf(it)}
-                  {it.year ? ` · ${it.year}` : ''}
-                </p>
-                {it.description && (
-                  <p className="mt-1 line-clamp-2 text-xs text-[var(--text-muted)]">{it.description}</p>
-                )}
-              </div>
-            </Link>
+                <Link to={mediaPath(it)} className="block">
+                  <p className="truncate text-sm font-semibold text-[var(--text)]">{it.title}</p>
+                </Link>
 
-            <div className="flex flex-shrink-0 items-center justify-between gap-3 sm:justify-end">
+                {/* Add to shelf — directly under the title on mobile; desktop keeps
+                    it in the trailing cluster at the end of the row. */}
+                <div className="mt-1.5 flex items-center gap-2 sm:hidden">
+                  {it.communityRating > 0 && (
+                    <span className="flex flex-shrink-0 items-center gap-1 text-xs font-medium text-[var(--text-muted)]">
+                      <IoStar className="h-3.5 w-3.5 text-nonsprimaryfocus" />
+                      {it.communityRating.toFixed(1)}
+                    </span>
+                  )}
+                  <ShelfStatusBar
+                    item={shelfItemOf(it)}
+                    currentStatus={statusOf(it)}
+                    onStatusChange={(status) => onStatusChange(it, status)}
+                    variant="bar"
+                  />
+                </div>
+
+                <Link to={mediaPath(it)} className="block">
+                  <p className="mt-1 truncate text-xs text-[var(--text-muted)]">
+                    {creditOf(it)}
+                    {it.year ? ` · ${it.year}` : ''}
+                  </p>
+                  {it.description && (
+                    <p className="mt-1 line-clamp-2 text-xs text-[var(--text-muted)]">{it.description}</p>
+                  )}
+                </Link>
+              </div>
+            </div>
+
+            <div className="hidden flex-shrink-0 items-center gap-3 sm:flex">
               {it.communityRating > 0 && (
                 <span className="flex items-center gap-1 text-xs font-medium text-[var(--text-muted)]">
                   <IoStar className="h-3.5 w-3.5 text-nonsprimaryfocus" />

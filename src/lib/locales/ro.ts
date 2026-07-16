@@ -396,6 +396,7 @@ export const ro = {
   goToNons: 'Mergi la Nons',
   notifications: 'Notificări',
   login: 'Conectează-te',
+  signUp: 'Înregistrează-te',
   loginSubtitle: 'Conectează-te cu contul tău nons.',
   loginEmailOrUsername: 'Email sau nume de utilizator',
   loginPassword: 'Parolă',

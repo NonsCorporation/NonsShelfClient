@@ -3,6 +3,8 @@
 import { useState } from 'react'
 import ShelfLogo from '@/components/branding/ShelfLogo'
 import MobileCatalogSearch from './MobileCatalogSearch'
+import { useAuth } from '../../contexts/AuthContext'
+import { useLoginModal } from '../../contexts/LoginModalContext'
 
 // The mobile-only top row (logo + catalog search) that Feed originally had to
 // itself. Discover/Home render it too now, since the mobile bottom nav has no
@@ -11,6 +13,8 @@ import MobileCatalogSearch from './MobileCatalogSearch'
 // signed-in ones do.
 export default function MobileHeaderRow({ t }: { t: (key: string) => string }) {
   const [searchFocused, setSearchFocused] = useState(false)
+  const { isAuthenticated, loading } = useAuth()
+  const { openLogin } = useLoginModal()
 
   return (
     <div className="mb-5 flex items-center gap-3 lg:hidden">
@@ -23,6 +27,14 @@ export default function MobileHeaderRow({ t }: { t: (key: string) => string }) {
       <div className="min-w-0 flex-1">
         <MobileCatalogSearch t={t} onFocusChange={setSearchFocused} />
       </div>
+      {!searchFocused && !isAuthenticated && !loading && (
+        <button
+          onClick={() => openLogin()}
+          className="flex-shrink-0 rounded-full bg-nonsprimary px-3.5 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
+        >
+          {t('signUp')}
+        </button>
+      )}
     </div>
   )
 }
