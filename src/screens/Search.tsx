@@ -8,6 +8,8 @@ import type { CatalogItem, PersonHit } from '../services/catalogService'
 import { libraryService } from '../services/libraryService'
 import type { MediaItem, MediaType, ShelfStatus } from '../types'
 import { useLanguage } from '../contexts/LanguageContext'
+import { useAuth } from '../contexts/AuthContext'
+import { useLoginModal } from '../contexts/LoginModalContext'
 import { IoSearchOutline, IoPersonOutline, IoAppsOutline, IoBookOutline, IoFilmOutline, IoTvOutline } from 'react-icons/io5'
 import type { IconType } from 'react-icons'
 import InfinityLoader from '@/components/ui/InfinityLoader'
@@ -40,6 +42,8 @@ type Filter = 'all' | MediaType
 // repeatable "Load more" button. A type filter narrows the shown results.
 export default function SearchPage() {
   const { t } = useLanguage()
+  const { isAuthenticated } = useAuth()
+  const { openLogin } = useLoginModal()
   const [params, setSearchParams] = useSearchParams()
   const q = params.get('q')?.trim() ?? ''
   // Mobile-only in-page search field (desktop edits the query via the navbar
@@ -68,6 +72,7 @@ export default function SearchPage() {
   // Merges into the existing map (keyed by keyOf) so it can top up appended
   // "Load more" pages without clobbering statuses already shown.
   const seedStatuses = useCallback(async (list: CatalogItem[]) => {
+    if (!isAuthenticated) return
     const byId = await libraryService.getStatuses(list.map((it) => it.id))
     if (byId.size === 0) return
     setStatusByKey((prev) => {
@@ -78,7 +83,7 @@ export default function SearchPage() {
       }
       return next
     })
-  }, [])
+  }, [isAuthenticated])
 
   useEffect(() => {
     setQueryInput(q)
@@ -193,6 +198,10 @@ export default function SearchPage() {
   // First status pick adds the item to the shelf (against the existing catalog
   // row via it.id, never creating a duplicate); later picks just update it.
   const handleStatusChange = async (it: CatalogItem, status: ShelfStatus) => {
+    if (!isAuthenticated) {
+      openLogin('shelf')
+      return
+    }
     // "Finished" gets the full rate/review/dates flow (same as the "in
     // progress" row on Home) instead of an immediate silent status flip.
     if (status === 'done') {
@@ -378,10 +387,12 @@ export default function SearchPage() {
                       key={it.id}
                       item={it}
                       inLibrary={inLibrary(it)}
-                      shelfStatus={{
-                        current: statusByKey.get(keyOf(it)) ?? null,
-                        onChange: (status) => handleStatusChange(it, status),
-                      }}
+                      onAdd={isAuthenticated ? undefined : () => openLogin('shelf')}
+                      shelfStatus={
+                        isAuthenticated
+                          ? { current: statusByKey.get(keyOf(it)) ?? null, onChange: (status) => handleStatusChange(it, status) }
+                          : undefined
+                      }
                     />
                   ))}
                 </div>
