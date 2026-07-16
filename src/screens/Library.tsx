@@ -726,18 +726,21 @@ export default function LibraryScreen() {
             <button
               key={s.key}
               onClick={() => { setCollectionParam(null); setShelfParam(s.key) }}
-              className={`flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-sm transition-colors ${
-                active
-                  ? 'bg-[var(--surface-active)] font-medium text-[var(--text)]'
-                  : 'text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]'
-              }`}
+              className="group relative flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-sm transition-colors duration-200 hover:bg-[var(--surface-hover)]"
             >
+              <span
+                className={`absolute inset-0 origin-center rounded-lg bg-[var(--surface-active)] transition-all duration-200 ease-out ${
+                  active ? 'scale-100 opacity-100' : 'scale-[0.8] opacity-0'
+                }`}
+              />
               {s.dot ? (
-                <span className="h-2 w-2 flex-shrink-0 rounded-full" style={{ backgroundColor: s.dot }} />
+                <span className="relative h-2 w-2 flex-shrink-0 rounded-full" style={{ backgroundColor: s.dot }} />
               ) : (
-                <Icon className="h-3.5 w-3.5 flex-shrink-0" />
+                <Icon className={`relative h-3.5 w-3.5 flex-shrink-0 transition-colors duration-200 ${active ? 'text-[var(--text)]' : 'text-[var(--text-muted)]'}`} />
               )}
-              {s.label}
+              <span className={`relative transition-colors duration-200 ${active ? 'font-medium text-[var(--text)]' : 'text-[var(--text-muted)] group-hover:text-[var(--text)]'}`}>
+                {s.label}
+              </span>
             </button>
           )
         })}
@@ -755,15 +758,16 @@ export default function LibraryScreen() {
                 <div key={col.id} className="group flex items-center gap-0.5">
                   <button
                     onClick={() => setCollectionParam(active ? null : col.id)}
-                    className={`flex min-w-0 flex-1 items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm transition-colors ${
-                      active
-                        ? 'bg-[var(--surface-active)] font-medium text-[var(--text)]'
-                        : 'text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]'
-                    }`}
+                    className="group/col relative flex min-w-0 flex-1 items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm transition-colors duration-200 hover:bg-[var(--surface-hover)]"
                   >
-                    <IoFolderOutline className="h-3.5 w-3.5 flex-shrink-0" />
-                    <span className="min-w-0 truncate">{col.name}</span>
-                    <span className="ml-auto flex-shrink-0 text-[11px] text-[var(--text-muted)]">{col.count}</span>
+                    <span
+                      className={`absolute inset-0 origin-center rounded-lg bg-[var(--surface-active)] transition-all duration-200 ease-out ${
+                        active ? 'scale-100 opacity-100' : 'scale-[0.8] opacity-0'
+                      }`}
+                    />
+                    <IoFolderOutline className={`relative h-3.5 w-3.5 flex-shrink-0 transition-colors duration-200 ${active ? 'text-[var(--text)]' : 'text-[var(--text-muted)] group-hover/col:text-[var(--text)]'}`} />
+                    <span className={`relative min-w-0 truncate transition-colors duration-200 ${active ? 'font-medium text-[var(--text)]' : 'text-[var(--text-muted)] group-hover/col:text-[var(--text)]'}`}>{col.name}</span>
+                    <span className="relative ml-auto flex-shrink-0 text-[11px] text-[var(--text-muted)]">{col.count}</span>
                   </button>
                   {/* Rename / move / delete — own collections only. */}
                   {!readOnly && (
@@ -895,18 +899,19 @@ export default function LibraryScreen() {
             <button
               key={s.key}
               onClick={() => { setCollectionParam(null); setShelfParam(s.key) }}
-              className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm transition-colors ${
-                active
-                  ? 'border-[var(--border)] bg-[var(--container-2)] font-medium text-[var(--text)]'
-                  : 'border-[var(--border-subtle)] text-[var(--text-muted)]'
-              }`}
+              className="relative flex shrink-0 items-center gap-1.5 rounded-full border border-[var(--border-subtle)] px-3.5 py-1.5 text-sm"
             >
+              <span
+                className={`absolute inset-0 origin-center rounded-full border border-[var(--border)] bg-[var(--container-2)] transition-all duration-200 ease-out ${
+                  active ? 'scale-100 opacity-100' : 'scale-[0.8] opacity-0'
+                }`}
+              />
               {s.dot ? (
-                <span className="h-2 w-2 rounded-full flex-shrink-0" style={{ backgroundColor: s.dot }} />
+                <span className="relative h-2 w-2 rounded-full flex-shrink-0" style={{ backgroundColor: s.dot }} />
               ) : (
-                <Icon className="h-3.5 w-3.5 flex-shrink-0" />
+                <Icon className={`relative h-3.5 w-3.5 flex-shrink-0 transition-colors duration-200 ${active ? 'text-[var(--text)]' : 'text-[var(--text-muted)]'}`} />
               )}
-              {s.label}
+              <span className={`relative transition-colors duration-200 ${active ? 'font-medium text-[var(--text)]' : 'text-[var(--text-muted)]'}`}>{s.label}</span>
             </button>
           )
         })}
@@ -921,13 +926,16 @@ export default function LibraryScreen() {
               return (
                 <div
                   key={col.id}
-                  className={`flex shrink-0 items-stretch overflow-hidden rounded-full border text-xs transition-colors ${
-                    active ? 'border-[var(--border)] bg-[var(--container-2)]' : 'border-[var(--border-subtle)]'
-                  }`}
+                  className="relative flex shrink-0 items-stretch overflow-hidden rounded-full border border-[var(--border-subtle)] text-xs"
                 >
+                  <span
+                    className={`absolute inset-0 origin-center rounded-full border border-[var(--border)] bg-[var(--container-2)] transition-all duration-200 ease-out ${
+                      active ? 'scale-100 opacity-100' : 'scale-[0.8] opacity-0'
+                    }`}
+                  />
                   <button
                     onClick={() => setCollectionParam(active ? null : col.id)}
-                    className={`flex items-center gap-1.5 py-1 pl-3 pr-2 ${active ? 'font-medium text-[var(--text)]' : 'text-[var(--text-muted)]'}`}
+                    className={`relative flex items-center gap-1.5 py-1 pl-3 pr-2 transition-colors duration-200 ${active ? 'font-medium text-[var(--text)]' : 'text-[var(--text-muted)]'}`}
                   >
                     <IoFolderOutline className="h-3 w-3 flex-shrink-0" />
                     {col.name}
@@ -938,7 +946,7 @@ export default function LibraryScreen() {
                     <button
                       onClick={() => setSettingsCol(col)}
                       title={`${t('settings') || 'Settings'}: ${col.name}`}
-                      className="flex flex-shrink-0 items-center border-l border-[var(--border-subtle)] px-2 text-[var(--text-muted)]"
+                      className="relative flex flex-shrink-0 items-center border-l border-[var(--border-subtle)] px-2 text-[var(--text-muted)]"
                     >
                       <IoSettingsOutline className="h-3 w-3" />
                     </button>
@@ -1061,13 +1069,16 @@ export default function LibraryScreen() {
             <button
               key={f}
               onClick={() => setTypeFilterParam(f)}
-              className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
-                typeFilter === f
-                  ? 'bg-[var(--surface-active)] text-[var(--text)]'
-                  : 'text-[var(--text-muted)] hover:text-[var(--text)]'
-              }`}
+              className="relative rounded-lg px-3 py-1.5 text-xs font-medium"
             >
-              {f === 'all' ? t('all') : f === 'book' ? t('books') : f === 'movie' ? t('movies') : t('seriesPlural')}
+              <span
+                className={`absolute inset-0 origin-center rounded-lg bg-[var(--surface-active)] transition-all duration-200 ease-out ${
+                  typeFilter === f ? 'scale-100 opacity-100' : 'scale-[0.8] opacity-0'
+                }`}
+              />
+              <span className={`relative transition-colors duration-200 ${typeFilter === f ? 'text-[var(--text)]' : 'text-[var(--text-muted)] hover:text-[var(--text)]'}`}>
+                {f === 'all' ? t('all') : f === 'book' ? t('books') : f === 'movie' ? t('movies') : t('seriesPlural')}
+              </span>
             </button>
           ))}
         </div>
@@ -1312,23 +1323,21 @@ export default function LibraryScreen() {
 
         {/* View toggle */}
         <div className="flex rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] p-1">
-          <button
-            onClick={() => setView('grid')}
-            title={t('gridView')}
-            className={`rounded-lg p-1.5 transition-colors ${
-              view === 'grid' ? 'bg-[var(--surface-active)] text-[var(--text)]' : 'text-[var(--text-muted)] hover:text-[var(--text)]'
-            }`}
-          >
-            <IoGridOutline className="h-4 w-4" />
+          <button onClick={() => setView('grid')} title={t('gridView')} className="relative rounded-lg p-1.5">
+            <span
+              className={`absolute inset-0 origin-center rounded-lg bg-[var(--surface-active)] transition-all duration-200 ease-out ${
+                view === 'grid' ? 'scale-100 opacity-100' : 'scale-[0.8] opacity-0'
+              }`}
+            />
+            <IoGridOutline className={`relative h-4 w-4 transition-colors duration-200 ${view === 'grid' ? 'text-[var(--text)]' : 'text-[var(--text-muted)] hover:text-[var(--text)]'}`} />
           </button>
-          <button
-            onClick={() => setView('list')}
-            title={t('listView')}
-            className={`rounded-lg p-1.5 transition-colors ${
-              view === 'list' ? 'bg-[var(--surface-active)] text-[var(--text)]' : 'text-[var(--text-muted)] hover:text-[var(--text)]'
-            }`}
-          >
-            <IoListOutline className="h-4 w-4" />
+          <button onClick={() => setView('list')} title={t('listView')} className="relative rounded-lg p-1.5">
+            <span
+              className={`absolute inset-0 origin-center rounded-lg bg-[var(--surface-active)] transition-all duration-200 ease-out ${
+                view === 'list' ? 'scale-100 opacity-100' : 'scale-[0.8] opacity-0'
+              }`}
+            />
+            <IoListOutline className={`relative h-4 w-4 transition-colors duration-200 ${view === 'list' ? 'text-[var(--text)]' : 'text-[var(--text-muted)] hover:text-[var(--text)]'}`} />
           </button>
         </div>
 
