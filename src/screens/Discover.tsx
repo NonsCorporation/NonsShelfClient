@@ -185,7 +185,7 @@ export default function DiscoverPage() {
 
   const handleJoinChallenge = async (c: Challenge) => {
     if (!isAuthenticated) {
-      openLogin()
+      openLogin('challenge')
       return
     }
     const updated = await challengeService.joinChallenge(c.id)
@@ -202,7 +202,7 @@ export default function DiscoverPage() {
 
   const handleAdd = async (it: CatalogItem) => {
     if (!isAuthenticated) {
-      openLogin()
+      openLogin('shelf')
       return
     }
     const payload: Omit<MediaItem, 'id'> & { id?: string } = {
@@ -216,14 +216,14 @@ export default function DiscoverPage() {
   // Anonymous visitors get a plain "Add" button that just opens the login
   // modal; signed-in visitors get the full shelf status bar via
   // shelfStatusProp below instead, so this only ever fires for signed-out cards.
-  const addProp = (_it: CatalogItem) => (isAuthenticated ? undefined : () => openLogin())
+  const addProp = (_it: CatalogItem) => (isAuthenticated ? undefined : () => openLogin('shelf'))
 
   // Full status picker (want to / reading / finished / dnf), used by the hero
   // carousel instead of a plain add button. Adds the item on first pick, then
   // patches its shelf status on every pick after that.
   const handleStatusChange = async (it: CatalogItem, status: ShelfStatus) => {
     if (!isAuthenticated) {
-      openLogin()
+      openLogin('shelf')
       return
     }
     // "Finished" gets the full rate/review/dates flow (same as the "in
@@ -320,7 +320,7 @@ export default function DiscoverPage() {
           <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-[var(--text-muted)]">{t('challengesSubtitle') || 'Reading and watching goals the community is working on.'}</p>
             <button
-              onClick={() => (isAuthenticated ? setShowCreateChallenge(true) : openLogin())}
+              onClick={() => (isAuthenticated ? setShowCreateChallenge(true) : openLogin('challenge'))}
               className="flex flex-shrink-0 items-center gap-1.5 rounded-xl bg-nonsprimary px-3.5 py-2 text-sm font-medium text-white transition-colors hover:bg-nonsprimaryfocus"
             >
               <IoAdd className="h-4 w-4" />
@@ -374,7 +374,7 @@ export default function DiscoverPage() {
       {/* Sign-in nudge for anonymous visitors. */}
       {!authLoading && !isAuthenticated && (
         <button
-          onClick={openLogin}
+          onClick={() => openLogin('shelf')}
           className="mb-6 flex w-full items-center justify-center gap-2 rounded-xl border border-nonsprimary/40 bg-[var(--primary-soft)] px-4 py-2.5 text-sm font-medium text-nonsprimaryfocus transition-colors hover:bg-[var(--primary-soft)]/70"
         >
           <IoLogInOutline className="h-4 w-4" />
@@ -544,7 +544,7 @@ function HeroCarousel({
               </div>
             ) : (
               <button
-                onClick={openLogin}
+                onClick={() => openLogin('shelf')}
                 className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-nonsprimary px-5 text-sm font-semibold text-white hover:bg-nonsprimaryfocus"
               >
                 <IoLogInOutline className="h-4 w-4" />{t('signInToAdd')}

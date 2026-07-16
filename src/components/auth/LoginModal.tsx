@@ -4,9 +4,22 @@ import { useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { IoClose } from 'react-icons/io5'
 import { useLanguage } from '@/contexts/LanguageContext'
+import type { LoginReason } from '@/contexts/LoginModalContext'
 import { redirectToNonsLogin } from '@/lib/api'
 import NonsLogo from '@/components/branding/NonsLogo'
 import ShelfLogo from '@/components/branding/ShelfLogo'
+
+// Headline/body translation keys per reason — the "Login with nons" CTA and
+// the note below it stay the same regardless (see loginModalCta/Note), only
+// what the visitor is being told they're missing changes.
+const COPY: Record<LoginReason, { title: string; text: string }> = {
+  shelf: { title: 'loginModalTitleShelf', text: 'loginModalTextShelf' },
+  challenge: { title: 'loginModalTitleChallenge', text: 'loginModalTextChallenge' },
+  profile: { title: 'loginModalTitleProfile', text: 'loginModalTextProfile' },
+  library: { title: 'loginModalTitleLibrary', text: 'loginModalTextLibrary' },
+  notifications: { title: 'loginModalTitleNotifications', text: 'loginModalTextNotifications' },
+  statistics: { title: 'loginModalTitleStatistics', text: 'loginModalTextStatistics' },
+}
 
 // The single sign-in surface. There is no local login form: the library has no
 // accounts of its own, so the only thing this can do is explain the shared nons
@@ -14,8 +27,9 @@ import ShelfLogo from '@/components/branding/ShelfLogo'
 //
 // Portalled to <body> for the same reason as ConfirmModal: transformed ancestors
 // (the feed/discover fade-up animations) would otherwise trap the fixed overlay.
-export default function LoginModal({ onClose }: { onClose: () => void }) {
+export default function LoginModal({ reason, onClose }: { reason?: LoginReason; onClose: () => void }) {
   const { t } = useLanguage()
+  const copy = reason ? COPY[reason] : null
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
@@ -55,8 +69,8 @@ export default function LoginModal({ onClose }: { onClose: () => void }) {
           </span>
         </div>
 
-        <h2 className="text-lg font-semibold leading-snug text-[var(--text)]">{t('loginModalTitle')}</h2>
-        <p className="mt-2 text-sm leading-relaxed text-[var(--text-muted)]">{t('loginModalText')}</p>
+        <h2 className="text-lg font-semibold leading-snug text-[var(--text)]">{t(copy?.title ?? 'loginModalTitle')}</h2>
+        <p className="mt-2 text-sm leading-relaxed text-[var(--text-muted)]">{t(copy?.text ?? 'loginModalText')}</p>
 
         <button
           onClick={redirectToNonsLogin}

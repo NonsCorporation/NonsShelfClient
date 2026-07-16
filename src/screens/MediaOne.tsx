@@ -637,7 +637,7 @@ export default function MediaOnePage({
       <p className="text-sm font-semibold text-[var(--text)]">{t('signInToShelfTitle')}</p>
       <p className="mt-1 text-xs leading-5 text-[var(--text-muted)]">{t('signInToShelfText')}</p>
       <button
-        onClick={openLogin}
+        onClick={() => openLogin('shelf')}
         className="mt-3 w-full rounded-xl bg-nonsprimary py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
       >
         {t('login')}
@@ -1297,18 +1297,31 @@ export default function MediaOnePage({
           {/* ── You might also like (AI) ── */}
           {mediaNumId && <RecommendationsPanel mediaId={mediaNumId} />}
 
-          {/* ── My review ── */}
-          {canInteract && (
-            <div className="flex flex-col gap-5">
+          {/* ── My review — always visible; interactive only when signed in.
+              Signed-out visitors see empty stars and a "sign in to rate" hint
+              instead of the editor, both opening the login modal. ── */}
+          <div className="flex flex-col gap-5">
               <div className="-mx-4 md:mx-0 rounded-none md:rounded-2xl border-y md:border border-[var(--border-subtle)] bg-[var(--surface)] p-0 md:p-5">
                 <div className="px-4 py-4 md:p-0">
                   <div className="mb-3 flex items-center justify-between">
                     <h3 className="text-[10px] uppercase tracking-widest text-[var(--text-muted)]">{t('yourReview')}</h3>
                   </div>
 
-                  <StarsSelector initialValue={userRating} onChange={handleRatingChange} onClear={handleRatingClear} isEditable />
+                  <div
+                    onClick={canInteract ? undefined : () => openLogin('shelf')}
+                    className={canInteract ? undefined : 'inline-block cursor-pointer'}
+                  >
+                    <StarsSelector initialValue={canInteract ? userRating : 0} onChange={handleRatingChange} onClear={handleRatingClear} isEditable={canInteract} />
+                  </div>
 
-                  {editingReview ? (
+                  {!canInteract ? (
+                    <p
+                      onClick={() => openLogin('shelf')}
+                      className="mt-3 cursor-pointer text-sm italic text-[var(--placeholder)] hover:text-[var(--text-muted)] transition-colors"
+                    >
+                      {t('signInToRateHint')}
+                    </p>
+                  ) : editingReview ? (
                     <div className="mt-3 flex flex-col gap-2">
                       <ReviewEditor
                         value={userReview}
@@ -1350,6 +1363,9 @@ export default function MediaOnePage({
                 </div>
               </div>
 
+              {/* ── Private note & Friends — signed-in only ── */}
+              {canInteract && (
+                <>
               {/* ── Private note ── */}
               {status !== null && (
                 <div id="private-note-section" className="group relative -mx-4 md:mx-0 rounded-none md:rounded-2xl border-y md:border border-[var(--border-subtle)] bg-[var(--surface)] p-0 md:p-5">
@@ -1453,8 +1469,10 @@ export default function MediaOnePage({
                   )}
                 </div>
               </div>
+                </>
+              )}
 
-              {/* ── Community rating ── */}
+              {/* ── Community rating — public catalog data, always visible ── */}
               <div ref={commSectionRef} style={{ scrollMarginTop: 88 }} className="-mx-4 md:mx-0 rounded-none md:rounded-2xl border-y md:border border-[var(--border-subtle)] bg-[var(--surface)] p-0 md:p-5">
               <div className="px-4 py-4 md:p-0">
                 {/* title + avg side by side; avg floats right below the title */}
@@ -1568,7 +1586,6 @@ export default function MediaOnePage({
               </div>
               </div>
             </div>
-          )}
 
         </div>
       </div>

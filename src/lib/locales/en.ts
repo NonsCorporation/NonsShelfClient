@@ -402,6 +402,7 @@ export const en = {
   loginSubmitting: 'Signing in…',
   signInToShelfTitle: 'Track this on your shelf',
   signInToShelfText: 'Sign in with your nons account to rate it, write a review, and add it to your shelf.',
+  signInToRateHint: 'Sign in to rate and review this title.',
 
   close: 'Close',
 
@@ -418,6 +419,18 @@ export const en = {
   loginModalText: 'One account across every nons app. Your profile, friends and privacy settings follow you here — no new sign-up, no new password.',
   loginModalCta: 'Login with nons',
   loginModalNote: 'Sign in once, use every nons app.',
+  loginModalTitleShelf: 'Track this on your shelf',
+  loginModalTextShelf: 'Sign in with your nons account to add this to your shelf, rate it and write a review.',
+  loginModalTitleChallenge: 'Join this challenge',
+  loginModalTextChallenge: 'Sign in with your nons account to join challenges and track your progress with the community.',
+  loginModalTitleProfile: 'View this profile',
+  loginModalTextProfile: 'Sign in with your nons account to see other members\' shelves, ratings and activity.',
+  loginModalTitleLibrary: 'See your library',
+  loginModalTextLibrary: 'Sign in with your nons account to see everything on your shelf.',
+  loginModalTitleNotifications: 'See your notifications',
+  loginModalTextNotifications: 'Sign in with your nons account to see what your friends have been up to.',
+  loginModalTitleStatistics: 'See your stats',
+  loginModalTextStatistics: 'Sign in with your nons account to see your reading and watching stats.',
 
   profileSubtitle: 'Your shelf at a glance',
   profileSubtitleOther: 'Their shelf at a glance',

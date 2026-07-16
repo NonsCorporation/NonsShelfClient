@@ -2,7 +2,7 @@
 
 import { useEffect, type ReactNode } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
-import { useLoginModal } from '@/contexts/LoginModalContext'
+import { useLoginModal, type LoginReason } from '@/contexts/LoginModalContext'
 import { useLocation, useNavigate } from '@/lib/router'
 import AppLoadingSkeleton from '@/components/ui/Skeletons'
 
@@ -12,6 +12,18 @@ import AppLoadingSkeleton from '@/components/ui/Skeletons'
 // rest of the app (your library, shelf, stats, notifications) is personal and
 // has nothing to show without a session.
 const PUBLIC_PATHS = new Set(['/', '/discover'])
+
+// Which login-modal copy names the thing a blocked route was actually for
+// ("view this profile", "see your notifications", …) instead of the generic
+// fallback. Checked longest-prefix-first isn't needed since these don't nest.
+function reasonFor(pathname: string): LoginReason | undefined {
+  if (pathname.startsWith('/u/')) return 'profile'
+  if (pathname.startsWith('/library') || pathname.startsWith('/shelf')) return 'library'
+  if (pathname.startsWith('/notifications')) return 'notifications'
+  if (pathname.startsWith('/statistics')) return 'statistics'
+  if (pathname.startsWith('/challenge')) return 'challenge'
+  return undefined
+}
 
 // Gates the personal app behind the shared nons SSO session. While we check
 // /api/me we show the app shell with content-shaped ghost placeholders (rather
@@ -28,9 +40,10 @@ export default function RequireAuth({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!blocked) return
+    const reason = reasonFor(pathname)
     navigate('/', { replace: true })
-    openLogin()
-  }, [blocked, navigate, openLogin])
+    openLogin(reason)
+  }, [blocked, pathname, navigate, openLogin])
 
   // Placeholders cover both the session check and the redirect that follows it,
   // so a private route never flashes its signed-in chrome on the way out.

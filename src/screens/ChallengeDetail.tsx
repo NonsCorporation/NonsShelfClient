@@ -66,7 +66,7 @@ export default function ChallengeDetailScreen() {
   const toggleJoin = async () => {
     if (!challenge) return
     if (!isAuthenticated) {
-      openLogin()
+      openLogin('challenge')
       return
     }
     setBusy(true)
@@ -86,7 +86,7 @@ export default function ChallengeDetailScreen() {
   const saveGoal = async () => {
     if (!challenge) return
     if (!isAuthenticated) {
-      openLogin()
+      openLogin('challenge')
       return
     }
     const n = Number(goalInput)

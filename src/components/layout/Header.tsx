@@ -274,7 +274,7 @@ export default function Header() {
               </div>
             ) : !loading ? (
               <button
-                onClick={openLogin}
+                onClick={() => openLogin()}
                 className="hidden items-center gap-2 rounded-full bg-nonsprimary px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 lg:flex"
               >
                 <IoLogInOutline className="h-[18px] w-[18px]" />

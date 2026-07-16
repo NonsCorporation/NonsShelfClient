@@ -402,6 +402,7 @@ export const ru = {
   loginSubmitting: 'Вход…',
   signInToShelfTitle: 'Добавьте на свою полку',
   signInToShelfText: 'Войдите с аккаунтом nons, чтобы поставить оценку, написать отзыв и добавить на полку.',
+  signInToRateHint: 'Войдите, чтобы поставить оценку и написать рецензию.',
 
   close: 'Закрыть',
 
@@ -418,6 +419,18 @@ export const ru = {
   loginModalText: 'Один аккаунт для всех приложений nons. Профиль, друзья и настройки приватности переходят сюда вместе с вами — без новой регистрации и нового пароля.',
   loginModalCta: 'Войти через nons',
   loginModalNote: 'Войдите один раз — работает во всех приложениях nons.',
+  loginModalTitleShelf: 'Добавьте на полку',
+  loginModalTextShelf: 'Войдите через аккаунт nons, чтобы добавить это на полку, поставить оценку и написать рецензию.',
+  loginModalTitleChallenge: 'Присоединитесь к челленджу',
+  loginModalTextChallenge: 'Войдите через аккаунт nons, чтобы участвовать в челленджах и отслеживать прогресс вместе с сообществом.',
+  loginModalTitleProfile: 'Посмотреть профиль',
+  loginModalTextProfile: 'Войдите через аккаунт nons, чтобы видеть полки, оценки и активность других участников.',
+  loginModalTitleLibrary: 'Ваша библиотека',
+  loginModalTextLibrary: 'Войдите через аккаунт nons, чтобы увидеть всё, что у вас на полке.',
+  loginModalTitleNotifications: 'Ваши уведомления',
+  loginModalTextNotifications: 'Войдите через аккаунт nons, чтобы увидеть, чем занимаются ваши друзья.',
+  loginModalTitleStatistics: 'Ваша статистика',
+  loginModalTextStatistics: 'Войдите через аккаунт nons, чтобы увидеть свою статистику чтения и просмотра.',
 
   profileSubtitle: 'Ваша полка с высоты птичьего полёта',
   profileSubtitleOther: 'Полка пользователя с высоты птичьего полёта',

@@ -402,6 +402,7 @@ export const ro = {
   loginSubmitting: 'Se conectează…',
   signInToShelfTitle: 'Urmărește asta pe raftul tău',
   signInToShelfText: 'Conectează-te cu contul nons pentru a-l nota, a scrie o recenzie și a-l adăuga pe raft.',
+  signInToRateHint: 'Autentifică-te ca să notezi și să scrii o recenzie pentru acest titlu.',
 
   close: 'Închide',
 
@@ -418,6 +419,18 @@ export const ro = {
   loginModalText: 'Un singur cont pentru toate aplicațiile nons. Profilul, prietenii și setările de confidențialitate te urmează aici — fără înregistrare nouă, fără parolă nouă.',
   loginModalCta: 'Autentificare cu nons',
   loginModalNote: 'Autentifică-te o dată, folosește orice aplicație nons.',
+  loginModalTitleShelf: 'Adaugă pe raftul tău',
+  loginModalTextShelf: 'Autentifică-te cu contul tău nons ca să adaugi asta pe raft, să-i pui o notă și să scrii o recenzie.',
+  loginModalTitleChallenge: 'Alătură-te acestei provocări',
+  loginModalTextChallenge: 'Autentifică-te cu contul tău nons ca să te alături provocărilor și să-ți urmărești progresul alături de comunitate.',
+  loginModalTitleProfile: 'Vezi acest profil',
+  loginModalTextProfile: 'Autentifică-te cu contul tău nons ca să vezi rafturile, notele și activitatea altor membri.',
+  loginModalTitleLibrary: 'Vezi-ți biblioteca',
+  loginModalTextLibrary: 'Autentifică-te cu contul tău nons ca să vezi tot ce ai pe raft.',
+  loginModalTitleNotifications: 'Vezi-ți notificările',
+  loginModalTextNotifications: 'Autentifică-te cu contul tău nons ca să vezi ce au mai făcut prietenii tăi.',
+  loginModalTitleStatistics: 'Vezi-ți statisticile',
+  loginModalTextStatistics: 'Autentifică-te cu contul tău nons ca să vezi statisticile tale de citit și vizionat.',
 
   profileSubtitle: 'Raftul tău dintr-o privire',
   profileSubtitleOther: 'Raftul lor dintr-o privire',
