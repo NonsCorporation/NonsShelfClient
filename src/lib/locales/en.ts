@@ -819,6 +819,19 @@ export const en = {
   shareFinishedFilm: 'Finished watching!',
   shareDnf: "I didn't finish this",
 
+  // Friendship / follow (nons-server relationship actions on another profile)
+  follow: 'Follow',
+  following: 'Following',
+  addFriend: 'Add friend',
+  cancelRequest: 'Cancel request',
+  acceptRequest: 'Accept',
+  declineRequest: 'Decline',
+  friendsLabel: 'Friends',
+  removeFriend: 'Remove friend',
+  friendRequestHint: "They'll need to accept your request on nons — friend requests aren't visible here on Shelf.",
+  friendsImportedHint: 'Friends are imported from nons. Add them there to see their reading progress here.',
+  findFriendsOnNons: 'Find your friends on Nons',
+
   // About page
   about: 'About',
   aboutTitle: 'About Nons Shelf',

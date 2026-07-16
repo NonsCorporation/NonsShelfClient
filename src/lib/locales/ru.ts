@@ -748,6 +748,19 @@ export const ru = {
   shareFinishedFilm: 'Посмотрел!',
   shareDnf: 'Не дочитал',
 
+  // Дружба / подписка (действия отношений nons-server на чужом профиле)
+  follow: 'Подписаться',
+  following: 'Вы подписаны',
+  addFriend: 'Добавить в друзья',
+  cancelRequest: 'Отменить запрос',
+  acceptRequest: 'Принять',
+  declineRequest: 'Отклонить',
+  friendsLabel: 'Друзья',
+  removeFriend: 'Удалить из друзей',
+  friendRequestHint: 'Ему нужно будет принять ваш запрос на nons — заявки в друзья не отображаются здесь, на Shelf.',
+  friendsImportedHint: 'Друзья импортируются с nons. Добавьте их там, чтобы видеть их прогресс чтения здесь.',
+  findFriendsOnNons: 'Найдите друзей на Nons',
+
   // About page
   about: 'О нас',
   aboutTitle: 'О Nons Shelf',

@@ -9,7 +9,7 @@ import { collectionService } from '../services/collectionService'
 import { challengeService } from '../services/challengeService'
 import Pagination from '@/components/ui/Pagination'
 import { fetchPublicProfile } from '../services/userService'
-import { nonsProfileUrl, nonsFetch, authedFetch } from '../lib/api'
+import { nonsProfileUrl, nonsFetch, authedFetch, NONS_LOGIN_URL } from '../lib/api'
 import type { MediaItem, ShelfStatus, Collection, Challenge } from '../types'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
@@ -28,6 +28,19 @@ import ProfileShareModal from '@/components/profile/ProfileShareModal'
 import { getUserActivity, colorFor, type Activity } from '../services/activityService'
 import { getCommentCounts } from '../services/commentService'
 import {
+  getFriendshipStatus,
+  sendFriendRequest,
+  cancelFriendRequest,
+  acceptFriendRequest,
+  rejectFriendRequest,
+  removeFriend,
+  isFollowing,
+  follow,
+  unfollow,
+  type FriendshipStatus,
+} from '../services/friendshipService'
+import InfoTooltip from '@/components/ui/InfoTooltip'
+import {
   IoOpenOutline,
   IoSettingsOutline,
   IoLibraryOutline,
@@ -41,6 +54,11 @@ import {
   IoTrophyOutline,
   IoRibbonOutline,
   IoShareOutline,
+  IoPersonAddOutline,
+  IoCheckmarkOutline,
+  IoCloseOutline,
+  IoAddOutline,
+  IoCheckmarkCircleOutline,
 } from 'react-icons/io5'
 import type { IconType } from 'react-icons'
 import type { MediaType } from '../types'
@@ -125,6 +143,12 @@ export default function ProfilePage() {
   // On your own profile, the current year's reading challenge even if you
   // haven't set a goal yet — so its shield (a "join" prompt) still shows.
   const [readingChallenge, setReadingChallenge] = useState<Challenge | null>(null)
+  // Relationship with the profile owner — only meaningful (and only fetched)
+  // when viewing someone else's profile. Friendship (mutual request/accept)
+  // and follow (one-directional) are independent systems on nons-server.
+  const [friendship, setFriendship] = useState<FriendshipStatus>({ status: 'none', isRequester: false })
+  const [followingUser, setFollowingUser] = useState(false)
+  const [relBusy, setRelBusy] = useState(false)
 
 
   useEffect(() => {
@@ -216,6 +240,19 @@ export default function ProfilePage() {
     })
     return () => { cancelled = true }
   }, [isSelf, profile])
+
+  // Relationship with the profile owner — friend-request status + follow
+  // state, both fetched from nons-server. Only relevant on someone else's profile.
+  useEffect(() => {
+    if (!profile || isSelf) { setFriendship({ status: 'none', isRequester: false }); setFollowingUser(false); return }
+    let cancelled = false
+    Promise.all([getFriendshipStatus(profile.handle), isFollowing(profile.handle)]).then(([fs, fw]) => {
+      if (cancelled) return
+      setFriendship(fs)
+      setFollowingUser(fw)
+    })
+    return () => { cancelled = true }
+  }, [profile, isSelf])
 
   // The shelf preview row — server-filtered/sorted/capped, so switching tabs
   // or a collection chip re-fetches just SHELF_PREVIEW_SIZE items instead of
@@ -319,6 +356,68 @@ export default function ProfilePage() {
     return () => { cancelled = true }
   }, [posts])
 
+  // Relationship actions — each optimistically updates local state and rolls
+  // back if the nons-server call fails.
+  const toggleFollow = async () => {
+    if (!profile || relBusy) return
+    setRelBusy(true)
+    const next = !followingUser
+    setFollowingUser(next)
+    const ok = next ? await follow(profile.handle) : await unfollow(profile.handle)
+    if (!ok) setFollowingUser(!next)
+    setRelBusy(false)
+  }
+
+  const addFriend = async () => {
+    if (!profile || relBusy) return
+    setRelBusy(true)
+    const prev = friendship
+    setFriendship({ status: 'pending', isRequester: true })
+    const ok = await sendFriendRequest(profile.handle)
+    if (!ok) setFriendship(prev)
+    setRelBusy(false)
+  }
+
+  const cancelRequest = async () => {
+    if (!profile || relBusy) return
+    setRelBusy(true)
+    const prev = friendship
+    setFriendship({ status: 'none', isRequester: false })
+    const ok = await cancelFriendRequest(profile.handle)
+    if (!ok) setFriendship(prev)
+    setRelBusy(false)
+  }
+
+  const acceptRequest = async () => {
+    if (!profile || relBusy) return
+    setRelBusy(true)
+    const prev = friendship
+    setFriendship({ status: 'accepted', isRequester: false })
+    const ok = await acceptFriendRequest(profile.handle)
+    if (!ok) setFriendship(prev)
+    setRelBusy(false)
+  }
+
+  const declineRequest = async () => {
+    if (!profile || relBusy) return
+    setRelBusy(true)
+    const prev = friendship
+    setFriendship({ status: 'none', isRequester: false })
+    const ok = await rejectFriendRequest(profile.handle)
+    if (!ok) setFriendship(prev)
+    setRelBusy(false)
+  }
+
+  const unfriend = async () => {
+    if (!profile || relBusy) return
+    setRelBusy(true)
+    const prev = friendship
+    setFriendship({ status: 'none', isRequester: false })
+    const ok = await removeFriend(profile.handle)
+    if (!ok) setFriendship(prev)
+    setRelBusy(false)
+  }
+
   if (loading) {
     return (
       <Layout>
@@ -371,6 +470,84 @@ export default function ProfilePage() {
                 <IoOpenOutline className="h-4 w-4" />
                 {t('viewNonsProfile')}
               </a>
+            )}
+
+            {/* Relationship — follow (one-directional) + friend request
+                (mutual accept), both against nons-server, independent of
+                each other. */}
+            {!isSelf && (
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <button
+                  onClick={toggleFollow}
+                  disabled={relBusy}
+                  className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors disabled:opacity-50 ${
+                    followingUser
+                      ? 'border border-[var(--border-subtle)] bg-[var(--surface)] text-[var(--text)] hover:text-nonsprimary'
+                      : 'bg-nonsprimary text-white hover:bg-nonsprimaryfocus'
+                  }`}
+                >
+                  {followingUser ? <IoCheckmarkOutline className="h-3.5 w-3.5" /> : <IoAddOutline className="h-3.5 w-3.5" />}
+                  {followingUser ? t('following') : t('follow')}
+                </button>
+
+                {friendship.status === 'none' && (
+                  <button
+                    onClick={addFriend}
+                    disabled={relBusy}
+                    className="flex items-center gap-1.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] px-3 py-1.5 text-xs font-medium text-[var(--text)] transition-colors hover:border-nonsprimary hover:text-nonsprimary disabled:opacity-50"
+                  >
+                    <IoPersonAddOutline className="h-3.5 w-3.5" />
+                    {t('addFriend')}
+                  </button>
+                )}
+
+                {friendship.status === 'pending' && friendship.isRequester && (
+                  <span className="inline-flex items-center gap-1.5">
+                    <button
+                      onClick={cancelRequest}
+                      disabled={relBusy}
+                      className="flex items-center gap-1.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] px-3 py-1.5 text-xs font-medium text-[var(--text-muted)] transition-colors hover:text-[var(--text)] disabled:opacity-50"
+                    >
+                      <IoCloseOutline className="h-3.5 w-3.5" />
+                      {t('cancelRequest')}
+                    </button>
+                    <InfoTooltip text={t('friendRequestHint')} />
+                  </span>
+                )}
+
+                {friendship.status === 'pending' && !friendship.isRequester && (
+                  <span className="inline-flex items-center gap-1.5">
+                    <button
+                      onClick={acceptRequest}
+                      disabled={relBusy}
+                      className="flex items-center gap-1.5 rounded-lg bg-nonsprimary px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-nonsprimaryfocus disabled:opacity-50"
+                    >
+                      <IoCheckmarkOutline className="h-3.5 w-3.5" />
+                      {t('acceptRequest')}
+                    </button>
+                    <button
+                      onClick={declineRequest}
+                      disabled={relBusy}
+                      className="flex items-center gap-1.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] px-3 py-1.5 text-xs font-medium text-[var(--text-muted)] transition-colors hover:text-[var(--text)] disabled:opacity-50"
+                    >
+                      <IoCloseOutline className="h-3.5 w-3.5" />
+                      {t('declineRequest')}
+                    </button>
+                  </span>
+                )}
+
+                {friendship.status === 'accepted' && (
+                  <button
+                    onClick={unfriend}
+                    disabled={relBusy}
+                    title={t('removeFriend')}
+                    className="flex items-center gap-1.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--primary-soft)] px-3 py-1.5 text-xs font-medium text-nonsprimary transition-colors hover:bg-[var(--primary-ring)] disabled:opacity-50"
+                  >
+                    <IoCheckmarkCircleOutline className="h-3.5 w-3.5" />
+                    {t('friendsLabel')}
+                  </button>
+                )}
+              </div>
             )}
           </div>
 
@@ -432,7 +609,7 @@ export default function ProfilePage() {
           <div className="mb-3 flex items-center gap-2">
             <IoPeopleOutline className="h-4 w-4 text-[var(--text-muted)]" />
             <span className="text-sm font-semibold text-[var(--text)]">
-              {t('friends') || 'Friends'}
+              {t('friendsLabel')}
             </span>
             {friends.length > 0 && (
               <span className="text-xs text-[var(--text-muted)]">{friends.length}</span>
@@ -440,14 +617,33 @@ export default function ProfilePage() {
             <div className="group relative ml-auto">
               <IoInformationCircleOutline className="h-4 w-4 cursor-help text-[var(--text-muted)]" />
               <div className="pointer-events-none absolute right-0 top-6 z-50 w-64 rounded-xl border border-[var(--border)] bg-[var(--container)] p-3 text-xs leading-relaxed text-[var(--text-muted)] opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
-                Friends are imported from nons. Add them there to see their reading progress here.
+                {t('friendsImportedHint')}
               </div>
             </div>
           </div>
           {friends.length === 0 ? (
-            <p className="text-xs text-[var(--text-muted)]">
-              {t('noFriendsYet') || 'No friends yet — add them on nons to see their progress.'}
-            </p>
+            <a
+              href={`${NONS_LOGIN_URL}/friends`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group/empty flex items-center gap-3 rounded-xl border border-dashed border-[var(--border-subtle)] px-4 py-3 transition-colors hover:border-nonsprimary"
+            >
+              {/* Stacked placeholder circles — a friends-shaped empty state */}
+              <span className="flex flex-shrink-0 items-center">
+                {[0, 1, 2].map((i) => (
+                  <span
+                    key={i}
+                    className="flex items-center justify-center rounded-full border-2 border-[var(--container)] bg-[var(--surface)] text-[var(--text-muted)]"
+                    style={{ width: 32, height: 32, marginLeft: i === 0 ? 0 : -10, zIndex: 3 - i }}
+                  >
+                    <IoPeopleOutline className="h-3.5 w-3.5 opacity-60" />
+                  </span>
+                ))}
+              </span>
+              <span className="text-xs font-medium text-[var(--text-muted)] transition-colors group-hover/empty:text-nonsprimary">
+                {t('findFriendsOnNons')}
+              </span>
+            </a>
           ) : (
             <div className="no-scrollbar -mx-1 flex gap-4 overflow-x-auto px-1">
               {friends.map((f) => (

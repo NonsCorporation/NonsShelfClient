@@ -748,6 +748,19 @@ export const ro = {
   shareFinishedFilm: 'Am terminat de vizionat!',
   shareDnf: 'Nu am terminat asta',
 
+  // Friendship / follow (acțiuni de relație nons-server pe alt profil)
+  follow: 'Urmărește',
+  following: 'Urmărit',
+  addFriend: 'Adaugă prieten',
+  cancelRequest: 'Anulează cererea',
+  acceptRequest: 'Acceptă',
+  declineRequest: 'Refuză',
+  friendsLabel: 'Prieteni',
+  removeFriend: 'Elimină prietenul',
+  friendRequestHint: 'Va trebui să accepte cererea ta pe nons — cererile de prietenie nu sunt vizibile aici, pe Shelf.',
+  friendsImportedHint: 'Prietenii sunt importați de pe nons. Adaugă-i acolo ca să le vezi progresul de citire aici.',
+  findFriendsOnNons: 'Găsește-ți prietenii pe Nons',
+
   // About page
   about: 'Despre',
   aboutTitle: 'Despre Nons Shelf',
