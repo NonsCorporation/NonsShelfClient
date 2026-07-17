@@ -30,7 +30,7 @@ import { isLibrarian } from '../../services/librarianService'
 import { catalogService, type CatalogItem } from '../../services/catalogService'
 import TypeBadge from '@/components/badges/TypeBadge'
 import ShelfLogo from '@/components/branding/ShelfLogo'
-import NonsLogo from '@/components/branding/NonsLogo'
+import NonsLogoOutline from '@/components/branding/NonsLogoOutline'
 import InfinityLoader from '@/components/ui/InfinityLoader'
 
 type NavItem = { to: string; label: string; icon: IconType; match: (p: string) => boolean }
@@ -381,7 +381,7 @@ export default function Header() {
                   onClick={() => setProfileOpen(false)}
                   className="flex w-full items-center gap-3 px-4 py-3 text-sm text-[var(--text-muted)] transition-colors hover:bg-[var(--surface)] hover:text-[var(--text)]"
                 >
-                  <NonsLogo className="h-[18px] w-[18px]" />
+                  <NonsLogoOutline className="h-[18px] w-[18px]" />
                   {t('goToNons') || 'Go to Nons'}
                 </a>
 
