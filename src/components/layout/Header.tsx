@@ -201,8 +201,9 @@ export default function Header() {
                       target="_blank"
                       rel="noopener noreferrer"
                       onClick={() => setAccountOpen(false)}
-                      className="flex items-center px-4 py-2 text-xs text-[var(--text-muted)] transition-colors hover:text-[var(--text)]"
+                      className="flex items-center gap-3 px-4 py-2 text-xs text-[var(--text-muted)] transition-colors hover:text-[var(--text)]"
                     >
+                      <NonsLogoOutline className="h-[14px] w-[14px]" />
                       Go to Nons&nbsp;↗
                     </a>
 
