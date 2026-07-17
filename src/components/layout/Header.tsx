@@ -355,6 +355,15 @@ export default function Header() {
                 <div className="h-px bg-[var(--border-subtle)]" />
 
                 <Link
+                  to="/statistics"
+                  onClick={() => setProfileOpen(false)}
+                  className={`flex w-full items-center gap-3 px-4 py-3 text-sm transition-colors hover:bg-[var(--surface)] hover:text-[var(--text)] ${path === '/statistics' ? 'text-[var(--text)]' : 'text-[var(--text-muted)]'}`}
+                >
+                  <IoCalendarOutline className="h-[18px] w-[18px]" />
+                  {t('statistics') || 'Statistics'}
+                </Link>
+
+                <Link
                   to="/about"
                   onClick={() => setProfileOpen(false)}
                   className={`flex w-full items-center gap-3 px-4 py-3 text-sm transition-colors hover:bg-[var(--surface)] hover:text-[var(--text)] ${path === '/about' ? 'text-[var(--text)]' : 'text-[var(--text-muted)]'}`}
