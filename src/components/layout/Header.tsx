@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate, useSearchParams } from '@/lib/router'
 import {
   IoHomeOutline,
@@ -37,7 +37,6 @@ type NavItem = { to: string; label: string; icon: IconType; match: (p: string) =
 
 export default function Header() {
   const location = useLocation()
-  const [params] = useSearchParams()
   const { language, setLanguage, t } = useLanguage()
   const { user, logout, isAuthenticated, loading } = useAuth()
   const { totalUnread, unreadCount } = useNotifications()
@@ -145,8 +144,13 @@ export default function Header() {
 
             <div className="h-4 w-px flex-shrink-0 bg-[var(--border-subtle)]" />
 
-            {/* Search — icon-only until clicked, then expands into an input */}
-            <HeaderSearch />
+            {/* Search — icon-only until clicked, then expands into an input.
+                Suspense boundary because it reads useSearchParams(), which
+                Next requires when statically prerendering routes with no
+                dynamic segments (e.g. /search itself). */}
+            <Suspense fallback={<div className="h-9 w-9" />}>
+              <HeaderSearch />
+            </Suspense>
           </div>
 
           {/* Right cluster */}
