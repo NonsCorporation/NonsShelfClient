@@ -108,6 +108,7 @@ export default function ActivityCard({
   const [deleting, setDeleting] = useState(false)
   const [shareOpen, setShareOpen] = useState(false)
   const [finishOpen, setFinishOpen] = useState(false)
+  const [descOpen, setDescOpen] = useState(false)
   // The catalog's page count, fetched only when Share opens (Activity itself
   // doesn't carry it) — needed for the share card's progress bar.
   const [sharePages, setSharePages] = useState<number | undefined>(undefined)
@@ -305,10 +306,16 @@ export default function ActivityCard({
 
           {a.mediaDescription && (
             <p className="mt-2 text-sm leading-6 text-[var(--text-muted)]">
-              <span className="line-clamp-3">{a.mediaDescription}</span>
-              <Link to={to} className="text-nonsprimary hover:underline">
-                {t('continueReading')}
-              </Link>
+              <span className={descOpen ? '' : 'line-clamp-3'}>{a.mediaDescription}</span>
+              {!descOpen && a.mediaDescription.length > 140 && (
+                <button
+                  type="button"
+                  onClick={() => setDescOpen(true)}
+                  className="ml-1 font-medium text-nonsprimary hover:underline"
+                >
+                  {t('showMore')}
+                </button>
+              )}
             </p>
           )}
         </div>
