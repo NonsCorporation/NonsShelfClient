@@ -411,10 +411,10 @@ export default function ShareModal({ isOpen, item, coverUrl, title, author, tota
           {showDates && status === 'done' && item.finishedAt && (() => {
             const start = fmtDate(item.startedAt)
             const end = fmtDate(item.finishedAt)
-            // Movies/series are watched in one sitting-ish — only the
-            // finish date is meaningful. Books show the full range when
-            // a start date is known.
-            const label = item.type !== 'book' || !start ? end : `${start} → ${end}`
+            // Movies are watched in one sitting-ish — only the finish date
+            // is meaningful. Books and series (watched over time) show the
+            // full range when a start date is known.
+            const label = item.type === 'movie' || !start ? end : `${start} → ${end}`
             return (
               <div style={{ marginTop: 14 }}>
                 <span
