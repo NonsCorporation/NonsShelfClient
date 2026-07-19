@@ -309,7 +309,7 @@ export default function ProfilePage() {
     return () => { cancelled = true }
   }, [profile, isSelf, refreshTick])
 
-  const POSTS_PER_PAGE = 10
+  const POSTS_PER_PAGE = 20
   useEffect(() => {
     if (!profile) return
     let cancelled = false

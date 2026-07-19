@@ -76,16 +76,12 @@ export default function ProgressModal({ isOpen, item, total: totalProp, onClose,
           setMode('pct')
           setPage(String(latest.progress_pct))
         }
-        if (latest.note) setNote(latest.note)
       })
     } else {
       authedFetch(`/api/media/${item.id}/episodes`)
         .then((r) => (r.ok ? r.json() : null))
         .then((d) => !cancelled && setEpisodes(d))
         .catch(() => {})
-      libraryService.getProgress(item.id).then((entries) => {
-        if (!cancelled && entries[0]?.note) setNote(entries[0].note)
-      })
     }
 
     return () => {
@@ -259,13 +255,6 @@ export default function ProgressModal({ isOpen, item, total: totalProp, onClose,
                 }}
               />
             </div>
-            {validInput && (
-              <p className={`-mt-1 text-xs ${isOver ? 'text-[#d45c5c]' : 'text-[var(--text-muted)]'}`}>
-                {isOver
-                  ? `${Math.round(inputNum - total)} ${t('pagesLabel').toLowerCase()} over total`
-                  : `${Math.round(pct)}%`}
-              </p>
-            )}
           </div>
         )}
 

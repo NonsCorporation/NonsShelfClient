@@ -35,7 +35,7 @@ import { ActivityCardSkeleton } from '@/components/ui/Skeletons'
 import FeedSettingsModal from '@/components/settings/FeedSettingsModal'
 
 // Friends-activity is paginated server-side; this many cards per page.
-const ACTIVITY_PER_PAGE = 10
+const ACTIVITY_PER_PAGE = 20
 
 // Coarse day buckets for grouping the activity feed. `at` is Unix seconds.
 type DayBucket = 'today' | 'week' | 'earlier'
