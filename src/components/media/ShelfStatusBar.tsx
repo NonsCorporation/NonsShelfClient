@@ -87,12 +87,18 @@ export default function ShelfStatusBar({ item, currentStatus, onStatusChange, on
   const [anchor, setAnchor] = useState<{ top?: number; bottom?: number; left: number; width: number; placement: 'up' | 'down' } | null>(null)
   const btnRef = useRef<HTMLDivElement>(null)
   const [confirmingRemove, setConfirmingRemove] = useState(false)
-  // purely visual for now — not yet wired to any share/privacy behavior
-  const [incognito, setIncognito] = useState(false)
-  const [incognitoToast, setIncognitoToast] = useState(false)
-  const showIncognitoToast = () => {
-    setIncognitoToast(true)
-    setTimeout(() => setIncognitoToast(false), 2000)
+  // hides this shelf entry from other users' view of the shelf
+  const [incognito, setIncognito] = useState(item.private ?? false)
+  const [confirmingIncognito, setConfirmingIncognito] = useState(false)
+  const mediaLabel = item.type === 'book' ? 'book' : item.type === 'series' ? 'series' : 'movie'
+
+  useEffect(() => {
+    setIncognito(item.private ?? false)
+  }, [item.private])
+
+  const setPrivate = (next: boolean) => {
+    setIncognito(next)
+    libraryService.setPrivate(item.id, next).catch(() => setIncognito(!next))
   }
 
   // uniquely identifies this instance of the component to scope outside-click events
@@ -250,7 +256,7 @@ export default function ShelfStatusBar({ item, currentStatus, onStatusChange, on
       {/* renders the shelf status options */}
       <div className="flex flex-wrap gap-1.5">
         <button
-          onClick={showIncognitoToast}
+          onClick={() => (incognito ? setPrivate(false) : setConfirmingIncognito(true))}
           title={incognito ? 'Incognito on' : 'Incognito off'}
           aria-pressed={incognito}
           className={`flex items-center justify-center rounded-full border px-2.5 py-1.5 transition-colors ${
@@ -569,11 +575,16 @@ export default function ShelfStatusBar({ item, currentStatus, onStatusChange, on
         />
       )}
 
-      {incognitoToast && createPortal(
-        <div className="fixed bottom-28 left-1/2 z-[80] -translate-x-1/2 rounded-xl border border-[var(--border)] bg-[var(--container)] px-4 py-2.5 text-sm text-[var(--text)] shadow-lg backdrop-blur-sm lg:bottom-6">
-          Coming soon
-        </div>,
-        document.body,
+      {confirmingIncognito && (
+        <ConfirmModal
+          title="Go incognito?"
+          message={`Are you sure you want to make this ${mediaLabel} private?`}
+          confirmText="Make private"
+          cancelText={t('cancel')}
+          variant="primary"
+          onConfirm={() => { setConfirmingIncognito(false); setPrivate(true) }}
+          onCancel={() => setConfirmingIncognito(false)}
+        />
       )}
     </>
   )

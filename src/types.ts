@@ -414,4 +414,7 @@ export type MediaItem = {
   collectionIds?: number[]
   /** IDs of the user's curated lists that contain this item. */
   listIds?: number[]
+  /** Hides this shelf entry from other users' view of the shelf, independent
+   *  of the owner's whole-shelf privacy setting. */
+  private?: boolean
 }

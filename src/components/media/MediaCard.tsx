@@ -10,6 +10,7 @@ import {
   IoChatbubbleOutline,
   IoTimeOutline,
 } from 'react-icons/io5'
+import { TbSpy } from 'react-icons/tb'
 import type { MediaItem, ShelfStatus } from '@/types'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { statusLabel, STATUS_COLOR } from '@/lib/shelf'
@@ -296,6 +297,12 @@ export default function MediaCard({
           const label = statusLabel(item.type, status, t)
           const badges = (
             <div className="flex flex-col items-start gap-1">
+              {item.private && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-black/55 px-2 py-0.5 text-[10px] font-semibold text-white/80">
+                  <TbSpy className="h-3 w-3" />
+                  Private
+                </span>
+              )}
               <span className={badgeCls} style={style}>{label}</span>
               {progress && (
                 <span className="rounded-full bg-black/55 px-1.5 py-0.5 text-[10px] font-medium text-white/90">

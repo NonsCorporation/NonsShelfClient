@@ -24,7 +24,7 @@ export const SHELF_META: Record<ShelfStatus, { key: string; dot: string }> = {
 // Next.js server can reuse them for the public /b and /m pages.
 
 type EditionRef = { id: number; title?: string; cover_url?: string; pages?: number; language?: string }
-type ShelfEntry = { media_id: number; status: ShelfStatus; edition_id?: number; note?: string; created_at: number; finished_at?: number; last_activity_at?: number; collection_ids?: number[]; media?: BackendMedia; edition?: EditionRef }
+type ShelfEntry = { media_id: number; status: ShelfStatus; edition_id?: number; note?: string; private?: boolean; created_at: number; finished_at?: number; last_activity_at?: number; collection_ids?: number[]; media?: BackendMedia; edition?: EditionRef }
 type FavoriteEntry = { media_id: number; media?: BackendMedia }
 type RatingEntry = { media_id: number; value: number; review?: string; updated_at?: number; media?: BackendMedia }
 
@@ -240,6 +240,9 @@ export interface ILibraryService {
   setReview(mediaId: string, review: string, share?: boolean): Promise<void>
   /** Save (or clear) the user's private note for a shelf item. Never shared. */
   setNote(mediaId: string, note: string): Promise<void>
+  /** Hide (or unhide) a single shelf entry from other users' view of the
+   *  shelf, independent of the whole-shelf privacy setting. */
+  setPrivate(mediaId: string, isPrivate: boolean): Promise<void>
   /** The user's started/finished reading dates for an item (unix seconds; 0 = unset). */
   getReadDates(mediaId: string): Promise<ReadDates>
   /** Update the user's started/finished reading dates (0 clears a date). */
@@ -317,6 +320,7 @@ class ApiLibraryService implements ILibraryService {
           rating: ratMap.get(e.media_id)?.value,
           review: ratMap.get(e.media_id)?.review,
           note: e.note,
+          private: e.private,
           createdAt: e.created_at,
           finishedAt: e.finished_at || undefined,
           lastActivityAt: e.last_activity_at || undefined,
@@ -405,6 +409,7 @@ class ApiLibraryService implements ILibraryService {
             rating: ratMap.get(e.media_id)?.value,
             review: ratMap.get(e.media_id)?.review,
             note: e.note,
+            private: e.private,
             createdAt: e.created_at,
             finishedAt: e.finished_at || undefined,
             lastActivityAt: e.last_activity_at || undefined,
@@ -521,6 +526,7 @@ class ApiLibraryService implements ILibraryService {
       rating,
       review,
       note: entry?.note,
+      private: entry?.private,
       createdAt: entry?.created_at,
       editionId: entry?.edition_id,
       // The chosen edition's cover/title/pages override the work's, so the page
@@ -554,6 +560,7 @@ class ApiLibraryService implements ILibraryService {
       rating: summary.own as number | undefined,
       review: summary.own_review as string | undefined,
       note: entry?.note,
+      private: entry?.private,
       editionId: entry?.edition_id,
       // The chosen edition's own cover/title/pages, so the detail page can show
       // the printing the user is reading even when that edition isn't in the
@@ -601,6 +608,14 @@ class ApiLibraryService implements ILibraryService {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ note }),
+    })
+  }
+
+  async setPrivate(mediaId: string, isPrivate: boolean): Promise<void> {
+    await authedFetch(`/api/shelf/${Number(mediaId)}/private`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ private: isPrivate }),
     })
   }
 
@@ -750,6 +765,7 @@ class ApiLibraryService implements ILibraryService {
       body: JSON.stringify({ status: item.status || 'wishlist' }),
     })
 
+    if (item.private) await this.setPrivate(String(mediaId), true)
     if (item.favorite) await this.setFavorite(mediaId, true)
     if (typeof item.rating === 'number' && item.rating > 0) await this.setRating(mediaId, item.rating)
 
@@ -769,6 +785,8 @@ class ApiLibraryService implements ILibraryService {
         body: JSON.stringify({ status: updates.status }),
       })
     }
+
+    if ('private' in updates) await this.setPrivate(id, !!updates.private)
 
     if ('favorite' in updates) await this.setFavorite(mediaId, !!updates.favorite)
 

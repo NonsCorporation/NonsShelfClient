@@ -45,13 +45,9 @@ export default function MediaModal({ isOpen, initialData, initialType, catalogOn
   // non-book uses the film-style fields.
   const [type, setType] = useState<MediaType>(initialData?.type || initialType || 'book')
   const [status, setStatus] = useState<ShelfStatus>(initialData?.status || 'wishlist')
-  // purely visual for now — not yet wired to any share/privacy behavior
-  const [incognito, setIncognito] = useState(false)
-  const [incognitoToast, setIncognitoToast] = useState(false)
-  const showIncognitoToast = () => {
-    setIncognitoToast(true)
-    setTimeout(() => setIncognitoToast(false), 2000)
-  }
+  // hides this shelf entry from other users' view of the shelf; applied on save
+  const [incognito, setIncognito] = useState(initialData?.private ?? false)
+  const [confirmingIncognito, setConfirmingIncognito] = useState(false)
 
   const [form, setForm] = useState({
     title: '',
@@ -110,6 +106,7 @@ export default function MediaModal({ isOpen, initialData, initialType, catalogOn
         const baseData: Partial<MediaItem> = {
           type,
           status,
+          private: incognito,
           title: form.title,
           titleEn: form.originalTitle.trim() || undefined,
           author: form.author,
@@ -138,6 +135,7 @@ export default function MediaModal({ isOpen, initialData, initialType, catalogOn
     const baseData: Partial<MediaItem> = {
       type,
       status,
+      private: incognito,
       title: form.title,
       titleEn: form.originalTitle.trim() || undefined,
       author: form.author,

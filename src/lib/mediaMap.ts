@@ -57,6 +57,8 @@ export type Signals = {
   lastActivityAt?: number
   /** IDs of the user's custom collections that contain this item. */
   collectionIds?: number[]
+  /** Hides this shelf entry from other users' view of the shelf. */
+  private?: boolean
 }
 
 export function toMediaItem(m: BackendMedia, s: Signals = {}): MediaItem {
@@ -92,6 +94,7 @@ export function toMediaItem(m: BackendMedia, s: Signals = {}): MediaItem {
     finishedAt: s.finishedAt ? new Date(s.finishedAt * 1000).toISOString() : undefined,
     lastActivityAt: s.lastActivityAt ? new Date(s.lastActivityAt * 1000).toISOString() : undefined,
     collectionIds: s.collectionIds?.length ? s.collectionIds : undefined,
+    private: s.private || undefined,
   }
 }
 
