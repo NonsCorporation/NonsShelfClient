@@ -23,6 +23,9 @@ import {
   IoCheckmark,
   IoDownloadOutline,
   IoBarcodeOutline,
+  IoBookOutline,
+  IoFilmOutline,
+  IoTvOutline,
 } from 'react-icons/io5'
 import { BsSortDown, BsSortUp } from 'react-icons/bs'
 import Layout from '../components/layout/Layout.tsx'
@@ -709,6 +712,18 @@ export default function LibraryScreen() {
     ...(!readOnly ? [{ key: 'favorites' as ShelfKey, label: t('favorites'), dot: '#ff7a85', icon: IoHeartOutline }] : []),
   ]
 
+  const TYPE_ICON: Record<'book' | 'movie' | 'series', typeof IoBookOutline> = {
+    book: IoBookOutline,
+    movie: IoFilmOutline,
+    series: IoTvOutline,
+  }
+  const TypeFilterIcon = typeFilter !== 'all' ? TYPE_ICON[typeFilter] : null
+
+  // Reflects every currently-applied filter (shelf, type, collection, search,
+  // rated/reviewed-only, …) — the same count that drives pagination — so it
+  // tracks the type/collection filters, not just the shelf.
+  const shelfCount = canUseServerSearch ? total : filtered.length
+
   return (
     <Layout>
       <div className="flex gap-6">
@@ -886,6 +901,8 @@ export default function LibraryScreen() {
               {activeCollection.name}
             </span>
           )}
+          {TypeFilterIcon && <TypeFilterIcon className="h-4 w-4 text-[var(--text-muted)]" />}
+          <span className="text-base font-medium text-[var(--text-muted)]">({shelfCount})</span>
         </h1>
         <p className="mt-1 text-sm text-[var(--text-muted)]">{t('librarySubtitle')}</p>
       </div>
