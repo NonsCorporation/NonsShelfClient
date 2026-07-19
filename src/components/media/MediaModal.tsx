@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { IoClose, IoBookOutline, IoFilmOutline, IoTvOutline, IoCloudDownloadOutline } from 'react-icons/io5'
+import { TbSpy } from 'react-icons/tb'
+import ConfirmModal from '@/components/ui/ConfirmModal'
 import { useNavigate } from '@/lib/router'
 import type { MediaItem, MediaType, ShelfStatus } from '@/types.ts'
 import { useLanguage } from '@/contexts/LanguageContext.tsx'
@@ -43,6 +45,13 @@ export default function MediaModal({ isOpen, initialData, initialType, catalogOn
   // non-book uses the film-style fields.
   const [type, setType] = useState<MediaType>(initialData?.type || initialType || 'book')
   const [status, setStatus] = useState<ShelfStatus>(initialData?.status || 'wishlist')
+  // purely visual for now — not yet wired to any share/privacy behavior
+  const [incognito, setIncognito] = useState(false)
+  const [incognitoToast, setIncognitoToast] = useState(false)
+  const showIncognitoToast = () => {
+    setIncognitoToast(true)
+    setTimeout(() => setIncognitoToast(false), 2000)
+  }
 
   const [form, setForm] = useState({
     title: '',
@@ -202,22 +211,49 @@ export default function MediaModal({ isOpen, initialData, initialType, catalogOn
           {!catalogOnly && (
             <div className="flex flex-col gap-1.5">
               <span className="text-sm font-medium text-[var(--text)]">{t('status')}</span>
-              <div className="inline-flex rounded-xl bg-[var(--surface)] p-1 border border-[var(--border-subtle)]">
-                {STATUS_ORDER.map((s) => (
-                  <button
-                    key={s}
-                    type="button"
-                    onClick={() => setStatus(s)}
-                    className={`flex-1 px-3 py-2 rounded-lg text-xs font-medium transition flex items-center justify-center gap-1.5 ${
-                      status === s ? 'bg-[var(--surface-active)] text-[var(--text)]' : 'text-[var(--text-muted)] hover:bg-[var(--surface-hover)]'
-                    }`}
-                  >
-                    <span className="h-2 w-2 rounded-full" style={{ backgroundColor: STATUS_COLOR[s] }} />
-                    {statusLabel(type, s, t)}
-                  </button>
-                ))}
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => (incognito ? setIncognito(false) : setConfirmingIncognito(true))}
+                  title={incognito ? 'Incognito on' : 'Incognito off'}
+                  aria-pressed={incognito}
+                  className={`flex flex-shrink-0 items-center justify-center rounded-xl border p-2 transition-colors ${
+                    incognito
+                      ? 'border-transparent bg-nonsprimary/20 text-nonsprimary'
+                      : 'border-[var(--text)]/70 text-[var(--text-muted)] hover:border-nonsprimary hover:text-[var(--text)]'
+                  }`}
+                >
+                  <TbSpy className="h-4 w-4" />
+                </button>
+                <div className="inline-flex flex-1 rounded-xl bg-[var(--surface)] p-1 border border-[var(--border-subtle)]">
+                  {STATUS_ORDER.map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => setStatus(s)}
+                      className={`flex-1 px-3 py-2 rounded-lg text-xs font-medium transition flex items-center justify-center gap-1.5 ${
+                        status === s ? 'bg-[var(--surface-active)] text-[var(--text)]' : 'text-[var(--text-muted)] hover:bg-[var(--surface-hover)]'
+                      }`}
+                    >
+                      <span className="h-2 w-2 rounded-full" style={{ backgroundColor: incognito ? 'var(--text-muted)' : STATUS_COLOR[s] }} />
+                      {statusLabel(type, s, t)}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
+          )}
+
+          {confirmingIncognito && (
+            <ConfirmModal
+              title="Go incognito?"
+              message={`Are you sure you want to make this ${type} private?`}
+              confirmText="Make private"
+              cancelText={t('cancel')}
+              variant="primary"
+              onConfirm={() => { setConfirmingIncognito(false); setIncognito(true) }}
+              onCancel={() => setConfirmingIncognito(false)}
+            />
           )}
 
           {/* For books in edit mode, title is managed per-edition; hide the

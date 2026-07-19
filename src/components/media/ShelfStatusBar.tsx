@@ -3,6 +3,7 @@
 import { createPortal } from 'react-dom'
 import { useEffect, useRef, useState, useId } from 'react'
 import { IoChevronDown, IoCheckmark, IoAdd, IoTrendingUpOutline, IoClose, IoFolderOutline, IoLayersOutline, IoTrashOutline } from 'react-icons/io5'
+import { TbSpy } from 'react-icons/tb'
 import type { MediaItem, ShelfStatus } from '@/types'
 import { STATUS_COLOR, statusLabel } from '@/lib/shelf'
 import { useLanguage } from '@/contexts/LanguageContext'
@@ -86,6 +87,13 @@ export default function ShelfStatusBar({ item, currentStatus, onStatusChange, on
   const [anchor, setAnchor] = useState<{ top?: number; bottom?: number; left: number; width: number; placement: 'up' | 'down' } | null>(null)
   const btnRef = useRef<HTMLDivElement>(null)
   const [confirmingRemove, setConfirmingRemove] = useState(false)
+  // purely visual for now — not yet wired to any share/privacy behavior
+  const [incognito, setIncognito] = useState(false)
+  const [incognitoToast, setIncognitoToast] = useState(false)
+  const showIncognitoToast = () => {
+    setIncognitoToast(true)
+    setTimeout(() => setIncognitoToast(false), 2000)
+  }
 
   // uniquely identifies this instance of the component to scope outside-click events
   const popoverId = useId()
@@ -241,8 +249,20 @@ export default function ShelfStatusBar({ item, currentStatus, onStatusChange, on
     <>
       {/* renders the shelf status options */}
       <div className="flex flex-wrap gap-1.5">
+        <button
+          onClick={showIncognitoToast}
+          title={incognito ? 'Incognito on' : 'Incognito off'}
+          aria-pressed={incognito}
+          className={`flex items-center justify-center rounded-full border px-2.5 py-1.5 transition-colors ${
+            incognito
+              ? 'border-transparent bg-nonsprimary/20 text-nonsprimary'
+              : 'border-[var(--text)]/70 text-[var(--text-muted)] hover:border-nonsprimary hover:text-[var(--text)]'
+          }`}
+        >
+          <TbSpy className="h-3.5 w-3.5" />
+        </button>
         {statusOptions.map((opt) => {
-          const color = STATUS_COLOR[opt.key]
+          const color = incognito ? 'var(--text-muted)' : STATUS_COLOR[opt.key]
           const isCurrent = onShelf && opt.key === currentStatus
           return (
             <button
@@ -442,7 +462,7 @@ export default function ShelfStatusBar({ item, currentStatus, onStatusChange, on
             {!onShelf && <IoAdd className="h-3.5 w-3.5 flex-shrink-0 text-[var(--text-muted)]" />}
             <span className="truncate">{currentLabel}</span>
             {onShelf && (
-              <span className="h-2 w-2 flex-shrink-0 rounded-full border-[1.5px]" style={{ borderColor: accent }} />
+              <span className="h-2 w-2 flex-shrink-0 rounded-full border-[1.5px]" style={{ borderColor: incognito ? 'var(--text-muted)' : accent }} />
             )}
           </button>
         </div>
@@ -450,7 +470,7 @@ export default function ShelfStatusBar({ item, currentStatus, onStatusChange, on
         <div className="flex items-center gap-1">
           <div
             ref={btnRef}
-            style={{ borderLeftColor: accent, color: accent }}
+            style={{ borderLeftColor: incognito ? 'var(--text-muted)' : accent, color: incognito ? 'var(--text-muted)' : accent }}
             className="flex min-w-0 flex-1 items-center rounded-r-lg border-l-[3px]"
           >
             <button
@@ -547,6 +567,13 @@ export default function ShelfStatusBar({ item, currentStatus, onStatusChange, on
           onConfirm={() => { setConfirmingRemove(false); onRemove?.() }}
           onCancel={() => setConfirmingRemove(false)}
         />
+      )}
+
+      {incognitoToast && createPortal(
+        <div className="fixed bottom-28 left-1/2 z-[80] -translate-x-1/2 rounded-xl border border-[var(--border)] bg-[var(--container)] px-4 py-2.5 text-sm text-[var(--text)] shadow-lg backdrop-blur-sm lg:bottom-6">
+          Coming soon
+        </div>,
+        document.body,
       )}
     </>
   )
