@@ -109,6 +109,7 @@ export default function ActivityCard({
   const [shareOpen, setShareOpen] = useState(false)
   const [finishOpen, setFinishOpen] = useState(false)
   const [descOpen, setDescOpen] = useState(false)
+  const [reviewOpen, setReviewOpen] = useState(false)
   // The catalog's page count, fetched only when Share opens (Activity itself
   // doesn't carry it) — needed for the share card's progress bar.
   const [sharePages, setSharePages] = useState<number | undefined>(undefined)
@@ -259,7 +260,18 @@ export default function ActivityCard({
 
       {/* review text, above the media card when present */}
       {a.text && (
-        <ReviewContent content={a.text} className="mb-3 text-sm leading-6 text-[var(--text)]" />
+        <div className="mb-3">
+          <ReviewContent content={a.text} className={`text-sm leading-6 text-[var(--text)] ${reviewOpen ? '' : 'line-clamp-6'}`} />
+          {!reviewOpen && a.text.length > 240 && (
+            <button
+              type="button"
+              onClick={() => setReviewOpen(true)}
+              className="mt-1 font-medium text-nonsprimary hover:underline"
+            >
+              {t('showMore')}
+            </button>
+          )}
+        </div>
       )}
 
       {/* body: cover + details */}
