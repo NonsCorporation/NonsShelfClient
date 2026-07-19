@@ -9,7 +9,7 @@ import { collectionService } from '../services/collectionService'
 import { challengeService } from '../services/challengeService'
 import Pagination from '@/components/ui/Pagination'
 import { fetchPublicProfile } from '../services/userService'
-import { nonsProfileUrl, nonsFetch, authedFetch, NONS_LOGIN_URL } from '../lib/api'
+import { nonsProfileUrl, nonsFetch, authedFetch, NONS_APP_URL } from '../lib/api'
 import type { MediaItem, ShelfStatus, Collection, Challenge } from '../types'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
@@ -623,7 +623,7 @@ export default function ProfilePage() {
           </div>
           {friends.length === 0 ? (
             <a
-              href={`${NONS_LOGIN_URL}/friends`}
+              href={`${NONS_APP_URL}/friends`}
               target="_blank"
               rel="noopener noreferrer"
               className="group/empty flex items-center gap-3 rounded-xl border border-dashed border-[var(--border-subtle)] px-4 py-3 transition-colors hover:border-nonsprimary"

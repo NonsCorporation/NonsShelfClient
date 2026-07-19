@@ -22,7 +22,7 @@ import { useLanguage } from '../../contexts/LanguageContext'
 import LanguageSelect from '@/components/ui/LanguageSelect'
 import { useAuth } from '../../contexts/AuthContext'
 import { useNotifications } from '../../contexts/NotificationContext'
-import { NONS_LOGIN_URL } from '../../lib/api'
+import { NONS_APP_URL } from '../../lib/api'
 import { useLoginModal } from '../../contexts/LoginModalContext'
 import BoringAvatar from '@/components/ui/BoringAvatar'
 import { userPath, mediaPath } from '../../lib/paths'
@@ -201,7 +201,7 @@ export default function Header() {
                     </Link>
 
                     <a
-                      href={NONS_LOGIN_URL}
+                      href={NONS_APP_URL}
                       target="_blank"
                       rel="noopener noreferrer"
                       onClick={() => setAccountOpen(false)}
@@ -380,7 +380,7 @@ export default function Header() {
                 <div className="h-px bg-[var(--border-subtle)]" />
 
                 <a
-                  href={NONS_LOGIN_URL}
+                  href={NONS_APP_URL}
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={() => setProfileOpen(false)}
