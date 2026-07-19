@@ -181,6 +181,7 @@ export const ro = {
   shelfDone: 'Terminat',
   shelfDNF: 'Abandonat',
   collections: 'Colecții',
+  searchCollectionsAndLists: 'Caută colecții și liste…',
   newCollection: 'Colecție nouă',
   collectionName: 'Nume…',
   createCollection: 'Creează',

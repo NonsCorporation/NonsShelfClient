@@ -181,6 +181,7 @@ export const en = {
   shelfDone: 'Finished',
   shelfDNF: 'Did not finish',
   collections: 'Collections',
+  searchCollectionsAndLists: 'Search collections & lists…',
   newCollection: 'New collection',
   collectionName: 'Name…',
   createCollection: 'Create',

@@ -181,6 +181,7 @@ export const ru = {
   shelfDone: 'Завершено',
   shelfDNF: 'Брошено',
   collections: 'Коллекции',
+  searchCollectionsAndLists: 'Поиск коллекций и списков…',
   newCollection: 'Новая коллекция',
   collectionName: 'Название…',
   createCollection: 'Создать',

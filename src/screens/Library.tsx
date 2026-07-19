@@ -87,12 +87,21 @@ export default function LibraryScreen() {
   const [creatingCol, setCreatingCol] = useState(false)
   const [newColName, setNewColName] = useState('')
   const newColInputRef = useRef<HTMLInputElement>(null)
+  // Past this many, the desktop sidebar collapses the list behind "Show all".
+  const COLLECTIONS_COLLAPSE_AT = 6
+  const [collectionsExpanded, setCollectionsExpanded] = useState(false)
 
   // Sidebar curated-list creation state (editing a list happens on its own
   // /list/<id> page, not here — see ListDetail.tsx).
   const [creatingList, setCreatingList] = useState(false)
   const [newListTitle, setNewListTitle] = useState('')
   const newListInputRef = useRef<HTMLInputElement>(null)
+
+  // Sidebar collections/lists name filter — collapsed behind a search icon
+  // since most libraries only have a handful, but some have many.
+  const [colSearchOpen, setColSearchOpen] = useState(false)
+  const [colSearchQuery, setColSearchQuery] = useState('')
+  const colSearchInputRef = useRef<HTMLInputElement>(null)
 
   // /u/<username>/library opens another user's library read-only (the "open
   // full library" button on a profile links here) — a real route segment, not
@@ -110,6 +119,25 @@ export default function LibraryScreen() {
   // delete). Empty when their shelf is private or they have none.
   const [otherCollections, setOtherCollections] = useState<Collection[]>([])
   const visibleCollections = readOnly ? otherCollections : collections
+  const colSearchNeedle = colSearchQuery.trim().toLowerCase()
+  const filteredCollections = colSearchNeedle
+    ? visibleCollections.filter((c) => c.name.toLowerCase().includes(colSearchNeedle))
+    : visibleCollections
+  const filteredLists = colSearchNeedle
+    ? lists.filter((l) => l.title.toLowerCase().includes(colSearchNeedle))
+    : lists
+
+  // Desktop sidebar: past COLLECTIONS_COLLAPSE_AT, hide the rest behind
+  // "Show all" — unless actively searching, or the URL-selected collection
+  // would otherwise be hidden.
+  const collectionsOverflow = filteredCollections.length > COLLECTIONS_COLLAPSE_AT
+  const activeCollectionHidden =
+    collectionsOverflow &&
+    collectionFilter !== null &&
+    filteredCollections.findIndex((c) => c.id === collectionFilter) >= COLLECTIONS_COLLAPSE_AT
+  const showAllCollections = collectionsExpanded || !!colSearchNeedle || activeCollectionHidden
+  const displayedCollections =
+    collectionsOverflow && !showAllCollections ? filteredCollections.slice(0, COLLECTIONS_COLLAPSE_AT) : filteredCollections
 
   // Local search — filters the user's own library. The global top-bar search
   // goes to Discover and searches the whole catalog instead. Debounced before
@@ -763,11 +791,38 @@ export default function LibraryScreen() {
         {/* Collections — own (editable) or another user's (view/filter only). */}
         {(!readOnly || visibleCollections.length > 0) && (
           <div className="mt-4">
-            <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-[var(--text-muted)]">
-              {t('collections') || 'Collections'}
-            </p>
+            <div className="mb-1.5 flex items-center gap-1 px-2">
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--text-muted)]">
+                {t('collections') || 'Collections'}
+              </p>
+              {(visibleCollections.length + lists.length > 1) && (
+                <button
+                  onClick={() => {
+                    setColSearchOpen((v) => !v)
+                    setColSearchQuery('')
+                    setTimeout(() => colSearchInputRef.current?.focus(), 30)
+                  }}
+                  title={t('search') || 'Search'}
+                  className={`ml-auto flex-shrink-0 rounded-md p-1 transition-colors ${
+                    colSearchOpen ? 'text-nonsprimary' : 'text-[var(--text-muted)] hover:text-[var(--text)]'
+                  }`}
+                >
+                  <IoSearch className="h-3 w-3" />
+                </button>
+              )}
+            </div>
+            {colSearchOpen && (
+              <input
+                ref={colSearchInputRef}
+                value={colSearchQuery}
+                onChange={(e) => setColSearchQuery(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Escape') { setColSearchOpen(false); setColSearchQuery('') } }}
+                placeholder={t('searchCollectionsAndLists') || 'Search collections & lists…'}
+                className="mb-1.5 h-8 w-full rounded-lg border border-[var(--border-subtle)] bg-[var(--input)] px-2.5 text-xs text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-ring)]"
+              />
+            )}
 
-            {visibleCollections.map((col) => {
+            {displayedCollections.map((col) => {
               const active = collectionFilter === col.id
               return (
                 <div key={col.id} className="group flex items-center gap-0.5">
@@ -797,6 +852,18 @@ export default function LibraryScreen() {
                 </div>
               )
             })}
+
+            {collectionsOverflow && !activeCollectionHidden && (
+              <button
+                onClick={() => setCollectionsExpanded((v) => !v)}
+                className="mt-0.5 flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-[var(--text-muted)] hover:text-[var(--text)]"
+              >
+                <IoChevronDown className={`h-3 w-3 transition-transform ${collectionsExpanded ? 'rotate-180' : ''}`} />
+                {collectionsExpanded
+                  ? (t('showLess') || 'Show less')
+                  : `${t('showAll') || 'Show all'} (${filteredCollections.length})`}
+              </button>
+            )}
 
             {!readOnly && (creatingCol ? (
               <div className="mt-1 flex items-center gap-1">
@@ -840,7 +907,7 @@ export default function LibraryScreen() {
               <InfoTooltip text={t('listsInfoTooltip')} />
             </p>
 
-            {lists.map((l) => (
+            {filteredLists.map((l) => (
               <Link
                 key={l.id}
                 to={`/list/${l.id}`}
@@ -937,8 +1004,35 @@ export default function LibraryScreen() {
       {/* Collection chips — mobile only. Own (editable) or another user's (view/filter only). */}
       {(visibleCollections.length > 0 || (!readOnly && creatingCol)) && (
         <div className="mb-4 lg:hidden">
+          {colSearchOpen && (
+            <input
+              ref={colSearchInputRef}
+              value={colSearchQuery}
+              onChange={(e) => setColSearchQuery(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Escape') { setColSearchOpen(false); setColSearchQuery('') } }}
+              placeholder={t('searchCollectionsAndLists') || 'Search collections & lists…'}
+              className="mb-1.5 h-8 w-full rounded-lg border border-[var(--border-subtle)] bg-[var(--input)] px-2.5 text-xs text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-ring)]"
+            />
+          )}
           <div className="no-scrollbar -mx-4 flex items-center gap-1.5 overflow-x-auto px-4 pb-1">
-            {visibleCollections.map((col) => {
+            {(visibleCollections.length + lists.length > 1) && (
+              <button
+                onClick={() => {
+                  setColSearchOpen((v) => !v)
+                  setColSearchQuery('')
+                  setTimeout(() => colSearchInputRef.current?.focus(), 30)
+                }}
+                title={t('search') || 'Search'}
+                className={`flex shrink-0 items-center justify-center rounded-full border p-1.5 transition-colors ${
+                  colSearchOpen
+                    ? 'border-nonsprimary text-nonsprimary'
+                    : 'border-[var(--border-subtle)] text-[var(--text-muted)]'
+                }`}
+              >
+                <IoSearch className="h-3 w-3" />
+              </button>
+            )}
+            {filteredCollections.map((col) => {
               const active = collectionFilter === col.id
               return (
                 <div
@@ -1009,7 +1103,7 @@ export default function LibraryScreen() {
       {!readOnly && (lists.length > 0 || creatingList) && (
         <div className="mb-4 lg:hidden">
           <div className="no-scrollbar -mx-4 flex items-center gap-1.5 overflow-x-auto px-4 pb-1">
-            {lists.map((l) => (
+            {filteredLists.map((l) => (
               <Link
                 key={l.id}
                 to={`/list/${l.id}`}
