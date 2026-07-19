@@ -2,11 +2,12 @@ import { useState, useEffect, useCallback } from 'react'
 import { IoClose, IoBookOutline, IoFilmOutline, IoTvOutline, IoCloudDownloadOutline } from 'react-icons/io5'
 import { TbSpy } from 'react-icons/tb'
 import ConfirmModal from '@/components/ui/ConfirmModal'
-import { useNavigate } from '@/lib/router'
+import { Link, useNavigate } from '@/lib/router'
 import type { MediaItem, MediaType, ShelfStatus } from '@/types.ts'
 import { useLanguage } from '@/contexts/LanguageContext.tsx'
+import { useAuth } from '@/contexts/AuthContext'
 import { STATUS_ORDER, STATUS_COLOR, statusLabel } from '@/lib/shelf'
-import { mediaPath } from '@/lib/paths'
+import { mediaPath, userPath } from '@/lib/paths'
 import EditionsManager from '@/components/media/EditionsManager'
 import GenreSuggestions from '@/components/media/GenreSuggestions'
 import GenrePicker from '@/components/media/GenrePicker'
@@ -36,6 +37,7 @@ type MediaModalProps = {
 
 export default function MediaModal({ isOpen, initialData, initialType, catalogOnly, withEditions, suggestionMode, mediaUuid, onClose, onSave, onDelete }: MediaModalProps) {
   const { t } = useLanguage()
+  const { user } = useAuth()
   const navigate = useNavigate()
 
   // Decide if we are editing or creating
@@ -245,7 +247,25 @@ export default function MediaModal({ isOpen, initialData, initialType, catalogOn
           {confirmingIncognito && (
             <ConfirmModal
               title="Go incognito?"
-              message={`Are you sure you want to make this ${type} private?`}
+              icon={<TbSpy className="h-5 w-5" />}
+              message={
+                <>
+                  <p>
+                    This hides this {type} from your library and activity when other people view your profile —
+                    it stays visible only to you.
+                  </p>
+                  <p className="mt-2">
+                    Want this for your whole shelf instead of one item at a time?{' '}
+                    {user && (
+                      <Link to={`${userPath(user.username)}#settings`} className="font-medium text-nonsprimary hover:underline">
+                        Manage your privacy settings
+                      </Link>
+                    )}
+                    {!user && <span className="font-medium">Manage your privacy settings from your profile</span>}
+                    {' '}to set it for every shelf item at once.
+                  </p>
+                </>
+              }
               confirmText="Make private"
               cancelText={t('cancel')}
               variant="primary"

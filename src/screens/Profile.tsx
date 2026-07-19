@@ -228,6 +228,26 @@ export default function ProfilePage() {
     return () => { cancelled = true }
   }, [profile])
 
+  // Reflects the settings modal in the URL as #settings, so it can be linked
+  // to directly (e.g. from the incognito confirm's "manage your privacy
+  // settings" link) and closes/reopens correctly with browser back/forward.
+  useEffect(() => {
+    if (typeof window === 'undefined' || !isSelf) return
+    const sync = () => setSettingsOpen(window.location.hash === '#settings')
+    sync()
+    window.addEventListener('hashchange', sync)
+    return () => window.removeEventListener('hashchange', sync)
+  }, [isSelf])
+
+  const openSettings = () => {
+    window.history.pushState(null, '', '#settings')
+    setSettingsOpen(true)
+  }
+  const closeSettings = () => {
+    window.history.replaceState(null, '', window.location.pathname + window.location.search)
+    setSettingsOpen(false)
+  }
+
   // Own profile: pull the current year's reading challenge (viewer-aware) even
   // when unjoined, so its shield appears as a "join" prompt. Other profiles use
   // only the owner's joined list, so an unset goal simply doesn't show.
@@ -564,7 +584,7 @@ export default function ProfilePage() {
             {/* Settings — own profile only; opens the full settings modal */}
             {isSelf && (
               <button
-                onClick={() => setSettingsOpen(true)}
+                onClick={openSettings}
                 aria-label={t('settingsTitle')}
                 className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border-subtle)] text-[var(--text-muted)] transition-colors hover:bg-[var(--surface)] hover:text-[var(--text)]"
               >
@@ -841,7 +861,7 @@ export default function ProfilePage() {
         )}
       </section>
 
-      <SettingsModal isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} onOpenImport={() => setImportOpen(true)} />
+      <SettingsModal isOpen={settingsOpen} onClose={closeSettings} onOpenImport={() => setImportOpen(true)} />
       <ImportModal isOpen={importOpen} onClose={() => setImportOpen(false)} onImported={() => setRefreshTick((n) => n + 1)} />
       <ProfileShareModal
         isOpen={shareOpen}

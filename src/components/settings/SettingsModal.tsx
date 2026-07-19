@@ -11,7 +11,8 @@ import {
   IoTrashOutline,
   IoOpenOutline,
 } from 'react-icons/io5'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import type { IconType } from 'react-icons'
 import { useLanguage } from '@/contexts/LanguageContext'
 import LanguageSelect from '@/components/ui/LanguageSelect'
@@ -70,6 +71,15 @@ export default function SettingsModal({ isOpen, onClose, onOpenImport }: Props) 
   const [wipeStep, setWipeStep] = useState(0)
   const [wiping, setWiping] = useState(false)
 
+  // Locks the page's own scroll while the modal is open, so only the modal's
+  // own content scrolls (matches FindSomething's pattern).
+  useEffect(() => {
+    if (!isOpen) return
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = prev }
+  }, [isOpen])
+
   const wipeLibrary = async () => {
     setWiping(true)
     try {
@@ -83,9 +93,10 @@ export default function SettingsModal({ isOpen, onClose, onOpenImport }: Props) 
   }
 
   if (!isOpen) return null
+  if (typeof document === 'undefined') return null
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
+  return createPortal(
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
       <div
         className="flex max-h-[88vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--container)]"
         onClick={(e) => e.stopPropagation()}
@@ -257,7 +268,8 @@ export default function SettingsModal({ isOpen, onClose, onOpenImport }: Props) 
           onCancel={() => setWipeStep(0)}
         />
       )}
-    </div>
+    </div>,
+    document.body,
   )
 }
 

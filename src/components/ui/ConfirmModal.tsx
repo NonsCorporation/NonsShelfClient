@@ -1,5 +1,6 @@
 'use client'
 
+import type { ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 
 // Confirmation popup (ported from nons-client, adapted to the library's CSS-var
@@ -12,6 +13,7 @@ import { createPortal } from 'react-dom'
 export default function ConfirmModal({
   title,
   message,
+  icon,
   onConfirm,
   onCancel,
   confirmText = 'Confirm',
@@ -20,7 +22,9 @@ export default function ConfirmModal({
   busy = false,
 }: {
   title: string
-  message: string
+  message: ReactNode
+  /** Optional icon shown in a circle above the title. */
+  icon?: ReactNode
   onConfirm: () => void
   onCancel: () => void
   confirmText?: string
@@ -40,8 +44,13 @@ export default function ConfirmModal({
         onClick={(e) => e.stopPropagation()}
         className="animate-fade-up w-full max-w-sm rounded-2xl border border-[var(--border)] bg-[var(--container)] p-6 shadow-2xl"
       >
+        {icon && (
+          <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-nonsprimary/15 text-nonsprimary">
+            {icon}
+          </div>
+        )}
         <h2 className="mb-2 text-lg font-semibold text-[var(--text)]">{title}</h2>
-        <p className="mb-6 text-sm leading-relaxed text-[var(--text-muted)]">{message}</p>
+        <div className="mb-6 text-sm leading-relaxed text-[var(--text-muted)]">{message}</div>
         <div className="flex justify-end gap-3">
           <button
             onClick={onCancel}

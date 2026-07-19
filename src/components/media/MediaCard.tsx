@@ -293,17 +293,14 @@ export default function MediaCard({
         {/* top-left status zone */}
         {(() => {
           const badgeCls = 'inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-semibold text-white'
-          const style = { backgroundColor: `${STATUS_COLOR[status]}d0` }
+          const style = { backgroundColor: item.private ? 'rgba(120,120,128,0.85)' : `${STATUS_COLOR[status]}d0` }
           const label = statusLabel(item.type, status, t)
           const badges = (
             <div className="flex flex-col items-start gap-1">
-              {item.private && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-black/55 px-2 py-0.5 text-[10px] font-semibold text-white/80">
-                  <TbSpy className="h-3 w-3" />
-                  Private
-                </span>
-              )}
-              <span className={badgeCls} style={style}>{label}</span>
+              <span className={badgeCls} style={style}>
+                {item.private && <TbSpy className="h-3 w-3" />}
+                {label}
+              </span>
               {progress && (
                 <span className="rounded-full bg-black/55 px-1.5 py-0.5 text-[10px] font-medium text-white/90">
                   {progress.label}

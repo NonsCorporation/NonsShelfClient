@@ -6,7 +6,10 @@ import { IoChevronDown, IoCheckmark, IoAdd, IoTrendingUpOutline, IoClose, IoFold
 import { TbSpy } from 'react-icons/tb'
 import type { MediaItem, ShelfStatus } from '@/types'
 import { STATUS_COLOR, statusLabel } from '@/lib/shelf'
+import { userPath } from '@/lib/paths'
+import { Link } from '@/lib/router'
 import { useLanguage } from '@/contexts/LanguageContext'
+import { useAuth } from '@/contexts/AuthContext'
 import { useCollections } from '@/contexts/CollectionContext'
 import { useLists } from '@/contexts/ListContext'
 import { collectionService } from '@/services/collectionService'
@@ -25,6 +28,7 @@ type Props = {
 
 export default function ShelfStatusBar({ item, currentStatus, onStatusChange, onEditProgress, onRemove, variant = 'bar' }: Props) {
   const { t } = useLanguage()
+  const { user } = useAuth()
   const { collections, createCollection, refresh } = useCollections()
   const { lists, createList, refresh: refreshLists } = useLists()
   const isBook = item.type === 'book'
@@ -578,7 +582,25 @@ export default function ShelfStatusBar({ item, currentStatus, onStatusChange, on
       {confirmingIncognito && (
         <ConfirmModal
           title="Go incognito?"
-          message={`Are you sure you want to make this ${mediaLabel} private?`}
+          icon={<TbSpy className="h-5 w-5" />}
+          message={
+            <>
+              <p>
+                This hides this {mediaLabel} from your library and activity when other people view your profile —
+                it stays visible only to you.
+              </p>
+              <p className="mt-2">
+                Want this for your whole shelf instead of one item at a time?{' '}
+                {user && (
+                  <Link to={`${userPath(user.username)}#settings`} className="font-medium text-nonsprimary hover:underline">
+                    Manage your privacy settings
+                  </Link>
+                )}
+                {!user && <span className="font-medium">Manage your privacy settings from your profile</span>}
+                {' '}to set it for every shelf item at once.
+              </p>
+            </>
+          }
           confirmText="Make private"
           cancelText={t('cancel')}
           variant="primary"
