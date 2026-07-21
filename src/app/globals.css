@@ -487,20 +487,20 @@ html[data-theme="light"] .review-content .spoiler-text.revealed {
    calc() and still change size at the md breakpoint (a JSX inline style can't
    carry a media query). Consumed by src/screens/Calendar.tsx.
 
-   Sized for mobile first: a finish's cover now overlaps the end of its own
-   line instead of sitting in dedicated footer space, so there's no separate
+   Sized for mobile first: a finish's cover is centered in its day cell (both
+   axes) rather than sitting in dedicated footer space, so there's no separate
    strip to reserve — --cal-cover is just a small safety cushion for the rare
    week where the deepest lane is actually in use. --cal-cover-w/-h are the
    cover badge's own fixed pixel size (not a % of the cell), so it reads as a
-   small marker pinned onto the timeline rather than stretching with the grid. */
+   marker stamped on the day rather than stretching with the grid. */
 .reading-cal {
   --cal-top: 14px;      /* day-number strip above the first bar */
   --cal-bar: 11px;      /* one labelled reading bar */
   --cal-gap: 3px;       /* between labelled bars */
   --cal-thin: 3px;      /* an overflow read, drawn as a bare line */
   --cal-thin-gap: 2px;  /* between overflow lines */
-  --cal-cover-w: 24px;  /* finished-book cover badge, fixed size */
-  --cal-cover-h: 36px;
+  --cal-cover-w: 34px;  /* finished-book cover badge, fixed size, centered in the cell */
+  --cal-cover-h: 51px;
   --cal-cover: 16px;    /* bottom safety cushion for the deepest lane */
   --cal-inset: 2px;     /* horizontal breathing room at a run's rounded ends */
 }
@@ -511,8 +511,8 @@ html[data-theme="light"] .review-content .spoiler-text.revealed {
     --cal-gap: 4px;
     --cal-thin: 4px;
     --cal-thin-gap: 3px;
-    --cal-cover-w: 34px;
-    --cal-cover-h: 51px;
+    --cal-cover-w: 46px;
+    --cal-cover-h: 69px;
     --cal-cover: 24px;
     --cal-inset: 3px;
   }

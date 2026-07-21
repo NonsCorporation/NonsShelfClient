@@ -554,10 +554,12 @@ export default function CalendarPage() {
                                                             {!run.thin && span > 1 && <span className="truncate whitespace-nowrap">{run.book.title}</span>}
                                                         </Link>
 
-                                                        {/* The finish itself: a cover badge pinned right where the
-                                                            line trails off, overlapping it rather than sitting in
-                                                            dedicated space of its own — each book already owns a
-                                                            lane, so simultaneous finishes never collide. */}
+                                                        {/* The finish itself: a cover badge centered in its day
+                                                            cell (both axes), overlapping whatever lines pass
+                                                            through that cell rather than sitting in dedicated
+                                                            space of its own. Two books finishing the same day is
+                                                            the one case where badges can land on top of each
+                                                            other, since centering no longer keys off a lane. */}
                                                         {run.finishes && (
                                                             <Link
                                                                 to={run.book.to}
