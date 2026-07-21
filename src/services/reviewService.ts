@@ -47,6 +47,8 @@ const EMPTY: ReviewsPage = { items: [], total: 0, average: 0, count: 0 }
 export interface ReviewQuery {
   sort?: ReviewSort
   withReview?: boolean
+  /** Only return reviews of 5+ sentences. Implies withReview. */
+  detailed?: boolean
   page?: number
   perPage?: number
   /** When set, only return reviews from these user IDs (friends filter). */
@@ -63,6 +65,7 @@ export async function getReviews(mediaId: number | string, q: ReviewQuery = {}):
     offset: String((q.page ?? 0) * perPage),
   })
   if (q.withReview) params.set('with_review', '1')
+  if (q.detailed) params.set('detailed', '1')
   if (q.userIds && q.userIds.length > 0) params.set('user_ids', q.userIds.join(','))
   try {
     const res = await authedFetch(`/api/media/${mediaId}/reviews?${params}`)

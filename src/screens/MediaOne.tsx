@@ -193,6 +193,7 @@ export default function MediaOnePage({
   const [commPage, setCommPage] = useState(0)
   const [commSort, setCommSort] = useState<CommSort>('newest')
   const [commWithReview, setCommWithReview] = useState(false)
+  const [commDetailedOnly, setCommDetailedOnly] = useState(false)
   const [reviewsPage, setReviewsPage] = useState<ReviewsPage>({ items: [], total: 0, average: 0, count: 0 })
   const [reviewsLoading, setReviewsLoading] = useState(false)
   const [friendReviews, setFriendReviews] = useState<CommunityReview[]>([])
@@ -336,13 +337,13 @@ export default function MediaOnePage({
     if (!mediaNumId) return
     let cancelled = false
     setReviewsLoading(true)
-    getReviews(mediaNumId, { sort: commSort, withReview: commWithReview, page: commPage, perPage: COMM_PER_PAGE })
+    getReviews(mediaNumId, { sort: commSort, withReview: commWithReview, detailed: commDetailedOnly, page: commPage, perPage: COMM_PER_PAGE })
       .then((p) => { if (!cancelled) setReviewsPage(p) })
       .finally(() => { if (!cancelled) setReviewsLoading(false) })
     return () => {
       cancelled = true
     }
-  }, [mediaNumId, commSort, commWithReview, commPage])
+  }, [mediaNumId, commSort, commWithReview, commDetailedOnly, commPage])
 
   // Friends' ratings/reviews AND shelf statuses (want-to-read/reading/etc.)
   // for this media item. Loads once per page visit: fetches the friend list
@@ -659,7 +660,7 @@ export default function MediaOnePage({
           on the right. The full-size cover + the desktop title block below are
           hidden on mobile so this doesn't duplicate on screen. */}
       <div className="mb-6 flex gap-4 md:hidden">
-        <div className="relative aspect-[2/3] w-24 flex-shrink-0 overflow-hidden rounded-xl border border-[var(--border-subtle)]">
+        <div className="relative aspect-[2/3] w-36 flex-shrink-0 overflow-hidden rounded-xl border border-[var(--border-subtle)]">
           {coverUrl ? (
             <img src={coverUrl} alt={displayTitle} className="h-full w-full object-cover" />
           ) : (
@@ -676,6 +677,25 @@ export default function MediaOnePage({
               <>
                 <span className="text-[var(--border-strong)]">·</span>
                 <span>{item.year}</span>
+              </>
+            )}
+            {!isBook && altLangs.length > 0 && (
+              <>
+                <span className="text-[var(--border-strong)]">·</span>
+                <span className="relative inline-flex items-center gap-1">
+                  <IoLanguageOutline className="h-3 w-3 text-[var(--text-muted)]" />
+                  <select
+                    value={mediaLang}
+                    onChange={(e) => setMediaLang(e.target.value)}
+                    className="appearance-none bg-transparent pr-3 text-[10px] uppercase tracking-widest text-[var(--text-muted)] focus:outline-none cursor-pointer hover:text-[var(--text)] transition-colors"
+                  >
+                    <option value="">Default</option>
+                    {altLangs.map((lang) => (
+                      <option key={lang.code} value={lang.code}>{lang.label}</option>
+                    ))}
+                  </select>
+                  <IoChevronDown className="pointer-events-none absolute right-0 h-2.5 w-2.5" />
+                </span>
               </>
             )}
           </div>
@@ -718,6 +738,46 @@ export default function MediaOnePage({
               />
             </div>
           )}
+
+          {canInteract && (
+            <div className="mt-3 rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface)] p-3">
+              <div className="flex gap-2">
+                <button
+                  onClick={() => patch({ favorite: !item.favorite })}
+                  className={`flex h-10 flex-1 items-center justify-center gap-2 rounded-xl text-sm font-medium transition-all ${
+                    item.favorite
+                      ? 'bg-nonsprimary text-white'
+                      : 'border border-[var(--border-subtle)] bg-[var(--surface)] text-[var(--text-muted)] hover:text-[var(--text)]'
+                  }`}
+                >
+                  {item.favorite ? <IoHeart className="h-4 w-4" /> : <IoHeartOutline className="h-4 w-4" />}
+                  {item.favorite ? t('saved') : t('save')}
+                </button>
+                <button
+                  onClick={() => setShareOpen(true)}
+                  className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] text-[var(--text-muted)] transition-colors hover:text-[var(--text)]"
+                >
+                  <IoShareOutline className="h-4 w-4" />
+                </button>
+                {status !== null && (
+                  <button
+                    onClick={() => { setNoteEditText(userNote); setEditingNote(true); document.getElementById('private-note-section')?.scrollIntoView({ behavior: 'smooth', block: 'center' }) }}
+                    title={t('privateNote') || 'Private note'}
+                    className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] text-[var(--text-muted)] transition-colors hover:border-nonsprimary hover:text-nonsprimary"
+                  >
+                    <FiClipboard className="h-4 w-4" />
+                  </button>
+                )}
+                <button
+                  onClick={() => setEditing(true)}
+                  title={isLibrarian(user?.role) ? t('edit') : 'Suggest an edit'}
+                  className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] text-[var(--text-muted)] transition-colors hover:border-nonsprimary hover:text-nonsprimary"
+                >
+                  <IoCreateOutline className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -736,7 +796,7 @@ export default function MediaOnePage({
           </div>
 
           {canInteract && (
-            <div className="flex gap-2">
+            <div className="hidden gap-2 md:flex">
               <button
                 onClick={() => patch({ favorite: !item.favorite })}
                 className={`flex h-10 flex-1 items-center justify-center gap-2 rounded-xl text-sm font-medium transition-all ${
@@ -1498,11 +1558,27 @@ export default function MediaOnePage({
                         <input
                           type="checkbox"
                           checked={commWithReview}
-                          onChange={(e) => { setCommWithReview(e.target.checked); setCommPage(0) }}
+                          onChange={(e) => {
+                            const checked = e.target.checked
+                            setCommWithReview(checked)
+                            if (!checked) setCommDetailedOnly(false)
+                            setCommPage(0)
+                          }}
                           className="h-3.5 w-3.5 rounded accent-nonsprimary"
                         />
                         With a review
                       </label>
+                      {commWithReview && (
+                        <label className="flex cursor-pointer items-center gap-1.5 text-xs text-[var(--text-muted)] transition-colors hover:text-[var(--text)]">
+                          <input
+                            type="checkbox"
+                            checked={commDetailedOnly}
+                            onChange={(e) => { setCommDetailedOnly(e.target.checked); setCommPage(0) }}
+                            className="h-3.5 w-3.5 rounded accent-nonsprimary"
+                          />
+                          Only detailed reviews
+                        </label>
+                      )}
                     </div>
                   </div>
                   <div className="flex-shrink-0 text-right">
