@@ -107,7 +107,7 @@ export default function Header() {
         <div className="relative mx-auto flex h-16 max-w-7xl items-center gap-3 px-4 md:px-8">
           {/* Brand */}
           <Link to="/" className="group flex flex-shrink-0 items-center gap-2.5">
-            <ShelfLogo className="h-6 w-6 text-white" />
+            <ShelfLogo className="h-6 w-6 text-[var(--text)]" />
             <span className="hidden whitespace-nowrap text-[15px] font-semibold tracking-tight text-[var(--text)] sm:block">
               Nons Shelf
             </span>

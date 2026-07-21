@@ -451,6 +451,10 @@ export const en = {
   settingsImport: 'Import library',
   settingsImportHint: 'Bring your books over from Goodreads or Book Diary Pro.',
   settingsShowInProgress: 'Show "In progress" on Library',
+  settingsTheme: 'Theme',
+  themeSystem: 'System',
+  themeLight: 'Light',
+  themeDark: 'Dark',
 
   // Settings modal sections
   settingsNons: 'Nons account',

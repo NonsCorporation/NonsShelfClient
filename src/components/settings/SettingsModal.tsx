@@ -10,6 +10,9 @@ import {
   IoLogOutOutline,
   IoTrashOutline,
   IoOpenOutline,
+  IoSunnyOutline,
+  IoMoonOutline,
+  IoPhonePortraitOutline,
 } from 'react-icons/io5'
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
@@ -24,6 +27,7 @@ import {
   type PrivacyFacet,
   type Visibility,
   type FeedBlock,
+  type Theme,
 } from '@/contexts/PreferencesContext'
 import { MEDIA_LANG_OPTIONS } from '@/lib/mediaLangs'
 import { useAuth } from '@/contexts/AuthContext'
@@ -52,6 +56,14 @@ const FACET_META: Record<PrivacyFacet, { labelKey: string; icon: IconType }> = {
   activity: { labelKey: 'privacyActivity', icon: IoPulseOutline },
 }
 
+// Theme options for the segmented control, in the order they read best: match
+// the device, then the two explicit pins.
+const THEME_OPTIONS: { key: Theme; labelKey: string; icon: IconType }[] = [
+  { key: 'system', labelKey: 'themeSystem', icon: IoPhonePortraitOutline },
+  { key: 'light', labelKey: 'themeLight', icon: IoSunnyOutline },
+  { key: 'dark', labelKey: 'themeDark', icon: IoMoonOutline },
+]
+
 // Copy for the feed's top-row block toggles.
 const FEED_BLOCK_META: Record<FeedBlock, string> = {
   progress: 'settingsFeedBlockProgress',
@@ -65,6 +77,7 @@ export default function SettingsModal({ isOpen, onClose, onOpenImport }: Props) 
   const {
     showInProgress, setShowInProgress, privacy, setVisibility,
     preferredMediaLang, setPreferredMediaLang, feedBlocks, setFeedBlockVisible,
+    theme, setTheme,
   } = usePreferences()
   const { logout, user } = useAuth()
   // Two-step delete: 0 = idle, 1 = first confirm, 2 = final confirm.
@@ -149,6 +162,31 @@ export default function SettingsModal({ isOpen, onClose, onOpenImport }: Props) 
           <section>
             <SectionHeader title={t('settingsPreferences')} />
             <div className="flex flex-col gap-3">
+              {/* Theme */}
+              <div className="flex flex-col gap-1.5">
+                <span className="text-sm text-[var(--text)]">{t('settingsTheme')}</span>
+                <div className="flex gap-1 rounded-xl bg-[var(--surface)] p-1">
+                  {THEME_OPTIONS.map((opt) => {
+                    const Icon = opt.icon
+                    const active = theme === opt.key
+                    return (
+                      <button
+                        key={opt.key}
+                        onClick={() => setTheme(opt.key)}
+                        className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-medium transition-colors ${
+                          active
+                            ? 'bg-[var(--container)] text-[var(--text)] shadow-sm'
+                            : 'text-[var(--text-muted)] hover:text-[var(--text)]'
+                        }`}
+                      >
+                        <Icon className={`h-3.5 w-3.5 ${active ? 'text-nonsprimary' : ''}`} />
+                        {t(opt.labelKey)}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
               {/* Language */}
               <div className="flex flex-col gap-1.5">
                 <span className="text-sm text-[var(--text)]">{t('language')}</span>

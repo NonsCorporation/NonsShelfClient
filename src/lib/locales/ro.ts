@@ -451,6 +451,10 @@ export const ro = {
   settingsImport: 'Importă biblioteca',
   settingsImportHint: 'Aduce cărțile tale din Goodreads sau Book Diary Pro.',
   settingsShowInProgress: 'Arată „În progres" în Bibliotecă',
+  settingsTheme: 'Temă',
+  themeSystem: 'Sistem',
+  themeLight: 'Deschisă',
+  themeDark: 'Întunecată',
 
   // Settings modal sections
   settingsNons: 'Cont nons',

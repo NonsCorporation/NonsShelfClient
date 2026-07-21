@@ -451,6 +451,10 @@ export const ru = {
   settingsImport: 'Импорт библиотеки',
   settingsImportHint: 'Перенесите книги из Goodreads или Book Diary Pro.',
   settingsShowInProgress: 'Показывать «В процессе» в библиотеке',
+  settingsTheme: 'Тема',
+  themeSystem: 'Системная',
+  themeLight: 'Светлая',
+  themeDark: 'Тёмная',
 
   // Settings modal sections
   settingsNons: 'Аккаунт nons',

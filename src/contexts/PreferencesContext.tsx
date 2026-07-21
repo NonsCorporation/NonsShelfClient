@@ -4,6 +4,15 @@ import { getPrivacy, savePrivacy } from '../services/privacyService'
 
 const STORAGE_KEY = 'nons_show_inprogress'
 const MEDIA_LANG_KEY = 'nons_preferred_media_lang'
+const THEME_KEY = 'nons_theme'
+
+// 'system' follows the OS/browser color-scheme preference; light/dark pin it.
+export type Theme = 'system' | 'light' | 'dark'
+
+const resolveTheme = (theme: Theme): 'light' | 'dark' =>
+  theme === 'system'
+    ? (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark')
+    : theme
 
 // The feed's top-row blocks, each independently hideable from Settings.
 export type FeedBlock = 'progress' | 'challenge' | 'stats' | 'trending'
@@ -49,6 +58,9 @@ interface PreferencesContextType {
   /** Which of the feed's top-row blocks (in progress / challenge / stats / trending) are shown. */
   feedBlocks: Record<FeedBlock, boolean>
   setFeedBlockVisible: (block: FeedBlock, value: boolean) => void
+  /** Color scheme: 'system' follows the OS preference; light/dark pin it. */
+  theme: Theme
+  setTheme: (value: Theme) => void
 }
 
 const PreferencesContext = createContext<PreferencesContextType | undefined>(undefined)
@@ -61,6 +73,9 @@ export const PreferencesProvider = ({ children }: { children: ReactNode }) => {
   )
   const [preferredMediaLang, setPreferredMediaLangState] = useState<string>(() =>
     typeof window === 'undefined' ? '' : (localStorage.getItem(MEDIA_LANG_KEY) ?? ''),
+  )
+  const [theme, setThemeState] = useState<Theme>(() =>
+    typeof window === 'undefined' ? 'dark' : ((localStorage.getItem(THEME_KEY) as Theme | null) ?? 'dark'),
   )
   const [privacy, setPrivacy] = useState<Privacy>(DEFAULT_PRIVACY)
   const [feedBlocks, setFeedBlocksState] = useState<Record<FeedBlock, boolean>>(() => {
@@ -88,6 +103,22 @@ export const PreferencesProvider = ({ children }: { children: ReactNode }) => {
   const setShowInProgress = (value: boolean) => {
     setShowInProgressState(value)
     if (typeof window !== 'undefined') localStorage.setItem(STORAGE_KEY, String(value))
+  }
+
+  // Applies the resolved light/dark value to <html data-theme>, and while
+  // 'system' is selected, follows OS-level scheme changes live.
+  useEffect(() => {
+    document.documentElement.dataset.theme = resolveTheme(theme)
+    if (theme !== 'system') return
+    const mql = window.matchMedia('(prefers-color-scheme: light)')
+    const onChange = () => { document.documentElement.dataset.theme = resolveTheme(theme) }
+    mql.addEventListener('change', onChange)
+    return () => mql.removeEventListener('change', onChange)
+  }, [theme])
+
+  const setTheme = (value: Theme) => {
+    setThemeState(value)
+    if (typeof window !== 'undefined') localStorage.setItem(THEME_KEY, value)
   }
 
   const setPreferredMediaLang = (value: string) => {
@@ -122,6 +153,8 @@ export const PreferencesProvider = ({ children }: { children: ReactNode }) => {
         setPreferredMediaLang,
         feedBlocks,
         setFeedBlockVisible,
+        theme,
+        setTheme,
       }}
     >
       {children}
