@@ -30,6 +30,8 @@ export const en = {
   calendar: 'Calendar',
   mediaCalendar: 'Media Calendar',
   calendarSubtitle: 'What have you watched and read this month?',
+  showPagesRead: 'Show pages read',
+  pagesReadCount: '{count} pages',
   today: 'Today',
   prev: 'Previous',
   next: 'Next',

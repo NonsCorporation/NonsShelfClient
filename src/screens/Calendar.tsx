@@ -1,28 +1,64 @@
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { Fragment, useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Link } from '@/lib/router';
 import Layout from '../components/layout/Layout.tsx';
 import {
-    IoOptionsOutline,
     IoDownloadOutline,
     IoChevronBack,
     IoChevronForward,
     IoGridOutline,
-    IoCalendarOutline
+    IoCalendarOutline,
+    IoBookOutline
 } from 'react-icons/io5';
 import { useLanguage } from '../contexts/LanguageContext.tsx';
 import { libraryService } from '../services/libraryService.ts';
 import type { MediaItem, MediaType } from '../types.ts';
-import type { ReadingSpan } from '../services/libraryService.ts';
+import type { ReadingSpan, PageEntry } from '../services/libraryService.ts';
 import { mediaPath } from '../lib/paths.ts';
+import { coverColor } from '../lib/coverColor.ts';
 import Statistics from './Statistics.tsx';
 
 const DAY_MS = 86_400_000;
+
+// Highlighter-ish key colors, one per item read in the visible month. Tuned to
+// stay legible on both themes; cycled if a month has more items than colors.
+const BAR_COLORS = [
+    '#e0a458', // amber
+    '#f472b6', // pink
+    '#7c8cff', // indigo
+    '#4fd1c5', // teal
+    '#fb7185', // rose
+    '#a78bfa', // violet
+    '#34d399', // emerald
+    '#fbbf24', // yellow
+];
+
+// How many reads get a full, title-carrying bar. Kept low — both because a
+// label needs height to stay legible, and because the row height is fixed at
+// full capacity (see .reading-cal-row), so every lane reserved here is height
+// every week pays on mobile whether or not it's used that month.
+const MAX_LANES = 3;
+
+// Reads beyond MAX_LANES are drawn as bare thin lines — no room for a title, but
+// the stretch and its color still show, so a busy month degrades gracefully
+// instead of collapsing into a "+N". Past this they're dropped entirely.
+const MAX_THIN_LANES = 3;
+
+// Black or white, whichever reads better on a given bar color — so a label
+// stays legible whether the dominant color landed pale or deep.
+function readableTextColor(hex: string): string {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    return luminance > 0.6 ? '#1a1a1a' : '#ffffff';
+}
 
 export default function CalendarPage() {
     const { t, language } = useLanguage();
     const [currentDate, setCurrentDate] = useState(new Date());
     const [items, setItems] = useState<MediaItem[]>([]);
     const [spans, setSpans] = useState<ReadingSpan[]>([]);
+    const [pageEntries, setPageEntries] = useState<PageEntry[]>([]);
 
     // Top-level page tab: the statistics dashboard (default), or the calendar view.
     const [tab, setTab] = useState<'calendar' | 'stats'>('stats');
@@ -30,6 +66,10 @@ export default function CalendarPage() {
     const [viewMode, setViewMode] = useState<'calendar' | 'github'>('calendar');
     // Filter the calendar by media type (books / films / series).
     const [typeFilter, setTypeFilter] = useState<'all' | MediaType>('all');
+    // Overlay each day with how many book pages were read that day.
+    const [showPages, setShowPages] = useState(false);
+    // Hovering a bar or a key entry isolates that book across the whole month.
+    const [hoveredBook, setHoveredBook] = useState<number | null>(null);
 
     useEffect(() => {
         libraryService.getItems().then(setItems);
@@ -50,44 +90,131 @@ export default function CalendarPage() {
         return () => { cancelled = true; };
     }, [currentYear]);
 
-    // Place each reading span on every day it covers within the current month, so
-    // a book read over several days shows across those days (ongoing → to today).
-    const currentMonthItems = useMemo(() => {
-        const grouped: Record<number, { to: string; cover?: string; title: string }[]> = {};
-        // A book can have overlapping spans (e.g. a re-read), so track which media
-        // ids are already placed on a given day and show each at most once per day.
-        const seenPerDay: Record<number, Set<number>> = {};
+    // Every item read/watched during the visible month, with the set of days it
+    // covers and a stable color — the bullet-journal "key" the bars are drawn
+    // from. Colors are assigned in first-read order so they stay put as long as
+    // the month does.
+    const monthBooks = useMemo(() => {
         const monthStart = new Date(currentYear, currentMonth, 1).getTime();
         const monthEnd = new Date(currentYear, currentMonth + 1, 0, 23, 59, 59).getTime();
         const todayEnd = new Date();
         todayEnd.setHours(23, 59, 59, 0);
 
+        // A book can have several spans in one month (a re-read), so days from
+        // every span of the same media collapse into one set.
+        const byId = new Map<number, {
+            id: number; title: string; to: string; cover?: string;
+            days: Set<number>; endDay: number | null;
+        }>();
         spans.forEach((s) => {
             if (!s.media) return;
             if (typeFilter !== 'all' && s.media.type !== typeFilter) return;
-            const id = s.media.id;
-            const book = {
-                to: mediaPath({ type: s.media.type, uuid: s.media.uuid, id: String(s.media.id) }),
-                cover: s.media.cover_url || undefined,
-                title: s.media.title || '',
-            };
             const startMs = s.started_at * 1000;
-            const endMs = (s.finished_at ? s.finished_at * 1000 : todayEnd.getTime());
+            const endMs = s.finished_at ? s.finished_at * 1000 : todayEnd.getTime();
             // Clamp the span to the current month before walking its days.
             const from = Math.max(startMs, monthStart);
             const to = Math.min(endMs, monthEnd);
             if (from > to) return;
+            let entry = byId.get(s.media.id);
+            if (!entry) {
+                entry = {
+                    id: s.media.id,
+                    title: s.media.title || '',
+                    to: mediaPath({ type: s.media.type, uuid: s.media.uuid, id: String(s.media.id) }),
+                    cover: s.media.cover_url || undefined,
+                    days: new Set<number>(),
+                    endDay: null,
+                };
+                byId.set(s.media.id, entry);
+            }
             for (let t = new Date(from).setHours(0, 0, 0, 0); t <= to; t += DAY_MS) {
-                const day = new Date(t).getDate();
-                const seen = (seenPerDay[day] ??= new Set());
-                if (seen.has(id)) continue;
-                seen.add(id);
-                (grouped[day] ??= []).push(book);
+                entry.days.add(new Date(t).getDate());
+            }
+            // The day the read actually wrapped up, when that lands in view —
+            // the calendar marks it with the cover.
+            if (s.finished_at) {
+                const fin = new Date(s.finished_at * 1000);
+                if (fin.getFullYear() === currentYear && fin.getMonth() === currentMonth) {
+                    entry.endDay = fin.getDate();
+                }
             }
         });
 
-        return grouped;
+        return [...byId.values()]
+            .map((b) => ({ ...b, firstDay: Math.min(...b.days) }))
+            .sort((a, b) => a.firstDay - b.firstDay || a.title.localeCompare(b.title));
     }, [spans, currentYear, currentMonth, typeFilter]);
+
+    // Dominant cover colors, resolved lazily off the artwork itself. Books whose
+    // cover can't be read (no image, or a host that blocks canvas reads) keep
+    // their palette fallback, so the key is always fully colored either way.
+    const [coverColors, setCoverColors] = useState<Record<string, string>>({});
+    const coverKey = monthBooks.map((b) => b.cover ?? '').join('|');
+    useEffect(() => {
+        let cancelled = false;
+        monthBooks.forEach((b) => {
+            if (!b.cover) return;
+            coverColor(b.cover).then((c) => {
+                if (!c || cancelled) return;
+                setCoverColors((prev) => (prev[b.cover!] === c ? prev : { ...prev, [b.cover!]: c }));
+            });
+        });
+        return () => { cancelled = true; };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [coverKey]);
+
+    // The month's books with a resolved color and a lane each. Lanes are packed
+    // greedily across the whole month (not per week): a book holds its lane for
+    // as long as it's being read, so a long read draws one unbroken band down
+    // the page instead of hopping rows every Monday. Reads that don't overlap in
+    // time reuse the same lane, which keeps the grid short.
+    const books = useMemo(() => {
+        const laneLastDay: number[] = [];
+        return monthBooks.map((b, i) => {
+            const lastDay = Math.max(...b.days);
+            let lane = laneLastDay.findIndex((end) => end < b.firstDay);
+            if (lane === -1) lane = laneLastDay.length;
+            laneLastDay[lane] = lastDay;
+            return {
+                ...b,
+                lane,
+                color: (b.cover && coverColors[b.cover]) || BAR_COLORS[i % BAR_COLORS.length],
+            };
+        });
+    }, [monthBooks, coverColors]);
+
+    // Vertical offset of a lane's bar, in CSS calc form — labelled lanes stack
+    // from the top, thin overflow lanes continue underneath them.
+    const laneTop = (lane: number) =>
+        lane < MAX_LANES
+            ? `calc(var(--cal-top) + ${lane} * (var(--cal-bar) + var(--cal-gap)))`
+            : `calc(var(--cal-top) + ${MAX_LANES} * (var(--cal-bar) + var(--cal-gap)) + ${lane - MAX_LANES} * (var(--cal-thin) + var(--cal-thin-gap)))`;
+
+    // Book page-progress deltas for the visible year, fetched a year at a time
+    // like the reading spans — powers the "Reading calendar" tab.
+    useEffect(() => {
+        const from = Math.floor(new Date(currentYear, 0, 1).getTime() / 1000);
+        const to = Math.floor(new Date(currentYear, 11, 31, 23, 59, 59).getTime() / 1000);
+        let cancelled = false;
+        libraryService.getPagesRead(from, to).then((d) => {
+            if (!cancelled) setPageEntries(d);
+        });
+        return () => { cancelled = true; };
+    }, [currentYear]);
+
+    // Sum each day's page deltas into the current month, bucketed by local day
+    // (each entry's `at` is a server timestamp, so the offset trick below keeps
+    // it on the day the reader actually saw, same as yearlyActivity below).
+    const currentMonthPages = useMemo(() => {
+        const grouped: Record<number, number> = {};
+        pageEntries.forEach((e) => {
+            const date = new Date(e.at * 1000);
+            if (date.getFullYear() !== currentYear || date.getMonth() !== currentMonth) return;
+            const day = date.getDate();
+            grouped[day] = (grouped[day] || 0) + e.pages;
+        });
+        return grouped;
+    }, [pageEntries, currentYear, currentMonth]);
 
     // calculate daily totals for the entire year
     const yearlyActivity = useMemo(() => {
@@ -164,6 +291,56 @@ export default function CalendarPage() {
     const firstDayOfMonth = new Date(currentYear, currentMonth, 1).getDay();
     const startOffset = firstDayOfMonth === 0 ? 6 : firstDayOfMonth - 1;
 
+    // The month split into week rows. Each row carries "runs" — one per unbroken
+    // stretch of days a book was read within that week — rather than a bar
+    // segment per cell. A run is drawn as a single element spanning its columns,
+    // so the title is written once across the whole stretch instead of repeating
+    // (and truncating) in all seven cells.
+    const weeks = useMemo(() => {
+        const cells: (number | null)[] = [];
+        for (let i = 0; i < startOffset; i++) cells.push(null);
+        for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+        while (cells.length % 7 !== 0) cells.push(null);
+
+        type Run = {
+            book: typeof books[number];
+            startCol: number;
+            /** Column span, in days. Halved on the end to mark a finish. */
+            length: number;
+            /** The read wrapped up on this run's last day. */
+            finishes: boolean;
+            /** Past the labelled tier — drawn as a bare line, no title. */
+            thin: boolean;
+        };
+
+        const rows: { days: (number | null)[]; runs: Run[] }[] = [];
+        for (let i = 0; i < cells.length; i += 7) {
+            const days = cells.slice(i, i + 7);
+            const present = days.filter((d): d is number => d !== null);
+            const active = books.filter((b) => present.some((d) => b.days.has(d)));
+            const runs: Run[] = [];
+
+            active.forEach((book) => {
+                if (book.lane >= MAX_LANES + MAX_THIN_LANES) return;
+                const thin = book.lane >= MAX_LANES;
+                let start = -1;
+                for (let col = 0; col <= 7; col++) {
+                    const d = col < 7 ? days[col] : null;
+                    const on = d !== null && book.days.has(d);
+                    if (on && start === -1) start = col;
+                    if (!on && start !== -1) {
+                        const lastDay = days[col - 1] as number;
+                        runs.push({ book, startCol: start, length: col - start, finishes: book.endDay === lastDay, thin });
+                        start = -1;
+                    }
+                }
+            });
+
+            rows.push({ days, runs });
+        }
+        return rows;
+    }, [startOffset, daysInMonth, books]);
+
     // Localized "June 2026" rather than a terse "06/2026".
     const displayMonth = currentDate.toLocaleDateString(language === 'ru' ? 'ru-RU' : 'en-US', { month: 'long', year: 'numeric' });
     const now = new Date();
@@ -218,8 +395,18 @@ export default function CalendarPage() {
                                 <IoCalendarOutline className="w-5 h-5 text-[var(--text)]" />
                             )}
                         </button>
-                        <button className="w-10 h-10 bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)] rounded-full flex items-center justify-center transition-colors">
-                            <IoOptionsOutline className="w-5 h-5 text-[var(--text)]" />
+                        {/* Overlay each day with that day's page count (books only). */}
+                        <button
+                            onClick={() => setShowPages((v) => !v)}
+                            title={t('showPagesRead')}
+                            aria-pressed={showPages}
+                            className={`w-10 h-10 rounded-full border flex items-center justify-center transition-colors ${
+                                showPages
+                                    ? 'border-nonsprimary bg-nonsprimary text-white'
+                                    : 'border-[var(--border-subtle)] bg-[var(--surface)] text-[var(--text)] hover:bg-[var(--surface-hover)]'
+                            }`}
+                        >
+                            <IoBookOutline className="w-5 h-5" />
                         </button>
                         <button className="w-10 h-10 bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)] rounded-full flex items-center justify-center transition-colors">
                             <IoDownloadOutline className="w-5 h-5 text-[var(--text)]" />
@@ -288,7 +475,7 @@ export default function CalendarPage() {
                 <div className={`bg-[var(--container)] border border-[var(--border-subtle)] rounded-2xl p-4 md:p-6${viewMode === 'github' ? ' w-fit' : ''}`}>
                     {viewMode === 'calendar' ? (
                         <>
-                            <div className="grid grid-cols-7 mb-3 text-center text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">
+                            <div className="grid grid-cols-7 mb-2 text-center text-[10px] md:text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">
                                 <div>{t('mon')}</div>
                                 <div>{t('tue')}</div>
                                 <div>{t('wed')}</div>
@@ -298,54 +485,134 @@ export default function CalendarPage() {
                                 <div className="text-nonslightred">{t('sun')}</div>
                             </div>
 
-                            <div className="grid grid-cols-7 gap-px bg-[var(--border-subtle)] rounded-xl overflow-hidden">
-                                {[...Array(startOffset)].map((_, i) => (
-                                    <div key={`empty-${i}`} className="bg-[var(--container)] min-h-[90px] md:min-h-[120px]" />
-                                ))}
+                            {/* Each week is two layers: the day cells underneath (numbers, today
+                                tint, finished covers), and one absolutely-positioned bar per
+                                reading run on top. Spanning the run rather than tiling per cell
+                                is what lets a title be written once across the whole stretch. */}
+                            <div className="reading-cal flex flex-col gap-px overflow-hidden rounded-xl bg-[var(--border-subtle)]">
+                                {weeks.map((week, wi) => (
+                                    <div key={wi} className="reading-cal-row relative">
+                                        {/* ── Layer 1: day cells ── */}
+                                        <div className="absolute inset-0 grid grid-cols-7 gap-px">
+                                            {week.days.map((day, di) => {
+                                                if (day === null) return <div key={di} className="bg-[var(--container)]" />;
+                                                const pages = currentMonthPages[day] || 0;
+                                                const isSunday = di === 6;
+                                                const isToday = isThisMonth && day === now.getDate();
 
-                                {[...Array(daysInMonth)].map((_, i) => {
-                                    const day = i + 1;
-                                    const data = currentMonthItems[day];
-                                    const isSunday = (day + startOffset - 1) % 7 === 6;
+                                                return (
+                                                    <div
+                                                        key={di}
+                                                        className={`relative ${isToday ? 'bg-nonsprimary/10' : isSunday ? 'bg-[var(--surface)]/30' : 'bg-[var(--container)]'}`}
+                                                    >
+                                                        <span className={`absolute left-1.5 top-0.5 text-[10px] font-semibold leading-tight md:text-xs ${
+                                                            isToday ? 'text-nonsprimary' : isSunday ? 'text-nonslightred' : 'text-[var(--text-muted)]'
+                                                        }`}>
+                                                            {day}
+                                                        </span>
 
-                                    return (
-                                        <div key={day} className="bg-[var(--container)] min-h-[90px] md:min-h-[120px] p-1.5 md:p-2 flex flex-col items-center gap-1.5">
-                                            <span className={`text-xs md:text-sm font-medium ${isSunday ? 'text-nonslightred' : 'text-[var(--text-muted)]'}`}>
-                                                {day}
-                                            </span>
-
-                                            {data && (
-                                                <div className="flex flex-wrap justify-center gap-[3px] w-full">
-                                                    {data.map((book, idx) => {
-                                                        const width = data.length > 2 ? '42%' : '58%';
-                                                        return (
-                                                            <Link
-                                                                key={idx}
-                                                                to={book.to}
-                                                                title={book.title}
-                                                                className="block transition-transform hover:scale-105"
-                                                                style={{ width }}
+                                                        {showPages && pages > 0 && (
+                                                            <span
+                                                                title={t('pagesReadCount', { count: pages })}
+                                                                className="absolute right-1.5 top-0.5 text-[9px] font-medium leading-tight text-[var(--text-muted)] md:text-[10px]"
                                                             >
-                                                                {book.cover ? (
-                                                                    <img
-                                                                        src={book.cover}
-                                                                        className="aspect-[2/3] w-full rounded-sm border border-[var(--border-subtle)] object-cover"
-                                                                        alt={book.title}
-                                                                    />
+                                                                {pages}p
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+
+                                        {/* ── Layer 2: reading runs ── */}
+                                        <div className="pointer-events-none absolute inset-0">
+                                            {week.runs.map((run, ri) => {
+                                                // A finished read stops halfway through its last day, so the
+                                                // line visibly trails off into the cover below it.
+                                                const span = run.length - (run.finishes ? 0.5 : 0);
+                                                const dim = hoveredBook !== null && hoveredBook !== run.book.id;
+                                                const barHeight = run.thin ? 'var(--cal-thin)' : 'var(--cal-bar)';
+                                                return (
+                                                    <Fragment key={ri}>
+                                                        <Link
+                                                            to={run.book.to}
+                                                            title={run.book.title}
+                                                            onMouseEnter={() => setHoveredBook(run.book.id)}
+                                                            onMouseLeave={() => setHoveredBook(null)}
+                                                            className={`pointer-events-auto absolute flex items-center overflow-hidden rounded-full text-[7px] font-semibold leading-none transition-opacity duration-150 md:text-[10px] ${run.thin ? '' : 'px-1.5'} ${dim ? 'opacity-25' : 'hover:opacity-80'}`}
+                                                            style={{
+                                                                left: `calc(${(run.startCol / 7) * 100}% + var(--cal-inset))`,
+                                                                width: `calc(${(span / 7) * 100}% - var(--cal-inset) * 2)`,
+                                                                top: laneTop(run.book.lane),
+                                                                height: barHeight,
+                                                                backgroundColor: run.book.color,
+                                                                color: readableTextColor(run.book.color),
+                                                            }}
+                                                        >
+                                                            {/* Written once per run — a one-day sliver has no room,
+                                                                and a thin overflow line has no height for it. */}
+                                                            {!run.thin && span > 1 && <span className="truncate whitespace-nowrap">{run.book.title}</span>}
+                                                        </Link>
+
+                                                        {/* The finish itself: a cover badge pinned right where the
+                                                            line trails off, overlapping it rather than sitting in
+                                                            dedicated space of its own — each book already owns a
+                                                            lane, so simultaneous finishes never collide. */}
+                                                        {run.finishes && (
+                                                            <Link
+                                                                to={run.book.to}
+                                                                title={run.book.title}
+                                                                onMouseEnter={() => setHoveredBook(run.book.id)}
+                                                                onMouseLeave={() => setHoveredBook(null)}
+                                                                className={`pointer-events-auto absolute z-10 overflow-hidden rounded-[2px] shadow-md shadow-black/40 ring-1 ring-black/25 transition-transform hover:z-20 hover:scale-125 ${dim ? 'opacity-25' : ''}`}
+                                                                style={{
+                                                                    left: `calc(${((run.startCol + run.length - 0.5) / 7) * 100}% - var(--cal-cover-w) / 2)`,
+                                                                    top: 'calc(50% - var(--cal-cover-h) / 2)',
+                                                                    width: 'var(--cal-cover-w)',
+                                                                    height: 'var(--cal-cover-h)',
+                                                                }}
+                                                            >
+                                                                {run.book.cover ? (
+                                                                    <img src={run.book.cover} alt={run.book.title} className="h-full w-full object-cover" />
                                                                 ) : (
-                                                                    <div className="flex aspect-[2/3] w-full items-center justify-center overflow-hidden rounded-sm border border-[var(--border-subtle)] bg-[var(--container-2)] p-0.5 text-center text-[7px] leading-tight text-[var(--text-muted)] md:text-[8px]">
-                                                                        <span className="line-clamp-3">{book.title}</span>
-                                                                    </div>
+                                                                    <span className="block h-full w-full" style={{ backgroundColor: run.book.color }} />
                                                                 )}
                                                             </Link>
-                                                        );
-                                                    })}
-                                                </div>
-                                            )}
+                                                        )}
+                                                    </Fragment>
+                                                );
+                                            })}
                                         </div>
-                                    );
-                                })}
+                                    </div>
+                                ))}
                             </div>
+
+                            {/* Key — which color is which book, as on a bullet-journal spread.
+                                Hovering an entry isolates that book's bars in the grid above. */}
+                            {books.length > 0 ? (
+                                <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 border-t border-[var(--border-subtle)] pt-4">
+                                    {books.map((book) => (
+                                        <Link
+                                            key={book.id}
+                                            to={book.to}
+                                            onMouseEnter={() => setHoveredBook(book.id)}
+                                            onMouseLeave={() => setHoveredBook(null)}
+                                            className={`flex items-center gap-2 text-xs transition-colors ${
+                                                hoveredBook !== null && hoveredBook !== book.id
+                                                    ? 'text-[var(--placeholder)]'
+                                                    : 'text-[var(--text-muted)] hover:text-[var(--text)]'
+                                            }`}
+                                        >
+                                            <span className="h-2 w-6 shrink-0 rounded-full md:h-2.5" style={{ backgroundColor: book.color }} />
+                                            <span className="max-w-[13rem] truncate">{book.title}</span>
+                                        </Link>
+                                    ))}
+                                </div>
+                            ) : (
+                                <p className="mt-4 border-t border-[var(--border-subtle)] pt-4 text-center text-sm text-[var(--placeholder)]">
+                                    {t('nothingInProgress')}
+                                </p>
+                            )}
                         </>
                     ) : (
                         <div ref={githubContainerRef} className="w-full overflow-x-auto pb-2">

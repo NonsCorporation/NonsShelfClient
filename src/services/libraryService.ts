@@ -128,6 +128,13 @@ export interface CalendarData {
   reading: ReadingSpan[]
 }
 
+// One book page-progress delta from GET /api/activity/pages — `at` is the
+// progress log's own timestamp (unix seconds), for local-day bucketing.
+export interface PageEntry {
+  at: number
+  pages: number
+}
+
 // One entry in a media item's interaction timeline (GET /api/activity/history).
 export type HistoryKind = 'added' | 'started' | 'progress' | 'finished' | 'dnf' | 'rated' | 'reviewed'
 export interface HistoryEvent {
@@ -258,6 +265,9 @@ export interface ILibraryService {
   getReadCycles(mediaId: string): Promise<ReadCycle[]>
   /** Reading/watching spans over [from, to] (unix seconds) for the calendar. */
   getCalendar(from: number, to: number): Promise<CalendarData>
+  /** Book page-progress deltas over [from, to] (unix seconds), each with its
+   *  own timestamp for local-day bucketing — the "Reading calendar" tab. */
+  getPagesRead(from: number, to: number): Promise<PageEntry[]>
   /** Watched/total episode counts for a series (lightweight). */
   getEpisodeStats(mediaId: string): Promise<{ watched: number; total: number }>
   /** Mark/unmark a series episode as watched. */
@@ -674,6 +684,15 @@ class ApiLibraryService implements ILibraryService {
     if (!res.ok) return { reading: [] }
     const data = await res.json()
     return { reading: (data.reading ?? []) as ReadingSpan[] }
+  }
+
+  // Book page-progress deltas over [from, to] (unix seconds), for the "Reading
+  // calendar" tab.
+  async getPagesRead(from: number, to: number): Promise<PageEntry[]> {
+    const res = await authedFetch(`/api/activity/pages?from=${from}&to=${to}`)
+    if (!res.ok) return []
+    const data = await res.json()
+    return (data.items ?? []) as PageEntry[]
   }
 
   // Mark/unmark a single series episode as watched.

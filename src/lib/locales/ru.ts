@@ -30,6 +30,8 @@ export const ru = {
   calendar: 'Календарь',
   mediaCalendar: 'Медиа Календарь',
   calendarSubtitle: 'Что вы посмотрели и прочитали в этом месяце?',
+  showPagesRead: 'Показать прочитанные страницы',
+  pagesReadCount: '{count} стр.',
   today: 'Сегодня',
   prev: 'Назад',
   next: 'Вперёд',

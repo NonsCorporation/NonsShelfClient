@@ -30,6 +30,8 @@ export const ro = {
   calendar: 'Calendar',
   mediaCalendar: 'Calendar media',
   calendarSubtitle: 'Ce ai vizionat și citit în această lună?',
+  showPagesRead: 'Arată paginile citite',
+  pagesReadCount: '{count} pagini',
   today: 'Azi',
   prev: 'Anterior',
   next: 'Următor',
