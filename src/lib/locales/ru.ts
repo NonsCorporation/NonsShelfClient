@@ -653,6 +653,8 @@ export const ru = {
   pageOfTotal: 'Страница {page} из {total}',
   pageN: 'Страница {page}',
   readingDates: 'Даты чтения',
+  selectAll: 'Выбрать все',
+  deselectAll: 'Снять выбор',
   watchingDates: 'Даты просмотра',
   dateStarted: 'Начал(а) читать',
   dateFinished: 'Закончил(а) читать',

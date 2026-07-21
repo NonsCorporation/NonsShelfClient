@@ -66,8 +66,6 @@ export default function CalendarPage() {
     const [viewMode, setViewMode] = useState<'calendar' | 'github'>('calendar');
     // Filter the calendar by media type (books / films / series).
     const [typeFilter, setTypeFilter] = useState<'all' | MediaType>('all');
-    // Overlay each day with how many book pages were read that day.
-    const [showPages, setShowPages] = useState(false);
     // Hovering a bar or a key entry isolates that book across the whole month.
     const [hoveredBook, setHoveredBook] = useState<number | null>(null);
 
@@ -163,25 +161,45 @@ export default function CalendarPage() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [coverKey]);
 
-    // The month's books with a resolved color and a lane each. Lanes are packed
-    // greedily across the whole month (not per week): a book holds its lane for
-    // as long as it's being read, so a long read draws one unbroken band down
-    // the page instead of hopping rows every Monday. Reads that don't overlap in
-    // time reuse the same lane, which keeps the grid short.
-    const books = useMemo(() => {
+    // The month's books with a resolved color each — cover-derived when we could
+    // read it, otherwise the next color off the fallback palette. This is the
+    // full list (unfiltered), so the legend below always shows every book that
+    // was read this month, whether or not it's currently toggled off.
+    const books = useMemo(
+        () => monthBooks.map((b, i) => ({
+            ...b,
+            color: (b.cover && coverColors[b.cover]) || BAR_COLORS[i % BAR_COLORS.length],
+        })),
+        [monthBooks, coverColors],
+    );
+
+    // Books the legend has toggled off — excluded from the grid entirely
+    // (empty set = everything shown, the default).
+    const [hiddenBooks, setHiddenBooks] = useState<Set<number>>(() => new Set());
+    const allHidden = books.length > 0 && books.every((b) => hiddenBooks.has(b.id));
+    const toggleBook = (id: number) => setHiddenBooks((prev) => {
+        const next = new Set(prev);
+        if (next.has(id)) next.delete(id); else next.add(id);
+        return next;
+    });
+
+    // Visible books with a lane each. Lanes are packed greedily across the
+    // whole month (not per week) and over only what's currently shown, so
+    // toggling books off in the legend tightens the grid instead of leaving
+    // gaps where hidden lanes used to be: a book holds its lane for as long as
+    // it's being read, so a long read draws one unbroken band down the page
+    // instead of hopping rows every Monday. Reads that don't overlap in time
+    // reuse the same lane, which keeps the grid short.
+    const visibleBooks = useMemo(() => {
         const laneLastDay: number[] = [];
-        return monthBooks.map((b, i) => {
+        return books.filter((b) => !hiddenBooks.has(b.id)).map((b) => {
             const lastDay = Math.max(...b.days);
             let lane = laneLastDay.findIndex((end) => end < b.firstDay);
             if (lane === -1) lane = laneLastDay.length;
             laneLastDay[lane] = lastDay;
-            return {
-                ...b,
-                lane,
-                color: (b.cover && coverColors[b.cover]) || BAR_COLORS[i % BAR_COLORS.length],
-            };
+            return { ...b, lane };
         });
-    }, [monthBooks, coverColors]);
+    }, [books, hiddenBooks]);
 
     // Vertical offset of a lane's bar, in CSS calc form — labelled lanes stack
     // from the top, thin overflow lanes continue underneath them.
@@ -303,7 +321,7 @@ export default function CalendarPage() {
         while (cells.length % 7 !== 0) cells.push(null);
 
         type Run = {
-            book: typeof books[number];
+            book: typeof visibleBooks[number];
             startCol: number;
             /** Column span, in days. Halved on the end to mark a finish. */
             length: number;
@@ -317,7 +335,7 @@ export default function CalendarPage() {
         for (let i = 0; i < cells.length; i += 7) {
             const days = cells.slice(i, i + 7);
             const present = days.filter((d): d is number => d !== null);
-            const active = books.filter((b) => present.some((d) => b.days.has(d)));
+            const active = visibleBooks.filter((b) => present.some((d) => b.days.has(d)));
             const runs: Run[] = [];
 
             active.forEach((book) => {
@@ -339,7 +357,7 @@ export default function CalendarPage() {
             rows.push({ days, runs });
         }
         return rows;
-    }, [startOffset, daysInMonth, books]);
+    }, [startOffset, daysInMonth, visibleBooks]);
 
     // Localized "June 2026" rather than a terse "06/2026".
     const displayMonth = currentDate.toLocaleDateString(language === 'ru' ? 'ru-RU' : 'en-US', { month: 'long', year: 'numeric' });
@@ -394,19 +412,6 @@ export default function CalendarPage() {
                             ) : (
                                 <IoCalendarOutline className="w-5 h-5 text-[var(--text)]" />
                             )}
-                        </button>
-                        {/* Overlay each day with that day's page count (books only). */}
-                        <button
-                            onClick={() => setShowPages((v) => !v)}
-                            title={t('showPagesRead')}
-                            aria-pressed={showPages}
-                            className={`w-10 h-10 rounded-full border flex items-center justify-center transition-colors ${
-                                showPages
-                                    ? 'border-nonsprimary bg-nonsprimary text-white'
-                                    : 'border-[var(--border-subtle)] bg-[var(--surface)] text-[var(--text)] hover:bg-[var(--surface-hover)]'
-                            }`}
-                        >
-                            <IoBookOutline className="w-5 h-5" />
                         </button>
                         <button className="w-10 h-10 bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)] rounded-full flex items-center justify-center transition-colors">
                             <IoDownloadOutline className="w-5 h-5 text-[var(--text)]" />
@@ -511,12 +516,13 @@ export default function CalendarPage() {
                                                             {day}
                                                         </span>
 
-                                                        {showPages && pages > 0 && (
+                                                        {pages > 0 && (
                                                             <span
                                                                 title={t('pagesReadCount', { count: pages })}
-                                                                className="absolute right-1.5 top-0.5 text-[9px] font-medium leading-tight text-[var(--text-muted)] md:text-[10px]"
+                                                                className="absolute right-1 top-0.5 flex items-center gap-0.5 text-[9px] font-medium leading-tight text-[var(--text-muted)] md:text-[10px]"
                                                             >
-                                                                {pages}p
+                                                                <IoBookOutline className="h-2 w-2 md:h-2.5 md:w-2.5" />
+                                                                {pages}
                                                             </span>
                                                         )}
                                                     </div>
@@ -590,25 +596,43 @@ export default function CalendarPage() {
                             </div>
 
                             {/* Key — which color is which book, as on a bullet-journal spread.
-                                Hovering an entry isolates that book's bars in the grid above. */}
+                                Click an entry to show only that book (and others still selected)
+                                in the grid above; hovering one isolates it without changing the
+                                selection. */}
                             {books.length > 0 ? (
-                                <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 border-t border-[var(--border-subtle)] pt-4">
-                                    {books.map((book) => (
-                                        <Link
-                                            key={book.id}
-                                            to={book.to}
-                                            onMouseEnter={() => setHoveredBook(book.id)}
-                                            onMouseLeave={() => setHoveredBook(null)}
-                                            className={`flex items-center gap-2 text-xs transition-colors ${
-                                                hoveredBook !== null && hoveredBook !== book.id
-                                                    ? 'text-[var(--placeholder)]'
-                                                    : 'text-[var(--text-muted)] hover:text-[var(--text)]'
-                                            }`}
-                                        >
-                                            <span className="h-2 w-6 shrink-0 rounded-full md:h-2.5" style={{ backgroundColor: book.color }} />
-                                            <span className="max-w-[13rem] truncate">{book.title}</span>
-                                        </Link>
-                                    ))}
+                                <div className="mt-4 border-t border-[var(--border-subtle)] pt-4">
+                                    <button
+                                        onClick={() => setHiddenBooks(allHidden ? new Set() : new Set(books.map((b) => b.id)))}
+                                        className="mb-2 text-[11px] font-medium text-nonsprimary transition-colors hover:text-nonsprimaryfocus"
+                                    >
+                                        {allHidden ? t('selectAll') : t('deselectAll')}
+                                    </button>
+                                    <div className="flex flex-wrap gap-x-4 gap-y-2">
+                                        {books.map((book) => {
+                                            const hidden = hiddenBooks.has(book.id);
+                                            return (
+                                                <button
+                                                    key={book.id}
+                                                    onClick={() => toggleBook(book.id)}
+                                                    onMouseEnter={() => setHoveredBook(book.id)}
+                                                    onMouseLeave={() => setHoveredBook(null)}
+                                                    className={`flex items-center gap-2 text-xs transition-colors ${
+                                                        hidden
+                                                            ? 'text-[var(--placeholder)]'
+                                                            : hoveredBook !== null && hoveredBook !== book.id
+                                                                ? 'text-[var(--text-muted)]'
+                                                                : 'text-[var(--text-muted)] hover:text-[var(--text)]'
+                                                    }`}
+                                                >
+                                                    <span
+                                                        className="h-2 w-6 shrink-0 rounded-full transition-opacity md:h-2.5"
+                                                        style={{ backgroundColor: book.color, opacity: hidden ? 0.25 : 1 }}
+                                                    />
+                                                    <span className={`max-w-[13rem] truncate ${hidden ? 'line-through' : ''}`}>{book.title}</span>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
                                 </div>
                             ) : (
                                 <p className="mt-4 border-t border-[var(--border-subtle)] pt-4 text-center text-sm text-[var(--placeholder)]">

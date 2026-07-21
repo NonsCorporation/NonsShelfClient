@@ -653,6 +653,8 @@ export const ro = {
   pageOfTotal: 'Pagina {page} din {total}',
   pageN: 'Pagina {page}',
   readingDates: 'Date de citire',
+  selectAll: 'Selectează tot',
+  deselectAll: 'Deselectează tot',
   watchingDates: 'Date de vizionare',
   dateStarted: 'Început să citesc',
   dateFinished: 'Terminat de citit',

@@ -653,6 +653,8 @@ export const en = {
   pageOfTotal: 'Page {page} of {total}',
   pageN: 'Page {page}',
   readingDates: 'Reading dates',
+  selectAll: 'Select all',
+  deselectAll: 'Deselect all',
   watchingDates: 'Watching dates',
   dateStarted: 'Started reading',
   dateFinished: 'Finished reading',
