@@ -264,26 +264,27 @@ export default function Header() {
 
       {/* ── Mobile bottom nav (floating oval pill) ── */}
       <div className="pointer-events-none fixed bottom-6 left-0 right-0 z-50 flex justify-center lg:hidden">
-        <nav className="pointer-events-auto relative flex items-center gap-0.5 rounded-full border border-[var(--border-subtle)] bg-[color-mix(in_srgb,var(--nav-bg)_85%,transparent)] px-3 py-2.5 shadow-2xl backdrop-blur-xl">
+        <nav className="pointer-events-auto relative flex items-center gap-0 rounded-full border border-[var(--border-subtle)] bg-[color-mix(in_srgb,var(--nav-bg)_85%,transparent)] px-2 py-2 shadow-2xl backdrop-blur-xl">
           {[
             { to: '/', icon: IoHomeOutline, label: t('home') || 'Home', active: path === '/' },
             { to: '/discover', icon: IoCompassOutline, label: t('discover') || 'Discover', active: path === '/discover' },
             { to: '/library', icon: IoLibraryOutline, label: t('library') || 'Library', active: path === '/library' },
+            { to: '/statistics', icon: IoCalendarOutline, label: t('statistics') || 'Statistics', active: path === '/statistics' },
           ].map(({ to, icon: Icon, label, active }) => (
             <Link
               key={to}
               to={to}
-              className="relative flex flex-col items-center gap-1 rounded-2xl px-3.5 py-1.5"
+              className="relative flex flex-col items-center gap-0.5 rounded-2xl px-2.5 py-1.5"
             >
               <span
                 className={`absolute inset-0 origin-center rounded-2xl bg-[var(--surface)] ring-1 ring-inset ring-[var(--border-subtle)] transition-all duration-200 ease-out ${
                   active ? 'scale-100 opacity-100' : 'scale-[0.8] opacity-0'
                 }`}
               />
-              <span className="relative flex h-[22px] items-center justify-center">
-                <Icon className={`h-[22px] w-[22px] transition-colors duration-200 ${active ? 'text-[var(--text)]' : 'text-[var(--text-muted)]'}`} />
+              <span className="relative flex h-5 items-center justify-center">
+                <Icon className={`h-5 w-5 transition-colors duration-200 ${active ? 'text-[var(--text)]' : 'text-[var(--text-muted)]'}`} />
               </span>
-              <span className={`relative text-[10px] font-medium leading-none transition-colors duration-200 ${active ? 'text-[var(--text)]' : 'text-[var(--text-muted)]'}`}>
+              <span className={`relative text-[9px] font-medium leading-none transition-colors duration-200 ${active ? 'text-[var(--text)]' : 'text-[var(--text-muted)]'}`}>
                 {label}
               </span>
             </Link>
@@ -293,17 +294,20 @@ export default function Header() {
           <div ref={profileRef} className="relative">
             <button
               onClick={() => setProfileOpen((v) => !v)}
-              className="relative flex flex-col items-center gap-1 rounded-2xl px-3.5 py-1.5"
+              className="relative flex flex-col items-center gap-0.5 rounded-2xl px-2.5 py-1.5"
             >
               <span
                 className={`absolute inset-0 origin-center rounded-2xl bg-[var(--surface)] ring-1 ring-inset ring-[var(--border-subtle)] transition-all duration-200 ease-out ${
                   profileOpen ? 'scale-100 opacity-100' : 'scale-[0.8] opacity-0'
                 }`}
               />
-              <span className="relative flex h-[22px] items-center justify-center">
-                {display ? <Avatar display={display} /> : <IoPersonOutline className={`h-[22px] w-[22px] transition-colors duration-200 ${profileOpen ? 'text-[var(--text)]' : 'text-[var(--text-muted)]'}`} />}
+              <span className="relative flex h-5 items-center justify-center">
+                {display ? <Avatar display={display} small /> : <IoPersonOutline className={`h-5 w-5 transition-colors duration-200 ${profileOpen ? 'text-[var(--text)]' : 'text-[var(--text-muted)]'}`} />}
+                {isAuthenticated && totalUnread > 0 && (
+                  <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-nonsprimary ring-2 ring-[var(--nav-bg)]" />
+                )}
               </span>
-              <span className={`relative text-[10px] font-medium leading-none transition-colors duration-200 ${profileOpen ? 'text-[var(--text)]' : 'text-[var(--text-muted)]'}`}>{t('profile') || 'Profile'}</span>
+              <span className={`relative text-[9px] font-medium leading-none transition-colors duration-200 ${profileOpen ? 'text-[var(--text)]' : 'text-[var(--text-muted)]'}`}>{t('profile') || 'Profile'}</span>
             </button>
 
             {/* Compact popover */}
@@ -336,6 +340,27 @@ export default function Header() {
                   </button>
                 )}
 
+                {isAuthenticated && (
+                  <>
+                    <div className="h-px bg-[var(--border-subtle)]" />
+                    <Link
+                      to="/notifications"
+                      onClick={() => setProfileOpen(false)}
+                      className={`flex w-full items-center gap-3 px-4 py-3 text-sm transition-colors hover:bg-[var(--surface)] hover:text-[var(--text)] ${path === '/notifications' ? 'text-[var(--text)]' : 'text-[var(--text-muted)]'}`}
+                    >
+                      <span className="relative flex items-center justify-center">
+                        <IoNotificationsOutline className="h-[18px] w-[18px]" />
+                        {totalUnread > 0 && (
+                          <span className="absolute right-0 top-0 flex h-3.5 min-w-[14px] -translate-y-1/2 translate-x-1/2 items-center justify-center rounded-full bg-nonsprimary px-1 text-[9px] font-bold leading-none text-white">
+                            {totalUnread > 99 ? '99+' : totalUnread}
+                          </span>
+                        )}
+                      </span>
+                      {t('notifications') || 'Notifications'}
+                    </Link>
+                  </>
+                )}
+
                 <div className="h-px bg-[var(--border-subtle)]" />
 
                 <div className="p-3">
@@ -358,15 +383,6 @@ export default function Header() {
                 )}
 
                 <div className="h-px bg-[var(--border-subtle)]" />
-
-                <Link
-                  to="/statistics"
-                  onClick={() => setProfileOpen(false)}
-                  className={`flex w-full items-center gap-3 px-4 py-3 text-sm transition-colors hover:bg-[var(--surface)] hover:text-[var(--text)] ${path === '/statistics' ? 'text-[var(--text)]' : 'text-[var(--text-muted)]'}`}
-                >
-                  <IoCalendarOutline className="h-[18px] w-[18px]" />
-                  {t('statistics') || 'Statistics'}
-                </Link>
 
                 <Link
                   to="/about"
@@ -410,8 +426,8 @@ export default function Header() {
     </>
   )
 
-  function Avatar({ display, big }: { display: { id: number; handle: string; name: string; avatar: string }; big?: boolean }) {
-    const px = big ? 36 : 32
+  function Avatar({ display, big, small }: { display: { id: number; handle: string; name: string; avatar: string }; big?: boolean; small?: boolean }) {
+    const px = big ? 36 : small ? 20 : 32
     return display.avatar ? (
       <img src={display.avatar} alt={display.name} style={{ width: px, height: px }} className="flex-shrink-0 rounded-full object-cover" />
     ) : (
