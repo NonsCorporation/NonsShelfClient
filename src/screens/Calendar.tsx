@@ -2,7 +2,6 @@ import { Fragment, useState, useEffect, useMemo, useRef, useCallback } from 'rea
 import { Link } from '@/lib/router';
 import Layout from '../components/layout/Layout.tsx';
 import {
-    IoDownloadOutline,
     IoChevronBack,
     IoChevronForward,
     IoGridOutline,
@@ -32,11 +31,14 @@ const BAR_COLORS = [
     '#fbbf24', // yellow
 ];
 
-// How many reads get a full, title-carrying bar. Kept low — both because a
-// label needs height to stay legible, and because the row height is fixed at
-// full capacity (see .reading-cal-row), so every lane reserved here is height
-// every week pays on mobile whether or not it's used that month.
+// How many reads get a full, title-carrying bar before the rest drop to thin
+// lines. Kept low because a label needs height to stay legible.
 const MAX_LANES = 3;
+
+// Lanes' worth of height every row reserves even when the month uses fewer.
+// A finished book's cover badge is centered in its cell, so the row can never
+// be shorter than the badge anyway — this is that floor, expressed in lanes.
+const MIN_ROW_LANES = 2;
 
 // Reads beyond MAX_LANES are drawn as bare thin lines — no room for a title, but
 // the stretch and its color still show, so a busy month degrades gracefully
@@ -201,6 +203,26 @@ export default function CalendarPage() {
         });
     }, [books, hiddenBooks]);
 
+    // How many lanes the visible month actually uses, split into the labelled
+    // tier and the thin overflow tier. Row height is derived from this rather
+    // than from full capacity, so a month with two books doesn't reserve empty
+    // space for six — every row in a given month still matches, it's only
+    // paging to a busier month that changes it.
+    const { fullLanes, thinLanes } = useMemo(() => {
+        const needed = visibleBooks.reduce((n, b) => Math.max(n, b.lane + 1), 0);
+        return {
+            fullLanes: Math.min(MAX_LANES, needed),
+            thinLanes: Math.min(MAX_THIN_LANES, Math.max(0, needed - MAX_LANES)),
+        };
+    }, [visibleBooks]);
+
+    // Uniform height for every week row this month. The floor is applied to the
+    // reserved lane count rather than wrapped around the result in a CSS max():
+    // a row's children are all absolutely positioned, so if the min-height value
+    // is ever rejected the row collapses to zero and the whole grid disappears —
+    // worth keeping this expression as plain, boring calc().
+    const rowHeight = `calc(var(--cal-top) + ${Math.max(fullLanes, MIN_ROW_LANES)} * (var(--cal-bar) + var(--cal-gap)) + ${thinLanes} * (var(--cal-thin) + var(--cal-thin-gap)) + var(--cal-cover))`;
+
     // Vertical offset of a lane's bar, in CSS calc form — labelled lanes stack
     // from the top, thin overflow lanes continue underneath them.
     const laneTop = (lane: number) =>
@@ -233,6 +255,13 @@ export default function CalendarPage() {
         });
         return grouped;
     }, [pageEntries, currentYear, currentMonth]);
+
+    // What the visible month amounted to, for the summary line under the header.
+    const monthStats = useMemo(() => ({
+        tracked: books.length,
+        finished: books.filter((b) => b.endDay !== null).length,
+        pages: Object.values(currentMonthPages).reduce((sum, n) => sum + n, 0),
+    }), [books, currentMonthPages]);
 
     // calculate daily totals for the entire year
     const yearlyActivity = useMemo(() => {
@@ -396,98 +425,99 @@ export default function CalendarPage() {
                 </div>
 
                 {tab === 'stats' ? <Statistics /> : (<>
-                {/* header actions & title */}
-                <div className="flex justify-between items-center mb-6 border-b border-[var(--border-subtle)] pb-4">
-                    <div className="flex items-center gap-4">
-                        <h1 className="text-xl font-bold text-[var(--text)] tracking-tight">{t('mediaCalendar')}</h1>
-                    </div>
-                    <div className="flex gap-2">
-                        <button 
-                            onClick={() => setViewMode(prev => prev === 'calendar' ? 'github' : 'calendar')}
-                            className="w-10 h-10 bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)] rounded-full flex items-center justify-center transition-colors"
-                            title={viewMode === 'calendar' ? 'switch to github view' : 'switch to calendar view'}
+                {/* The month itself is the page's subject, so it leads rather than
+                    sitting under a generic page title. Nav, filter and view toggle
+                    share one row instead of stacking three bands of chrome. */}
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
+                    <div className="flex items-center gap-1">
+                        <button
+                            onClick={prevMonth}
+                            aria-label={t('prev') || 'Previous'}
+                            className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
                         >
-                            {viewMode === 'calendar' ? (
-                                <IoGridOutline className="w-5 h-5 text-[var(--text)]" />
-                            ) : (
-                                <IoCalendarOutline className="w-5 h-5 text-[var(--text)]" />
-                            )}
+                            <IoChevronBack className="h-4 w-4" />
                         </button>
-                        <button className="w-10 h-10 bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border-subtle)] rounded-full flex items-center justify-center transition-colors">
-                            <IoDownloadOutline className="w-5 h-5 text-[var(--text)]" />
+                        <h1 className="min-w-[8rem] text-center text-xl font-bold tracking-tight text-[var(--text)] md:min-w-[11rem] md:text-2xl">
+                            {viewMode === 'calendar' ? displayMonth : currentYear}
+                        </h1>
+                        <button
+                            onClick={nextMonth}
+                            aria-label={t('next') || 'Next'}
+                            className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
+                        >
+                            <IoChevronForward className="h-4 w-4" />
                         </button>
-                    </div>
-                </div>
-
-                {/* subtitle & month navigation — compact stepper, not a big pill */}
-                <div className="mb-4 flex flex-col gap-3 px-1 sm:flex-row sm:items-center sm:justify-between">
-                    <p className="text-sm text-[var(--text-muted)]">{t('calendarSubtitle')}</p>
-
-                    <div className="flex items-center gap-1 self-start sm:self-auto">
                         {!isThisMonth && (
                             <button
                                 onClick={() => setCurrentDate(new Date())}
-                                className="mr-1.5 rounded-lg border border-[var(--border-subtle)] px-2.5 py-1 text-xs font-medium text-[var(--text-muted)] transition-colors hover:border-nonsprimary hover:text-nonsprimary"
+                                className="ml-1.5 rounded-full border border-[var(--border-subtle)] px-3 py-1 text-xs font-medium text-[var(--text-muted)] transition-colors hover:border-nonsprimary hover:text-nonsprimary"
                             >
                                 {t('today')}
                             </button>
                         )}
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                        {viewMode === 'calendar' && (
+                            <div className="flex rounded-full border border-[var(--border-subtle)] bg-[var(--surface)] p-0.5">
+                                {([
+                                    { key: 'all', label: t('all') },
+                                    { key: 'book', label: t('books') },
+                                    { key: 'movie', label: t('movies') },
+                                    { key: 'series', label: t('seriesPlural') },
+                                ] as { key: 'all' | MediaType; label: string }[]).map((tg) => (
+                                    <button
+                                        key={tg.key}
+                                        onClick={() => setTypeFilter(tg.key)}
+                                        className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+                                            typeFilter === tg.key
+                                                ? 'bg-[var(--surface-active)] text-[var(--text)]'
+                                                : 'text-[var(--text-muted)] hover:text-[var(--text)]'
+                                        }`}
+                                    >
+                                        {tg.label}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
                         <button
-                            onClick={prevMonth}
-                            aria-label={t('prev') || 'Previous'}
-                            className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
+                            onClick={() => setViewMode(prev => prev === 'calendar' ? 'github' : 'calendar')}
+                            className="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--border-subtle)] bg-[var(--surface)] text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
+                            title={viewMode === 'calendar' ? 'switch to github view' : 'switch to calendar view'}
                         >
-                            <IoChevronBack className="h-4 w-4" />
-                        </button>
-                        <h2 className="min-w-[8rem] text-center text-sm font-semibold text-[var(--text)]">
-                            {viewMode === 'calendar' ? displayMonth : currentYear}
-                        </h2>
-                        <button
-                            onClick={nextMonth}
-                            aria-label={t('next') || 'Next'}
-                            className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
-                        >
-                            <IoChevronForward className="h-4 w-4" />
+                            {viewMode === 'calendar' ? <IoGridOutline className="h-4 w-4" /> : <IoCalendarOutline className="h-4 w-4" />}
                         </button>
                     </div>
                 </div>
 
-                {/* media-type filter — scopes the calendar to one type. */}
-                {viewMode === 'calendar' && (
-                    <div className="mb-4 flex w-fit rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] p-1">
-                        {([
-                            { key: 'all', label: t('all') },
-                            { key: 'book', label: t('books') },
-                            { key: 'movie', label: t('movies') },
-                            { key: 'series', label: t('seriesPlural') },
-                        ] as { key: 'all' | MediaType; label: string }[]).map((tg) => (
-                            <button
-                                key={tg.key}
-                                onClick={() => setTypeFilter(tg.key)}
-                                className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
-                                    typeFilter === tg.key
-                                        ? 'bg-[var(--surface-active)] text-[var(--text)]'
-                                        : 'text-[var(--text-muted)] hover:text-[var(--text)]'
-                                }`}
-                            >
-                                {tg.label}
-                            </button>
-                        ))}
+                {/* What the month actually amounted to — a quiet line of numbers
+                    rather than the old static "what did you read?" prompt. */}
+                {viewMode === 'calendar' && books.length > 0 && (
+                    <div className="mb-4 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-[var(--text-muted)]">
+                        <span><span className="font-semibold text-[var(--text)]">{monthStats.tracked}</span> {t('calStatTracked')}</span>
+                        <span className="text-[var(--border-strong)]">·</span>
+                        <span><span className="font-semibold text-[var(--text)]">{monthStats.finished}</span> {t('calStatFinished')}</span>
+                        {monthStats.pages > 0 && (
+                            <>
+                                <span className="text-[var(--border-strong)]">·</span>
+                                <span><span className="font-semibold text-[var(--text)]">{monthStats.pages.toLocaleString()}</span> {t('calStatPages')}</span>
+                            </>
+                        )}
                     </div>
                 )}
 
                 {/* view container */}
-                <div className={`bg-[var(--container)] border border-[var(--border-subtle)] rounded-2xl p-4 md:p-6${viewMode === 'github' ? ' w-fit' : ''}`}>
+                <div className={`bg-[var(--container)] border border-[var(--border-subtle)] rounded-2xl p-3 md:p-4${viewMode === 'github' ? ' w-fit' : ''}`}>
                     {viewMode === 'calendar' ? (
                         <>
-                            <div className="grid grid-cols-7 mb-2 text-center text-[10px] md:text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">
+                            <div className="mb-2 grid grid-cols-7 text-center text-[9px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)] md:text-[10px]">
                                 <div>{t('mon')}</div>
                                 <div>{t('tue')}</div>
                                 <div>{t('wed')}</div>
                                 <div>{t('thu')}</div>
                                 <div>{t('fri')}</div>
                                 <div>{t('sat')}</div>
-                                <div className="text-nonslightred">{t('sun')}</div>
+                                <div className="text-nonslightred/70">{t('sun')}</div>
                             </div>
 
                             {/* Each week is two layers: the day cells underneath (numbers, today
@@ -496,7 +526,7 @@ export default function CalendarPage() {
                                 is what lets a title be written once across the whole stretch. */}
                             <div className="reading-cal flex flex-col gap-px overflow-hidden rounded-xl bg-[var(--border-subtle)]">
                                 {weeks.map((week, wi) => (
-                                    <div key={wi} className="reading-cal-row relative">
+                                    <div key={wi} className="relative" style={{ minHeight: rowHeight }}>
                                         {/* ── Layer 1: day cells ── */}
                                         <div className="absolute inset-0 grid grid-cols-7 gap-px">
                                             {week.days.map((day, di) => {
@@ -600,14 +630,19 @@ export default function CalendarPage() {
                                 in the grid above; hovering one isolates it without changing the
                                 selection. */}
                             {books.length > 0 ? (
-                                <div className="mt-4 border-t border-[var(--border-subtle)] pt-4">
-                                    <button
-                                        onClick={() => setHiddenBooks(allHidden ? new Set() : new Set(books.map((b) => b.id)))}
-                                        className="mb-2 text-[11px] font-medium text-nonsprimary transition-colors hover:text-nonsprimaryfocus"
-                                    >
-                                        {allHidden ? t('selectAll') : t('deselectAll')}
-                                    </button>
-                                    <div className="flex flex-wrap gap-x-4 gap-y-2">
+                                <div className="mt-5 border-t border-[var(--border-subtle)] pt-4">
+                                    <div className="mb-2.5 flex items-center justify-between gap-3">
+                                        <h3 className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
+                                            {t('legend')}
+                                        </h3>
+                                        <button
+                                            onClick={() => setHiddenBooks(allHidden ? new Set() : new Set(books.map((b) => b.id)))}
+                                            className="text-[11px] font-medium text-nonsprimary transition-colors hover:text-nonsprimaryfocus"
+                                        >
+                                            {allHidden ? t('selectAll') : t('deselectAll')}
+                                        </button>
+                                    </div>
+                                    <div className="flex flex-wrap gap-1.5">
                                         {books.map((book) => {
                                             const hidden = hiddenBooks.has(book.id);
                                             return (
@@ -616,26 +651,24 @@ export default function CalendarPage() {
                                                     onClick={() => toggleBook(book.id)}
                                                     onMouseEnter={() => setHoveredBook(book.id)}
                                                     onMouseLeave={() => setHoveredBook(null)}
-                                                    className={`flex items-center gap-2 text-xs transition-colors ${
+                                                    className={`flex items-center gap-2 rounded-full border px-2.5 py-1 text-xs transition-all ${
                                                         hidden
-                                                            ? 'text-[var(--placeholder)]'
-                                                            : hoveredBook !== null && hoveredBook !== book.id
-                                                                ? 'text-[var(--text-muted)]'
-                                                                : 'text-[var(--text-muted)] hover:text-[var(--text)]'
+                                                            ? 'border-[var(--border-subtle)] text-[var(--placeholder)]'
+                                                            : 'border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] hover:text-[var(--text)]'
                                                     }`}
                                                 >
                                                     <span
-                                                        className="h-2 w-6 shrink-0 rounded-full transition-opacity md:h-2.5"
-                                                        style={{ backgroundColor: book.color, opacity: hidden ? 0.25 : 1 }}
+                                                        className="h-2.5 w-2.5 shrink-0 rounded-full transition-opacity"
+                                                        style={{ backgroundColor: book.color, opacity: hidden ? 0.3 : 1 }}
                                                     />
-                                                    <span className={`max-w-[13rem] truncate ${hidden ? 'line-through' : ''}`}>{book.title}</span>
+                                                    <span className={`max-w-[12rem] truncate ${hidden ? 'line-through' : ''}`}>{book.title}</span>
                                                 </button>
                                             );
                                         })}
                                     </div>
                                 </div>
                             ) : (
-                                <p className="mt-4 border-t border-[var(--border-subtle)] pt-4 text-center text-sm text-[var(--placeholder)]">
+                                <p className="mt-5 border-t border-[var(--border-subtle)] pt-6 pb-2 text-center text-sm text-[var(--placeholder)]">
                                     {t('nothingInProgress')}
                                 </p>
                             )}
