@@ -251,14 +251,17 @@ class ApiActivityService implements IActivityService {
 
 export const activityService: IActivityService = new ApiActivityService()
 
-/** Fetch one page of a single user's public activity posts. */
+/** Fetch one page of a single user's public activity posts. own_only=1 tells
+ *  the server to exclude "liked"/"commented" echo events — this profile
+ *  timeline shows what this person actually posted, not what they reacted to
+ *  (which has no viewer-relative context to render correctly here anyway). */
 export async function getUserActivity(
   userId: number,
   userInfo: Activity['user'],
   page = 0,
   perPage = 10,
 ): Promise<ActivityPage> {
-  const params = new URLSearchParams({ user_ids: String(userId), limit: String(perPage), offset: String(page * perPage) })
+  const params = new URLSearchParams({ user_ids: String(userId), limit: String(perPage), offset: String(page * perPage), own_only: '1' })
   const res = await authedFetch(`/api/activity?${params}`)
   if (!res.ok) return { items: [], total: 0 }
   const body = await res.json()
