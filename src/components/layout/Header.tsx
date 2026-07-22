@@ -264,7 +264,7 @@ export default function Header() {
 
       {/* ── Mobile bottom nav (floating oval pill) ── */}
       <div className="pointer-events-none fixed bottom-6 left-0 right-0 z-50 flex justify-center lg:hidden">
-        <nav className="pointer-events-auto relative flex items-center gap-0 rounded-full border border-[var(--border-subtle)] bg-[color-mix(in_srgb,var(--nav-bg)_85%,transparent)] px-2 py-2 shadow-2xl backdrop-blur-xl">
+        <nav className="pointer-events-auto relative flex items-center gap-0.5 rounded-full border border-[var(--border-subtle)] bg-[color-mix(in_srgb,var(--nav-bg)_85%,transparent)] px-2.5 py-2.5 shadow-2xl backdrop-blur-xl">
           {[
             { to: '/', icon: IoHomeOutline, label: t('home') || 'Home', active: path === '/' },
             { to: '/discover', icon: IoCompassOutline, label: t('discover') || 'Discover', active: path === '/discover' },
@@ -274,17 +274,17 @@ export default function Header() {
             <Link
               key={to}
               to={to}
-              className="relative flex flex-col items-center gap-0.5 rounded-2xl px-2.5 py-1.5"
+              className="relative flex flex-col items-center gap-1 rounded-2xl px-3 py-2"
             >
               <span
                 className={`absolute inset-0 origin-center rounded-2xl bg-[var(--surface)] ring-1 ring-inset ring-[var(--border-subtle)] transition-all duration-200 ease-out ${
                   active ? 'scale-100 opacity-100' : 'scale-[0.8] opacity-0'
                 }`}
               />
-              <span className="relative flex h-5 items-center justify-center">
-                <Icon className={`h-5 w-5 transition-colors duration-200 ${active ? 'text-[var(--text)]' : 'text-[var(--text-muted)]'}`} />
+              <span className="relative flex h-6 items-center justify-center">
+                <Icon className={`h-6 w-6 transition-colors duration-200 ${active ? 'text-[var(--text)]' : 'text-[var(--text-muted)]'}`} />
               </span>
-              <span className={`relative text-[9px] font-medium leading-none transition-colors duration-200 ${active ? 'text-[var(--text)]' : 'text-[var(--text-muted)]'}`}>
+              <span className={`relative text-[10px] font-medium leading-none transition-colors duration-200 ${active ? 'text-[var(--text)]' : 'text-[var(--text-muted)]'}`}>
                 {label}
               </span>
             </Link>
@@ -294,20 +294,20 @@ export default function Header() {
           <div ref={profileRef} className="relative">
             <button
               onClick={() => setProfileOpen((v) => !v)}
-              className="relative flex flex-col items-center gap-0.5 rounded-2xl px-2.5 py-1.5"
+              className="relative flex flex-col items-center gap-1 rounded-2xl px-3 py-2"
             >
               <span
                 className={`absolute inset-0 origin-center rounded-2xl bg-[var(--surface)] ring-1 ring-inset ring-[var(--border-subtle)] transition-all duration-200 ease-out ${
                   profileOpen ? 'scale-100 opacity-100' : 'scale-[0.8] opacity-0'
                 }`}
               />
-              <span className="relative flex h-5 items-center justify-center">
-                {display ? <Avatar display={display} small /> : <IoPersonOutline className={`h-5 w-5 transition-colors duration-200 ${profileOpen ? 'text-[var(--text)]' : 'text-[var(--text-muted)]'}`} />}
+              <span className="relative flex h-6 items-center justify-center">
+                {display ? <Avatar display={display} /> : <IoPersonOutline className={`h-6 w-6 transition-colors duration-200 ${profileOpen ? 'text-[var(--text)]' : 'text-[var(--text-muted)]'}`} />}
                 {isAuthenticated && totalUnread > 0 && (
-                  <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-nonsprimary ring-2 ring-[var(--nav-bg)]" />
+                  <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-nonsprimary ring-2 ring-[var(--nav-bg)]" />
                 )}
               </span>
-              <span className={`relative text-[9px] font-medium leading-none transition-colors duration-200 ${profileOpen ? 'text-[var(--text)]' : 'text-[var(--text-muted)]'}`}>{t('profile') || 'Profile'}</span>
+              <span className={`relative text-[10px] font-medium leading-none transition-colors duration-200 ${profileOpen ? 'text-[var(--text)]' : 'text-[var(--text-muted)]'}`}>{t('profile') || 'Profile'}</span>
             </button>
 
             {/* Compact popover */}
