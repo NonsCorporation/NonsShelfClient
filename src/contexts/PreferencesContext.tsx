@@ -61,6 +61,11 @@ interface PreferencesContextType {
   /** Color scheme: 'system' follows the OS preference; light/dark pin it. */
   theme: Theme
   setTheme: (value: Theme) => void
+  /** Whether the viewer's own likes/comments on someone else's post surface as
+   *  a banner ("You liked this") when friends see that post in their feed.
+   *  Persisted server-side alongside privacy (defaults true until loaded). */
+  showActivityReactions: boolean
+  setShowActivityReactions: (value: boolean) => void
 }
 
 const PreferencesContext = createContext<PreferencesContextType | undefined>(undefined)
@@ -78,6 +83,7 @@ export const PreferencesProvider = ({ children }: { children: ReactNode }) => {
     typeof window === 'undefined' ? 'dark' : ((localStorage.getItem(THEME_KEY) as Theme | null) ?? 'dark'),
   )
   const [privacy, setPrivacy] = useState<Privacy>(DEFAULT_PRIVACY)
+  const [showActivityReactions, setShowActivityReactionsState] = useState<boolean>(true)
   const [feedBlocks, setFeedBlocksState] = useState<Record<FeedBlock, boolean>>(() => {
     if (typeof window === 'undefined') return DEFAULT_FEED_BLOCKS
     try {
@@ -88,12 +94,14 @@ export const PreferencesProvider = ({ children }: { children: ReactNode }) => {
     }
   })
 
-  // Load the signed-in user's saved visibility from the server; anonymous /
-  // unreachable just keeps the defaults.
+  // Load the signed-in user's saved privacy settings from the server;
+  // anonymous / unreachable just keeps the defaults.
   useEffect(() => {
     let cancelled = false
     getPrivacy().then((p) => {
-      if (p && !cancelled) setPrivacy(p)
+      if (!p || cancelled) return
+      setPrivacy({ shelf: p.shelf, ratings: p.ratings, activity: p.activity })
+      setShowActivityReactionsState(p.showActivityReactions)
     })
     return () => {
       cancelled = true
@@ -121,6 +129,11 @@ export const PreferencesProvider = ({ children }: { children: ReactNode }) => {
     if (typeof window !== 'undefined') localStorage.setItem(THEME_KEY, value)
   }
 
+  const setShowActivityReactions = (value: boolean) => {
+    setShowActivityReactionsState(value)
+    void savePrivacy({ ...privacy, showActivityReactions: value }) // optimistic; persist server-side
+  }
+
   const setPreferredMediaLang = (value: string) => {
     setPreferredMediaLangState(value)
     if (typeof window !== 'undefined') localStorage.setItem(MEDIA_LANG_KEY, value)
@@ -129,7 +142,7 @@ export const PreferencesProvider = ({ children }: { children: ReactNode }) => {
   const setVisibility = (facet: PrivacyFacet, value: Visibility) => {
     setPrivacy((prev) => {
       const next = { ...prev, [facet]: value }
-      void savePrivacy(next) // optimistic; persist server-side
+      void savePrivacy({ ...next, showActivityReactions }) // optimistic; persist server-side
       return next
     })
   }
@@ -155,6 +168,8 @@ export const PreferencesProvider = ({ children }: { children: ReactNode }) => {
         setFeedBlockVisible,
         theme,
         setTheme,
+        showActivityReactions,
+        setShowActivityReactions,
       }}
     >
       {children}

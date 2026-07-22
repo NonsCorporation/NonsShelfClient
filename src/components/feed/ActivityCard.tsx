@@ -22,6 +22,8 @@ import ShareModal from '@/components/feed/ShareModal'
 import ReviewContent from '@/components/review/ReviewContent'
 import LibrarianBadge from '@/components/badges/LibrarianBadge'
 import { isLibrarian } from '@/services/librarianService'
+import ReactionBanner from '@/components/feed/ReactionBanner'
+import { usePreferences } from '@/contexts/PreferencesContext'
 
 // The shelf status a post's own event type unambiguously implies — used for
 // the share card's status pill. 'added'/'rated'/'reviewed' don't reliably
@@ -95,6 +97,10 @@ export default function ActivityCard({
 }) {
   const { t } = useLanguage()
   const { user } = useAuth()
+  const { showActivityReactions } = usePreferences()
+  // Only gates the banner when *I* am the reactor (my own like/repost/comment on
+  // someone else's post) — other people's reactions are unaffected by my setting.
+  const showReactionBanner = a.userReactionPayload && (a.userReactionPayload.actorId !== user?.id || showActivityReactions)
   const [showComments, setShowComments] = useState(initialOpenComments ?? false)
   // Once opened, CommentThread stays mounted (just visually collapsed) so
   // toggling it closed and back open animates smoothly instead of re-fetching
@@ -201,6 +207,8 @@ export default function ActivityCard({
 
   return (
     <article className="-mx-4 rounded-none border-x-0 border-y border-[var(--border-subtle)] bg-[var(--container)] px-4 py-4 sm:mx-0 sm:rounded-2xl sm:border sm:p-5">
+      {showReactionBanner && <ReactionBanner payload={a.userReactionPayload!} />}
+
       {/* header: "<Name> <verb> <Title>" + stars, above the media card */}
       <div className="mb-3 flex items-center gap-2.5">
         <Link

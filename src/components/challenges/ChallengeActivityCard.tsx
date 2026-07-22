@@ -14,6 +14,8 @@ import DropdownMenu from '@/components/ui/DropdownMenu'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 import LibrarianBadge from '@/components/badges/LibrarianBadge'
 import { isLibrarian } from '@/services/librarianService'
+import ReactionBanner from '@/components/feed/ReactionBanner'
+import { usePreferences } from '@/contexts/PreferencesContext'
 
 // A feed card for a "joined a challenge" event: "<Name> joined <Challenge>" over
 // a compact challenge tile, with the same like/comment footer as ActivityCard
@@ -33,6 +35,10 @@ export default function ChallengeActivityCard({
 }) {
   const { t } = useLanguage()
   const { user } = useAuth()
+  const { showActivityReactions } = usePreferences()
+  // Only gates the banner when *I* am the reactor (my own like/repost/comment on
+  // someone else's post) — other people's reactions are unaffected by my setting.
+  const showReactionBanner = a.userReactionPayload && (a.userReactionPayload.actorId !== user?.id || showActivityReactions)
   const [showComments, setShowComments] = useState(initialOpenComments ?? false)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -61,6 +67,8 @@ export default function ChallengeActivityCard({
 
   return (
     <article className="-mx-4 rounded-none border-x-0 border-y border-[var(--border-subtle)] bg-[var(--container)] px-4 py-4 sm:mx-0 sm:rounded-2xl sm:border sm:p-5">
+      {showReactionBanner && <ReactionBanner payload={a.userReactionPayload!} />}
+
       {/* header: "<Name> joined <Challenge>" */}
       <div className="mb-3 flex items-center gap-2.5">
         <Link

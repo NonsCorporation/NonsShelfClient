@@ -77,7 +77,7 @@ export default function SettingsModal({ isOpen, onClose, onOpenImport }: Props) 
   const {
     showInProgress, setShowInProgress, privacy, setVisibility,
     preferredMediaLang, setPreferredMediaLang, feedBlocks, setFeedBlockVisible,
-    theme, setTheme,
+    theme, setTheme, showActivityReactions, setShowActivityReactions,
   } = usePreferences()
   const { logout, user } = useAuth()
   // Two-step delete: 0 = idle, 1 = first confirm, 2 = final confirm.
@@ -219,6 +219,20 @@ export default function SettingsModal({ isOpen, onClose, onOpenImport }: Props) 
                   <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition-transform ${showInProgress ? 'translate-x-4' : 'translate-x-0.5'}`} />
                 </span>
               </button>
+
+              {/* Show my activity reactions */}
+              <div className="flex flex-col gap-1">
+                <button
+                  onClick={() => setShowActivityReactions(!showActivityReactions)}
+                  className="flex items-center justify-between gap-3 text-left"
+                >
+                  <span className="text-sm text-[var(--text)]">{t('settingsShowActivityReactions')}</span>
+                  <span className={`relative h-5 w-9 flex-shrink-0 rounded-full transition-colors ${showActivityReactions ? 'bg-nonsprimary' : 'bg-[var(--border-strong)]'}`}>
+                    <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition-transform ${showActivityReactions ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                  </span>
+                </button>
+                <p className="text-xs text-[var(--text-muted)]">{t('settingsShowActivityReactionsHint')}</p>
+              </div>
             </div>
           </section>
 

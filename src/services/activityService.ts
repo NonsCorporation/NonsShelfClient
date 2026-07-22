@@ -3,6 +3,18 @@ import type { MediaType } from '../types'
 
 export type ActivityType = 'rated' | 'finished' | 'started' | 'added' | 'reviewed' | 'progress' | 'dnf' | 'challenge_joined'
 
+// Drives the "<Name> liked/reposted/commented on this" banner shown atop a
+// post, above its own author row — surfaced when the actor is one of the
+// viewer's friends who reacted to that (someone else's) post, so the reaction
+// itself becomes visible in the feed, not just on the reacted-to post's own
+// page. 'repost' has no backend equivalent yet (kept for forward-compat).
+export type UserReactionPayload = {
+  type: 'like' | 'repost' | 'comment'
+  actorId: number
+  actorName: string
+  actorAvatarUrl?: string
+}
+
 export type Activity = {
   id: string
   /** The stored feed post's id — what comments attach to and deletion targets. */
@@ -32,6 +44,8 @@ export type Activity = {
   timeAgo: string
   /** Absolute event time, Unix seconds — used for date grouping. */
   at: number
+  /** Who reacted to this post and how, for the banner above the author row. */
+  userReactionPayload?: UserReactionPayload
   /** Set for `challenge_joined` events (no media): the joined challenge, so the
    *  feed can render a challenge card and link to it. */
   challenge?: {
@@ -83,6 +97,9 @@ type ActivityEvent = {
   // title so the feed matches their library/reading list.
   edition_title?: string
   edition_cover?: string
+  // Set when this event is a group member's like/comment on someone else's
+  // post rather than that post's own author posting it.
+  reaction?: { actor_id: number; type: 'like' | 'comment' }
 }
 
 // The current user, so their own activity (shelf state changes, ratings) shows
@@ -140,19 +157,34 @@ function timeAgo(at: number): string {
   return `${Math.floor(s / (7 * 86400))}w`
 }
 
+// Resolves a wire reaction's actor against the friends map (which also
+// includes the viewer themselves — see getFriendUsers) into a display-ready
+// UserReactionPayload. undefined when there's no reaction, or the actor can't
+// be resolved (e.g. getUserActivity's single-user queries, which pass no map).
+function toReactionPayload(e: ActivityEvent, friends?: Map<number, Activity['user']>): UserReactionPayload | undefined {
+  if (!e.reaction) return undefined
+  const actor = friends?.get(e.reaction.actor_id)
+  if (!actor) return undefined
+  return { type: e.reaction.type, actorId: e.reaction.actor_id, actorName: actor.name, actorAvatarUrl: actor.avatarUrl }
+}
+
 // Map a wire event to an Activity, branching on whether it's a media event or a
 // non-media challenge event (challenge_joined). Challenge events carry no media,
 // so media fields get harmless placeholders and `challenge` is populated
 // instead; the feed renders those with a dedicated card.
-function toActivity(e: ActivityEvent, user: Activity['user']): Activity {
+function toActivity(e: ActivityEvent, user: Activity['user'], friends?: Map<number, Activity['user']>): Activity {
   const base = {
-    id: `p-${e.post_id}`,
+    // Reaction events reuse the same postId as the post they reacted to, so
+    // they need a distinct client id to avoid colliding as a React list key
+    // when both appear on the same feed page.
+    id: e.reaction ? `r-${e.post_id}-${e.reaction.actor_id}-${e.reaction.type}` : `p-${e.post_id}`,
     postId: e.post_id,
     userId: e.user_id,
     user,
     type: e.type,
     timeAgo: timeAgo(e.at),
     at: e.at,
+    userReactionPayload: toReactionPayload(e, friends),
   }
   if (e.type === 'challenge_joined' && e.challenge) {
     return {
@@ -211,7 +243,7 @@ class ApiActivityService implements IActivityService {
 
     const items = events
       .filter((e) => (e.media || e.challenge) && friends.has(e.user_id))
-      .map((e) => toActivity(e, { ...friends.get(e.user_id)!, ...(e.user_role ? { role: e.user_role } : {}) }))
+      .map((e) => toActivity(e, { ...friends.get(e.user_id)!, ...(e.user_role ? { role: e.user_role } : {}) }, friends))
 
     return { items, total: body.total ?? items.length }
   }
