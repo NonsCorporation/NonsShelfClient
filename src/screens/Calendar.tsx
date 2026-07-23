@@ -14,7 +14,7 @@ import type { MediaItem, MediaType } from '../types.ts';
 import type { ReadingSpan, PageEntry } from '../services/libraryService.ts';
 import { mediaPath } from '../lib/paths.ts';
 import { coverColor } from '../lib/coverColor.ts';
-import Statistics from './Statistics.tsx';
+import Statistics, { hashHue } from './Statistics.tsx';
 
 const DAY_MS = 86_400_000;
 
@@ -53,6 +53,41 @@ function readableTextColor(hex: string): string {
     const b = parseInt(hex.slice(5, 7), 16);
     const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
     return luminance > 0.6 ? '#1a1a1a' : '#ffffff';
+}
+
+// A finished read's cover for its calendar badge. Falls back to the same
+// generated placeholder the statistics shelf uses when there's no image, it
+// fails to load, or it decodes tiny — OpenLibrary and some hosts answer 200
+// with a 1x1 gif for missing covers, which would otherwise leave an empty box.
+function FinishCover({ cover, title, author }: { cover?: string; title: string; author?: string }) {
+    const [broken, setBroken] = useState(!cover);
+    useEffect(() => setBroken(!cover), [cover]);
+    if (broken) {
+        // Same generated field as the statistics shelf's FinishedCover: hashed-hue
+        // background, author top, title centered — scaled down for the badge.
+        return (
+            <span
+                className="flex h-full w-full flex-col justify-between p-0.5"
+                style={{ backgroundColor: `hsl(${hashHue(`${title}${author || ''}`)}, 22%, 15%)` }}
+            >
+                {author && <span className="line-clamp-1 text-[5px] text-white/75 md:text-[7px]">{author}</span>}
+                <span className="line-clamp-3 text-center text-[6px] font-extrabold leading-tight text-white md:text-[8px]">{title}</span>
+                <span />
+            </span>
+        );
+    }
+    return (
+        <img
+            src={cover}
+            alt={title}
+            className="h-full w-full object-cover"
+            onError={() => setBroken(true)}
+            onLoad={(e) => {
+                const img = e.currentTarget;
+                if (img.naturalWidth < 4 || img.naturalHeight < 4) setBroken(true);
+            }}
+        />
+    );
 }
 
 export default function CalendarPage() {
@@ -163,6 +198,15 @@ export default function CalendarPage() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [coverKey]);
 
+    // Author by media id, from the loaded library items — reading spans don't
+    // carry an author, so the finish badge's no-cover placeholder borrows it
+    // from here (item ids are strings, span media ids numbers).
+    const authorById = useMemo(() => {
+        const m = new Map<number, string>();
+        items.forEach((it) => { if (it.author) m.set(Number(it.id), it.author); });
+        return m;
+    }, [items]);
+
     // The month's books with a resolved color each — cover-derived when we could
     // read it, otherwise the next color off the fallback palette. This is the
     // full list (unfiltered), so the legend below always shows every book that
@@ -170,9 +214,10 @@ export default function CalendarPage() {
     const books = useMemo(
         () => monthBooks.map((b, i) => ({
             ...b,
+            author: authorById.get(b.id) || '',
             color: (b.cover && coverColors[b.cover]) || BAR_COLORS[i % BAR_COLORS.length],
         })),
-        [monthBooks, coverColors],
+        [monthBooks, coverColors, authorById],
     );
 
     // Books the legend has toggled off — excluded from the grid entirely
@@ -358,6 +403,10 @@ export default function CalendarPage() {
             finishes: boolean;
             /** Past the labelled tier — drawn as a bare line, no title. */
             thin: boolean;
+            /** Position within the fan of covers finishing on the same day. */
+            stackIndex: number;
+            /** How many reads finish on this run's last day (this one included). */
+            stackCount: number;
         };
 
         const rows: { days: (number | null)[]; runs: Run[] }[] = [];
@@ -377,10 +426,25 @@ export default function CalendarPage() {
                     if (on && start === -1) start = col;
                     if (!on && start !== -1) {
                         const lastDay = days[col - 1] as number;
-                        runs.push({ book, startCol: start, length: col - start, finishes: book.endDay === lastDay, thin });
+                        runs.push({ book, startCol: start, length: col - start, finishes: book.endDay === lastDay, thin, stackIndex: 0, stackCount: 1 });
                         start = -1;
                     }
                 }
+            });
+
+            // When several reads finish on the same day their cover badges would
+            // land exactly on top of each other, so fan them: group the finishing
+            // runs by their last column and give each its place in the stack.
+            const finishesByCol = new Map<number, Run[]>();
+            runs.forEach((r) => {
+                if (!r.finishes) return;
+                const endCol = r.startCol + r.length - 1;
+                const list = finishesByCol.get(endCol) ?? [];
+                list.push(r);
+                finishesByCol.set(endCol, list);
+            });
+            finishesByCol.forEach((list) => {
+                list.forEach((r, i) => { r.stackIndex = i; r.stackCount = list.length; });
             });
 
             rows.push({ days, runs });
@@ -507,7 +571,7 @@ export default function CalendarPage() {
                 )}
 
                 {/* view container */}
-                <div className={`bg-[var(--container)] border border-[var(--border-subtle)] rounded-2xl p-3 md:p-4${viewMode === 'github' ? ' w-fit' : ''}`}>
+                <div className={`rounded-2xl bg-[var(--container)] p-2 md:border md:border-[var(--border-subtle)] md:p-4${viewMode === 'github' ? ' w-fit' : ''}`}>
                     {viewMode === 'calendar' ? (
                         <>
                             <div className="mb-2 grid grid-cols-7 text-center text-[9px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)] md:text-[10px]">
@@ -568,6 +632,10 @@ export default function CalendarPage() {
                                                 const span = run.length - (run.finishes ? 0.5 : 0);
                                                 const dim = hoveredBook !== null && hoveredBook !== run.book.id;
                                                 const barHeight = run.thin ? 'var(--cal-thin)' : 'var(--cal-bar)';
+                                                // Where this cover sits in a same-day fan: centered around the
+                                                // day, each card shifted by ~55% of a cover width so they
+                                                // overlap like a dealt hand instead of stacking dead-on.
+                                                const fanShift = run.stackIndex - (run.stackCount - 1) / 2;
                                                 return (
                                                     <Fragment key={ri}>
                                                         <Link
@@ -593,28 +661,25 @@ export default function CalendarPage() {
                                                         {/* The finish itself: a cover badge centered in its day
                                                             cell (both axes), overlapping whatever lines pass
                                                             through that cell rather than sitting in dedicated
-                                                            space of its own. Two books finishing the same day is
-                                                            the one case where badges can land on top of each
-                                                            other, since centering no longer keys off a lane. */}
+                                                            space of its own. Several books finishing the same day
+                                                            fan out horizontally (see fanShift) so their covers
+                                                            overlap like a dealt hand instead of stacking dead-on. */}
                                                         {run.finishes && (
                                                             <Link
                                                                 to={run.book.to}
                                                                 title={run.book.title}
                                                                 onMouseEnter={() => setHoveredBook(run.book.id)}
                                                                 onMouseLeave={() => setHoveredBook(null)}
-                                                                className={`pointer-events-auto absolute z-10 overflow-hidden rounded-[2px] shadow-md shadow-black/40 ring-1 ring-black/25 transition-transform hover:z-20 hover:scale-125 ${dim ? 'opacity-25' : ''}`}
+                                                                className={`pointer-events-auto absolute overflow-hidden rounded-[2px] shadow-md shadow-black/40 ring-1 ring-black/25 transition-transform hover:scale-125 ${dim ? 'opacity-25' : ''}`}
                                                                 style={{
-                                                                    left: `calc(${((run.startCol + run.length - 0.5) / 7) * 100}% - var(--cal-cover-w) / 2)`,
+                                                                    left: `calc(${((run.startCol + run.length - 0.5) / 7) * 100}% - var(--cal-cover-w) / 2 + ${fanShift} * var(--cal-cover-w) * 0.55)`,
                                                                     top: 'calc(50% - var(--cal-cover-h) / 2)',
                                                                     width: 'var(--cal-cover-w)',
                                                                     height: 'var(--cal-cover-h)',
+                                                                    zIndex: 10 + run.stackIndex,
                                                                 }}
                                                             >
-                                                                {run.book.cover ? (
-                                                                    <img src={run.book.cover} alt={run.book.title} className="h-full w-full object-cover" />
-                                                                ) : (
-                                                                    <span className="block h-full w-full" style={{ backgroundColor: run.book.color }} />
-                                                                )}
+                                                                <FinishCover cover={run.book.cover} title={run.book.title} author={run.book.author} />
                                                             </Link>
                                                         )}
                                                     </Fragment>

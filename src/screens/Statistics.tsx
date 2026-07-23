@@ -700,8 +700,9 @@ function starColor(r: number): string {
 
 // Deterministic hue from a string, so an item with no cover always gets the
 // same generated placeholder color — same idea the recap story cards use for
-// their cover-wall slide.
-function hashHue(seed: string): number {
+// their cover-wall slide. Exported so the reading calendar's finish badges can
+// draw the same no-cover placeholder.
+export function hashHue(seed: string): number {
   let h = 0
   for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0
   return h % 360
