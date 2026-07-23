@@ -92,6 +92,7 @@ function FinishCover({ cover, title, author }: { cover?: string; title: string; 
 
 export default function CalendarPage() {
     const { t, language } = useLanguage();
+    const locale = language === 'ru' ? 'ru-RU' : 'en-US';
     const [currentDate, setCurrentDate] = useState(new Date());
     const [items, setItems] = useState<MediaItem[]>([]);
     const [spans, setSpans] = useState<ReadingSpan[]>([]);
@@ -139,7 +140,7 @@ export default function CalendarPage() {
         // every span of the same media collapse into one set.
         const byId = new Map<number, {
             id: number; title: string; to: string; cover?: string;
-            days: Set<number>; endDay: number | null;
+            days: Set<number>; endDay: number | null; startDay: number | null;
         }>();
         spans.forEach((s) => {
             if (!s.media) return;
@@ -159,6 +160,7 @@ export default function CalendarPage() {
                     cover: s.media.cover_url || undefined,
                     days: new Set<number>(),
                     endDay: null,
+                    startDay: null,
                 };
                 byId.set(s.media.id, entry);
             }
@@ -172,6 +174,13 @@ export default function CalendarPage() {
                 if (fin.getFullYear() === currentYear && fin.getMonth() === currentMonth) {
                     entry.endDay = fin.getDate();
                 }
+            }
+            // The day the read actually began, when that lands in view — the
+            // calendar's bar starts flush at the cell edge on that day, same
+            // idea as endDay for the finish.
+            const started = new Date(s.started_at * 1000);
+            if (started.getFullYear() === currentYear && started.getMonth() === currentMonth) {
+                entry.startDay = started.getDate();
             }
         });
 
@@ -401,6 +410,10 @@ export default function CalendarPage() {
             length: number;
             /** The read wrapped up on this run's last day. */
             finishes: boolean;
+            /** The read actually began on this run's first day (not just a
+             *  week-wrap continuation) — the bar sits flush at the cell's left
+             *  edge instead of the usual inset. */
+            starts: boolean;
             /** Past the labelled tier — drawn as a bare line, no title. */
             thin: boolean;
             /** Position within the fan of covers finishing on the same day. */
@@ -426,7 +439,13 @@ export default function CalendarPage() {
                     if (on && start === -1) start = col;
                     if (!on && start !== -1) {
                         const lastDay = days[col - 1] as number;
-                        runs.push({ book, startCol: start, length: col - start, finishes: book.endDay === lastDay, thin, stackIndex: 0, stackCount: 1 });
+                        const firstDay = days[start] as number;
+                        runs.push({
+                            book, startCol: start, length: col - start,
+                            finishes: book.endDay === lastDay,
+                            starts: book.startDay === firstDay,
+                            thin, stackIndex: 0, stackCount: 1,
+                        });
                         start = -1;
                     }
                 }
@@ -453,13 +472,13 @@ export default function CalendarPage() {
     }, [startOffset, daysInMonth, visibleBooks]);
 
     // Localized "June 2026" rather than a terse "06/2026".
-    const displayMonth = currentDate.toLocaleDateString(language === 'ru' ? 'ru-RU' : 'en-US', { month: 'long', year: 'numeric' });
+    const displayMonth = currentDate.toLocaleDateString(locale, { month: 'long', year: 'numeric' });
     const now = new Date();
     const isThisMonth = currentYear === now.getFullYear() && currentMonth === now.getMonth();
 
     const prevMonth = () => setCurrentDate(new Date(currentYear, currentMonth - 1, 1));
     const nextMonth = () => setCurrentDate(new Date(currentYear, currentMonth + 1, 1));
-    
+
     // determines color intensity class based on activity count
     const getActivityColor = (count: number) => {
         if (count === 0) return 'bg-[var(--surface-hover)]';
@@ -602,15 +621,29 @@ export default function CalendarPage() {
                                                 return (
                                                     <div
                                                         key={di}
-                                                        className={`relative ${isToday ? 'bg-nonsprimary/10' : isSunday ? 'bg-[var(--surface)]/30' : 'bg-[var(--container)]'}`}
+                                                        className={`relative ${
+                                                            isToday
+                                                                ? 'bg-[color-mix(in_srgb,var(--container-2)_82%,var(--color-nonsprimary))]'
+                                                                : isSunday
+                                                                    ? 'bg-[color-mix(in_srgb,var(--container-2)_90%,var(--color-nonslightred))]'
+                                                                    : 'bg-[var(--container-2)]'
+                                                        }`}
                                                     >
-                                                        <span className={`absolute left-1.5 top-0.5 text-[10px] font-semibold leading-tight md:text-xs ${
-                                                            isToday ? 'text-nonsprimary' : isSunday ? 'text-nonslightred' : 'text-[var(--text-muted)]'
-                                                        }`}>
-                                                            {day}
-                                                        </span>
+                                                        {/* Today gets a filled circle badge — the calendar's one loud
+                                                            marker, and legible at a glance on a small screen. */}
+                                                        {isToday ? (
+                                                            <span className="absolute left-1 top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-nonsprimary text-[9px] font-bold leading-none text-white shadow-sm md:left-1.5 md:h-5 md:w-5 md:text-[11px]">
+                                                                {day}
+                                                            </span>
+                                                        ) : (
+                                                            <span className={`absolute left-1.5 top-0.5 text-[10px] font-semibold leading-tight md:text-xs ${
+                                                                isSunday ? 'text-nonslightred' : 'text-[var(--text-muted)]'
+                                                            }`}>
+                                                                {day}
+                                                            </span>
+                                                        )}
 
-                                                        {pages > 0 && (
+                                                        {pages > 0 && (typeFilter === 'all' || typeFilter === 'book') && (
                                                             <span
                                                                 title={t('pagesReadCount', { count: pages })}
                                                                 className="absolute right-1 top-0.5 flex items-center gap-0.5 text-[9px] font-medium leading-tight text-[var(--text-muted)] md:text-[10px]"
@@ -632,31 +665,40 @@ export default function CalendarPage() {
                                                 const span = run.length - (run.finishes ? 0.5 : 0);
                                                 const dim = hoveredBook !== null && hoveredBook !== run.book.id;
                                                 const barHeight = run.thin ? 'var(--cal-thin)' : 'var(--cal-bar)';
+                                                // A true start sits flush at the cell's left edge (no inset) —
+                                                // a week-wrap continuation still gets the usual breathing room.
+                                                const leftInset = run.starts ? '0px' : 'var(--cal-inset)';
+                                                // Started and finished within the same single day (a movie watched
+                                                // in one sitting) has no span to draw a line across at all — just
+                                                // the cover, with no connecting bar underneath it.
+                                                const singleDay = run.starts && run.finishes && run.length === 1;
                                                 // Where this cover sits in a same-day fan: centered around the
                                                 // day, each card shifted by ~55% of a cover width so they
                                                 // overlap like a dealt hand instead of stacking dead-on.
                                                 const fanShift = run.stackIndex - (run.stackCount - 1) / 2;
                                                 return (
                                                     <Fragment key={ri}>
-                                                        <Link
-                                                            to={run.book.to}
-                                                            title={run.book.title}
-                                                            onMouseEnter={() => setHoveredBook(run.book.id)}
-                                                            onMouseLeave={() => setHoveredBook(null)}
-                                                            className={`pointer-events-auto absolute flex items-center overflow-hidden rounded-full text-[7px] font-semibold leading-none transition-opacity duration-150 md:text-[10px] ${run.thin ? '' : 'px-1.5'} ${dim ? 'opacity-25' : 'hover:opacity-80'}`}
-                                                            style={{
-                                                                left: `calc(${(run.startCol / 7) * 100}% + var(--cal-inset))`,
-                                                                width: `calc(${(span / 7) * 100}% - var(--cal-inset) * 2)`,
-                                                                top: laneTop(run.book.lane),
-                                                                height: barHeight,
-                                                                backgroundColor: run.book.color,
-                                                                color: readableTextColor(run.book.color),
-                                                            }}
-                                                        >
-                                                            {/* Written once per run — a one-day sliver has no room,
-                                                                and a thin overflow line has no height for it. */}
-                                                            {!run.thin && span > 1 && <span className="truncate whitespace-nowrap">{run.book.title}</span>}
-                                                        </Link>
+                                                        {!singleDay && (
+                                                            <Link
+                                                                to={run.book.to}
+                                                                title={run.book.title}
+                                                                onMouseEnter={() => setHoveredBook(run.book.id)}
+                                                                onMouseLeave={() => setHoveredBook(null)}
+                                                                className={`pointer-events-auto absolute flex items-center overflow-hidden rounded-full text-[8px] font-semibold leading-none transition-opacity duration-150 md:text-[10px] ${run.thin ? '' : 'px-1.5'} ${dim ? 'opacity-25' : 'hover:opacity-80'}`}
+                                                                style={{
+                                                                    left: `calc(${(run.startCol / 7) * 100}% + ${leftInset})`,
+                                                                    width: `calc(${(span / 7) * 100}% - ${leftInset} - var(--cal-inset))`,
+                                                                    top: laneTop(run.book.lane),
+                                                                    height: barHeight,
+                                                                    backgroundColor: run.book.color,
+                                                                    color: readableTextColor(run.book.color),
+                                                                }}
+                                                            >
+                                                                {/* Written once per run — a one-day sliver has no room,
+                                                                    and a thin overflow line has no height for it. */}
+                                                                {!run.thin && span > 1 && <span className="truncate whitespace-nowrap">{run.book.title}</span>}
+                                                            </Link>
+                                                        )}
 
                                                         {/* The finish itself: a cover badge centered in its day
                                                             cell (both axes), overlapping whatever lines pass
@@ -670,7 +712,7 @@ export default function CalendarPage() {
                                                                 title={run.book.title}
                                                                 onMouseEnter={() => setHoveredBook(run.book.id)}
                                                                 onMouseLeave={() => setHoveredBook(null)}
-                                                                className={`pointer-events-auto absolute overflow-hidden rounded-[2px] shadow-md shadow-black/40 ring-1 ring-black/25 transition-transform hover:scale-125 ${dim ? 'opacity-25' : ''}`}
+                                                                className={`pointer-events-auto absolute overflow-hidden rounded-md shadow-md shadow-black/40 ring-1 ring-white/15 transition-transform hover:scale-125 ${dim ? 'opacity-25' : ''}`}
                                                                 style={{
                                                                     left: `calc(${((run.startCol + run.length - 0.5) / 7) * 100}% - var(--cal-cover-w) / 2 + ${fanShift} * var(--cal-cover-w) * 0.55)`,
                                                                     top: 'calc(50% - var(--cal-cover-h) / 2)',
@@ -689,54 +731,6 @@ export default function CalendarPage() {
                                     </div>
                                 ))}
                             </div>
-
-                            {/* Key — which color is which book, as on a bullet-journal spread.
-                                Click an entry to show only that book (and others still selected)
-                                in the grid above; hovering one isolates it without changing the
-                                selection. */}
-                            {books.length > 0 ? (
-                                <div className="mt-5 border-t border-[var(--border-subtle)] pt-4">
-                                    <div className="mb-2.5 flex items-center justify-between gap-3">
-                                        <h3 className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
-                                            {t('legend')}
-                                        </h3>
-                                        <button
-                                            onClick={() => setHiddenBooks(allHidden ? new Set() : new Set(books.map((b) => b.id)))}
-                                            className="text-[11px] font-medium text-nonsprimary transition-colors hover:text-nonsprimaryfocus"
-                                        >
-                                            {allHidden ? t('selectAll') : t('deselectAll')}
-                                        </button>
-                                    </div>
-                                    <div className="flex flex-wrap gap-1.5">
-                                        {books.map((book) => {
-                                            const hidden = hiddenBooks.has(book.id);
-                                            return (
-                                                <button
-                                                    key={book.id}
-                                                    onClick={() => toggleBook(book.id)}
-                                                    onMouseEnter={() => setHoveredBook(book.id)}
-                                                    onMouseLeave={() => setHoveredBook(null)}
-                                                    className={`flex items-center gap-2 rounded-full border px-2.5 py-1 text-xs transition-all ${
-                                                        hidden
-                                                            ? 'border-[var(--border-subtle)] text-[var(--placeholder)]'
-                                                            : 'border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] hover:text-[var(--text)]'
-                                                    }`}
-                                                >
-                                                    <span
-                                                        className="h-2.5 w-2.5 shrink-0 rounded-full transition-opacity"
-                                                        style={{ backgroundColor: book.color, opacity: hidden ? 0.3 : 1 }}
-                                                    />
-                                                    <span className={`max-w-[12rem] truncate ${hidden ? 'line-through' : ''}`}>{book.title}</span>
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-                            ) : (
-                                <p className="mt-5 border-t border-[var(--border-subtle)] pt-6 pb-2 text-center text-sm text-[var(--placeholder)]">
-                                    {t('nothingInProgress')}
-                                </p>
-                            )}
                         </>
                     ) : (
                         <div ref={githubContainerRef} className="w-full overflow-x-auto pb-2">
@@ -787,6 +781,59 @@ export default function CalendarPage() {
                         </div>
                     )}
                 </div>
+
+                {/* Key — which color is which book, as on a bullet-journal spread,
+                    in its own card below the grid rather than sharing its border.
+                    Click an entry to show only that book (and others still selected)
+                    in the grid above; hovering one isolates it without changing the
+                    selection. */}
+                {viewMode === 'calendar' && (
+                    <div className="mt-3 rounded-2xl bg-[var(--container)] p-3 md:border md:border-[var(--border-subtle)] md:p-4">
+                        {books.length > 0 ? (
+                            <>
+                                <div className="mb-2.5 flex items-center justify-between gap-3">
+                                    <h3 className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
+                                        {t('legend')}
+                                    </h3>
+                                    <button
+                                        onClick={() => setHiddenBooks(allHidden ? new Set() : new Set(books.map((b) => b.id)))}
+                                        className="text-[11px] font-medium text-nonsprimary transition-colors hover:text-nonsprimaryfocus"
+                                    >
+                                        {allHidden ? t('selectAll') : t('deselectAll')}
+                                    </button>
+                                </div>
+                                <div className="flex flex-wrap gap-1.5">
+                                    {books.map((book) => {
+                                        const hidden = hiddenBooks.has(book.id);
+                                        return (
+                                            <button
+                                                key={book.id}
+                                                onClick={() => toggleBook(book.id)}
+                                                onMouseEnter={() => setHoveredBook(book.id)}
+                                                onMouseLeave={() => setHoveredBook(null)}
+                                                className={`flex items-center gap-2 rounded-full border px-2.5 py-1 text-xs transition-all ${
+                                                    hidden
+                                                        ? 'border-[var(--border-subtle)] text-[var(--placeholder)]'
+                                                        : 'border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] hover:text-[var(--text)]'
+                                                }`}
+                                            >
+                                                <span
+                                                    className="h-2.5 w-2.5 shrink-0 rounded-full transition-opacity"
+                                                    style={{ backgroundColor: book.color, opacity: hidden ? 0.3 : 1 }}
+                                                />
+                                                <span className={`max-w-[12rem] truncate ${hidden ? 'line-through' : ''}`}>{book.title}</span>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </>
+                        ) : (
+                            <p className="py-2 text-center text-sm text-[var(--placeholder)]">
+                                {t('nothingInProgress')}
+                            </p>
+                        )}
+                    </div>
+                )}
                 </>)}
         </Layout>
     );

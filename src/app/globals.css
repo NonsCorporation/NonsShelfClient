@@ -494,19 +494,19 @@ html[data-theme="light"] .review-content .spoiler-text.revealed {
    cover badge's own fixed pixel size (not a % of the cell), so it reads as a
    marker stamped on the day rather than stretching with the grid. */
 .reading-cal {
-  --cal-top: 12px;      /* day-number strip above the first bar */
-  --cal-bar: 10px;      /* one labelled reading bar */
-  --cal-gap: 2px;       /* between labelled bars */
-  --cal-thin: 3px;      /* an overflow read, drawn as a bare line */
-  --cal-thin-gap: 2px;  /* between overflow lines */
-  --cal-cover-w: 24px;  /* finished-book cover badge, fixed size, centered in the cell */
-  --cal-cover-h: 36px;
-  --cal-cover: 6px;     /* bottom cushion below the deepest lane */
+  --cal-top: 28px;      /* day-number strip above the first bar (fits the today circle) */
+  --cal-bar: 17px;      /* one labelled reading bar */
+  --cal-gap: 4px;       /* between labelled bars */
+  --cal-thin: 5px;      /* an overflow read, drawn as a bare line */
+  --cal-thin-gap: 4px;  /* between overflow lines */
+  --cal-cover-w: 36px;  /* finished-book cover badge, fixed size, centered in the cell */
+  --cal-cover-h: 54px;
+  --cal-cover: 14px;    /* bottom cushion below the deepest lane */
   --cal-inset: 2px;     /* horizontal breathing room at a run's rounded ends */
 }
 @media (min-width: 768px) {
   .reading-cal {
-    --cal-top: 16px;
+    --cal-top: 22px;
     --cal-bar: 14px;
     --cal-gap: 3px;
     --cal-thin: 4px;
