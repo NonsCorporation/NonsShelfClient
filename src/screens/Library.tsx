@@ -26,6 +26,8 @@ import {
   IoBookOutline,
   IoFilmOutline,
   IoTvOutline,
+  IoCheckmarkCircleOutline,
+  IoTrashOutline,
 } from 'react-icons/io5'
 import { BsSortDown, BsSortUp } from 'react-icons/bs'
 import Layout from '../components/layout/Layout.tsx'
@@ -198,6 +200,16 @@ export default function LibraryScreen() {
   const [showScan, setShowScan] = useState(false)
   const [detailItem, setDetailItem] = useState<MediaItem | null>(null)
 
+  // Batch edit: a selection mode where each card becomes a checkbox and a
+  // bottom action bar moves every selected item to another shelf at once
+  // (own library only). selectedIds holds media ids; batchBusy disables the
+  // bar while a bulk action is in flight. Bumping reloadKey re-runs whichever
+  // fetch effect currently owns the list, so the grid reflects the moves.
+  const [selectMode, setSelectMode] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [batchBusy, setBatchBusy] = useState(false)
+  const [reloadKey, setReloadKey] = useState(0)
+
   // Whether the current filters can be pushed down to searchLibrary() (real
   // server-side filter/sort/pagination) instead of the old getItems() (fetch
   // everything, filter/sort/paginate client-side). Excludes:
@@ -269,7 +281,7 @@ export default function LibraryScreen() {
     return () => {
       cancelled = true
     }
-  }, [authLoading, readOnly, userParam, canUseServerSearch])
+  }, [authLoading, readOnly, userParam, canUseServerSearch, reloadKey])
 
   // Server-search path: the signed-in user's own library, only server-
   // supported filters active. Refetches the current page whenever any of
@@ -309,7 +321,7 @@ export default function LibraryScreen() {
     }
   }, [
     authLoading, readOnly, canUseServerSearch, shelf, typeFilter, collectionFilter,
-    debouncedQuery, hasRating, hasReview, sort, sortDir, page,
+    debouncedQuery, hasRating, hasReview, sort, sortDir, page, reloadKey,
   ])
 
   // Fetch progress for all active items and build a label map for MediaCard badges.
@@ -385,7 +397,7 @@ export default function LibraryScreen() {
     ;(async () => {
       await loadStats()
     })()
-  }, [authLoading, readOnly, loadStats])
+  }, [authLoading, readOnly, loadStats, reloadKey])
 
   const clientStats = useMemo(() => {
     const rated = items.filter((it) => typeof it.rating === 'number' && it.rating > 0)
@@ -600,6 +612,56 @@ export default function LibraryScreen() {
   // match count).
   const totalPages = canUseServerSearch ? Math.max(1, Math.ceil(total / PAGE_SIZE)) : Math.ceil(filtered.length / PAGE_SIZE)
   const paged = canUseServerSearch ? filtered : filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+
+  // ── Batch edit ─────────────────────────────────────────────────────────
+  const toggleSelect = (item: MediaItem) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(item.id)) next.delete(item.id)
+      else next.add(item.id)
+      return next
+    })
+  }
+  // Select/clear every item on the current page (what's actually visible).
+  const pageIds = paged.map((it) => it.id)
+  const allPageSelected = pageIds.length > 0 && pageIds.every((id) => selectedIds.has(id))
+  const toggleSelectAll = () => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (allPageSelected) pageIds.forEach((id) => next.delete(id))
+      else pageIds.forEach((id) => next.add(id))
+      return next
+    })
+  }
+  const exitSelect = () => {
+    setSelectMode(false)
+    setSelectedIds(new Set())
+  }
+  // Apply a bulk move (or removal) to the selected items, then refresh the
+  // list + header stats and leave select mode. Each status keeps its own
+  // side-effects server-side (done → finish date, dnf → abandon date, …);
+  // see libraryService.bulkSetStatus.
+  const applyBatch = async (action: ShelfStatus | 'remove') => {
+    const ids = [...selectedIds]
+    if (ids.length === 0) return
+    if (action === 'remove' && !window.confirm(t('batchRemoveConfirm', { n: ids.length }))) return
+    setBatchBusy(true)
+    try {
+      if (action === 'remove') await libraryService.bulkRemove(ids)
+      else await libraryService.bulkSetStatus(ids, action)
+      exitSelect()
+      setReloadKey((k) => k + 1)
+    } finally {
+      setBatchBusy(false)
+    }
+  }
+  const batchActions: { key: ShelfStatus | 'remove'; label: string; icon: typeof IoCheckmarkDoneOutline; color?: string; danger?: boolean }[] = [
+    { key: 'done', label: t('batchMarkFinished'), icon: IoCheckmarkDoneOutline, color: '#3ec98a' },
+    { key: 'dnf', label: t('batchMarkDNF'), icon: IoCloseCircleOutline, color: '#647da3' },
+    { key: 'active', label: t('batchMarkReading'), icon: IoTimeOutline, color: '#f5a623' },
+    { key: 'wishlist', label: t('batchMarkWishlist'), icon: IoBookmarkOutline, color: '#6768ab' },
+    { key: 'remove', label: t('batchRemove'), icon: IoTrashOutline, danger: true },
+  ]
 
   const statCards = [
     { label: t('statTotal'), value: stats.total },
@@ -1432,6 +1494,22 @@ export default function LibraryScreen() {
           })()}
         </div>
 
+        {/* Batch select — own library only */}
+        {!readOnly && (
+          <button
+            onClick={() => (selectMode ? exitSelect() : setSelectMode(true))}
+            title={t('batchSelect')}
+            className={`flex h-10 items-center gap-2 rounded-xl border px-3 text-sm transition-colors ${
+              selectMode
+                ? 'border-transparent bg-[var(--primary-soft)] text-[var(--text)]'
+                : 'border-[var(--border-subtle)] bg-[var(--surface)] text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]'
+            }`}
+          >
+            <IoCheckmarkCircleOutline className="h-4 w-4" />
+            <span className="hidden sm:inline">{selectMode ? t('cancel') : t('batchSelect')}</span>
+          </button>
+        )}
+
         {/* View toggle */}
         <div className="flex rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] p-1">
           <button onClick={() => setView('grid')} title={t('gridView')} className="relative rounded-lg p-1.5">
@@ -1552,15 +1630,18 @@ export default function LibraryScreen() {
                 key={it.id}
                 item={it}
                 view="grid"
-                onOpenDetail={setDetailItem}
-                onFilterStatus={(s) => {
+                onOpenDetail={selectMode ? undefined : setDetailItem}
+                onFilterStatus={selectMode ? undefined : (s) => {
                   const next = new URLSearchParams(params)
                   next.set('shelf', s)
                   next.delete('page')
                   setParams(next, { replace: true })
                 }}
-                onFilterType={setTypeFilterParam}
+                onFilterType={selectMode ? undefined : setTypeFilterParam}
                 progress={progressMap.get(it.id)}
+                selectable={selectMode}
+                selected={selectedIds.has(it.id)}
+                onToggleSelect={toggleSelect}
               />
             ))}
           </div>
@@ -1575,17 +1656,62 @@ export default function LibraryScreen() {
                 item={it}
                 view="list"
                 showReview
-                onOpenDetail={setDetailItem}
+                onOpenDetail={selectMode ? undefined : setDetailItem}
                 compareName={readOnly ? ownerName : undefined}
                 myEntry={readOnly ? myByMediaId.get(it.id) : undefined}
                 onMyStatusChange={readOnly ? handleMyStatusChange : undefined}
                 onMyRemove={readOnly ? handleMyRemove : undefined}
                 progress={progressMap.get(it.id)}
+                selectable={selectMode}
+                selected={selectedIds.has(it.id)}
+                onToggleSelect={toggleSelect}
               />
             ))}
           </div>
           <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} t={t} />
         </>
+      )}
+
+      {/* Batch action bar — floating, appears while selecting. Offset above the
+          mobile bottom-nav pill (same as the sort/filter sheets). */}
+      {selectMode && (
+        <div className="fixed inset-x-0 bottom-24 z-40 flex justify-center px-4 sm:bottom-6">
+          <div className="flex max-w-full flex-col gap-2 rounded-2xl border border-[var(--border)] bg-[var(--container-2)] p-2.5 shadow-2xl sm:flex-row sm:items-center">
+            <div className="flex items-center justify-between gap-3 px-1.5">
+              <span className="text-sm font-medium text-[var(--text)]">
+                {t('batchSelected', { n: selectedIds.size })}
+              </span>
+              <button
+                onClick={toggleSelectAll}
+                className="text-xs font-medium text-nonsprimary hover:underline"
+              >
+                {allPageSelected ? t('batchClear') : t('batchSelectAll')}
+              </button>
+            </div>
+            <div className="hidden h-6 w-px bg-[var(--border-subtle)] sm:block" />
+            <div className="no-scrollbar flex items-center gap-1.5 overflow-x-auto">
+              {batchActions.map((a) => {
+                const Icon = a.icon
+                return (
+                  <button
+                    key={a.key}
+                    onClick={() => applyBatch(a.key)}
+                    disabled={batchBusy || selectedIds.size === 0}
+                    title={a.label}
+                    className={`flex h-9 flex-shrink-0 items-center gap-1.5 rounded-xl border px-3 text-xs font-medium transition-colors disabled:opacity-40 ${
+                      a.danger
+                        ? 'border-transparent bg-red-500/10 text-red-500 hover:bg-red-500/20'
+                        : 'border-[var(--border-subtle)] bg-[var(--surface)] text-[var(--text)] hover:bg-[var(--surface-hover)]'
+                    }`}
+                  >
+                    <Icon className="h-4 w-4 flex-shrink-0" style={a.color ? { color: a.color } : undefined} />
+                    <span className="whitespace-nowrap">{a.label}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        </div>
       )}
       </div>{/* end main content */}
       </div>{/* end 2-col flex */}

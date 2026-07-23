@@ -9,6 +9,7 @@ import {
   IoLibraryOutline,
   IoChatbubbleOutline,
   IoTimeOutline,
+  IoCheckmark,
 } from 'react-icons/io5'
 import { TbSpy } from 'react-icons/tb'
 import type { MediaItem, ShelfStatus } from '@/types'
@@ -56,6 +57,11 @@ type MediaCardProps = {
   onFilterStatus?: (status: ShelfStatus) => void
   onFilterType?: (type: MediaItem['type']) => void
   progress?: ItemProgress
+  // Batch-select mode: when `selectable`, clicking the card toggles selection
+  // (via onToggleSelect) instead of navigating, and a checkbox is shown.
+  selectable?: boolean
+  selected?: boolean
+  onToggleSelect?: (item: MediaItem) => void
 }
 
 // renders media cover image or placeholder
@@ -87,6 +93,9 @@ export default function MediaCard({
   onFilterStatus,
   onFilterType,
   progress,
+  selectable = false,
+  selected = false,
+  onToggleSelect,
 }: MediaCardProps) {
   // prevents default event propagation
   const stop = (e: MouseEvent) => {
@@ -94,11 +103,32 @@ export default function MediaCard({
     e.stopPropagation()
   }
 
+  // In batch-select mode the whole card is a selection toggle, not a link.
+  const handleCardClick = selectable
+    ? (e: MouseEvent) => {
+        stop(e)
+        onToggleSelect?.(item)
+      }
+    : undefined
+
   // triggers detail modal
   const openDetail = (e: MouseEvent) => {
     stop(e)
     onOpenDetail?.(item)
   }
+
+  // A round checkbox overlay, shown in both layouts while selecting.
+  const selectBox = (
+    <span
+      className={`flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full border-2 shadow-sm transition-colors ${
+        selected
+          ? 'border-nonsprimary bg-nonsprimary text-white'
+          : 'border-[var(--border)] bg-[var(--container)]/80 text-transparent backdrop-blur-sm'
+      }`}
+    >
+      <IoCheckmark className="h-3.5 w-3.5" />
+    </span>
+  )
 
   const { t } = useLanguage()
   const navigate = useNavigate()
@@ -133,9 +163,15 @@ export default function MediaCard({
     return (
       <Link
         to={mediaPath(item)}
-        className="group flex flex-col gap-2.5 rounded-2xl border border-[var(--border-subtle)] bg-[var(--container)] p-3 transition-colors hover:border-[var(--border)] hover:bg-[var(--surface-hover)]"
+        onClick={handleCardClick}
+        className={`group flex flex-col gap-2.5 rounded-2xl border bg-[var(--container)] p-3 transition-colors hover:bg-[var(--surface-hover)] ${
+          selected ? 'border-nonsprimary ring-1 ring-nonsprimary' : 'border-[var(--border-subtle)] hover:border-[var(--border)]'
+        }`}
       >
-        <div className="flex items-start gap-4">
+        {/* While selecting, inner buttons (byline, history, …) are muted so any
+            click on the row toggles selection via the Link's handler. */}
+        <div className={`flex items-start gap-4 ${selectable ? '[&_a]:pointer-events-none [&_button]:pointer-events-none' : ''}`}>
+          {selectable && <div className="flex flex-shrink-0 items-center self-center">{selectBox}</div>}
           <div className="relative h-28 w-[74px] flex-shrink-0 overflow-hidden rounded-lg">
             <Cover item={item} fill className="rounded-lg" />
             {/* item type badge */}
@@ -284,11 +320,21 @@ export default function MediaCard({
   return (
     <Link
       to={mediaPath(item)}
-      className="group flex flex-col overflow-hidden rounded-2xl border border-[var(--border-subtle)] bg-[var(--container)] transition-colors duration-200 hover:border-[var(--border)]"
+      onClick={handleCardClick}
+      className={`group flex flex-col overflow-hidden rounded-2xl border bg-[var(--container)] transition-colors duration-200 ${
+        selected ? 'border-nonsprimary ring-2 ring-nonsprimary' : 'border-[var(--border-subtle)] hover:border-[var(--border)]'
+      }`}
     >
       <div className="relative aspect-[2/3] w-full overflow-hidden bg-[var(--container-2)]">
         <Cover item={item} fill className="transition-transform duration-500 group-hover:scale-105" />
         <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
+        {selectable && (
+          <>
+            {/* Dim unselected covers slightly so the selected ones pop. */}
+            {!selected && <div className="absolute inset-0 z-10 bg-black/25" />}
+            <span className="absolute right-2.5 top-2.5 z-20">{selectBox}</span>
+          </>
+        )}
 
         {/* top-left status zone */}
         {(() => {
@@ -332,7 +378,7 @@ export default function MediaCard({
               <TypeIcon className="h-3.5 w-3.5" />
             </span>
           </button>
-        ) : (
+        ) : selectable ? null : (
           <TypeBadge type={item.type} position="top-2.5 right-2.5" />
         )}
 
@@ -377,7 +423,7 @@ export default function MediaCard({
         </p>
       </div>
 
-      <div className="relative flex flex-1 flex-col gap-1 p-3">
+      <div className={`relative flex flex-1 flex-col gap-1 p-3 ${selectable ? '[&_button]:pointer-events-none' : ''}`}>
         <h3 className="truncate text-[15px] font-semibold leading-snug text-[var(--text)]" title={item.title}>
           {item.title}
         </h3>

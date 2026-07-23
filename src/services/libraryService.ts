@@ -277,6 +277,14 @@ export interface ILibraryService {
   /** Abandon an item: shelf → dnf, log a dated (backdatable) dnf event with an
    *  optional "why I stopped" note. The mirror of finish(). */
   markDNF(mediaId: string, opts: DNFOptions): Promise<void>
+  /** Move several shelf items to `status` in one action. Each keeps that
+   *  status's own side-effects — done stamps the finish date (now), dnf a dated
+   *  abandonment, active a start date — exactly like the single-item flows, but
+   *  the whole batch is silent: it never posts to the feed (a bulk move
+   *  shouldn't spray dozens of activity posts). */
+  bulkSetStatus(ids: string[], status: ShelfStatus): Promise<void>
+  /** Remove several items from the shelf at once (see deleteItem). */
+  bulkRemove(ids: string[]): Promise<void>
   /** Cross-post a finished item to the main nons feed (a real post on
    *  nons-server/nons-client) mentioning it, independent of the shelf's own
    *  internal feed (`share` above). Throws if the post couldn't be created. */
@@ -732,6 +740,30 @@ class ApiLibraryService implements ILibraryService {
         share: opts.share ?? true,
       }),
     })
+  }
+
+  // Move a single shelf entry to `status` without touching the feed — the
+  // building block for bulkSetStatus. done/dnf go through finish()/markDNF() so
+  // they get the same finish/abandon date stamping as the one-off flows; the
+  // other statuses are a plain shelf PUT (which the server records as a
+  // started/shelved milestone at now). share:false throughout keeps a batch
+  // move from posting an activity item per entry.
+  private async setStatusSilently(mediaId: string, status: ShelfStatus): Promise<void> {
+    if (status === 'done') return this.finish(mediaId, { share: false })
+    if (status === 'dnf') return this.markDNF(mediaId, { share: false })
+    await authedFetch(`/api/shelf/${Number(mediaId)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status, share: false }),
+    })
+  }
+
+  async bulkSetStatus(ids: string[], status: ShelfStatus): Promise<void> {
+    await Promise.all(ids.map((id) => this.setStatusSilently(id, status)))
+  }
+
+  async bulkRemove(ids: string[]): Promise<void> {
+    await Promise.all(ids.map((id) => this.deleteItem(id)))
   }
 
   // Cross-post to the main nons feed: creates a real post on nons-server

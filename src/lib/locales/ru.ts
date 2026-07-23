@@ -513,6 +513,18 @@ export const ru = {
   showing: 'Показано {n} из {total}',
   itemsCount: '{n} элементов',
 
+  // Batch edit (select mode)
+  batchSelect: 'Выбрать',
+  batchSelected: 'Выбрано: {n}',
+  batchSelectAll: 'Выбрать все',
+  batchClear: 'Очистить',
+  batchMarkFinished: 'Прочитано',
+  batchMarkDNF: 'Не дочитано',
+  batchMarkReading: 'Читаю',
+  batchMarkWishlist: 'В планах',
+  batchRemove: 'Удалить',
+  batchRemoveConfirm: 'Удалить {n} элемент(ов) из библиотеки вместе с оценками, отзывами и прогрессом? Их можно будет добавить снова позже.',
+
   // Status control
   status: 'Статус',
   unrated: 'Без оценки',

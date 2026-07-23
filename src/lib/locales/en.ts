@@ -513,6 +513,18 @@ export const en = {
   showing: 'Showing {n} of {total}',
   itemsCount: '{n} items',
 
+  // Batch edit (select mode)
+  batchSelect: 'Select',
+  batchSelected: '{n} selected',
+  batchSelectAll: 'Select all',
+  batchClear: 'Clear',
+  batchMarkFinished: 'Finished',
+  batchMarkDNF: 'Did not finish',
+  batchMarkReading: 'Reading',
+  batchMarkWishlist: 'Want to',
+  batchRemove: 'Remove',
+  batchRemoveConfirm: 'Remove {n} item(s) from your library, along with their ratings, reviews and progress? They can be added back later.',
+
   // Status control
   status: 'Status',
   unrated: 'Unrated',

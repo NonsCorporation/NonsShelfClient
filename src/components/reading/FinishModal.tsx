@@ -146,8 +146,14 @@ export default function FinishModal({ isOpen, item, onClose, onFinished }: Props
       await libraryService.finish(item.id, { rating, review, finishedAt, share })
       // Persist the chosen started/finished dates as the authoritative reading
       // period (so they match what shows on the media page and the calendar).
+      // The started field is pre-seeded from the shelf-add date when no real
+      // start is known, which for imports can fall *after* the actual finish
+      // date — never record that impossible start (it would surface as a
+      // phantom "reading now" cycle). The server enforces the same invariant.
+      let startedAt = hasStartDate && started ? Math.floor(new Date(started).getTime() / 1000) : 0
+      if (startedAt && finishedAt && startedAt > finishedAt) startedAt = 0
       await libraryService.setReadDates(item.id, {
-        started_at: hasStartDate && started ? Math.floor(new Date(started).getTime() / 1000) : 0,
+        started_at: startedAt,
         finished_at: finishedAt ?? 0,
       })
       // Best-effort, like the cross-post below — a tag-save hiccup shouldn't

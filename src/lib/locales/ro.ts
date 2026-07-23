@@ -513,6 +513,18 @@ export const ro = {
   showing: 'Se afișează {n} din {total}',
   itemsCount: '{n} elemente',
 
+  // Batch edit (select mode)
+  batchSelect: 'Selectează',
+  batchSelected: '{n} selectate',
+  batchSelectAll: 'Selectează tot',
+  batchClear: 'Golește',
+  batchMarkFinished: 'Terminat',
+  batchMarkDNF: 'Neterminat',
+  batchMarkReading: 'În curs',
+  batchMarkWishlist: 'De citit',
+  batchRemove: 'Elimină',
+  batchRemoveConfirm: 'Elimini {n} element(e) din bibliotecă, împreună cu notele, recenziile și progresul lor? Pot fi adăugate din nou mai târziu.',
+
   // Status control
   status: 'Stare',
   unrated: 'Nenotat',
