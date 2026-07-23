@@ -677,6 +677,7 @@ export const en = {
   writeComment: 'Write a comment…',
   writeReply: 'Write a reply…',
   reply: 'Reply',
+  replyingTo: 'Replying to',
   noCommentsYet: 'No comments yet. Start the conversation.',
   autofill: 'Autofill',
   looking: 'Looking…',

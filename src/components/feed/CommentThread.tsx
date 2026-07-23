@@ -2,11 +2,14 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from '@/lib/router'
-import { IoTrashOutline } from 'react-icons/io5'
+import { IoTrashOutline, IoCloseOutline } from 'react-icons/io5'
 import { useAuth } from '@/contexts/AuthContext'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { userPath } from '@/lib/paths'
-import { getComments, addComment, deleteComment, type FeedComment } from '@/services/commentService'
+import {
+  getComments, addComment, getReviewComments, addReviewComment, deleteComment,
+  type FeedComment,
+} from '@/services/commentService'
 import BoringAvatar from '@/components/ui/BoringAvatar'
 import DropdownMenu from '@/components/ui/DropdownMenu'
 import UserHoverCard from '@/components/ui/UserHoverCard'
@@ -28,11 +31,18 @@ function timeAgo(at: number): string {
 
 type PostFn = (body: string, parentId?: number) => Promise<void>
 
-// Threaded comments on one feed item (nons-style: avatar, byline, reply, nested
-// replies). The flat list from the API is turned into a tree by parent_id.
-export default function CommentThread({ postId, onCountChange }: { postId: number; onCountChange?: (n: number) => void }) {
+// Threaded comments on one item (nons-style: avatar, byline, reply, nested
+// replies). The item is either a feed post (postId) or a media-page review
+// (reviewId) — the two are separate threads server-side. The flat list from the
+// API is turned into a tree by parent_id.
+type Props = { postId: number; reviewId?: undefined; onCountChange?: (n: number) => void }
+  | { reviewId: number; postId?: undefined; onCountChange?: (n: number) => void }
+
+export default function CommentThread({ postId, reviewId, onCountChange }: Props) {
   const { t } = useLanguage()
   const { user } = useAuth()
+  const isReview = reviewId != null
+  const id = isReview ? reviewId! : postId!
   const [comments, setComments] = useState<FeedComment[]>([])
   const [loading, setLoading] = useState(true)
   const [body, setBody] = useState('')
@@ -40,10 +50,11 @@ export default function CommentThread({ postId, onCountChange }: { postId: numbe
   const [replyTo, setReplyTo] = useState<number | null>(null)
 
   useEffect(() => {
-    // The thread is mounted for one fixed post, so loading starts true (above)
+    // The thread is mounted for one fixed target, so loading starts true (above)
     // and we just resolve it here — no synchronous setState in the effect body.
     let cancelled = false
-    getComments(postId).then((rows) => {
+    const load = isReview ? getReviewComments(id) : getComments(id)
+    load.then((rows) => {
       if (cancelled) return
       setComments(rows)
       setLoading(false)
@@ -52,7 +63,7 @@ export default function CommentThread({ postId, onCountChange }: { postId: numbe
       cancelled = true
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [postId])
+  }, [id, isReview])
 
   // Report the comment count to the parent from an effect, never from inside a
   // setState updater (that runs during render and would setState the parent
@@ -82,7 +93,9 @@ export default function CommentThread({ postId, onCountChange }: { postId: numbe
     if (!trimmed) return
     setPosting(true)
     try {
-      const created = await addComment(postId, trimmed, parentId)
+      const created = isReview
+        ? await addReviewComment(id, trimmed, parentId)
+        : await addComment(id, trimmed, parentId)
       setComments((prev) => [...prev, created])
       if (parentId) setReplyTo(null)
       else setBody('')
@@ -113,9 +126,7 @@ export default function CommentThread({ postId, onCountChange }: { postId: numbe
     <div className="mt-3 flex flex-col gap-3">
       {loading ? (
         <p className="text-xs text-[var(--text-muted)]">{t('loading')}</p>
-      ) : topLevel.length === 0 ? (
-        <p className="text-xs text-[var(--text-muted)]">{t('noCommentsYet')}</p>
-      ) : (
+      ) : topLevel.length > 0 ? (
         <div className="flex flex-col gap-3">
           {topLevel.map((c) => (
             <CommentNode
@@ -133,7 +144,7 @@ export default function CommentThread({ postId, onCountChange }: { postId: numbe
             />
           ))}
         </div>
-      )}
+      ) : null}
 
       {/* New top-level comment */}
       {user && (
@@ -271,6 +282,19 @@ function CommentNode({
 
           {replying && (
             <div className="mt-2 flex flex-col gap-1.5">
+              {/* Discussion-style "replying to" header, so it's clear whose
+                  comment this answers before you've typed anything. */}
+              <div className="flex items-center gap-1.5 text-xs text-[var(--text-muted)]">
+                <span>{t('replyingTo')}</span>
+                <span className="font-semibold text-nonsprimary">@{comment.author.username}</span>
+                <button
+                  onClick={() => { setReplyTo(null); setReplyBody('') }}
+                  className="ml-0.5 inline-flex text-[var(--text-muted)] transition-colors hover:text-[var(--text)]"
+                  aria-label={t('cancel')}
+                >
+                  <IoCloseOutline className="h-4 w-4" />
+                </button>
+              </div>
               <textarea
                 autoFocus
                 value={replyBody}

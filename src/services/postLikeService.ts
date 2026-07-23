@@ -18,6 +18,25 @@ export async function removeLike(postId: number): Promise<void> {
   await authedFetch(`/api/feed/posts/${postId}/like`, { method: 'DELETE' })
 }
 
+// ── Review likes ─────────────────────────────────────────────────────────────
+// A review lives on the media page, but its likes are SHARED with the feed post
+// that echoes it (both target the same review row server-side) — so liking here
+// and liking on the feed are one and the same tally.
+
+export async function getReviewLikeStatus(reviewId: number): Promise<{ liked: boolean; count: number }> {
+  const res = await authedFetch(`/api/reviews/${reviewId}/like`)
+  if (!res.ok) return { liked: false, count: 0 }
+  return res.json()
+}
+
+export async function addReviewLike(reviewId: number): Promise<void> {
+  await authedFetch(`/api/reviews/${reviewId}/like`, { method: 'PUT' })
+}
+
+export async function removeReviewLike(reviewId: number): Promise<void> {
+  await authedFetch(`/api/reviews/${reviewId}/like`, { method: 'DELETE' })
+}
+
 // Batch like counts for a list of post ids, keyed by post id (as a string).
 export async function getLikeCounts(postIds: number[]): Promise<Record<string, number>> {
   if (postIds.length === 0) return {}

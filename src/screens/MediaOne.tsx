@@ -19,6 +19,9 @@ import MediaHistory from '@/components/media/MediaHistory'
 import StarsSelector from '../StarsSelector'
 import ReviewEditor from '../components/review/ReviewEditor'
 import ReviewContent from '../components/review/ReviewContent'
+import LikeButton from '@/components/feed/LikeButton'
+import CommentThread from '@/components/feed/CommentThread'
+import { getReviewCommentCounts } from '../services/commentService'
 import { libraryService } from '../services/libraryService'
 import { tagService } from '../services/tagService'
 import { librarianService } from '../services/librarianService'
@@ -53,6 +56,7 @@ import {
   IoLanguageOutline,
   IoCalendarOutline,
   IoBookmarksOutline,
+  IoChatbubbleOutline,
 } from 'react-icons/io5'
 import { useLanguage } from '../contexts/LanguageContext'
 import { usePreferences } from '../contexts/PreferencesContext'
@@ -196,6 +200,10 @@ export default function MediaOnePage({
   const [commDetailedOnly, setCommDetailedOnly] = useState(false)
   const [reviewsPage, setReviewsPage] = useState<ReviewsPage>({ items: [], total: 0, average: 0, count: 0 })
   const [reviewsLoading, setReviewsLoading] = useState(false)
+  // Which review's comment thread is expanded (its id), and per-review comment
+  // counts so each row can show its count without mounting every thread.
+  const [openReviewComments, setOpenReviewComments] = useState<number | null>(null)
+  const [reviewCommentCounts, setReviewCommentCounts] = useState<Record<string, number>>({})
   const [friendReviews, setFriendReviews] = useState<CommunityReview[]>([])
   const [friendStatuses, setFriendStatuses] = useState<FriendShelfStatus[]>([])
   const [friendsLoaded, setFriendsLoaded] = useState(false)
@@ -344,6 +352,20 @@ export default function MediaOnePage({
       cancelled = true
     }
   }, [mediaNumId, commSort, commWithReview, commDetailedOnly, commPage])
+
+  // Batch the comment count for every review on the current page in one call,
+  // so each row shows its count without mounting all the threads. An open thread
+  // whose review isn't on the current page simply doesn't render, so there's no
+  // separate collapse step.
+  useEffect(() => {
+    const ids = reviewsPage.items.map((r) => r.id).filter((n) => n > 0)
+    if (ids.length === 0) return
+    let cancelled = false
+    getReviewCommentCounts(ids).then((counts) => { if (!cancelled) setReviewCommentCounts(counts) })
+    return () => {
+      cancelled = true
+    }
+  }, [reviewsPage])
 
   // Friends' ratings/reviews AND shelf statuses (want-to-read/reading/etc.)
   // for this media item. Loads once per page visit: fetches the friend list
@@ -1638,6 +1660,33 @@ export default function MediaOnePage({
                               <span className="text-xs text-[var(--text-muted)]">{reviewDate(r.updatedAt)}</span>
                             </div>
                             {r.review && <ReviewContent content={r.review} className="mt-2 pl-10 text-xs leading-6 text-[var(--text-muted)]" />}
+                            {/* Like/comment a review — signed-in only (the endpoints are
+                                auth-only). Likes here share their tally with the feed post
+                                that echoes this review; the comment thread is its own. */}
+                            {user && r.id > 0 && (
+                              <div className="mt-2 flex items-center gap-4 pl-10 text-xs">
+                                <LikeButton reviewId={r.id} />
+                                <button
+                                  onClick={() => setOpenReviewComments((cur) => (cur === r.id ? null : r.id))}
+                                  className={`inline-flex items-center gap-1.5 font-medium transition-colors ${
+                                    openReviewComments === r.id ? 'text-nonsprimary' : 'text-[var(--text-muted)] hover:text-[var(--text)]'
+                                  }`}
+                                >
+                                  <IoChatbubbleOutline className="h-4 w-4" />
+                                  {(reviewCommentCounts[String(r.id)] ?? 0) > 0
+                                    ? reviewCommentCounts[String(r.id)]
+                                    : t('comment')}
+                                </button>
+                              </div>
+                            )}
+                            {user && openReviewComments === r.id && (
+                              <div className="mt-1 pl-10">
+                                <CommentThread
+                                  reviewId={r.id}
+                                  onCountChange={(n) => setReviewCommentCounts((prev) => ({ ...prev, [String(r.id)]: n }))}
+                                />
+                              </div>
+                            )}
                           </div>
                         )
                       })}

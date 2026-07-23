@@ -8,6 +8,8 @@ import type { ShelfStatus } from '../types'
 export type ReviewSort = 'newest' | 'oldest' | 'high' | 'low'
 
 export type CommunityReview = {
+  /** Review (rating row) id — the like/comment target for this review. */
+  id: number
   userId: number
   username?: string
   name?: string
@@ -30,6 +32,7 @@ export type ReviewsPage = {
 }
 
 type WireReview = {
+  id: number
   user_id: number
   username?: string
   name?: string
@@ -73,6 +76,7 @@ export async function getReviews(mediaId: number | string, q: ReviewQuery = {}):
     const data: WirePage = await res.json()
     return {
       items: (data.items ?? []).map((r) => ({
+        id: r.id,
         userId: r.user_id,
         username: r.username || undefined,
         name: r.name || undefined,

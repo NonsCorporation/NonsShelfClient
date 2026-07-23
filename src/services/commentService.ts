@@ -37,6 +37,39 @@ export async function addComment(postId: number, body: string, parentId?: number
   return (await res.json()) as FeedComment
 }
 
+// ── Review comments ──────────────────────────────────────────────────────────
+// The media-page review section has its OWN comment thread per review, separate
+// from any feed post's (unlike likes, review comments and feed comments never
+// merge). Keyed by review (rating row) id. Deletion reuses deleteComment below.
+
+export async function getReviewComments(reviewId: number): Promise<FeedComment[]> {
+  const res = await authedFetch(`/api/reviews/${reviewId}/comments`)
+  if (!res.ok) return []
+  return ((await res.json()).items ?? []) as FeedComment[]
+}
+
+export async function addReviewComment(reviewId: number, body: string, parentId?: number): Promise<FeedComment> {
+  const res = await authedFetch(`/api/reviews/${reviewId}/comments`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ parent_id: parentId ?? null, body }),
+  })
+  if (!res.ok) throw new Error('Failed to post comment')
+  return (await res.json()) as FeedComment
+}
+
+// Batch comment counts for a list of review ids, keyed by review id (as a string).
+export async function getReviewCommentCounts(reviewIds: number[]): Promise<Record<string, number>> {
+  if (reviewIds.length === 0) return {}
+  const res = await authedFetch('/api/reviews/comment-counts', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ review_ids: reviewIds }),
+  })
+  if (!res.ok) return {}
+  return ((await res.json()).counts ?? {}) as Record<string, number>
+}
+
 // Delete the caller's own comment (and any replies beneath it).
 export async function deleteComment(id: number): Promise<void> {
   await authedFetch(`/api/feed/comments/${id}`, { method: 'DELETE' })
