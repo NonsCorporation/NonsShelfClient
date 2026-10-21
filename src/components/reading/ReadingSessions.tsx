@@ -33,7 +33,8 @@ export default function ReadingSessions({
   const { t } = useLanguage()
   const [sessions, setSessions] = useState<ReadingSession[] | null>(null)
   const [currentPage, setCurrentPage] = useState(0)
-  const [open, setOpen] = useState(false)
+  // 'new' = logging; a session = editing it; null = closed.
+  const [editor, setEditor] = useState<ReadingSession | 'new' | null>(null)
   const [showAll, setShowAll] = useState(false)
   const [tick, setTick] = useState(0)
 
@@ -68,8 +69,8 @@ export default function ReadingSessions({
         {active && (
           <button
             type="button"
-            onClick={() => setOpen(true)}
-            className="flex items-center gap-1 rounded-lg bg-[var(--primary-soft)] px-2.5 py-1 text-xs font-medium text-nonsprimary hover:bg-[var(--primary-ring)]"
+            onClick={() => setEditor('new')}
+            className="flex h-9 items-center gap-1 rounded-lg bg-[var(--primary-soft)] px-3 text-xs font-medium text-nonsprimary hover:bg-[var(--primary-ring)]"
           >
             <IoAddOutline className="h-3.5 w-3.5" />
             {t('logSession')}
@@ -82,24 +83,31 @@ export default function ReadingSessions({
       ) : (
         <ul className="flex flex-col divide-y divide-[var(--border-subtle)]">
           {rows.map((s) => (
-            <li key={s.id} className="flex items-center gap-3 py-1.5 text-xs first:pt-0 last:pb-0">
-              <span className="w-14 flex-shrink-0 text-[var(--text-muted)]">{formatDay(s.session_date)}</span>
-              <span className="min-w-0 flex-1 truncate text-[var(--text)]">
-                {s.pages > 0 && s.minutes > 0
-                  ? t('sessionPagesMinutes', { pages: s.pages, minutes: s.minutes })
-                  : s.pages > 0
-                    ? t('sessionPagesOnly', { pages: s.pages })
-                    : t('sessionMinutesOnly', { minutes: s.minutes })}
-                {s.note && <span className="ml-2 text-[var(--text-muted)]">· {s.note}</span>}
-              </span>
+            <li key={s.id} className="flex items-center gap-1 py-0.5 text-xs">
+              <button
+                type="button"
+                onClick={() => setEditor(s)}
+                aria-label={`${t('editSession')}: ${formatDay(s.session_date)}`}
+                className="flex min-h-11 min-w-0 flex-1 items-center gap-3 rounded-lg text-left hover:bg-[var(--surface-hover)]"
+              >
+                <span className="w-14 flex-shrink-0 text-[var(--text-muted)]">{formatDay(s.session_date)}</span>
+                <span className="min-w-0 flex-1 truncate text-[var(--text)]">
+                  {s.pages > 0 && s.minutes > 0
+                    ? t('sessionPagesMinutes', { pages: s.pages, minutes: s.minutes })
+                    : s.pages > 0
+                      ? t('sessionPagesOnly', { pages: s.pages })
+                      : t('sessionMinutesOnly', { minutes: s.minutes })}
+                  {s.note && <span className="ml-2 text-[var(--text-muted)]">· {s.note}</span>}
+                </span>
+              </button>
               <button
                 type="button"
                 onClick={() => remove(s.id)}
                 aria-label={t('deleteSession')}
                 title={t('deleteSession')}
-                className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-red-500"
+                className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-red-500"
               >
-                <IoTrashOutline className="h-3.5 w-3.5" />
+                <IoTrashOutline className="h-4 w-4" />
               </button>
             </li>
           ))}
@@ -116,10 +124,11 @@ export default function ReadingSessions({
       )}
 
       <LogSessionModal
-        isOpen={open}
+        isOpen={editor !== null}
         item={item}
         currentPage={currentPage}
-        onClose={() => setOpen(false)}
+        session={editor && editor !== 'new' ? editor : null}
+        onClose={() => setEditor(null)}
         onLogged={() => { setTick((n) => n + 1); onChanged?.() }}
       />
     </div>
