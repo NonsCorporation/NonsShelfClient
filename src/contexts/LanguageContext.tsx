@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { en } from '../lib/locales/en';
 import { ru } from '../lib/locales/ru';
@@ -36,6 +36,12 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
     setLanguageState(lang);
     if (typeof window !== 'undefined') localStorage.setItem('language', lang);
   };
+
+  // The root layout is server-rendered in English; keep <html lang> in step with
+  // the chosen language for screen readers and browser translation prompts.
+  useEffect(() => {
+    document.documentElement.lang = language;
+  }, [language]);
 
   const t = (key: string, variables?: Record<string, string | number>): string => {
     const dict = translations[language];
