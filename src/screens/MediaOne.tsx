@@ -13,6 +13,7 @@ import DnfModal from '@/components/reading/DnfModal'
 import ShelfStatusBar from '@/components/media/ShelfStatusBar'
 import ReadingDates from '@/components/reading/ReadingDates'
 import ReadingProgress from '@/components/reading/ReadingProgress'
+import ReadingSessions from '@/components/reading/ReadingSessions'
 import ReadsList from '@/components/reading/ReadsList'
 import AwardsSection from '@/components/awards/AwardsSection'
 import MediaHistory from '@/components/media/MediaHistory'
@@ -919,6 +920,15 @@ export default function MediaOnePage({
                         Hidden once finished — "where am I now" doesn't apply anymore;
                         the full history below still shows past progress updates. */}
                     {status !== 'done' && isBook && <ReadingProgress item={item} total={totalPages} refreshKey={progressRefresh} />}
+                    {/* Timed sittings (pages/minutes) — the source for the reading streak. */}
+                    {isBook && (
+                      <ReadingSessions
+                        item={item}
+                        active={status === 'active'}
+                        refreshKey={progressRefresh}
+                        onChanged={() => setProgressRefresh((n) => n + 1)}
+                      />
+                    )}
                     {/* Full interaction timeline — added/started/progress/finished/rated/
                         reviewed, for every media type (renders only once there's history). */}
                     <MediaHistory item={item} refreshKey={progressRefresh} />
