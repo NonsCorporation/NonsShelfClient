@@ -919,7 +919,7 @@ function InProgressCard({
             <button
               type="button"
               onClick={() => setSessionOpen(true)}
-              className="mt-1.5 flex items-center gap-1 text-xs font-medium text-[var(--text-muted)] hover:text-nonsprimary"
+              className="mt-2 inline-flex h-9 items-center gap-1.5 rounded-lg bg-[var(--primary-soft)] px-3 text-xs font-medium text-nonsprimary hover:bg-[var(--primary-ring)]"
             >
               <IoTimerOutline className="h-3.5 w-3.5" />
               {t('logSession')}
