@@ -8,9 +8,13 @@ import ActivityCard from '@/components/feed/ActivityCard'
 import ChallengeActivityCard from '@/components/challenges/ChallengeActivityCard'
 import ProgressModal from '@/components/reading/ProgressModal'
 import FinishModal from '@/components/reading/FinishModal'
+import LogSessionModal from '@/components/reading/LogSessionModal'
+import ReadingYearShareModal from '@/components/reading/ReadingYearShareModal'
 import { libraryService } from '../services/libraryService'
 import { activityService } from '../services/activityService'
 import { challengeService } from '../services/challengeService'
+import { readingService, type ReadingStreak } from '../services/readingService'
+import { goalPace } from '../lib/readingGoal'
 import { isYearlyReadingGoal, challengeYear } from '../lib/challenge'
 import type { Activity, ActivityPage, ActivityType } from '../services/activityService'
 import BoringAvatar from '@/components/ui/BoringAvatar'
@@ -28,6 +32,7 @@ import { mediaPath } from '../lib/paths'
 import {
   IoPeopleOutline, IoArrowForward, IoLinkOutline,
   IoCheckmark, IoBookOutline, IoTimeOutline, IoSettingsOutline,
+  IoFlame, IoShareSocialOutline, IoTimerOutline,
 } from 'react-icons/io5'
 import ShelfStatusBar from '@/components/media/ShelfStatusBar'
 import TypeBadge from '@/components/badges/TypeBadge'
@@ -546,6 +551,18 @@ function InProgressSection({
   const VISIBLE_COUNT = 3
   const [showAll, setShowAll] = useState(false)
   const visibleItems = showAll ? items : items.slice(0, VISIBLE_COUNT)
+  const { user } = useAuth()
+  const [streak, setStreak] = useState<ReadingStreak | null>(null)
+  const [shareOpen, setShareOpen] = useState(false)
+  // Refetched whenever the in-progress list reloads (finishing/updating a book)
+  // and after logging a session below.
+  const [streakKey, setStreakKey] = useState(0)
+  useEffect(() => {
+    let cancelled = false
+    readingService.getStreak().then((s) => { if (!cancelled) setStreak(s) }).catch(() => {})
+    return () => { cancelled = true }
+  }, [items, streakKey])
+  const currentBook = items.find((it) => it.type === 'book')
 
   return (
     <section className="no-scrollbar mb-10 flex snap-x snap-mandatory gap-4 overflow-x-auto pb-1 lg:grid lg:grid-cols-3 lg:items-start lg:overflow-visible lg:pb-0 lg:snap-none">
@@ -554,6 +571,17 @@ function InProgressSection({
           <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-[var(--text)]">
             <span className="h-2 w-2 rounded-full" style={{ backgroundColor: STATUS_COLOR.active }} />
             {t('shelfActive')}
+            {streak && streak.current > 0 && (
+              <span
+                title={streak.active_today ? t('streakDoneToday') : t('streakKeepAlive')}
+                className={`ml-auto flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                  streak.active_today ? 'bg-[var(--primary-soft)] text-nonsprimary' : 'bg-[var(--container-2)] text-[var(--text-muted)]'
+                }`}
+              >
+                <IoFlame className="h-3.5 w-3.5" />
+                {t('streakDays', { count: streak.current })}
+              </span>
+            )}
           </h2>
           {items.length === 0 ? (
             <p className="text-xs text-[var(--text-muted)]">{t('continueHint')}</p>
@@ -567,6 +595,7 @@ function InProgressSection({
                     onFinish={() => onFinish(it)}
                     onEditProgress={() => onEditProgress(it)}
                     onStatusChanged={onStatusChanged}
+                    onSessionLogged={() => setStreakKey((n) => n + 1)}
                     t={t}
                   />
                 ))}
@@ -587,16 +616,30 @@ function InProgressSection({
 
       {(visibleBlocks.challenge || visibleBlocks.stats) && (
         <div className="flex w-[85%] flex-shrink-0 snap-center flex-col gap-4 lg:w-auto lg:flex-shrink lg:snap-align-none">
-          {visibleBlocks.challenge && <ChallengeBlock challenge={readingChallenge} t={t} />}
+          {visibleBlocks.challenge && <ChallengeBlock challenge={readingChallenge} onShare={() => setShareOpen(true)} t={t} />}
           {visibleBlocks.stats && (
             <div className="hidden lg:block">
-              <StatsBlock stats={stats} t={t} />
+              <StatsBlock stats={stats} streak={streak} t={t} />
             </div>
           )}
         </div>
       )}
 
       {visibleBlocks.trending && trending.length > 0 && <TalkedAboutBlock items={trending} t={t} />}
+
+      <ReadingYearShareModal
+        isOpen={shareOpen}
+        onClose={() => setShareOpen(false)}
+        year={readingChallenge ? challengeYear(readingChallenge) : new Date().getFullYear()}
+        name={user?.name || user?.username || ''}
+        handle={user?.username || ''}
+        goal={
+          readingChallenge?.joined && (readingChallenge.target ?? 0) > 0
+            ? { progress: readingChallenge.progress ?? 0, target: readingChallenge.target ?? 0 }
+            : undefined
+        }
+        current={currentBook ? { title: currentBook.title, author: currentBook.author, coverUrl: currentBook.coverUrl } : undefined}
+      />
     </section>
   )
 }
@@ -622,7 +665,7 @@ function coverColors(year: number): [string, string] {
 // card it used to share a row with) — a bigger card fronted by a "book cover"
 // panel (its own gradient, book icon, and the year stamped on it like jacket
 // art) instead of a plain icon tile.
-function ChallengeBlock({ challenge, t }: { challenge: Challenge | null; t: Translate }) {
+function ChallengeBlock({ challenge, onShare, t }: { challenge: Challenge | null; onShare: () => void; t: Translate }) {
   if (!challenge) {
     return (
       <div className="flex items-center gap-4 rounded-2xl border border-dashed border-[var(--border)] bg-[var(--surface)] p-5">
@@ -645,8 +688,11 @@ function ChallengeBlock({ challenge, t }: { challenge: Challenge | null; t: Tran
   const year = challengeYear(challenge)
   const title = t('readingGoalTitle', { year })
   const [coverFrom, coverTo] = coverColors(year)
+  // Straight-line pace only makes sense for the current calendar year's goal.
+  const pace = hasGoal && !done && year === new Date().getFullYear() ? goalPace(progress, target) : null
 
   return (
+    <div className="relative">
     <Link
       to={`/challenge/${challenge.uuid}`}
       className={`group block rounded-2xl border p-5 transition-colors hover:border-nonsprimary ${
@@ -682,6 +728,15 @@ function ChallengeBlock({ challenge, t }: { challenge: Challenge | null; t: Tran
               <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-[var(--container-2)]">
                 <div className="h-full rounded-full bg-nonsprimary transition-all" style={{ width: `${pct}%` }} />
               </div>
+              {pace && (
+                <p className={`mt-1.5 text-xs font-medium ${pace.status === 'behind' ? 'text-amber-500' : 'text-nonsprimary'}`}>
+                  {pace.status === 'ahead'
+                    ? t('paceAhead', { count: pace.delta })
+                    : pace.status === 'behind'
+                      ? t('paceBehind', { count: Math.abs(pace.delta) })
+                      : t('paceOnTrack')}
+                </p>
+              )}
             </div>
           )}
         </div>
@@ -690,6 +745,18 @@ function ChallengeBlock({ challenge, t }: { challenge: Challenge | null; t: Tran
         )}
       </div>
     </Link>
+    {hasGoal && (
+      <button
+        type="button"
+        onClick={onShare}
+        aria-label={t('shareReadingYear')}
+        title={t('shareReadingYear')}
+        className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-[var(--container)] text-[var(--text-muted)] shadow-sm hover:text-nonsprimary"
+      >
+        <IoShareSocialOutline className="h-4 w-4" />
+      </button>
+    )}
+    </div>
   )
 }
 
@@ -697,12 +764,15 @@ function ChallengeBlock({ challenge, t }: { challenge: Challenge | null; t: Tran
 // broken out as its own small block instead of buried in muted text.
 function StatsBlock({
   stats,
+  streak,
   t,
 }: {
   stats: { inProgress: number; finishedThisMonth: number; activeFriends: number }
+  streak: ReadingStreak | null
   t: Translate
 }) {
   const rows = [
+    ...(streak ? [{ icon: IoFlame, label: t('readingStreak'), value: streak.current }] : []),
     { icon: IoTimeOutline, label: t('sidebarInProgress'), value: stats.inProgress },
     { icon: IoCheckmark, label: t('sidebarFinishedMonth'), value: stats.finishedThisMonth },
     { icon: IoPeopleOutline, label: t('sidebarFriendsActive'), value: stats.activeFriends },
@@ -721,6 +791,16 @@ function StatsBlock({
           </div>
         ))}
       </div>
+      {streak && (
+        <p className="mt-3 border-t border-[var(--border-subtle)] pt-2.5 text-[11px] leading-snug text-[var(--text-muted)]">
+          {streak.current === 0
+            ? t('streakStart')
+            : streak.active_today
+              ? t('streakDoneToday')
+              : t('streakKeepAlive')}
+          {streak.longest > streak.current && ` · ${t('streakBest', { count: streak.longest })}`}
+        </p>
+      )}
     </div>
   )
 }
@@ -768,15 +848,18 @@ function InProgressCard({
   onFinish,
   onEditProgress,
   onStatusChanged,
+  onSessionLogged,
   t,
 }: {
   item: MediaItem
   onFinish: () => void
   onEditProgress: () => void
   onStatusChanged: (id: string, status: ShelfStatus) => void
+  onSessionLogged: () => void
   t: Translate
 }) {
   const [latestPage, setLatestPage] = useState<number>(0)
+  const [sessionOpen, setSessionOpen] = useState(false)
   const [episodeStats, setEpisodeStats] = useState<{ watched: number; total: number } | null>(null)
   useEffect(() => {
     if (item.type === 'book') {
@@ -832,8 +915,31 @@ function InProgressCard({
             onStatusChange={handleStatusChange}
             onEditProgress={onEditProgress}
           />
+          {item.type === 'book' && (
+            <button
+              type="button"
+              onClick={() => setSessionOpen(true)}
+              className="mt-1.5 flex items-center gap-1 text-xs font-medium text-[var(--text-muted)] hover:text-nonsprimary"
+            >
+              <IoTimerOutline className="h-3.5 w-3.5" />
+              {t('logSession')}
+            </button>
+          )}
         </div>
       </div>
+      {item.type === 'book' && (
+        <LogSessionModal
+          isOpen={sessionOpen}
+          item={item}
+          currentPage={latestPage}
+          onClose={() => setSessionOpen(false)}
+          onLogged={() => {
+            // The modal may also have moved progress forward — re-read it.
+            libraryService.getProgress(item.id).then((rows) => setLatestPage(rows[0]?.page ?? 0)).catch(() => {})
+            onSessionLogged()
+          }}
+        />
+      )}
     </div>
   )
 }
