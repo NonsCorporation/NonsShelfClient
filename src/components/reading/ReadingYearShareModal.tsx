@@ -189,7 +189,7 @@ function ShareCard({ onClose, year, name, handle, goal, current }: ReadingYearSh
             {coverUrl && <img src={coverUrl} alt="" style={{ width: 44, height: 66, objectFit: 'cover', borderRadius: 6, display: 'block' }} />}
             <div style={{ minWidth: 0, textAlign: 'left' }}>
               <p style={{ margin: 0, fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: MUTED }}>{t('cardCurrentlyReading')}</p>
-              <p style={{ margin: '4px 0 0', fontSize: 15, fontWeight: 700, lineHeight: 1.25, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+              <p style={{ margin: '4px 0 0', fontSize: 15, fontWeight: 700, lineHeight: 1.25, maxHeight: 60, overflow: 'hidden' }}>
                 {current.title}
               </p>
               {current.author && <p style={{ margin: '2px 0 0', fontSize: 12, color: MUTED }}>{current.author}</p>}
