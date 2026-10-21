@@ -953,5 +953,6 @@ export const en = {
   cardActiveDays: 'Days read',
   cardStreak: 'Streak',
   cardCurrentlyReading: 'Currently reading',
+  shareCardError: 'Couldn’t build the image.',
   readingYearShareText: 'My {year} reading on Nons Shelf',
 };

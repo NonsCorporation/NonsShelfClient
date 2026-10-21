@@ -951,5 +951,6 @@ export const ru = {
   cardActiveDays: 'Дней чтения',
   cardStreak: 'Серия',
   cardCurrentlyReading: 'Читаю сейчас',
+  shareCardError: 'Не удалось создать изображение.',
   readingYearShareText: 'Моё чтение за {year} на Nons Shelf',
 };

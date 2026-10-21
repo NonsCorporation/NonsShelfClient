@@ -951,5 +951,6 @@ export const ro = {
   cardActiveDays: 'Zile de citit',
   cardStreak: 'Serie',
   cardCurrentlyReading: 'Citesc acum',
+  shareCardError: 'Nu s-a putut genera imaginea.',
   readingYearShareText: 'Lecturile mele din {year} pe Nons Shelf',
 };
