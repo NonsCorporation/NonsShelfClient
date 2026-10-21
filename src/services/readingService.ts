@@ -75,6 +75,26 @@ async function logSession(input: LogSessionInput): Promise<ReadingSession> {
   return data as ReadingSession
 }
 
+/** Edit a session (fix numbers or backdate it). Omit sessionDate to keep the
+ *  stored date. The book can't change. */
+async function updateSession(id: number, input: Omit<LogSessionInput, 'mediaId'>): Promise<ReadingSession> {
+  const res = await authedFetch(`/api/reading/sessions/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      start_page: input.startPage ?? 0,
+      end_page: input.endPage ?? 0,
+      pages: input.pages ?? 0,
+      minutes: input.minutes ?? 0,
+      note: input.note ?? '',
+      session_date: input.sessionDate ?? 0,
+    }),
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(typeof data.error === 'string' ? data.error : 'Could not save the session')
+  return data as ReadingSession
+}
+
 async function listSessions(opts: { mediaId?: string; limit?: number } = {}): Promise<ReadingSession[]> {
   const q = new URLSearchParams()
   if (opts.mediaId) q.set('media_id', String(Number(opts.mediaId)))
@@ -101,4 +121,4 @@ async function getSummary(year?: number): Promise<ReadingSummary | null> {
   return res.ok ? ((await res.json()) as ReadingSummary) : null
 }
 
-export const readingService = { logSession, listSessions, deleteSession, getStreak, getSummary }
+export const readingService = { logSession, updateSession, listSessions, deleteSession, getStreak, getSummary }
