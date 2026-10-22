@@ -18,7 +18,9 @@ import Pagination from '@/components/ui/Pagination'
 import { getCommentCounts } from '../services/commentService'
 import type { CatalogItem } from '../services/catalogService'
 import { discoverService } from '../services/discoverService'
-import type { MediaItem, Challenge } from '../types'
+import type { Spotlights } from '../services/discoverService'
+import { listService } from '../services/listService'
+import type { MediaItem, Challenge, CuratedListDiscoverEntry } from '../types'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
 import { usePreferences, type FeedBlock } from '../contexts/PreferencesContext'
@@ -33,6 +35,9 @@ import ShelfStatusBar from '@/components/media/ShelfStatusBar'
 import TypeBadge from '@/components/badges/TypeBadge'
 import { ActivityCardSkeleton } from '@/components/ui/Skeletons'
 import FeedSettingsModal from '@/components/settings/FeedSettingsModal'
+import {
+  PopularNowRail, NewReleasesRail, ListsRail, FriendPicksRail, RailSkeleton, friendPicksFrom,
+} from '@/components/feed/FeedDiscoverBlocks'
 
 // Friends-activity is paginated server-side; this many cards per page.
 const ACTIVITY_PER_PAGE = 20
@@ -48,6 +53,17 @@ function dayBucket(at: number): DayBucket {
   if (ms >= startOfToday - 6 * 86400000) return 'week'
   return 'earlier'
 }
+
+// Discovery rails are slotted into the activity stream after these many cards
+// (1-based), in order — so the first page reads post, post, rail, post, ….
+const DISCOVER_INSERT_AFTER = [2, 6, 10, 14]
+type DiscoverBlockId = 'popular' | 'friends' | 'releases' | 'lists'
+
+// One flat row of the rendered activity stream.
+type StreamRow =
+  | { kind: 'divider'; bucket: DayBucket }
+  | { kind: 'card'; a: Activity }
+  | { kind: 'block'; id: DiscoverBlockId }
 
 // Lightweight activity filters. Labels reuse existing verb keys (capitalised in CSS).
 const ACTIVITY_FILTERS: { key: 'all' | ActivityType; labelKey: string }[] = [
@@ -84,6 +100,13 @@ export default function FeedPage() {
   // A few catalog-wide trending picks for the "Talked about" block — fetched
   // once on mount, independent of the library/activity fetches above.
   const [trending, setTrending] = useState<CatalogItem[]>([])
+  // Data behind the discovery rails woven into the activity stream — fetched
+  // once on mount; null until it lands.
+  const [discover, setDiscover] = useState<{
+    spotlights: Spotlights
+    releases: CatalogItem[]
+    lists: CuratedListDiscoverEntry[]
+  } | null>(null)
   const activityRef = useRef<HTMLElement>(null)
   const focusCardRef = useRef<HTMLDivElement>(null)
 
@@ -131,6 +154,19 @@ export default function FeedPage() {
     if (!me) return
     discoverService.trending().then((items) => setTrending(items.slice(0, 5)))
   }, [me])
+
+  useEffect(() => {
+    if (!me || !feedBlocks.discover) return
+    let cancelled = false
+    Promise.all([
+      discoverService.spotlights(),
+      discoverService.newReleases(),
+      listService.discoverLists(8).catch(() => [] as CuratedListDiscoverEntry[]),
+    ]).then(([spotlights, releases, lists]) => {
+      if (!cancelled) setDiscover({ spotlights, releases: releases.slice(0, 12), lists })
+    })
+    return () => { cancelled = true }
+  }, [me, feedBlocks.discover])
 
   // Manual refresh (e.g. after finishing a book): reload library items and
   // jump back to activity page 1 so the new event is visible. Always bumps
@@ -209,6 +245,21 @@ export default function FeedPage() {
     })
   }, [])
 
+  // One-tap "want to" from a rail poster. Adds to the wishlist and merges the
+  // result into the library state, so the tile flips to a check straight away.
+  const quickAdd = useCallback(async (it: CatalogItem) => {
+    try {
+      const added = await libraryService.addItem({
+        id: it.id, type: it.type, title: it.title, author: it.author, director: it.director,
+        coverUrl: it.coverUrl, year: it.year, genre: it.genre, description: it.description, status: 'wishlist',
+      })
+      applyShelfChange(added)
+    } catch {
+      // Left as-is: the tile stays addable so the viewer can retry.
+    }
+  }, [applyShelfChange])
+  const onShelf = useCallback((it: CatalogItem) => myByMedia.has(Number(it.id)), [myByMedia])
+
   const [progressItem, setProgressItem] = useState<MediaItem | null>(null)
   const openFinish = (it: MediaItem) => setFinishItem(it)
   const openProgress = (it: MediaItem) => setProgressItem(it)
@@ -240,6 +291,37 @@ export default function FeedPage() {
     return [...seen.values()].slice(0, 14)
   }, [activity])
 
+  const friendPicks = useMemo(() => friendPicksFrom(activity, me?.handle), [activity, me])
+
+  // Which discovery rails to show, in order. Empty ones are dropped rather than
+  // rendered as blank panels; while the data loads a single skeleton holds the
+  // first slot.
+  const discoverBlocks = useMemo<DiscoverBlockId[]>(() => {
+    if (!feedBlocks.discover) return []
+    const ids: DiscoverBlockId[] = []
+    const sp = discover?.spotlights
+    if (!discover || (sp && (sp.book.length || sp.movie.length || sp.series.length))) ids.push('popular')
+    if (friendPicks.length >= 2) ids.push('friends')
+    if (discover && discover.releases.length > 0) ids.push('releases')
+    if (discover && discover.lists.length > 0) ids.push('lists')
+    return ids
+  }, [feedBlocks.discover, discover, friendPicks])
+
+  const renderDiscoverBlock = (id: DiscoverBlockId) => {
+    switch (id) {
+      case 'popular':
+        return discover
+          ? <PopularNowRail spotlights={discover.spotlights} onShelf={onShelf} onAdd={quickAdd} t={t} />
+          : <RailSkeleton />
+      case 'friends':
+        return <FriendPicksRail picks={friendPicks} t={t} />
+      case 'releases':
+        return discover && <NewReleasesRail items={discover.releases} onShelf={onShelf} onAdd={quickAdd} t={t} />
+      case 'lists':
+        return discover && <ListsRail lists={discover.lists} t={t} />
+    }
+  }
+
   // Time-of-day greeting for the desktop header.
   const greetingKey = (() => {
     const h = new Date().getHours()
@@ -268,18 +350,33 @@ export default function FeedPage() {
     return segs.join(' · ')
   }, [stats, t])
 
-  // Group the (filtered) activity page into day buckets, preserving newest-first order.
-  const activityGroups = useMemo(() => {
+  // Flatten the (filtered) activity page into rows: a divider per day bucket
+  // (newest-first order preserved), the cards, and the discovery rails slotted in
+  // after fixed card counts. Rails only ride along on the first page, and any
+  // that didn't find a slot (a short or filtered page) trail the last card.
+  const stream = useMemo<StreamRow[]>(() => {
     const visible = typeFilter === 'all' ? activity : activity.filter((a) => a.type === typeFilter)
-    const groups: { key: DayBucket; items: Activity[] }[] = []
+    const blocks = activityPage === 0 ? discoverBlocks : []
+    const rows: StreamRow[] = []
+    let bucket: DayBucket | null = null
+    let cards = 0
+    let nextBlock = 0
     for (const a of visible) {
       const b = dayBucket(a.at)
-      const last = groups[groups.length - 1]
-      if (last && last.key === b) last.items.push(a)
-      else groups.push({ key: b, items: [a] })
+      if (b !== bucket) {
+        rows.push({ kind: 'divider', bucket: b })
+        bucket = b
+      }
+      rows.push({ kind: 'card', a })
+      cards++
+      if (nextBlock < blocks.length && cards === DISCOVER_INSERT_AFTER[nextBlock]) {
+        rows.push({ kind: 'block', id: blocks[nextBlock++] })
+      }
     }
-    return groups
-  }, [activity, typeFilter])
+    while (nextBlock < blocks.length) rows.push({ kind: 'block', id: blocks[nextBlock++] })
+    return rows
+  }, [activity, typeFilter, activityPage, discoverBlocks])
+  const hasCards = stream.some((r) => r.kind === 'card')
 
   return (
     <Layout>
@@ -302,7 +399,7 @@ export default function FeedPage() {
       </div>
 
       {/* Currently watching / reading */}
-      {!loading && (feedBlocks.progress || feedBlocks.challenge || feedBlocks.stats || feedBlocks.trending) && (
+      {!loading && (feedBlocks.progress || feedBlocks.challenge || feedBlocks.stats || feedBlocks.trending || feedBlocks.discover) && (
         <div className="mb-2 flex justify-start lg:hidden">
           <button
             onClick={() => setSettingsOpen(true)}
@@ -412,6 +509,7 @@ export default function FeedPage() {
             ))}
           </div>
         ) : activityTotal === 0 ? (
+          <div className="flex flex-col gap-4">
           <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-[var(--border)] py-16 text-center">
             <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--surface)]">
               <IoPeopleOutline className="h-7 w-7 text-[var(--text-muted)]" />
@@ -430,58 +528,65 @@ export default function FeedPage() {
               {t(invited ? 'copied' : 'copyInviteLink')}
             </button>
           </div>
+          {/* No friends' posts yet — the rails carry the page instead. */}
+          {stream.map((row) => row.kind === 'block' && <div key={`block-${row.id}`}>{renderDiscoverBlock(row.id)}</div>)}
+          </div>
         ) : (
           <div className={`animate-fade-up flex flex-col gap-4 transition-opacity ${activityLoading ? 'opacity-60' : ''}`}>
-            {activityGroups.length === 0 && (
+            {!hasCards && (
               <p className="py-8 text-center text-sm text-[var(--text-muted)]">{t('noResults')}</p>
             )}
-            {activityGroups.map((group) => (
-              <div key={group.key} className="flex flex-col gap-4">
-                {/* Quiet day divider for scannability. */}
-                <div className="flex items-center gap-3">
-                  <span className="text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">
-                    {t(BUCKET_LABEL[group.key])}
-                  </span>
-                  <span className="h-px flex-1 bg-[var(--border-subtle)]" />
+            {stream.map((row) => {
+              if (row.kind === 'divider') {
+                // Quiet day divider for scannability.
+                return (
+                  <div key={`day-${row.bucket}`} className="flex items-center gap-3">
+                    <span className="text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">
+                      {t(BUCKET_LABEL[row.bucket])}
+                    </span>
+                    <span className="h-px flex-1 bg-[var(--border-subtle)]" />
+                  </div>
+                )
+              }
+              if (row.kind === 'block') {
+                return <div key={`block-${row.id}`}>{renderDiscoverBlock(row.id)}</div>
+              }
+              const a = row.a
+              const isFocused = focusPostId != null && a.postId === focusPostId
+              const onDeleted = (postId: number) => {
+                setActivity((prev) => prev.filter((x) => x.postId !== postId))
+                setActivityTotal((n) => Math.max(0, n - 1))
+              }
+              const onCountChange = (postId: number, n: number) =>
+                setCommentCounts((m) => ({ ...m, [String(postId)]: n }))
+              return (
+                <div
+                  key={a.id}
+                  ref={isFocused ? focusCardRef : undefined}
+                  className={isFocused ? 'ring-2 ring-nonsprimary/60 rounded-2xl' : undefined}
+                >
+                  {a.type === 'challenge_joined' ? (
+                    <ChallengeActivityCard
+                      a={a}
+                      commentCount={commentCounts[String(a.postId)] ?? 0}
+                      openComments={isFocused}
+                      onDeleted={onDeleted}
+                      onCountChange={onCountChange}
+                    />
+                  ) : (
+                    <ActivityCard
+                      a={a}
+                      commentCount={commentCounts[String(a.postId)] ?? 0}
+                      myItem={myByMedia.get(a.mediaId)}
+                      openComments={isFocused}
+                      onShelfChange={applyShelfChange}
+                      onDeleted={onDeleted}
+                      onCountChange={onCountChange}
+                    />
+                  )}
                 </div>
-                {group.items.map((a) => {
-                  const isFocused = focusPostId != null && a.postId === focusPostId
-                  const onDeleted = (postId: number) => {
-                    setActivity((prev) => prev.filter((x) => x.postId !== postId))
-                    setActivityTotal((n) => Math.max(0, n - 1))
-                  }
-                  const onCountChange = (postId: number, n: number) =>
-                    setCommentCounts((m) => ({ ...m, [String(postId)]: n }))
-                  return (
-                    <div
-                      key={a.id}
-                      ref={isFocused ? focusCardRef : undefined}
-                      className={isFocused ? 'ring-2 ring-nonsprimary/60 rounded-2xl' : undefined}
-                    >
-                      {a.type === 'challenge_joined' ? (
-                        <ChallengeActivityCard
-                          a={a}
-                          commentCount={commentCounts[String(a.postId)] ?? 0}
-                          openComments={isFocused}
-                          onDeleted={onDeleted}
-                          onCountChange={onCountChange}
-                        />
-                      ) : (
-                        <ActivityCard
-                          a={a}
-                          commentCount={commentCounts[String(a.postId)] ?? 0}
-                          myItem={myByMedia.get(a.mediaId)}
-                          openComments={isFocused}
-                          onShelfChange={applyShelfChange}
-                          onDeleted={onDeleted}
-                          onCountChange={onCountChange}
-                        />
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-            ))}
+              )
+            })}
             <Pagination
               currentPage={activityPage + 1}
               totalPages={activityPageCount}

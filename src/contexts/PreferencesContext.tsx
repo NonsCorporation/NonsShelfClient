@@ -14,15 +14,17 @@ const resolveTheme = (theme: Theme): 'light' | 'dark' =>
     ? (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark')
     : theme
 
-// The feed's top-row blocks, each independently hideable from Settings.
-export type FeedBlock = 'progress' | 'challenge' | 'stats' | 'trending'
-export const FEED_BLOCKS: FeedBlock[] = ['progress', 'challenge', 'stats', 'trending']
+// The feed's blocks — the top row plus the discovery rails woven into the
+// activity stream — each independently hideable from Settings.
+export type FeedBlock = 'progress' | 'challenge' | 'stats' | 'trending' | 'discover'
+export const FEED_BLOCKS: FeedBlock[] = ['progress', 'challenge', 'stats', 'trending', 'discover']
 const FEED_BLOCKS_KEY = 'nons_feed_blocks'
 const DEFAULT_FEED_BLOCKS: Record<FeedBlock, boolean> = {
   progress: true,
   challenge: true,
   stats: true,
   trending: true,
+  discover: true,
 }
 
 // Who may see a given facet of your profile. Mirrors the nons platform's own
@@ -55,7 +57,7 @@ interface PreferencesContextType {
   /** ISO 639-1 code of the preferred display language for movies/series (e.g. "ru"). Empty = use catalog default. */
   preferredMediaLang: string
   setPreferredMediaLang: (value: string) => void
-  /** Which of the feed's top-row blocks (in progress / challenge / stats / trending) are shown. */
+  /** Which of the feed's blocks (in progress / challenge / stats / trending / discovery rails) are shown. */
   feedBlocks: Record<FeedBlock, boolean>
   setFeedBlockVisible: (block: FeedBlock, value: boolean) => void
   /** Color scheme: 'system' follows the OS preference; light/dark pin it. */

@@ -70,6 +70,7 @@ const FEED_BLOCK_META: Record<FeedBlock, string> = {
   challenge: 'settingsFeedBlockChallenge',
   stats: 'settingsFeedBlockStats',
   trending: 'settingsFeedBlockTrending',
+  discover: 'settingsFeedBlockDiscover',
 }
 
 export default function SettingsModal({ isOpen, onClose, onOpenImport }: Props) {

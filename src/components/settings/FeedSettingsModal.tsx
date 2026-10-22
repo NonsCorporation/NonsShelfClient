@@ -14,6 +14,7 @@ const FEED_BLOCK_META: Record<FeedBlock, string> = {
   challenge: 'settingsFeedBlockChallenge',
   stats: 'settingsFeedBlockStats',
   trending: 'settingsFeedBlockTrending',
+  discover: 'settingsFeedBlockDiscover',
 }
 
 // A small, single-purpose modal for the Feed page's gear icon — just the
