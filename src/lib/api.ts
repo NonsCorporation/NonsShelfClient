@@ -13,7 +13,7 @@ export const LIBRARY_API_URL = process.env.NEXT_PUBLIC_LIBRARY_API_URL || ''
 export const PLATFORM_API_URL = process.env.NEXT_PUBLIC_PLATFORM_API_URL || 'http://localhost:8080'
 
 // The external platform's web app — used for links out to its feed, friends,
-// notifications, and as the profile-link fallback below.
+// and notifications.
 export const PLATFORM_APP_URL = process.env.NEXT_PUBLIC_PLATFORM_APP_URL || 'http://localhost:3000'
 
 // ── Transparent session refresh ─────────────────────────────────────────────
@@ -95,14 +95,6 @@ export function authApi(path: string, init: RequestInit = {}): Promise<Response>
 // a non-OK response themselves.
 export function platformFetch(input: string, init: RequestInit = {}): Promise<Response> {
   return fetch(`${PLATFORM_API_URL}${input}`, { ...init, credentials: 'include' })
-}
-
-// platformProfileUrl builds a link to a user's profile on the external platform.
-// Defaults to <platform-app>/u/<username>; set NEXT_PUBLIC_PROFILE_BASE_URL if
-// it serves profiles elsewhere.
-export function platformProfileUrl(username: string): string {
-  const base = (process.env.NEXT_PUBLIC_PROFILE_BASE_URL || `${PLATFORM_APP_URL}/u`).replace(/\/+$/, '')
-  return `${base}/${encodeURIComponent(username)}`
 }
 
 // downloadCoverToB2 sends a public image URL to the platform API, which downloads

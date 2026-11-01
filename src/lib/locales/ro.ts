@@ -477,7 +477,6 @@ export const ro = {
 
   profileSubtitle: 'Raftul tău dintr-o privire',
   profileSubtitleOther: 'Raftul lor dintr-o privire',
-  viewNonsProfile: 'Profil nons',
   inProgressTitle: 'În progres',
   reviewsTitle: 'Recenzii',
   ratingsReviewsTitle: 'Note și recenzii',
@@ -832,9 +831,9 @@ export const ro = {
   declineRequest: 'Refuză',
   friendsLabel: 'Prieteni',
   removeFriend: 'Elimină prietenul',
-  friendRequestHint: 'Va trebui să accepte cererea ta pe nons — cererile de prietenie nu sunt vizibile aici, pe Shelf.',
-  friendsImportedHint: 'Prietenii sunt importați de pe nons. Adaugă-i acolo ca să le vezi progresul de citire aici.',
-  findFriendsOnNons: 'Găsește-ți prietenii pe Nons',
+  friendRequestHint: 'Vor vedea cererea ta în notificări.',
+  friendsHint: 'Persoanele care ți-au acceptat cererea de prietenie. Activitatea lor apare în fluxul tău.',
+  friendsEmpty: 'Încă nu ai prieteni — deschide profilul cuiva și apasă Adaugă prieten.',
 
   // About page
   about: 'Despre',

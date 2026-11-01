@@ -477,7 +477,6 @@ export const en = {
 
   profileSubtitle: 'Your shelf at a glance',
   profileSubtitleOther: 'Their shelf at a glance',
-  viewNonsProfile: 'nons profile',
   inProgressTitle: 'In progress',
   reviewsTitle: 'Reviews',
   ratingsReviewsTitle: 'Ratings & reviews',
@@ -903,9 +902,9 @@ export const en = {
   declineRequest: 'Decline',
   friendsLabel: 'Friends',
   removeFriend: 'Remove friend',
-  friendRequestHint: "They'll need to accept your request on nons — friend requests aren't visible here on Shelf.",
-  friendsImportedHint: 'Friends are imported from nons. Add them there to see their reading progress here.',
-  findFriendsOnNons: 'Find your friends on Nons',
+  friendRequestHint: "They'll see your request in their notifications.",
+  friendsHint: 'People who accepted your friend request. Their activity shows up in your feed.',
+  friendsEmpty: "No friends yet — open someone's profile and tap Add friend.",
 
   // About page
   about: 'About',

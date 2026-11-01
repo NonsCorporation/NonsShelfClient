@@ -9,7 +9,7 @@ import { collectionService } from '../services/collectionService'
 import { challengeService } from '../services/challengeService'
 import Pagination from '@/components/ui/Pagination'
 import { fetchPublicProfile } from '../services/userService'
-import { platformProfileUrl, authedFetch, PLATFORM_APP_URL } from '../lib/api'
+import { authedFetch } from '../lib/api'
 import type { MediaItem, ShelfStatus, Collection, Challenge } from '../types'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
@@ -41,7 +41,6 @@ import {
 } from '../services/friendshipService'
 import InfoTooltip from '@/components/ui/InfoTooltip'
 import {
-  IoOpenOutline,
   IoSettingsOutline,
   IoLibraryOutline,
   IoBookOutline,
@@ -480,17 +479,6 @@ export default function ProfilePage() {
               {isLibrarian(profile.role) && <LibrarianBadge />}
             </div>
             <p className="text-sm text-[var(--text-muted)]">@{profile.handle}</p>
-            {profile.handle && (
-              <a
-                href={platformProfileUrl(profile.handle)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-nonsprimary hover:underline"
-              >
-                <IoOpenOutline className="h-4 w-4" />
-                {t('viewNonsProfile')}
-              </a>
-            )}
 
             {/* Relationship — follow (one-directional) + friend request
                 (mutual accept), both against nons-server, independent of
@@ -637,17 +625,12 @@ export default function ProfilePage() {
             <div className="group relative ml-auto">
               <IoInformationCircleOutline className="h-4 w-4 cursor-help text-[var(--text-muted)]" />
               <div className="pointer-events-none absolute right-0 top-6 z-50 w-64 rounded-xl border border-[var(--border)] bg-[var(--container)] p-3 text-xs leading-relaxed text-[var(--text-muted)] opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
-                {t('friendsImportedHint')}
+                {t('friendsHint')}
               </div>
             </div>
           </div>
           {friends.length === 0 ? (
-            <a
-              href={`${PLATFORM_APP_URL}/friends`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="group/empty flex items-center gap-3 rounded-xl border border-dashed border-[var(--border-subtle)] px-4 py-3 transition-colors hover:border-nonsprimary"
-            >
+            <div className="flex items-center gap-3 rounded-xl border border-dashed border-[var(--border-subtle)] px-4 py-3">
               {/* Stacked placeholder circles — a friends-shaped empty state */}
               <span className="flex flex-shrink-0 items-center">
                 {[0, 1, 2].map((i) => (
@@ -660,10 +643,10 @@ export default function ProfilePage() {
                   </span>
                 ))}
               </span>
-              <span className="text-xs font-medium text-[var(--text-muted)] transition-colors group-hover/empty:text-nonsprimary">
-                {t('findFriendsOnNons')}
+              <span className="text-xs font-medium text-[var(--text-muted)]">
+                {t('friendsEmpty')}
               </span>
-            </a>
+            </div>
           ) : (
             <div className="no-scrollbar -mx-1 flex gap-4 overflow-x-auto px-1">
               {friends.map((f) => (
@@ -876,7 +859,6 @@ export default function ProfilePage() {
           reviewCount: postsTotal,
         }}
         shelfUrl={`${typeof window !== 'undefined' ? window.location.origin : ''}${userPath(profile.handle)}`}
-        nonsUrl={platformProfileUrl(profile.handle)}
       />
     </Layout>
   )

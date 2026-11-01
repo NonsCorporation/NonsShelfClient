@@ -16,7 +16,6 @@ import {
   IoBookOutline,
   IoChatbubbleEllipsesOutline,
   IoStar,
-  IoOpenOutline,
 } from 'react-icons/io5'
 import { FaTelegram } from 'react-icons/fa'
 import ShelfLogo from '@/components/branding/ShelfLogo'
@@ -121,11 +120,10 @@ type Props = {
   isOpen: boolean
   stats: ProfileShareStats
   shelfUrl: string
-  nonsUrl: string
   onClose: () => void
 }
 
-export default function ProfileShareModal({ isOpen, stats, shelfUrl, nonsUrl, onClose }: Props) {
+export default function ProfileShareModal({ isOpen, stats, shelfUrl, onClose }: Props) {
   const { t } = useLanguage() as { t: TFn }
   const cardRef = useRef<HTMLDivElement>(null)
   const [imgUrl, setImgUrl] = useState<string | null>(null)
@@ -401,15 +399,6 @@ export default function ProfileShareModal({ isOpen, stats, shelfUrl, nonsUrl, on
               {copied ? t('copied') : t('copy')}
             </button>
           </div>
-          <a
-            href={nonsUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 self-start text-sm font-medium text-nonsprimary hover:underline"
-          >
-            <IoOpenOutline className="h-4 w-4" />
-            {t('viewNonsProfile')}
-          </a>
         </div>
 
         {/* social share */}

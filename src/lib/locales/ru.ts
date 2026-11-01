@@ -477,7 +477,6 @@ export const ru = {
 
   profileSubtitle: 'Ваша полка с высоты птичьего полёта',
   profileSubtitleOther: 'Полка пользователя с высоты птичьего полёта',
-  viewNonsProfile: 'Профиль nons',
   inProgressTitle: 'В процессе',
   reviewsTitle: 'Рецензии',
   ratingsReviewsTitle: 'Оценки и рецензии',
@@ -832,9 +831,9 @@ export const ru = {
   declineRequest: 'Отклонить',
   friendsLabel: 'Друзья',
   removeFriend: 'Удалить из друзей',
-  friendRequestHint: 'Ему нужно будет принять ваш запрос на nons — заявки в друзья не отображаются здесь, на Shelf.',
-  friendsImportedHint: 'Друзья импортируются с nons. Добавьте их там, чтобы видеть их прогресс чтения здесь.',
-  findFriendsOnNons: 'Найдите друзей на Nons',
+  friendRequestHint: 'Они увидят ваш запрос в уведомлениях.',
+  friendsHint: 'Люди, принявшие ваш запрос в друзья. Их активность видна в вашей ленте.',
+  friendsEmpty: 'Пока нет друзей — откройте чей-нибудь профиль и нажмите «Добавить в друзья».',
 
   // About page
   about: 'О нас',
