@@ -1,4 +1,4 @@
-import { authedFetch, nonsFetch } from '../lib/api'
+import { authedFetch, platformFetch } from '../lib/api'
 import { toMediaItem as toItem, type BackendMedia, type Signals } from '../lib/mediaMap'
 import type { MediaItem, MediaType, ShelfStatus } from '../types.ts'
 
@@ -778,7 +778,7 @@ class ApiLibraryService implements ILibraryService {
   // only controls the library's internal activity feed.
   async postToNons(item: { uuid?: string; type: MediaType }, opts: NonsPostOptions): Promise<void> {
     if (!item.uuid) throw new Error('This item has no public link yet')
-    const res = await nonsFetch('/api/posts', {
+    const res = await platformFetch('/api/posts', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

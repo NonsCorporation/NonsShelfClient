@@ -1,20 +1,20 @@
-// Central API configuration for the nons-library SPA.
+// Central API configuration for the SPA.
 //
-// The library's own backend (nons-library-server) is the identity provider: it
+// The app's own backend is the identity provider: it
 // signs the `access_token` / `refresh_token` cookies on login, scoped to the
-// parent domain (.nonsapp.com in prod). Every request just needs
+// parent domain in prod (COOKIE_DOMAIN on the server). Every request just needs
 // `credentials: 'include'`; when the session is missing the login modal opens.
 
-// nons-library-server base URL — this app's backend. Empty = same origin.
+// This app's backend (accounts, catalog, shelves, social). Empty = same origin.
 export const LIBRARY_API_URL = process.env.NEXT_PUBLIC_LIBRARY_API_URL || ''
 
-// nons-server base URL. No longer the identity provider — only the remaining
-// nons-bound calls (cross-posting, cover uploads, admin) go there.
-export const NONS_API_URL = process.env.NEXT_PUBLIC_NONS_API_URL || 'http://localhost:8080'
+// Optional external platform API — only the remaining platform-bound calls go
+// there (cross-posting, cover uploads, admin roles, its unread count).
+export const PLATFORM_API_URL = process.env.NEXT_PUBLIC_PLATFORM_API_URL || 'http://localhost:8080'
 
-// nons-client (the main social app) base URL — used for links out to feed,
-// friends, notifications, and as the profile-link fallback below.
-export const NONS_APP_URL = process.env.NEXT_PUBLIC_NONS_APP_URL || 'http://localhost:3000'
+// The external platform's web app — used for links out to its feed, friends,
+// notifications, and as the profile-link fallback below.
+export const PLATFORM_APP_URL = process.env.NEXT_PUBLIC_PLATFORM_APP_URL || 'http://localhost:3000'
 
 // ── Transparent session refresh ─────────────────────────────────────────────
 // The access_token cookie is short-lived (15 min) and gets deleted by the
@@ -75,7 +75,7 @@ async function withAuth(url: string, init: RequestInit): Promise<Response> {
   return retry
 }
 
-// authedFetch calls this app's backend (nons-library-server) with the shared
+// authedFetch calls this app's backend with the
 // session cookie, renewing the session on expiry.
 export function authedFetch(input: string, init: RequestInit = {}): Promise<Response> {
   return withAuth(`${LIBRARY_API_URL}${input}`, init)
@@ -88,24 +88,27 @@ export function authApi(path: string, init: RequestInit = {}): Promise<Response>
   return fetch(`${LIBRARY_API_URL}${path}`, { ...init, credentials: 'include' })
 }
 
-// nonsFetch calls nons-server with credentials, with the same transparent
-// session renewal. Only for the remaining nons-bound features.
-export function nonsFetch(input: string, init: RequestInit = {}): Promise<Response> {
-  return withAuth(`${NONS_API_URL}${input}`, init)
+// platformFetch calls the external platform API with credentials. Deliberately
+// NOT routed through withAuth: the session belongs to this app's backend, and
+// the platform can't verify its tokens, so a platform 401 must never refresh or
+// expire our session (that logged users out right after login). Callers handle
+// a non-OK response themselves.
+export function platformFetch(input: string, init: RequestInit = {}): Promise<Response> {
+  return fetch(`${PLATFORM_API_URL}${input}`, { ...init, credentials: 'include' })
 }
 
-// nonsProfileUrl builds a link to a user's profile on the main nons platform
-// (the social app the shelf rides on). Defaults to <main-app>/u/<username>; set
-// NEXT_PUBLIC_NONS_PROFILE_BASE if the platform serves profiles elsewhere.
-export function nonsProfileUrl(username: string): string {
-  const base = (process.env.NEXT_PUBLIC_NONS_PROFILE_BASE || `${NONS_APP_URL}/u`).replace(/\/+$/, '')
+// platformProfileUrl builds a link to a user's profile on the external platform.
+// Defaults to <platform-app>/u/<username>; set NEXT_PUBLIC_PROFILE_BASE_URL if
+// it serves profiles elsewhere.
+export function platformProfileUrl(username: string): string {
+  const base = (process.env.NEXT_PUBLIC_PROFILE_BASE_URL || `${PLATFORM_APP_URL}/u`).replace(/\/+$/, '')
   return `${base}/${encodeURIComponent(username)}`
 }
 
-// downloadCoverToB2 sends a public image URL to nons-server, which downloads
+// downloadCoverToB2 sends a public image URL to the platform API, which downloads
 // it and stores it in the B2 bucket under library/, returning the CDN URL.
 export async function downloadCoverToB2(coverUrl: string): Promise<string> {
-  const res = await nonsFetch('/api/upload/library-cover', {
+  const res = await platformFetch('/api/upload/library-cover', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ url: coverUrl }),

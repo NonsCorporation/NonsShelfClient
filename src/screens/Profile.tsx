@@ -9,7 +9,7 @@ import { collectionService } from '../services/collectionService'
 import { challengeService } from '../services/challengeService'
 import Pagination from '@/components/ui/Pagination'
 import { fetchPublicProfile } from '../services/userService'
-import { nonsProfileUrl, authedFetch, NONS_APP_URL } from '../lib/api'
+import { platformProfileUrl, authedFetch, PLATFORM_APP_URL } from '../lib/api'
 import type { MediaItem, ShelfStatus, Collection, Challenge } from '../types'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
@@ -482,7 +482,7 @@ export default function ProfilePage() {
             <p className="text-sm text-[var(--text-muted)]">@{profile.handle}</p>
             {profile.handle && (
               <a
-                href={nonsProfileUrl(profile.handle)}
+                href={platformProfileUrl(profile.handle)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-nonsprimary hover:underline"
@@ -643,7 +643,7 @@ export default function ProfilePage() {
           </div>
           {friends.length === 0 ? (
             <a
-              href={`${NONS_APP_URL}/friends`}
+              href={`${PLATFORM_APP_URL}/friends`}
               target="_blank"
               rel="noopener noreferrer"
               className="group/empty flex items-center gap-3 rounded-xl border border-dashed border-[var(--border-subtle)] px-4 py-3 transition-colors hover:border-nonsprimary"
@@ -876,7 +876,7 @@ export default function ProfilePage() {
           reviewCount: postsTotal,
         }}
         shelfUrl={`${typeof window !== 'undefined' ? window.location.origin : ''}${userPath(profile.handle)}`}
-        nonsUrl={nonsProfileUrl(profile.handle)}
+        nonsUrl={platformProfileUrl(profile.handle)}
       />
     </Layout>
   )

@@ -1,4 +1,4 @@
-import { nonsFetch } from '../lib/api'
+import { platformFetch } from '../lib/api'
 
 export interface AdminUser {
   id: number
@@ -23,13 +23,13 @@ async function jsonOrThrow(res: Response): Promise<unknown> {
 export const adminService = {
   async searchUsers(q: string): Promise<AdminUser[]> {
     const qs = q.trim() ? `?q=${encodeURIComponent(q.trim())}` : ''
-    const data = (await jsonOrThrow(await nonsFetch(`/api/admin/users${qs}`))) as { users: AdminUser[] }
+    const data = (await jsonOrThrow(await platformFetch(`/api/admin/users${qs}`))) as { users: AdminUser[] }
     return data.users ?? []
   },
 
   async setRoles(userId: number, roles: string[]): Promise<void> {
     await jsonOrThrow(
-      await nonsFetch(`/api/admin/users/${userId}/roles`, {
+      await platformFetch(`/api/admin/users/${userId}/roles`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ roles }),

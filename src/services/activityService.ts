@@ -1,4 +1,4 @@
-import { authedFetch, NONS_API_URL } from '../lib/api'
+import { authedFetch, PLATFORM_API_URL } from '../lib/api'
 import type { MediaType } from '../types'
 
 export type ActivityType = 'rated' | 'finished' | 'started' | 'added' | 'reviewed' | 'progress' | 'dnf' | 'challenge_joined'
@@ -121,7 +121,7 @@ export type FeedSelf = { id: number; name: string; handle: string; uuid?: string
 /** Absolutize a nons-relative avatar path so it loads from any origin. */
 function nonsAvatar(url?: string): string | undefined {
   if (!url) return undefined
-  return url.startsWith('/') ? `${NONS_API_URL}${url}` : url
+  return url.startsWith('/') ? `${PLATFORM_API_URL}${url}` : url
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────

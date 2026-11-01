@@ -11,7 +11,7 @@ import {
   type LibNotification,
   type NotificationType,
 } from '../services/notificationService'
-import { NONS_APP_URL } from '../lib/api'
+import { PLATFORM_APP_URL } from '../lib/api'
 import {
   IoChatbubbleOutline,
   IoReturnDownForwardOutline,
@@ -207,7 +207,7 @@ export default function Notifications() {
 
         {/* Nons social app notifications */}
         <a
-          href={`${NONS_APP_URL}/notifications`}
+          href={`${PLATFORM_APP_URL}/notifications`}
           target="_blank"
           rel="noopener noreferrer"
           className="mb-4 flex items-center gap-3 rounded-2xl border border-[var(--border-subtle)] px-4 py-3.5 transition-colors hover:bg-[var(--surface)]"

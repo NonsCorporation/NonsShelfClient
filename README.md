@@ -55,9 +55,9 @@ npm run dev          # http://localhost:5173
 the others are read only on the Next.js server):
 
 ```
-NEXT_PUBLIC_LIBRARY_API_URL=http://localhost:8081   # nons-library-server (browser, this app's backend)
-NEXT_PUBLIC_NONS_API_URL=http://localhost:8080      # nons-server (identity + social)
-NEXT_PUBLIC_NONS_LOGIN_URL=http://localhost:3000    # nons login page (for redirects)
+NEXT_PUBLIC_LIBRARY_API_URL=http://localhost:8081   # this app's backend (browser): accounts, catalog, shelves, friends
+NEXT_PUBLIC_PLATFORM_API_URL=http://localhost:8080  # optional external platform API (cross-posting, cover uploads, admin)
+NEXT_PUBLIC_PLATFORM_APP_URL=http://localhost:3000  # optional external platform web app (outbound links)
 LIBRARY_SERVER_URL=http://localhost:8081            # server-side base for SSR catalog fetches (no same-origin on the server)
 NEXT_PUBLIC_SITE_URL=http://localhost:5173          # canonical/OpenGraph origin for SSR pages (prod: https://shelf.nonsapp.com)
 ```
@@ -106,66 +106,30 @@ const res = await authedFetch('/api/media?q=matrix&limit=100')
 const { items } = await res.json()
 ```
 
-### nons social data → `nonsFetch` (nons-server)
+### External platform → `platformFetch`
 
-This is the answer to "how do I get nons friends / post to nons from the
-library": call nons-server **directly from the browser** with `nonsFetch`.
-The shared cookie authenticates you; nons-server's CORS already allowlists the
-library origins (`localhost:5173` in dev, `LIBRARY_URL` env in prod, which must
-be set to `https://shelf.nonsapp.com`).
+A few features still call an optional external platform API directly from the
+browser: cross-posting (`libraryService.postToNons`), cover uploads
+(`downloadCoverToB2`), admin role management (`adminService`) and its unread
+count (`getNonsUnreadCount`). Use `platformFetch` for those.
 
 ```ts
-import { nonsFetch } from '../lib/api'
+import { platformFetch } from '../lib/api'
 
-// Friends of the signed-in user
-const res = await nonsFetch('/api/friendships/friends')
-const friends = await res.json()
-
-// Post a review to the nons feed
-await nonsFetch('/api/posts', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    title: 'Just finished The Matrix',
-    content: 'A 10/10 — believe the hype.',
-    post_type: 'text',
-    tags: ['movies'],
-  }),
-})
-
-// Search nons users
-await nonsFetch('/api/search/users?q=timur')
+const res = await platformFetch('/api/notifications/pending')
+if (res.ok) { /* ... */ }
 ```
-
-Useful nons-server endpoint groups (see its Swagger at `/swagger/index.html`):
-
-| Group | Examples |
-|---|---|
-| `/api/friendships` | `GET /friends`, `POST /request/:username`, `GET /status/:username` |
-| `/api/friends`, `/api/follow` | follower/following lists and counts |
-| `/api/posts`, `/api/feed` | create/read posts, personal feed |
-| `/api/comments` | comments + likes on posts |
-| `/api/user`, `/api/profile` | profiles, recommendations |
-| `/api/search` | `GET /users?q=` |
-| `/api/chats` | DMs (REST + WebSocket/SSE) |
-| `/api/auth` | `GET /me`, `POST /refresh`, `POST /logout` |
-
-In-repo example: `src/contexts/AuthContext.tsx` already uses `nonsFetch` for
-`/api/auth/refresh` and `/api/auth/logout`.
 
 ### Gotchas
 
-- **Cookie-only.** nons-server's user-facing endpoints read the `access_token`
-  cookie exclusively — no `Authorization: Bearer` fallback. So they are
-  browser-callable, but *not* callable from nons-library-server on a user's
-  behalf (see next section for the server-to-server path).
-- **Token expiry.** Access tokens live 15 minutes. On a 401, call
-  `POST /api/auth/refresh` via `nonsFetch` once and retry —
-  `AuthContext` already does this on app load; mirror that pattern for
-  long-lived pages.
-- **CORS.** New frontends/origins must be added to nons-server's allowlist
-  (`FRONTEND_URL` / `LIBRARY_URL` envs in `cmd/server/main.go`); requests
-  from unknown origins fail preflight regardless of a valid cookie.
+- **Session lives in this app's backend.** Login, refresh and logout go to
+  `NEXT_PUBLIC_LIBRARY_API_URL` (`/api/auth/*`); `authedFetch` refreshes once on
+  a 401 and only then treats the session as expired.
+- **`platformFetch` never touches the session.** The platform can't verify this
+  app's tokens, so its 401s must not trigger a refresh or sign the user out —
+  callers just handle the non-OK response.
+- **CORS.** The platform API must allowlist this app's origin for credentialed
+  requests, or they fail preflight.
 
 ## Backend-to-backend: nons-library-server → nons-server
 

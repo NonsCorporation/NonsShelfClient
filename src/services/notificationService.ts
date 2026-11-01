@@ -1,4 +1,4 @@
-import { authedFetch, nonsFetch } from '../lib/api'
+import { authedFetch, platformFetch } from '../lib/api'
 
 export type NotificationType =
   | 'comment'
@@ -68,7 +68,7 @@ export async function markRead(id: number): Promise<void> {
 // Returns 0 on any error — best-effort cross-app count.
 export async function getNonsUnreadCount(): Promise<number> {
   try {
-    const res = await nonsFetch('/api/notifications/pending')
+    const res = await platformFetch('/api/notifications/pending')
     if (!res.ok) return 0
     const d = await res.json()
     return (
