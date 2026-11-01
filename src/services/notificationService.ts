@@ -1,6 +1,14 @@
 import { authedFetch, nonsFetch } from '../lib/api'
 
-export type NotificationType = 'comment' | 'reply' | 'like' | 'suggestion_approved' | 'suggestion_rejected'
+export type NotificationType =
+  | 'comment'
+  | 'reply'
+  | 'like'
+  | 'suggestion_approved'
+  | 'suggestion_rejected'
+  | 'friend_request'
+  | 'friend_accepted'
+  | 'follow'
 
 export interface NotificationActor {
   id: number

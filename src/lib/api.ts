@@ -1,29 +1,19 @@
 // Central API configuration for the nons-library SPA.
 //
-// nons-library has NO login of its own: it rides the shared nons SSO session —
-// the `access_token` cookie nons-server sets on the parent domain
-// (.nonsapp.com). Every request just needs `credentials: 'include'`; when the
-// session is missing we send the browser to nons-platform-client (the id/
-// account app) and it comes back here via ?redirect=.
+// The library's own backend (nons-library-server) is the identity provider: it
+// signs the `access_token` / `refresh_token` cookies on login, scoped to the
+// parent domain (.nonsapp.com in prod). Every request just needs
+// `credentials: 'include'`; when the session is missing the login modal opens.
 
 // nons-library-server base URL — this app's backend. Empty = same origin.
 export const LIBRARY_API_URL = process.env.NEXT_PUBLIC_LIBRARY_API_URL || ''
 
-// nons-server base URL — the identity provider. Used to refresh the shared
-// session cookie and to log out (both are domain-wide operations only the
-// identity provider can do).
+// nons-server base URL. No longer the identity provider — only the remaining
+// nons-bound calls (cross-posting, cover uploads, admin) go there.
 export const NONS_API_URL = process.env.NEXT_PUBLIC_NONS_API_URL || 'http://localhost:8080'
 
-// nons-platform-client (account.nonsapp.com / id.nonsapp.com) — the dedicated
-// sign-in app. We append ?redirect= so the user lands back in the library
-// after signing in. Used only for the login bounce; do NOT use this for links
-// into the main social app (feed, friends, notifications) — that's NONS_APP_URL.
-export const NONS_LOGIN_URL = process.env.NEXT_PUBLIC_NONS_LOGIN_URL || 'http://localhost:5174'
-
 // nons-client (the main social app) base URL — used for links out to feed,
-// friends, notifications, and as the profile-link fallback below. Distinct
-// from NONS_LOGIN_URL: that's where signed-out users go to authenticate,
-// this is where signed-in users go to use the rest of Nons.
+// friends, notifications, and as the profile-link fallback below.
 export const NONS_APP_URL = process.env.NEXT_PUBLIC_NONS_APP_URL || 'http://localhost:3000'
 
 // ── Transparent session refresh ─────────────────────────────────────────────
@@ -38,7 +28,7 @@ export const NONS_APP_URL = process.env.NEXT_PUBLIC_NONS_APP_URL || 'http://loca
 // (e.g. the shelf/favorites/ratings fan-out) triggers exactly one refresh.
 let refreshInFlight: Promise<boolean> | null = null
 
-// Invoked when a refresh ultimately fails — the SSO session is gone for good.
+// Invoked when a refresh ultimately fails — the session is gone for good.
 // AuthContext registers this to drop the user so the app falls back to the
 // login screen instead of silently failing requests.
 let onSessionExpired: (() => void) | null = null
@@ -47,12 +37,12 @@ export function setOnSessionExpired(handler: (() => void) | null): void {
   onSessionExpired = handler
 }
 
-// refreshSession asks the identity provider (nons-server) for a fresh
-// access_token cookie using the refresh_token cookie. Concurrent callers share
-// one request; resolves true on success.
+// refreshSession asks the library backend for a fresh access_token cookie using
+// the refresh_token cookie. Concurrent callers share one request; resolves true
+// on success.
 function refreshSession(): Promise<boolean> {
   if (!refreshInFlight) {
-    refreshInFlight = fetch(`${NONS_API_URL}/api/auth/refresh`, {
+    refreshInFlight = fetch(`${LIBRARY_API_URL}/api/auth/refresh`, {
       method: 'POST',
       credentials: 'include',
     })
@@ -91,8 +81,15 @@ export function authedFetch(input: string, init: RequestInit = {}): Promise<Resp
   return withAuth(`${LIBRARY_API_URL}${input}`, init)
 }
 
-// nonsFetch calls the identity provider (nons-server) with credentials, with the
-// same transparent session renewal.
+// authApi calls the library's /api/auth endpoints (login, signup, reset, logout)
+// with credentials but WITHOUT the refresh-and-retry of authedFetch — a 401 from
+// a wrong password must surface as-is, not trigger a session refresh.
+export function authApi(path: string, init: RequestInit = {}): Promise<Response> {
+  return fetch(`${LIBRARY_API_URL}${path}`, { ...init, credentials: 'include' })
+}
+
+// nonsFetch calls nons-server with credentials, with the same transparent
+// session renewal. Only for the remaining nons-bound features.
 export function nonsFetch(input: string, init: RequestInit = {}): Promise<Response> {
   return withAuth(`${NONS_API_URL}${input}`, init)
 }
@@ -103,13 +100,6 @@ export function nonsFetch(input: string, init: RequestInit = {}): Promise<Respon
 export function nonsProfileUrl(username: string): string {
   const base = (process.env.NEXT_PUBLIC_NONS_PROFILE_BASE || `${NONS_APP_URL}/u`).replace(/\/+$/, '')
   return `${base}/${encodeURIComponent(username)}`
-}
-
-// redirectToNonsLogin sends the browser to nons-platform-client's sign-in
-// page, returning to the current library URL after a successful sign-in.
-export function redirectToNonsLogin(): void {
-  const redirect = encodeURIComponent(window.location.href)
-  window.location.href = `${NONS_LOGIN_URL}?redirect=${redirect}`
 }
 
 // downloadCoverToB2 sends a public image URL to nons-server, which downloads

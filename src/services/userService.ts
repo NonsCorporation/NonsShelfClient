@@ -1,9 +1,8 @@
-import { nonsFetch } from '../lib/api'
+import { authedFetch } from '../lib/api'
 
-// A public profile resolved from nons-server (the identity provider). The
-// numeric `id` is the shared SSO user id — the same id nons-library-server keys
-// shelves/ratings by — so it's how we fetch a user's library after resolving
-// their identity here.
+// A public profile resolved from the library backend. The numeric `id` is the
+// user id nons-library-server keys shelves/ratings by, so it's how we fetch a
+// user's library after resolving their identity here.
 export type PublicProfile = {
   id: number
   name: string
@@ -11,7 +10,7 @@ export type PublicProfile = {
   avatarUrl?: string
 }
 
-// nons-server GET /api/user/profile/:username (UserPublicProfileResponse).
+// nons-library-server GET /api/profiles/:username.
 type ProfileResponse = {
   id: number
   name?: string
@@ -21,11 +20,11 @@ type ProfileResponse = {
   avatar_url?: string
 }
 
-// Resolve a public profile by username via the identity provider. Returns null
-// when the user doesn't exist or nons-server is unreachable.
+// Resolve a public profile by username. Returns null when the user doesn't exist
+// or the backend is unreachable.
 export async function fetchPublicProfile(username: string): Promise<PublicProfile | null> {
   try {
-    const res = await nonsFetch(`/api/user/profile/${encodeURIComponent(username)}`)
+    const res = await authedFetch(`/api/profiles/${encodeURIComponent(username)}`)
     if (!res.ok) return null
     const p: ProfileResponse = await res.json()
     return {

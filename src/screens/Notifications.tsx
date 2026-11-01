@@ -19,6 +19,9 @@ import {
   IoCheckmarkCircleOutline,
   IoCloseCircleOutline,
   IoNotificationsOutline,
+  IoPersonAddOutline,
+  IoPeopleOutline,
+  IoPersonOutline,
 } from 'react-icons/io5'
 import { userPath } from '../lib/paths'
 
@@ -47,6 +50,9 @@ const TYPE_ICON: Record<NotificationType, React.ComponentType<{ className?: stri
   like:                 IoChevronUp,
   suggestion_approved:  IoCheckmarkCircleOutline,
   suggestion_rejected:  IoCloseCircleOutline,
+  friend_request:       IoPersonAddOutline,
+  friend_accepted:      IoPeopleOutline,
+  follow:               IoPersonOutline,
 }
 
 const TYPE_COLOR: Record<NotificationType, string> = {
@@ -55,6 +61,9 @@ const TYPE_COLOR: Record<NotificationType, string> = {
   like:                 'text-nonsprimary',
   suggestion_approved:  'text-emerald-400',
   suggestion_rejected:  'text-red-400',
+  friend_request:       'text-nonsprimary',
+  friend_accepted:      'text-emerald-400',
+  follow:               'text-blue-400',
 }
 
 function ActorAvatar({ actor }: { actor: LibNotification['actor'] }) {
@@ -90,6 +99,12 @@ function NotificationCard({ n, onNavigate }: { n: LibNotification; onNavigate: (
     label = 'replied to your comment'
   } else if (n.type === 'like') {
     label = `liked your ${VERB[n.post?.kind ?? ''] ?? 'activity'}`
+  } else if (n.type === 'friend_request') {
+    label = 'sent you a friend request'
+  } else if (n.type === 'friend_accepted') {
+    label = 'accepted your friend request'
+  } else if (n.type === 'follow') {
+    label = 'started following you'
   } else if (n.type === 'suggestion_approved') {
     label = 'Your catalog edit was approved'
   } else {
@@ -174,6 +189,9 @@ export default function Notifications() {
   const handleNavigate = (n: LibNotification) => {
     if (n.post_id) {
       navigate({ pathname: '/', search: `?post=${n.post_id}` })
+    } else if (n.actor?.username && (n.type === 'friend_request' || n.type === 'friend_accepted' || n.type === 'follow')) {
+      // Social events open the actor's profile, where accept/decline lives.
+      navigate(userPath(n.actor.username))
     }
   }
 

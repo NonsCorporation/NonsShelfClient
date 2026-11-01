@@ -9,7 +9,7 @@ import { collectionService } from '../services/collectionService'
 import { challengeService } from '../services/challengeService'
 import Pagination from '@/components/ui/Pagination'
 import { fetchPublicProfile } from '../services/userService'
-import { nonsProfileUrl, nonsFetch, authedFetch, NONS_APP_URL } from '../lib/api'
+import { nonsProfileUrl, authedFetch, NONS_APP_URL } from '../lib/api'
 import type { MediaItem, ShelfStatus, Collection, Challenge } from '../types'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
@@ -145,7 +145,7 @@ export default function ProfilePage() {
   const [readingChallenge, setReadingChallenge] = useState<Challenge | null>(null)
   // Relationship with the profile owner — only meaningful (and only fetched)
   // when viewing someone else's profile. Friendship (mutual request/accept)
-  // and follow (one-directional) are independent systems on nons-server.
+  // and follow (one-directional) are independent systems.
   const [friendship, setFriendship] = useState<FriendshipStatus>({ status: 'none', isRequester: false })
   const [followingUser, setFollowingUser] = useState(false)
   const [relBusy, setRelBusy] = useState(false)
@@ -175,9 +175,9 @@ export default function ProfilePage() {
           role: authUser?.role,
         })
         setOtherCollections([])
-        // Import friends from nons (best-effort — silently ignored if unreachable).
+        // Load friends (best-effort — silently ignored if unreachable).
         try {
-          const res = await nonsFetch('/api/friendships/friends?limit=100')
+          const res = await authedFetch('/api/friendships/friends?limit=100')
           if (!cancelled && res.ok) {
             const data = await res.json()
             const fs: Friend[] = (data.friendships ?? [])
@@ -190,7 +190,7 @@ export default function ProfilePage() {
               }))
             setFriends(fs)
           }
-        } catch { /* nons unreachable */ }
+        } catch { /* backend unreachable */ }
       } else {
         const p = await fetchPublicProfile(routeId!)
         if (cancelled) return
@@ -262,7 +262,7 @@ export default function ProfilePage() {
   }, [isSelf, profile])
 
   // Relationship with the profile owner — friend-request status + follow
-  // state, both fetched from nons-server. Only relevant on someone else's profile.
+  // state, both fetched from the library backend. Only relevant on someone else's profile.
   useEffect(() => {
     if (!profile || isSelf) { setFriendship({ status: 'none', isRequester: false }); setFollowingUser(false); return }
     let cancelled = false
@@ -377,7 +377,7 @@ export default function ProfilePage() {
   }, [posts])
 
   // Relationship actions — each optimistically updates local state and rolls
-  // back if the nons-server call fails.
+  // back if the request fails.
   const toggleFollow = async () => {
     if (!profile || relBusy) return
     setRelBusy(true)

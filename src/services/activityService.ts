@@ -1,4 +1,4 @@
-import { authedFetch, nonsFetch, NONS_API_URL } from '../lib/api'
+import { authedFetch, NONS_API_URL } from '../lib/api'
 import type { MediaType } from '../types'
 
 export type ActivityType = 'rated' | 'finished' | 'started' | 'added' | 'reviewed' | 'progress' | 'dnf' | 'challenge_joined'
@@ -74,7 +74,7 @@ export type Activity = {
 
 // ── Wire types ──────────────────────────────────────────────────────────────
 
-// nons-server GET /api/friendships/friends — username/name belong to the
+// nons-library-server GET /api/friendships/friends — username/name belong to the
 // *other* user; which side is the friend depends on who requested.
 type Friendship = {
   requester_id: number
@@ -135,16 +135,16 @@ export function colorFor(handle: string): string {
   return PALETTE[Math.abs(h) % PALETTE.length]
 }
 
-/** Fetch the caller's friends from nons-server and return a map of
+/** Fetch the caller's friends from the library backend and return a map of
  *  library-user-id → display info. Includes the caller themselves so their
  *  own entries appear alongside friends'. */
 export async function getFriendUsers(me: FeedSelf): Promise<Map<number, Activity['user']>> {
   let friendships: Friendship[] = []
   try {
-    const res = await nonsFetch('/api/friendships/friends?limit=50')
+    const res = await authedFetch('/api/friendships/friends?limit=50')
     if (res.ok) friendships = (await res.json()).friendships ?? []
   } catch {
-    /* nons-server unreachable — fall back to just the caller */
+    /* backend unreachable — fall back to just the caller */
   }
   const friends = new Map<number, Activity['user']>()
   friends.set(me.id, { name: me.name, handle: me.handle, color: colorFor(me.handle), uuid: me.uuid, avatarUrl: nonsAvatar(me.avatar), role: me.role })
