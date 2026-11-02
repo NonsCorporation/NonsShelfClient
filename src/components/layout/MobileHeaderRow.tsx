@@ -21,7 +21,7 @@ export default function MobileHeaderRow({ t }: { t: (key: string) => string }) {
       {!searchFocused && (
         <div className="flex flex-shrink-0 items-center gap-2">
           <ShelfLogo className="h-6 w-6 text-[var(--text)]" />
-          <span className="text-xl font-bold tracking-tight text-[var(--text)]">Nons Shelf</span>
+          <span className="text-xl font-bold tracking-tight text-[var(--text)]">SomeShelf</span>
         </div>
       )}
       <div className="min-w-0 flex-1">

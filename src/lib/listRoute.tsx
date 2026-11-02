@@ -11,11 +11,11 @@ const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || 'https://shelf.nonsapp.com
 
 export async function buildListMetadata(id: string): Promise<Metadata> {
   const l = await getPublicList(id)
-  if (!l) return { title: 'Not found :: Nons Shelf' }
+  if (!l) return { title: 'Not found :: SomeShelf' }
 
-  const title = l.owner_username ? `${l.title} :: ${l.owner_username}` : `${l.title} :: Nons Shelf`
+  const title = l.owner_username ? `${l.title} :: ${l.owner_username}` : `${l.title} :: SomeShelf`
   const description = (
-    l.description || `A curated list of ${l.count} title${l.count !== 1 ? 's' : ''} on Nons Shelf.`
+    l.description || `A curated list of ${l.count} title${l.count !== 1 ? 's' : ''} on SomeShelf.`
   ).slice(0, 200)
   const url = `${SITE_URL}/list/${l.uuid}`
 
@@ -29,7 +29,7 @@ export async function buildListMetadata(id: string): Promise<Metadata> {
     title,
     description,
     alternates: { canonical: url },
-    openGraph: { title, description, url, siteName: 'Nons Shelf', images: [ogImage], type: 'website' },
+    openGraph: { title, description, url, siteName: 'SomeShelf', images: [ogImage], type: 'website' },
     twitter: { card: 'summary_large_image', title, description, images: [ogImage] },
   }
 }

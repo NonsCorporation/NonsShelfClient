@@ -18,11 +18,11 @@ function canonicalPath(m: BackendMedia): string {
 // Per-page <title>/description/OpenGraph for crawlers and social cards.
 export async function buildMediaMetadata(id: string): Promise<Metadata> {
   const m = await getPublicMedia(id)
-  if (!m) return { title: 'Not found :: Nons Shelf' }
+  if (!m) return { title: 'Not found :: SomeShelf' }
 
-  const title = `${m.title}${m.year ? ` (${m.year})` : ''} :: Nons Shelf`
+  const title = `${m.title}${m.year ? ` (${m.year})` : ''} :: SomeShelf`
   const description = (
-    m.description || `${m.title} on Nons Shelf — track it, rate it, and see what your friends think.`
+    m.description || `${m.title} on SomeShelf — track it, rate it, and see what your friends think.`
   ).slice(0, 200)
   const url = `${SITE_URL}${canonicalPath(m)}`
 
@@ -35,7 +35,7 @@ export async function buildMediaMetadata(id: string): Promise<Metadata> {
     title,
     description,
     alternates: { canonical: url },
-    openGraph: { title, description, url, siteName: 'Nons Shelf', images: [ogImage], type: 'website' },
+    openGraph: { title, description, url, siteName: 'SomeShelf', images: [ogImage], type: 'website' },
     twitter: { card: 'summary_large_image', title, description, images: [ogImage] },
   }
 }

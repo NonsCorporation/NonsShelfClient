@@ -13,11 +13,11 @@ const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || 'https://shelf.nonsapp.com
 const OG_IMAGE = `${SITE_URL}/img/og.png`
 
 export const metadata: Metadata = {
-  title: 'Nons Shelf — Every Book and Film You Love, on One Shelf',
+  title: 'SomeShelf — Every Book and Film You Love, on One Shelf',
   description:
     'Track what you read and watch, rate it, and see what your friends on nons are into — one shelf for books and films instead of switching between Goodreads and Letterboxd.',
   keywords: [
-    'Nons Shelf',
+    'SomeShelf',
     'book and film tracker',
     'book and movie tracker',
     'shelf for books and movies',
@@ -30,27 +30,27 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     url: SITE_URL,
-    title: 'Nons Shelf — Every Book and Film You Love, on One Shelf',
+    title: 'SomeShelf — Every Book and Film You Love, on One Shelf',
     description:
       'Track what you read and watch, rate it, and see what your friends on nons are into — without the noise.',
-    siteName: 'Nons Shelf',
+    siteName: 'SomeShelf',
     locale: 'en_US',
     images: [
       {
         url: OG_IMAGE,
         width: 1200,
         height: 630,
-        alt: 'Shelf — Your books and films, all in one shelf.',
+        alt: 'SomeShelf — Your books and films, all in one shelf.',
         type: 'image/png',
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Nons Shelf — Every Book and Film You Love, on One Shelf',
+    title: 'SomeShelf — Every Book and Film You Love, on One Shelf',
     description:
       'Track what you read and watch, rate it, and see what your friends on nons are into — without the noise.',
-    images: [{ url: OG_IMAGE, alt: 'Shelf — Your books and films, all in one shelf.' }],
+    images: [{ url: OG_IMAGE, alt: 'SomeShelf — Your books and films, all in one shelf.' }],
   },
   alternates: {
     canonical: SITE_URL,

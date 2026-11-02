@@ -124,7 +124,7 @@ const svg = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" xmlns="http
   <text x="600" y="415" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="62" font-weight="600" fill="${ACCENT}">all in one shelf.</text>
 
   <!-- Wordmark -->
-  <text x="600" y="510" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="26" font-weight="700" fill="${INK}" letter-spacing="1">Shelf</text>
+  <text x="600" y="510" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="26" font-weight="700" fill="${INK}" letter-spacing="1">SomeShelf</text>
 </svg>`
 
 mkdirSync(outDir, { recursive: true })

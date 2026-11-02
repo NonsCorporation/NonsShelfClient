@@ -7,11 +7,11 @@ import "./globals.css";
 // image itself comes from the opengraph-image.tsx / twitter-image.tsx file
 // convention (Next wires up the <meta> tags automatically), not listed here.
 export const metadata: Metadata = {
-  title: "Nons :: Shelf",
+  title: "SomeShelf",
   description:
-    "Shelf is Nons' library: track the books, films and series you're reading and watching, rate and review them, and see what friends are up to — all in one place.",
+    "SomeShelf lets you track the books, films and series you're reading and watching, rate and review them, and see what friends are up to — all in one place.",
   keywords: [
-    "Nons Shelf",
+    "SomeShelf",
     "book tracker",
     "movie tracker",
     "series tracker",
@@ -24,16 +24,16 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     url: "https://shelf.nonsapp.com",
-    title: "Nons :: Shelf",
+    title: "SomeShelf",
     description: "Your books and films, all in one shelf.",
-    siteName: "Shelf",
+    siteName: "SomeShelf",
     locale: "en_US",
     images: [
       {
         url: "https://shelf.nonsapp.com/img/og.png",
         width: 1200,
         height: 630,
-        alt: "Shelf — Your books and films, all in one shelf.",
+        alt: "SomeShelf — Your books and films, all in one shelf.",
         type: "image/png",
       },
     ],
@@ -42,12 +42,12 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     site: "@nons",
     creator: "@nons",
-    title: "Nons :: Shelf",
+    title: "SomeShelf",
     description: "Your books and films, all in one shelf.",
     images: [
       {
         url: "https://shelf.nonsapp.com/img/og.png",
-        alt: "Shelf — Your books and films, all in one shelf.",
+        alt: "SomeShelf — Your books and films, all in one shelf.",
       },
     ],
   },

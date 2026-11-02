@@ -109,7 +109,7 @@ export default function Header() {
           <Link to="/" className="group flex flex-shrink-0 items-center gap-2.5">
             <ShelfLogo className="h-6 w-6 text-[var(--text)]" />
             <span className="hidden whitespace-nowrap text-[15px] font-semibold tracking-tight text-[var(--text)] sm:block">
-              Nons Shelf
+              SomeShelf
             </span>
           </Link>
 

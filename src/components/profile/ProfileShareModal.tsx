@@ -258,17 +258,17 @@ export default function ProfileShareModal({ isOpen, stats, shelfUrl, onClose }: 
     {
       key: 'whatsapp',
       icon: IoLogoWhatsapp,
-      href: `https://wa.me/?text=${encodeURIComponent(`${stats.name} on Nons Shelf — ${shelfUrl}`)}`,
+      href: `https://wa.me/?text=${encodeURIComponent(`${stats.name} on SomeShelf — ${shelfUrl}`)}`,
     },
     {
       key: 'telegram',
       icon: FaTelegram,
-      href: `https://t.me/share/url?url=${encodeURIComponent(shelfUrl)}&text=${encodeURIComponent(`${stats.name} on Nons Shelf`)}`,
+      href: `https://t.me/share/url?url=${encodeURIComponent(shelfUrl)}&text=${encodeURIComponent(`${stats.name} on SomeShelf`)}`,
     },
     {
       key: 'x',
       icon: IoLogoTwitter,
-      href: `https://twitter.com/intent/tweet?text=${encodeURIComponent(stats.name + ' on Nons Shelf')}&url=${encodeURIComponent(shelfUrl)}`,
+      href: `https://twitter.com/intent/tweet?text=${encodeURIComponent(stats.name + ' on SomeShelf')}&url=${encodeURIComponent(shelfUrl)}`,
     },
     {
       key: 'facebook',

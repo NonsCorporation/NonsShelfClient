@@ -11,7 +11,7 @@ const FEATURES = [
   { Icon: IoCloudUploadOutline, key: 'nonsBadgeFeat4' as const },
 ]
 
-// A compact, near-black strip introducing Nons Shelf to a signed-out visitor —
+// A compact, near-black strip introducing SomeShelf to a signed-out visitor —
 // the condensed replacement for the old full-page marketing landing (deleted in
 // favor of showing Discover itself at '/'). Sits above FindSomething so it's
 // the first thing seen, without pushing the real catalog content down a whole

@@ -519,7 +519,7 @@ export default function ShareModal({ isOpen, item, coverUrl, title, author, tota
             <div className="absolute left-0 top-full z-10 mt-2 w-72 rounded-2xl border border-[var(--border-subtle)] bg-[var(--container)] p-4 shadow-xl">
               <p className="mb-1 text-sm font-semibold text-[var(--text)]">Remove branding?</p>
               <p className="mb-4 text-xs leading-snug text-[var(--text-muted)]">
-                Keeping it helps <span className="font-medium text-[var(--text)]">Nons&nbsp;&amp;&nbsp;Shelf</span> grow.
+                Keeping it helps <span className="font-medium text-[var(--text)]">SomeShelf</span> grow.
               </p>
               <div className="flex gap-2">
                 <button

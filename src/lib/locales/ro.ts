@@ -280,7 +280,7 @@ export const ro = {
   startFromWishlist: 'Începe ceva din lista ta de dorințe',
   copyInviteLink: 'Copiază linkul de invitație',
   noActivity: 'Nicio activitate încă.',
-  inviteFriends: 'Invită prietenii pe Nons Shelf ca să împărtășiți cărți și filme',
+  inviteFriends: 'Invită prietenii pe SomeShelf ca să împărtășiți cărți și filme',
   verbRated: 'a notat',
   verbFinished: 'a terminat',
   verbStarted: 'a început',
@@ -426,7 +426,7 @@ export const ro = {
   close: 'Închide',
 
   // Discover — signed-out "about Nons" badge above FindSomething
-  nonsBadgeTitle: 'Nons Shelf',
+  nonsBadgeTitle: 'SomeShelf',
   nonsBadgeSubtitle: 'Parte din familia nons — un cont, toate aplicațiile.',
   nonsBadgeFeat1: 'Cărți, filme și seriale — un singur raft',
   nonsBadgeFeat2: 'Prieteni, nu algoritmi',
@@ -434,7 +434,7 @@ export const ro = {
   nonsBadgeFeat4: 'Import și export oricând',
 
   // Sign-in modal — the only sign-in surface (no local accounts)
-  loginModalTitle: 'Autentifică-te în Nons Shelf',
+  loginModalTitle: 'Autentifică-te în SomeShelf',
   loginModalText: 'Raftul, notele și prietenii tăi — într-un singur loc.',
   loginModalTitleShelf: 'Adaugă pe raftul tău',
   loginModalTextShelf: 'Autentifică-te ca să adaugi asta pe raft, să-i pui o notă și să scrii o recenzie.',
@@ -837,18 +837,18 @@ export const ro = {
 
   // About page
   about: 'Despre',
-  aboutTitle: 'Despre Nons Shelf',
+  aboutTitle: 'Despre SomeShelf',
   aboutSubtitle: 'O echipă mică, un raft mare.',
-  aboutIntro1: 'Nons Shelf este partea de cărți și filme din Nons — o platformă mică, fără reclame, pentru a urmări ce citești și urmărești, și pentru a împărtăși asta cu oameni pe care îi cunoști cu adevărat.',
+  aboutIntro1: 'SomeShelf este partea de cărți și filme din Nons — o platformă mică, fără reclame, pentru a urmări ce citești și urmărești, și pentru a împărtăși asta cu oameni pe care îi cunoști cu adevărat.',
   aboutIntro2: 'Suntem o echipă mică din Chișinău, Moldova 🇲🇩, care construiește Nons pentru că ne doream propriul nostru raft — un singur loc pentru cărți și filme, fără reclame și fără un algoritm care decide ce vedem.',
   aboutFaqTitle: 'Întrebări frecvente',
   aboutSuggestFeature: 'Vrei să sugerezi o funcție?',
-  aboutFaqQ1: 'Ce este Nons Shelf?',
-  aboutFaqA1: 'Nons Shelf te lasă să urmărești cărțile, filmele și serialele pe care le citești și le urmărești, să le notezi și să scrii recenzii, și să vezi ce citesc și urmăresc prietenii tăi de pe Nons — totul într-un singur raft.',
+  aboutFaqQ1: 'Ce este SomeShelf?',
+  aboutFaqA1: 'SomeShelf te lasă să urmărești cărțile, filmele și serialele pe care le citești și le urmărești, să le notezi și să scrii recenzii, și să vezi ce citesc și urmăresc prietenii tăi de pe Nons — totul într-un singur raft.',
   aboutFaqQ2: 'Este gratuit?',
   aboutFaqA2: 'Da. Urmărirea bibliotecii tale, notarea, recenziile și urmărirea prietenilor sunt gratuite și vor rămâne așa.',
   aboutFaqQ3: 'Am nevoie de un cont nou?',
-  aboutFaqA3: 'Nu. Nons Shelf folosește contul tău Nons existent — te autentifici o singură dată și funcționează în toate aplicațiile Nons.',
+  aboutFaqA3: 'Nu. SomeShelf folosește contul tău Nons existent — te autentifici o singură dată și funcționează în toate aplicațiile Nons.',
   aboutFaqQ4: 'De unde vin detaliile despre cărți și filme?',
   aboutFaqA4: 'Din cataloage deschise — Open Library, Google Books și TMDB. Oricine poate propune o corecție la o intrare, iar bibliotecarii noștri o verifică înainte de a fi publicată.',
   aboutFaqQ5: 'Cine îmi poate vedea raftul?',

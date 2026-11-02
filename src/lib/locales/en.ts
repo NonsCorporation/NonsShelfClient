@@ -280,7 +280,7 @@ export const en = {
   startFromWishlist: 'Start something from your wishlist',
   copyInviteLink: 'Copy invite link',
   noActivity: 'No activity yet.',
-  inviteFriends: 'Invite friends to Nons Shelf to share your books and films experience',
+  inviteFriends: 'Invite friends to SomeShelf to share your books and films experience',
   verbRated: 'rated',
   verbFinished: 'finished',
   verbStarted: 'started',
@@ -426,7 +426,7 @@ export const en = {
   close: 'Close',
 
   // Discover — signed-out "about Nons" badge above FindSomething
-  nonsBadgeTitle: 'Nons Shelf',
+  nonsBadgeTitle: 'SomeShelf',
   nonsBadgeSubtitle: 'Part of the nons family — one account, every app.',
   nonsBadgeFeat1: 'Books, films & series — one shelf',
   nonsBadgeFeat2: 'Friends, not algorithms',
@@ -434,7 +434,7 @@ export const en = {
   nonsBadgeFeat4: 'Import & export anytime',
 
   // Sign-in modal — the only sign-in surface (no local accounts)
-  loginModalTitle: 'Sign in to Nons Shelf',
+  loginModalTitle: 'Sign in to SomeShelf',
   loginModalText: 'Your shelf, ratings and friends — all in one place.',
   loginModalTitleShelf: 'Track this on your shelf',
   loginModalTextShelf: 'Sign in to add this to your shelf, rate it and write a review.',
@@ -908,18 +908,18 @@ export const en = {
 
   // About page
   about: 'About',
-  aboutTitle: 'About Nons Shelf',
+  aboutTitle: 'About SomeShelf',
   aboutSubtitle: 'Small team, big shelf.',
-  aboutIntro1: "Nons Shelf is the books-and-films half of Nons — a small, ad-free platform for tracking what you read and watch, and sharing it with people you actually know.",
+  aboutIntro1: "SomeShelf is the books-and-films half of Nons — a small, ad-free platform for tracking what you read and watch, and sharing it with people you actually know.",
   aboutIntro2: "We're a small team based in Chișinău, Moldova 🇲🇩, building Nons because we wanted our own shelf — one place for books and films, without ads or an algorithm deciding what we see.",
   aboutFaqTitle: 'Frequently asked questions',
   aboutSuggestFeature: 'Want to suggest a feature?',
-  aboutFaqQ1: 'What is Nons Shelf?',
-  aboutFaqA1: 'Nons Shelf lets you track the books, films and series you read and watch, rate and review them, and see what your friends on Nons are into — all in one shelf.',
+  aboutFaqQ1: 'What is SomeShelf?',
+  aboutFaqA1: 'SomeShelf lets you track the books, films and series you read and watch, rate and review them, and see what your friends on Nons are into — all in one shelf.',
   aboutFaqQ2: 'Is it free?',
   aboutFaqA2: 'Yes. Tracking your library, rating and reviewing, and following friends is free, and will stay that way.',
   aboutFaqQ3: 'Do I need a new account?',
-  aboutFaqA3: 'No. Nons Shelf uses your existing Nons account — sign in once and it works across every Nons app.',
+  aboutFaqA3: 'No. SomeShelf uses your existing Nons account — sign in once and it works across every Nons app.',
   aboutFaqQ4: 'Where do book and film details come from?',
   aboutFaqA4: "From open catalogs — Open Library, Google Books and TMDB. Anyone can suggest a fix to an entry, and our librarians review it before it's published.",
   aboutFaqQ5: 'Who can see my shelf?',

@@ -1,4 +1,4 @@
-# nons-library (Nons Shelf)
+# nons-library (SomeShelf)
 
 React client-side app (Next.js App Router) for tracking books and films —
 shelves, favorites, ratings, and a shared catalog. Part of the nons family: it
