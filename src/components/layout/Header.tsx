@@ -22,7 +22,6 @@ import { useLanguage } from '../../contexts/LanguageContext'
 import LanguageSelect from '@/components/ui/LanguageSelect'
 import { useAuth } from '../../contexts/AuthContext'
 import { useNotifications } from '../../contexts/NotificationContext'
-import { PLATFORM_APP_URL } from '../../lib/api'
 import { useLoginModal } from '../../contexts/LoginModalContext'
 import BoringAvatar from '@/components/ui/BoringAvatar'
 import { userPath, mediaPath } from '../../lib/paths'
@@ -30,7 +29,6 @@ import { isLibrarian } from '../../services/librarianService'
 import { catalogService, type CatalogItem } from '../../services/catalogService'
 import TypeBadge from '@/components/badges/TypeBadge'
 import ShelfLogo from '@/components/branding/ShelfLogo'
-import NonsLogoOutline from '@/components/branding/NonsLogoOutline'
 import InfinityLoader from '@/components/ui/InfinityLoader'
 
 type NavItem = { to: string; label: string; icon: IconType; match: (p: string) => boolean }
@@ -199,17 +197,6 @@ export default function Header() {
                         <span className="block truncate text-xs text-[var(--text-muted)]">@{display.handle}</span>
                       </span>
                     </Link>
-
-                    <a
-                      href={PLATFORM_APP_URL}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={() => setAccountOpen(false)}
-                      className="flex items-center gap-3 px-4 py-2 text-xs text-[var(--text-muted)] transition-colors hover:text-[var(--text)]"
-                    >
-                      <NonsLogoOutline className="h-[14px] w-[14px]" />
-                      Go to Nons&nbsp;↗
-                    </a>
 
                     <div className="h-px bg-[var(--border-subtle)]" />
 
@@ -392,19 +379,6 @@ export default function Header() {
                   <IoInformationCircleOutline className="h-[18px] w-[18px]" />
                   {t('about') || 'About'}
                 </Link>
-
-                <div className="h-px bg-[var(--border-subtle)]" />
-
-                <a
-                  href={PLATFORM_APP_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={() => setProfileOpen(false)}
-                  className="flex w-full items-center gap-3 px-4 py-3 text-sm text-[var(--text-muted)] transition-colors hover:bg-[var(--surface)] hover:text-[var(--text)]"
-                >
-                  <NonsLogoOutline className="h-[18px] w-[18px]" />
-                  {t('goToNons') || 'Go to Nons'}
-                </a>
 
                 {isAuthenticated && (
                   <>

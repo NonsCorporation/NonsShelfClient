@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Link, useParams } from '@/lib/router'
 import Layout from '../components/layout/Layout'
 import { ProfileSkeleton } from '@/components/ui/Skeletons'
@@ -13,6 +13,7 @@ import { authedFetch } from '../lib/api'
 import type { MediaItem, ShelfStatus, Collection, Challenge } from '../types'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
+import { useProfileCustomization } from '../lib/profileCustomization'
 import { useCollections } from '../contexts/CollectionContext'
 import { currentUser } from '../lib/user'
 import { isLibrarian } from '../services/librarianService'
@@ -42,6 +43,8 @@ import {
 import InfoTooltip from '@/components/ui/InfoTooltip'
 import {
   IoSettingsOutline,
+  IoPencilOutline,
+  IoLocationOutline,
   IoLibraryOutline,
   IoBookOutline,
   IoFilmOutline,
@@ -99,8 +102,16 @@ export default function ProfilePage() {
   const { id: routeId } = useParams<{ id: string }>()
   const { user: authUser, loading: authLoading } = useAuth()
 
-  const [profile, setProfile] = useState<ProfileView | null>(null)
+  const [baseProfile, setProfile] = useState<ProfileView | null>(null)
   const [isSelf, setIsSelf] = useState(true)
+  // Mock profile edits (name, photo, bio, location) — stored locally, own profile only.
+  const { custom } = useProfileCustomization(authUser?.id)
+  // Own profile: layer the display name and photo edits over the account's. The
+  // real handle stays as-is — it's what API calls and share links key on.
+  const profile = useMemo<ProfileView | null>(
+    () => (baseProfile && isSelf ? { ...baseProfile, name: custom.name || baseProfile.name, avatar: custom.avatar || baseProfile.avatar } : baseProfile),
+    [baseProfile, isSelf, custom.name, custom.avatar],
+  )
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
   const [tab, setTab] = useState<Tab>('all')
@@ -478,7 +489,18 @@ export default function ProfilePage() {
               <h1 className="truncate text-2xl font-bold tracking-tight text-[var(--text)]">{profile.name}</h1>
               {isLibrarian(profile.role) && <LibrarianBadge />}
             </div>
-            <p className="text-sm text-[var(--text-muted)]">@{profile.handle}</p>
+            <p className="text-sm text-[var(--text-muted)]">@{(isSelf && custom.username) || profile.handle}</p>
+
+            {/* Bio + location — own profile only for now (the edits are a local mock) */}
+            {isSelf && custom.bio && (
+              <p className="mt-2 whitespace-pre-line break-words text-sm text-[var(--text)]">{custom.bio}</p>
+            )}
+            {isSelf && (custom.city || custom.country) && (
+              <p className="mt-1.5 flex items-center gap-1 text-xs text-[var(--text-muted)]">
+                <IoLocationOutline className="h-3.5 w-3.5 flex-shrink-0" />
+                {[custom.city, custom.country].filter(Boolean).join(', ')}
+              </p>
+            )}
 
             {/* Relationship — follow (one-directional) + friend request
                 (mutual accept), both against nons-server, independent of
@@ -568,6 +590,18 @@ export default function ProfilePage() {
             >
               <IoShareOutline className="h-5 w-5" />
             </button>
+
+            {/* Edit profile — own profile only */}
+            {isSelf && (
+              <Link
+                to={`/u/${encodeURIComponent(routeId || profile.handle)}/edit`}
+                aria-label={t('editProfile')}
+                title={t('editProfile')}
+                className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border-subtle)] text-[var(--text-muted)] transition-colors hover:bg-[var(--surface)] hover:text-[var(--text)]"
+              >
+                <IoPencilOutline className="h-5 w-5" />
+              </Link>
+            )}
 
             {/* Settings — own profile only; opens the full settings modal */}
             {isSelf && (
