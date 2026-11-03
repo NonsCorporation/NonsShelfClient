@@ -4,7 +4,7 @@ import Layout from '../components/layout/Layout'
 import MobileHeaderRow from '../components/layout/MobileHeaderRow'
 import CatalogCard from '@/components/media/CatalogCard'
 import FindSomething from '@/components/import-export/FindSomething'
-import NonsAboutBadge from '@/components/discover/NonsAboutBadge'
+import AboutBadge from '@/components/discover/AboutBadge'
 import ListCard from '@/components/discover/ListCard'
 import BoringAvatar from '@/components/ui/BoringAvatar'
 import ShelfStatusBar from '@/components/media/ShelfStatusBar'
@@ -281,7 +281,7 @@ export default function DiscoverPage() {
           marketing landing page. Signed-out only; a signed-in visitor already
           knows what the app is. Above the Discover/Challenges tabs, so it's
           the first thing seen regardless of which tab is active. */}
-      {!authLoading && !isAuthenticated && <NonsAboutBadge t={t} />}
+      {!authLoading && !isAuthenticated && <AboutBadge t={t} />}
 
       {/* Top bar — minimal, home-page feel: the scope segmented control leads. */}
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">

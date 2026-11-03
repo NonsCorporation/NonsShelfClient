@@ -8,13 +8,9 @@
 // This app's backend (accounts, catalog, shelves, social). Empty = same origin.
 export const LIBRARY_API_URL = process.env.NEXT_PUBLIC_LIBRARY_API_URL || ''
 
-// Optional external platform API — only the remaining platform-bound calls go
-// there (cross-posting, cover uploads, admin roles, its unread count).
+// Optional external platform API — only cover uploads and admin roles still go
+// there.
 export const PLATFORM_API_URL = process.env.NEXT_PUBLIC_PLATFORM_API_URL || 'http://localhost:8080'
-
-// The external platform's web app — used for links out to its feed, friends,
-// and notifications.
-export const PLATFORM_APP_URL = process.env.NEXT_PUBLIC_PLATFORM_APP_URL || 'http://localhost:3000'
 
 // ── Transparent session refresh ─────────────────────────────────────────────
 // The access_token cookie is short-lived (15 min) and gets deleted by the

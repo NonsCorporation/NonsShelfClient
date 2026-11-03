@@ -778,7 +778,7 @@ function HandCard({
             <span className="pointer-events-none absolute inset-y-0 -left-1/2 w-1/2 skew-x-12 bg-white/15 blur-md animate-sheen" />
             <span aria-hidden className="absolute inset-0 opacity-40" style={{ backgroundImage: 'radial-gradient(circle at 30% 22%, rgba(255,255,255,0.45), transparent 45%)' }} />
             <IoSparkles className="relative h-10 w-10 text-white/85 drop-shadow" />
-            <span className="absolute bottom-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-white/45">nons</span>
+            <span className="absolute bottom-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-white/45">SomeShelf</span>
           </div>
 
           {/* renders revealed back face */}

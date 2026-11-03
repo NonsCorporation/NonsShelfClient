@@ -343,7 +343,7 @@ export default function Header() {
                     </span>
                     <span className="min-w-0">
                       <span className="block text-sm font-semibold text-[var(--text)]">{t('login') || 'Sign in'}</span>
-                      <span className="block truncate text-xs text-[var(--text-muted)]">{t('loginSubtitle') || 'Sign in with your nons account.'}</span>
+                      <span className="block truncate text-xs text-[var(--text-muted)]">{t('loginSubtitle') || 'Sign in to your account.'}</span>
                     </span>
                   </button>
                 )}

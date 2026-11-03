@@ -1,4 +1,4 @@
-import { authedFetch, platformFetch } from '../lib/api'
+import { authedFetch } from '../lib/api'
 
 export type NotificationType =
   | 'comment'
@@ -64,21 +64,3 @@ export async function markRead(id: number): Promise<void> {
   await authedFetch(`/api/notifications/${id}/read`, { method: 'PUT' })
 }
 
-// Fetch the total unread count from nons-server (social app).
-// Returns 0 on any error — best-effort cross-app count.
-export async function getNonsUnreadCount(): Promise<number> {
-  try {
-    const res = await platformFetch('/api/notifications/pending')
-    if (!res.ok) return 0
-    const d = await res.json()
-    return (
-      (d.post_likes_count ?? 0) +
-      (d.comments_count ?? 0) +
-      (d.comment_likes_count ?? 0) +
-      (d.follows_count ?? 0) +
-      (d.mentions_count ?? 0)
-    )
-  } catch {
-    return 0
-  }
-}

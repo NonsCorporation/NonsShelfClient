@@ -294,12 +294,6 @@ export const ro = {
   removeFromFeed: 'Elimină din feed',
   removeFromFeedConfirm: 'Elimini această postare din feed? Rămâne în istoricul de activitate și în calendar — se șterg doar postarea și comentariile ei.',
   shareToFeed: 'Distribuie în feed',
-  postToNons: 'Postează pe Nons',
-  nonsPostTitle: 'Titlul postării',
-  preview: 'Previzualizare',
-  mentioned: 'Menționează',
-  postingToNons: 'Se postează…',
-  postToNonsFailed: 'Nu s-a putut posta pe Nons. Cartea a fost totuși marcată terminată.',
   deleting: 'Se șterge…',
   continue: 'Continuă',
   deleteLibrary: 'Șterge biblioteca mea',
@@ -423,7 +417,7 @@ export const ro = {
   notifications: 'Notificări',
   login: 'Conectează-te',
   signUp: 'Înregistrează-te',
-  loginSubtitle: 'Conectează-te cu contul tău nons.',
+  loginSubtitle: 'Autentifică-te în contul tău.',
   loginEmailOrUsername: 'Email sau nume de utilizator',
   loginPassword: 'Parolă',
   loginSubmitting: 'Se conectează…',
@@ -433,13 +427,13 @@ export const ro = {
 
   close: 'Închide',
 
-  // Discover — signed-out "about Nons" badge above FindSomething
-  nonsBadgeTitle: 'SomeShelf',
-  nonsBadgeSubtitle: 'Parte din familia nons — un cont, toate aplicațiile.',
-  nonsBadgeFeat1: 'Cărți, filme și seriale — un singur raft',
-  nonsBadgeFeat2: 'Prieteni, nu algoritmi',
-  nonsBadgeFeat3: 'Patru rafturi clare',
-  nonsBadgeFeat4: 'Import și export oricând',
+  // Discover — signed-out "about SomeShelf" badge above FindSomething
+  aboutBadgeTitle: 'SomeShelf',
+  aboutBadgeSubtitle: 'Urmărește ce citești și ce vezi.',
+  aboutBadgeFeat1: 'Cărți, filme și seriale — un singur raft',
+  aboutBadgeFeat2: 'Prieteni, nu algoritmi',
+  aboutBadgeFeat3: 'Patru rafturi clare',
+  aboutBadgeFeat4: 'Import și export oricând',
 
   // Sign-in modal — the only sign-in surface (no local accounts)
   loginModalTitle: 'Autentifică-te în SomeShelf',
@@ -544,11 +538,8 @@ export const ro = {
   themeDark: 'Întunecată',
 
   // Settings modal sections
-  settingsNons: 'Cont nons',
-  settingsNonsHint: 'Poți gestiona datele profilului tău, precum numele afișat și poza de profil, pe nons.',
-  settingsNonsLink: 'Editează pe nons',
   settingsPrivacy: 'Confidențialitate',
-  settingsPrivacyHint: 'Alege cine poate vedea fiecare parte din profilul tău. Se aplică în tot nons.',
+  settingsPrivacyHint: 'Alege cine poate vedea fiecare parte din profilul tău.',
   settingsPreferences: 'Preferințe',
   settingsAccount: 'Cont',
   settingsFeedLayout: 'Aspect flux',
@@ -574,7 +565,7 @@ export const ro = {
   visibilityFriends: 'Prieteni',
   visibilityEveryone: 'Toți',
   visibilityNobodyHint: 'Privat pentru tine.',
-  visibilityFriendsHint: 'Persoanele pe care le urmărești pe nons.',
+  visibilityFriendsHint: 'Doar prietenii tăi.',
   visibilityEveryoneHint: 'Oricine are link-ul.',
 
   // Controls
@@ -884,29 +875,26 @@ export const ro = {
   about: 'Despre',
   aboutTitle: 'Despre SomeShelf',
   aboutSubtitle: 'O echipă mică, un raft mare.',
-  aboutIntro1: 'SomeShelf este partea de cărți și filme din Nons — o platformă mică, fără reclame, pentru a urmări ce citești și urmărești, și pentru a împărtăși asta cu oameni pe care îi cunoști cu adevărat.',
-  aboutIntro2: 'Suntem o echipă mică din Chișinău, Moldova 🇲🇩, care construiește Nons pentru că ne doream propriul nostru raft — un singur loc pentru cărți și filme, fără reclame și fără un algoritm care decide ce vedem.',
+  aboutIntro1: 'SomeShelf este un loc mic, fără reclame, unde urmărești ce citești și ce vezi și împărtășești asta cu oameni pe care îi cunoști cu adevărat.',
+  aboutIntro2: 'Suntem o echipă mică din Chișinău, Moldova 🇲🇩, care construiește SomeShelf pentru că ne doream propriul nostru raft — un singur loc pentru cărți și filme, fără reclame și fără un algoritm care decide ce vedem.',
   aboutFaqTitle: 'Întrebări frecvente',
-  aboutSuggestFeature: 'Vrei să sugerezi o funcție?',
   aboutFaqQ1: 'Ce este SomeShelf?',
-  aboutFaqA1: 'SomeShelf te lasă să urmărești cărțile, filmele și serialele pe care le citești și le urmărești, să le notezi și să scrii recenzii, și să vezi ce citesc și urmăresc prietenii tăi de pe Nons — totul într-un singur raft.',
+  aboutFaqA1: 'SomeShelf te lasă să urmărești cărțile, filmele și serialele pe care le citești și le urmărești, să le notezi și să scrii recenzii, și să vezi ce citesc și urmăresc prietenii tăi — totul într-un singur raft.',
   aboutFaqQ2: 'Este gratuit?',
   aboutFaqA2: 'Da. Urmărirea bibliotecii tale, notarea, recenziile și urmărirea prietenilor sunt gratuite și vor rămâne așa.',
-  aboutFaqQ3: 'Am nevoie de un cont nou?',
-  aboutFaqA3: 'Nu. SomeShelf folosește contul tău Nons existent — te autentifici o singură dată și funcționează în toate aplicațiile Nons.',
+  aboutFaqQ3: 'Am nevoie de un cont?',
+  aboutFaqA3: 'Catalogul poate fi răsfoit de oricine. Ca să ai un raft, să notezi, să scrii recenzii și să-ți urmărești prietenii, creează un cont SomeShelf gratuit cu email sau Google.',
   aboutFaqQ4: 'De unde vin detaliile despre cărți și filme?',
   aboutFaqA4: 'Din cataloage deschise — Open Library, Google Books și TMDB. Oricine poate propune o corecție la o intrare, iar bibliotecarii noștri o verifică înainte de a fi publicată.',
   aboutFaqQ5: 'Cine îmi poate vedea raftul?',
   aboutFaqA5: 'Tu decizi. Setează-ți raftul, notele, recenziile și activitatea ca vizibile pentru toți, doar pentru prieteni, sau doar pentru tine, din Setări → Confidențialitate.',
-  aboutFaqQ6: 'Unde este bazat Nons?',
+  aboutFaqQ6: 'Unde este bazat SomeShelf?',
   aboutFaqA6: 'Suntem o echipă mică din Moldova 🇲🇩.',
   aboutFaqQ7: 'Îmi pot exporta biblioteca?',
   aboutFaqA7: 'Da — din Setări îți poți exporta biblioteca în CSV sau JSON, oricând.',
-  aboutFaqQ8: 'Cum raportez o problemă sau propun o idee?',
-  aboutFaqA8: 'Scrie-ne pe Nons — suntem o echipă mică și citim tot.',
 
   // Lists
-  listsInfoTooltip: 'Listele sunt publice — oricine are linkul le poate vedea, chiar și fără cont. Folosește-le ca recomandări curate (ex. „Cel mai bun sci-fi al deceniului”) și distribuie linkul prietenilor sau pe Nons.',
+  listsInfoTooltip: 'Listele sunt publice — oricine are linkul le poate vedea, chiar și fără cont. Folosește-le ca recomandări curate (ex. „Cel mai bun sci-fi al deceniului”) și distribuie linkul prietenilor.',
 
   // Tags
   tagsInfoTooltip: 'Etichetele sunt adunate de la toți cei care termină acest titlu. Când destui oameni aleg aceeași etichetă, ea apare pe pagina titlului — ajutând întreaga comunitate să filtreze și să descopere după atmosferă, ritm, avertismente de conținut și altele.',

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { IoChevronDown, IoOpenOutline } from 'react-icons/io5'
+import { IoChevronDown } from 'react-icons/io5'
 import Layout from '../components/layout/Layout'
 import { useLanguage } from '../contexts/LanguageContext'
 
@@ -29,7 +29,7 @@ function FaqItem({ question, answer }: { question: string; answer: string }) {
 export default function About() {
   const { t } = useLanguage()
 
-  const faqs = [1, 2, 3, 4, 5, 6, 7, 8].map((n) => ({
+  const faqs = [1, 2, 3, 4, 5, 6, 7].map((n) => ({
     q: t(`aboutFaqQ${n}`),
     a: t(`aboutFaqA${n}`),
   }))
@@ -56,15 +56,6 @@ export default function About() {
           ))}
         </div>
 
-        <a
-          href="https://nonsapp.com/about/suggest-feature"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mt-6 flex items-center gap-3 rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface)] px-4 py-3 text-left text-sm text-[var(--text)] transition-colors hover:border-[var(--border)]"
-        >
-          <span className="flex-1 font-medium">{t('aboutSuggestFeature')}</span>
-          <IoOpenOutline className="h-4 w-4 flex-shrink-0 text-[var(--text-muted)]" />
-        </a>
       </div>
     </Layout>
   )

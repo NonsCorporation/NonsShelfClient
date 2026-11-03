@@ -1,14 +1,14 @@
 import { IoLayersOutline, IoPeopleOutline, IoBookmarksOutline, IoCloudUploadOutline } from 'react-icons/io5'
-import NonsLogo from '@/components/branding/NonsLogo'
+import ShelfLogo from '@/components/branding/ShelfLogo'
 import type { useLanguage } from '@/contexts/LanguageContext'
 
 type Translate = ReturnType<typeof useLanguage>['t']
 
 const FEATURES = [
-  { Icon: IoLayersOutline, key: 'nonsBadgeFeat1' as const },
-  { Icon: IoPeopleOutline, key: 'nonsBadgeFeat2' as const },
-  { Icon: IoBookmarksOutline, key: 'nonsBadgeFeat3' as const },
-  { Icon: IoCloudUploadOutline, key: 'nonsBadgeFeat4' as const },
+  { Icon: IoLayersOutline, key: 'aboutBadgeFeat1' as const },
+  { Icon: IoPeopleOutline, key: 'aboutBadgeFeat2' as const },
+  { Icon: IoBookmarksOutline, key: 'aboutBadgeFeat3' as const },
+  { Icon: IoCloudUploadOutline, key: 'aboutBadgeFeat4' as const },
 ]
 
 // A compact, near-black strip introducing SomeShelf to a signed-out visitor —
@@ -16,17 +16,17 @@ const FEATURES = [
 // favor of showing Discover itself at '/'). Sits above FindSomething so it's
 // the first thing seen, without pushing the real catalog content down a whole
 // screen's worth like the old hero did.
-export default function NonsAboutBadge({ t }: { t: Translate }) {
+export default function AboutBadge({ t }: { t: Translate }) {
   return (
     <div className="mb-6 overflow-hidden rounded-2xl bg-black">
       <div className="flex flex-col gap-4 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
           <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-white/10">
-            <NonsLogo className="h-5 w-5" />
+            <ShelfLogo className="h-5 w-5 text-white" />
           </span>
           <div>
-            <p className="text-sm font-semibold text-white">{t('nonsBadgeTitle')}</p>
-            <p className="text-xs text-white/50">{t('nonsBadgeSubtitle')}</p>
+            <p className="text-sm font-semibold text-white">{t('aboutBadgeTitle')}</p>
+            <p className="text-xs text-white/50">{t('aboutBadgeSubtitle')}</p>
           </div>
         </div>
         <div className="flex flex-wrap gap-2">

@@ -11,7 +11,6 @@ import {
   type LibNotification,
   type NotificationType,
 } from '../services/notificationService'
-import { PLATFORM_APP_URL } from '../lib/api'
 import {
   IoChatbubbleOutline,
   IoReturnDownForwardOutline,
@@ -172,7 +171,7 @@ function NotificationCard({ n, onNavigate }: { n: LibNotification; onNavigate: (
 
 export default function Notifications() {
   const navigate = useNavigate()
-  const { refresh, nonsUnreadCount } = useNotifications()
+  const { refresh } = useNotifications()
   const [items, setItems] = useState<LibNotification[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -204,39 +203,6 @@ export default function Notifications() {
             <span className="text-sm text-[var(--text-muted)]">{total}</span>
           )}
         </div>
-
-        {/* Nons social app notifications */}
-        <a
-          href={`${PLATFORM_APP_URL}/notifications`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mb-4 flex items-center gap-3 rounded-2xl border border-[var(--border-subtle)] px-4 py-3.5 transition-colors hover:bg-[var(--surface)]"
-        >
-          <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-[var(--surface)]">
-            <IoNotificationsOutline className="h-5 w-5 text-[var(--text-muted)]" />
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium text-[var(--text)]">Nons</p>
-            <p className="text-xs text-[var(--text-muted)]">
-              {nonsUnreadCount > 0
-                ? `${nonsUnreadCount} unread notification${nonsUnreadCount === 1 ? '' : 's'}`
-                : 'No new notifications'}
-            </p>
-          </div>
-          <span className="flex items-center gap-1.5 text-xs text-[var(--text-muted)]">
-            {nonsUnreadCount > 0 && (
-              <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-nonsprimary px-1.5 text-[10px] font-bold text-white">
-                {nonsUnreadCount > 99 ? '99+' : nonsUnreadCount}
-              </span>
-            )}
-            <span>↗</span>
-          </span>
-        </a>
-
-        {/* Library notifications section label */}
-        <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">
-          Shelf
-        </p>
 
         {loading && (
           <div className="overflow-hidden rounded-2xl border border-[var(--border-subtle)]">

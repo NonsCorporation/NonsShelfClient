@@ -15,7 +15,7 @@ const OG_IMAGE = `${SITE_URL}/img/og.png`
 export const metadata: Metadata = {
   title: 'SomeShelf — Every Book and Film You Love, on One Shelf',
   description:
-    'Track what you read and watch, rate it, and see what your friends on nons are into — one shelf for books and films instead of switching between Goodreads and Letterboxd.',
+    'Track what you read and watch, rate it, and see what your friends are into — one shelf for books and films instead of switching between Goodreads and Letterboxd.',
   keywords: [
     'SomeShelf',
     'book and film tracker',
@@ -32,7 +32,7 @@ export const metadata: Metadata = {
     url: SITE_URL,
     title: 'SomeShelf — Every Book and Film You Love, on One Shelf',
     description:
-      'Track what you read and watch, rate it, and see what your friends on nons are into — without the noise.',
+      'Track what you read and watch, rate it, and see what your friends are into — without the noise.',
     siteName: 'SomeShelf',
     locale: 'en_US',
     images: [
@@ -49,7 +49,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'SomeShelf — Every Book and Film You Love, on One Shelf',
     description:
-      'Track what you read and watch, rate it, and see what your friends on nons are into — without the noise.',
+      'Track what you read and watch, rate it, and see what your friends are into — without the noise.',
     images: [{ url: OG_IMAGE, alt: 'SomeShelf — Your books and films, all in one shelf.' }],
   },
   alternates: {

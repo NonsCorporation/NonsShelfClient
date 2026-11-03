@@ -9,7 +9,6 @@ import {
   IoCloudUploadOutline,
   IoLogOutOutline,
   IoTrashOutline,
-  IoOpenOutline,
   IoSunnyOutline,
   IoMoonOutline,
   IoPhonePortraitOutline,
@@ -23,7 +22,6 @@ import { useLogoutConfirm } from '@/components/auth/useLogoutConfirm'
 import type { IconType } from 'react-icons'
 import { useLanguage } from '@/contexts/LanguageContext'
 import LanguageSelect from '@/components/ui/LanguageSelect'
-import NonsLogo from '@/components/branding/NonsLogo'
 import {
   usePreferences,
   PRIVACY_FACETS,
@@ -158,21 +156,6 @@ export default function SettingsModal({ isOpen, onClose, onOpenImport }: Props) 
         </div>
 
         <div className="flex flex-col gap-7 overflow-y-auto px-6 py-5">
-          {/* ── Nons account ────────────────────────────────────────────── */}
-          <section>
-            <SectionHeader title={t('settingsNons')} hint={t('settingsNonsHint')} />
-            <a
-              href={`https://nonsapp.com/u/${user?.username}/edit`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] px-4 py-3 text-left text-sm text-[var(--text)] transition-colors hover:border-[var(--border)]"
-            >
-              <NonsLogo className="h-[18px] w-[18px] flex-shrink-0 text-[var(--text-muted)]" />
-              <span className="flex-1 font-medium">{t('settingsNonsLink')}</span>
-              <IoOpenOutline className="h-4 w-4 flex-shrink-0 text-[var(--text-muted)]" />
-            </a>
-          </section>
-
           {/* ── Privacy ─────────────────────────────────────────────────── */}
           <section>
             <SectionHeader title={t('settingsPrivacy')} hint={t('settingsPrivacyHint')} />

@@ -9,7 +9,6 @@ import { tagService } from '@/services/tagService'
 import type { MediaItem, TagTaxonomyFacet, TagTaxonomyGroup } from '@/types'
 import { useLanguage } from '@/contexts/LanguageContext'
 import DatePicker from '@/components/ui/DatePicker'
-import NonsPostPreview from '@/components/feed/NonsPostPreview'
 import InfoTooltip from '@/components/ui/InfoTooltip'
 import ReviewEditor from '@/components/review/ReviewEditor'
 
@@ -37,13 +36,7 @@ export default function FinishModal({ isOpen, item, onClose, onFinished }: Props
   const [started, setStarted] = useState('')
   const [finished, setFinished] = useState(today())
   const [share, setShare] = useState(true)
-  // Independent of `share` above: `share` controls the library's own internal
-  // activity feed, this controls whether a real post is also created on the
-  // main nons feed. Defaults off since it's a bigger, public-facing action.
-  const [postToNons, setPostToNons] = useState(false)
-  const [nonsTitle, setNonsTitle] = useState('')
   const [busy, setBusy] = useState(false)
-  const [nonsError, setNonsError] = useState<string | null>(null)
 
   // Community tags (StoryGraph-style: pacing/mood/genre/content warnings/…).
   // Collapsed by default — the taxonomy is large — but pre-loaded with the
@@ -64,9 +57,6 @@ export default function FinishModal({ isOpen, item, onClose, onFinished }: Props
     setReview('')
     setStarted(toDateInput(item.startedAt ?? item.dateAdded))
     setFinished(toDateInput(item.finishedAt) || today())
-    setPostToNons(false)
-    setNonsTitle(item.title)
-    setNonsError(null)
     setTagsOpen(false)
     setSelectedTags(new Set())
     setPriorFinishCount(0)
@@ -140,7 +130,6 @@ export default function FinishModal({ isOpen, item, onClose, onFinished }: Props
 
   const post = async () => {
     setBusy(true)
-    setNonsError(null)
     try {
       const finishedAt = finished ? Math.floor(new Date(finished).getTime() / 1000) : undefined
       await libraryService.finish(item.id, { rating, review, finishedAt, share })
@@ -156,22 +145,11 @@ export default function FinishModal({ isOpen, item, onClose, onFinished }: Props
         started_at: startedAt,
         finished_at: finishedAt ?? 0,
       })
-      // Best-effort, like the cross-post below — a tag-save hiccup shouldn't
-      // block finishing the book.
+      // Best-effort — a tag-save hiccup shouldn't block finishing the book.
       try {
         await tagService.setMyVotes(item.id, [...selectedTags])
       } catch {
         /* non-critical */
-      }
-      // Cross-posting to the main nons feed is a separate service/action from
-      // the above — best-effort, so a nons-server hiccup never blocks finishing
-      // the book. On failure we still close out via onFinished() below.
-      if (postToNons) {
-        try {
-          await libraryService.postToNons(item, { title: nonsTitle || item.title, content: review })
-        } catch {
-          setNonsError(t('postToNonsFailed') || 'Could not post to Nons. Your book was still finished.')
-        }
       }
       onFinished()
     } finally {
@@ -321,33 +299,6 @@ export default function FinishModal({ isOpen, item, onClose, onFinished }: Props
           />
           {t('shareToFeed')}
         </label>
-
-        <label className="flex cursor-pointer items-center gap-2 text-sm text-[var(--text)]">
-          <input
-            type="checkbox"
-            checked={postToNons}
-            onChange={(e) => setPostToNons(e.target.checked)}
-            className="h-4 w-4 rounded border-[var(--border-subtle)]"
-          />
-          {t('postToNons') || 'Post to Nons'}
-        </label>
-
-        {postToNons && (
-          <div className="flex flex-col gap-3 rounded-xl border border-[var(--border-subtle)] p-3">
-            <label className="flex flex-col gap-1.5 text-sm font-medium text-[var(--text)]">
-              {t('nonsPostTitle') || 'Post title'}
-              <input
-                type="text"
-                value={nonsTitle}
-                onChange={(e) => setNonsTitle(e.target.value)}
-                className="rounded-lg border border-[var(--border-subtle)] bg-[var(--input)] p-2 text-sm text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-ring)]"
-              />
-            </label>
-            <NonsPostPreview item={item} title={nonsTitle} review={review} rating={rating} />
-          </div>
-        )}
-
-        {nonsError && <p className="text-sm text-red-500">{nonsError}</p>}
 
         <div className="flex justify-end gap-3">
           <button

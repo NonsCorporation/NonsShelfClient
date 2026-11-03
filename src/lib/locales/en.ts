@@ -294,12 +294,6 @@ export const en = {
   removeFromFeed: 'Remove from feed',
   removeFromFeedConfirm: 'Remove this post from the feed? It stays in your activity history and calendar — only the feed post and its comments are deleted.',
   shareToFeed: 'Share to feed',
-  postToNons: 'Post to Nons',
-  nonsPostTitle: 'Post title',
-  preview: 'Preview',
-  mentioned: 'Mentioned',
-  postingToNons: 'Posting…',
-  postToNonsFailed: 'Could not post to Nons. Your book was still finished.',
   deleting: 'Deleting…',
   continue: 'Continue',
   deleteLibrary: 'Delete my library',
@@ -423,7 +417,7 @@ export const en = {
   notifications: 'Notifications',
   login: 'Sign in',
   signUp: 'Sign up',
-  loginSubtitle: 'Sign in with your nons account.',
+  loginSubtitle: 'Sign in to your account.',
   loginEmailOrUsername: 'Email or username',
   loginPassword: 'Password',
   loginSubmitting: 'Signing in…',
@@ -433,13 +427,13 @@ export const en = {
 
   close: 'Close',
 
-  // Discover — signed-out "about Nons" badge above FindSomething
-  nonsBadgeTitle: 'SomeShelf',
-  nonsBadgeSubtitle: 'Part of the nons family — one account, every app.',
-  nonsBadgeFeat1: 'Books, films & series — one shelf',
-  nonsBadgeFeat2: 'Friends, not algorithms',
-  nonsBadgeFeat3: 'Four clear shelves',
-  nonsBadgeFeat4: 'Import & export anytime',
+  // Discover — signed-out "about SomeShelf" badge above FindSomething
+  aboutBadgeTitle: 'SomeShelf',
+  aboutBadgeSubtitle: 'Track what you read and watch.',
+  aboutBadgeFeat1: 'Books, films & series — one shelf',
+  aboutBadgeFeat2: 'Friends, not algorithms',
+  aboutBadgeFeat3: 'Four clear shelves',
+  aboutBadgeFeat4: 'Import & export anytime',
 
   // Sign-in modal — the only sign-in surface (no local accounts)
   loginModalTitle: 'Sign in to SomeShelf',
@@ -544,11 +538,8 @@ export const en = {
   themeDark: 'Dark',
 
   // Settings modal sections
-  settingsNons: 'Nons account',
-  settingsNonsHint: 'You can manage your profile data, such as displayed name and profile picture on nons.',
-  settingsNonsLink: 'Edit on nons',
   settingsPrivacy: 'Privacy',
-  settingsPrivacyHint: 'Choose who can see each part of your profile. Applies across nons.',
+  settingsPrivacyHint: 'Choose who can see each part of your profile.',
   settingsPreferences: 'Preferences',
   settingsAccount: 'Account',
   settingsFeedLayout: 'Feed layout',
@@ -574,7 +565,7 @@ export const en = {
   visibilityFriends: 'Friends',
   visibilityEveryone: 'Everyone',
   visibilityNobodyHint: 'Private to you.',
-  visibilityFriendsHint: 'People you follow on nons.',
+  visibilityFriendsHint: 'Only your friends.',
   visibilityEveryoneHint: 'Anyone with the link.',
 
   // Controls
@@ -955,29 +946,26 @@ export const en = {
   about: 'About',
   aboutTitle: 'About SomeShelf',
   aboutSubtitle: 'Small team, big shelf.',
-  aboutIntro1: "SomeShelf is the books-and-films half of Nons — a small, ad-free platform for tracking what you read and watch, and sharing it with people you actually know.",
-  aboutIntro2: "We're a small team based in Chișinău, Moldova 🇲🇩, building Nons because we wanted our own shelf — one place for books and films, without ads or an algorithm deciding what we see.",
+  aboutIntro1: 'SomeShelf is a small, ad-free place to track what you read and watch, and to share it with people you actually know.',
+  aboutIntro2: "We're a small team based in Chișinău, Moldova 🇲🇩, building SomeShelf because we wanted our own shelf — one place for books and films, without ads or an algorithm deciding what we see.",
   aboutFaqTitle: 'Frequently asked questions',
-  aboutSuggestFeature: 'Want to suggest a feature?',
   aboutFaqQ1: 'What is SomeShelf?',
-  aboutFaqA1: 'SomeShelf lets you track the books, films and series you read and watch, rate and review them, and see what your friends on Nons are into — all in one shelf.',
+  aboutFaqA1: 'SomeShelf lets you track the books, films and series you read and watch, rate and review them, and see what your friends are into — all in one shelf.',
   aboutFaqQ2: 'Is it free?',
   aboutFaqA2: 'Yes. Tracking your library, rating and reviewing, and following friends is free, and will stay that way.',
-  aboutFaqQ3: 'Do I need a new account?',
-  aboutFaqA3: 'No. SomeShelf uses your existing Nons account — sign in once and it works across every Nons app.',
+  aboutFaqQ3: 'Do I need an account?',
+  aboutFaqA3: 'Browsing the catalog is open to everyone. To keep a shelf, rate and review, and follow friends, create a free SomeShelf account with your email or Google.',
   aboutFaqQ4: 'Where do book and film details come from?',
   aboutFaqA4: "From open catalogs — Open Library, Google Books and TMDB. Anyone can suggest a fix to an entry, and our librarians review it before it's published.",
   aboutFaqQ5: 'Who can see my shelf?',
   aboutFaqA5: 'You decide. Set your shelf, ratings, reviews and activity to everyone, friends only, or just you, from Settings → Privacy.',
-  aboutFaqQ6: 'Where is Nons based?',
+  aboutFaqQ6: 'Where is SomeShelf based?',
   aboutFaqA6: "We're a small team based in Moldova 🇲🇩.",
   aboutFaqQ7: 'Can I export my library?',
   aboutFaqA7: 'Yes — Settings lets you export your library to CSV or JSON at any time.',
-  aboutFaqQ8: 'How do I report a bug or suggest something?',
-  aboutFaqA8: "Message us on Nons — we're a small team and read everything.",
 
   // Lists
-  listsInfoTooltip: "Lists are public — anyone with the link can view them, even signed out. Use them as curated recommendations (e.g. \"Best sci-fi of the decade\") and share the link with friends or post it to Nons.",
+  listsInfoTooltip: 'Lists are public — anyone with the link can view them, even signed out. Use them as curated recommendations (e.g. "Best sci-fi of the decade") and share the link with friends.',
 
   // Tags
   tagsInfoTooltip: "Tags are crowdsourced from everyone who finishes this item. Once enough people agree on one, it shows up on the item's page — helping the whole community filter and discover by mood, pacing, content warnings, and more.",

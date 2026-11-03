@@ -40,8 +40,6 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    site: "@nons",
-    creator: "@nons",
     title: "SomeShelf",
     description: "Your books and films, all in one shelf.",
     images: [
