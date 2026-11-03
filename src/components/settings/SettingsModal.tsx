@@ -16,6 +16,7 @@ import {
 } from 'react-icons/io5'
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { useLogoutConfirm } from '@/components/auth/useLogoutConfirm'
 import type { IconType } from 'react-icons'
 import { useLanguage } from '@/contexts/LanguageContext'
 import LanguageSelect from '@/components/ui/LanguageSelect'
@@ -80,7 +81,8 @@ export default function SettingsModal({ isOpen, onClose, onOpenImport }: Props) 
     preferredMediaLang, setPreferredMediaLang, feedBlocks, setFeedBlockVisible,
     theme, setTheme, showActivityReactions, setShowActivityReactions,
   } = usePreferences()
-  const { logout, user } = useAuth()
+  const { user } = useAuth()
+  const { ask: askLogout, modal: logoutModal } = useLogoutConfirm()
   // Two-step delete: 0 = idle, 1 = first confirm, 2 = final confirm.
   const [wipeStep, setWipeStep] = useState(0)
   const [wiping, setWiping] = useState(false)
@@ -110,6 +112,7 @@ export default function SettingsModal({ isOpen, onClose, onOpenImport }: Props) 
   if (typeof document === 'undefined') return null
 
   return createPortal(
+    <>
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
       <div
         className="flex max-h-[88vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--container)]"
@@ -275,7 +278,7 @@ export default function SettingsModal({ isOpen, onClose, onOpenImport }: Props) 
               </button>
 
               <button
-                onClick={() => logout()}
+                onClick={askLogout}
                 className="flex items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-medium text-red-500 transition-colors hover:bg-red-500/10"
               >
                 <IoLogOutOutline className="h-[18px] w-[18px]" />
@@ -321,7 +324,9 @@ export default function SettingsModal({ isOpen, onClose, onOpenImport }: Props) 
           onCancel={() => setWipeStep(0)}
         />
       )}
-    </div>,
+    </div>
+    {logoutModal}
+    </>,
     document.body,
   )
 }

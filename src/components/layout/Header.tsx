@@ -30,13 +30,15 @@ import { catalogService, type CatalogItem } from '../../services/catalogService'
 import TypeBadge from '@/components/badges/TypeBadge'
 import ShelfLogo from '@/components/branding/ShelfLogo'
 import InfinityLoader from '@/components/ui/InfinityLoader'
+import { useLogoutConfirm } from '@/components/auth/useLogoutConfirm'
 
 type NavItem = { to: string; label: string; icon: IconType; match: (p: string) => boolean }
 
 export default function Header() {
   const location = useLocation()
   const { language, setLanguage, t } = useLanguage()
-  const { user, logout, isAuthenticated, loading } = useAuth()
+  const { user, isAuthenticated, loading } = useAuth()
+  const { ask: askLogout, modal: logoutModal } = useLogoutConfirm()
   const { totalUnread, unreadCount } = useNotifications()
   const { openLogin } = useLoginModal()
 
@@ -223,7 +225,7 @@ export default function Header() {
                     <div className="h-px bg-[var(--border-subtle)]" />
 
                     <button
-                      onClick={() => logout()}
+                      onClick={() => { setAccountOpen(false); askLogout() }}
                       className="flex w-full items-center gap-3 px-4 py-3 text-sm text-[var(--text-muted)] transition-colors hover:bg-[var(--surface)] hover:text-[var(--text)]"
                     >
                       <IoLogOutOutline className="h-[18px] w-[18px]" />
@@ -384,7 +386,7 @@ export default function Header() {
                   <>
                     <div className="h-px bg-[var(--border-subtle)]" />
                     <button
-                      onClick={() => { logout(); setProfileOpen(false) }}
+                      onClick={() => { setProfileOpen(false); askLogout() }}
                       className="flex w-full items-center gap-3 px-4 py-3 text-sm text-[var(--text-muted)] transition-colors hover:bg-[var(--surface)] hover:text-[var(--text)]"
                     >
                       <IoLogOutOutline className="h-[18px] w-[18px]" />
@@ -397,6 +399,8 @@ export default function Header() {
           </div>
         </nav>
       </div>
+
+      {logoutModal}
     </>
   )
 
