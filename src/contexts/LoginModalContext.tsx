@@ -1,6 +1,7 @@
 'use client'
 
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useLanguage } from '@/contexts/LanguageContext'
 import LoginModal from '@/components/auth/LoginModal'
 
 // What the visitor was trying to do when they got stopped — picks the modal's
@@ -22,18 +23,48 @@ type LoginModalValue = {
 
 const LoginModalContext = createContext<LoginModalValue | undefined>(undefined)
 
+// ?auth_error=<code> is how the server reports a Google sign-in that didn't
+// complete (it redirects the browser back here). "cancelled" is the person
+// backing out of Google, which needs no explanation.
+const AUTH_ERROR_KEYS: Record<string, string> = {
+  google_failed: 'authErrGoogle',
+  google_state: 'authErrGoogle',
+  google_unverified: 'authErrGoogleUnverified',
+  banned: 'authErrBanned',
+  deleted: 'authErrDeleted',
+}
+
 export function LoginModalProvider({ children }: { children: ReactNode }) {
+  const { t } = useLanguage()
   const [reason, setReason] = useState<LoginReason | undefined>(undefined)
   const [open, setOpen] = useState(false)
+  const [initialError, setInitialError] = useState('')
 
-  const openLogin = useCallback((r?: LoginReason) => { setReason(r); setOpen(true) }, [])
+  const openLogin = useCallback((r?: LoginReason) => { setReason(r); setInitialError(''); setOpen(true) }, [])
   const closeLogin = useCallback(() => setOpen(false), [])
+
+  // Coming back from a failed Google sign-in: reopen the modal with the reason,
+  // and strip the param so a refresh doesn't show it again.
+  useEffect(() => {
+    const url = new URL(window.location.href)
+    const code = url.searchParams.get('auth_error')
+    if (!code) return
+    url.searchParams.delete('auth_error')
+    window.history.replaceState(null, '', url.pathname + url.search + url.hash)
+    const key = AUTH_ERROR_KEYS[code]
+    if (!key) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setInitialError(t(key))
+    setOpen(true)
+    // Runs once on load; t is stable enough for a one-off message.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   const value = useMemo(() => ({ openLogin, closeLogin }), [openLogin, closeLogin])
 
   return (
     <LoginModalContext.Provider value={value}>
       {children}
-      {open && <LoginModal reason={reason} onClose={closeLogin} />}
+      {open && <LoginModal reason={reason} onClose={closeLogin} initialError={initialError} />}
     </LoginModalContext.Provider>
   )
 }

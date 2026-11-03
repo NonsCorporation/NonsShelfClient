@@ -1,4 +1,4 @@
-import { authApi } from '../lib/api'
+import { LIBRARY_API_URL, authApi } from '../lib/api'
 
 // Talks to nons-library-server's /api/auth endpoints. On success the server sets
 // the HttpOnly session cookies itself; callers then re-read /api/me.
@@ -48,3 +48,10 @@ export const resetPassword = (code: string, password: string) =>
   post('/api/auth/password/reset', { code, password })
 
 export const logoutRequest = () => post('/api/auth/logout')
+
+/** Where the "Continue with Google" button sends the browser. It's a full-page
+ *  navigation (Google's consent screen can't run in a fetch); the server brings
+ *  the person back to `returnTo` with the session cookies set, or with
+ *  ?auth_error=<code> if it didn't work out. */
+export const googleLoginUrl = (returnTo: string) =>
+  `${LIBRARY_API_URL}/api/auth/google/login?redirect=${encodeURIComponent(returnTo)}`

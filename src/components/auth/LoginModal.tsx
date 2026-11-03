@@ -3,6 +3,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { IoClose } from 'react-icons/io5'
+import { FcGoogle } from 'react-icons/fc'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { useAuth } from '@/contexts/AuthContext'
 import type { LoginReason } from '@/contexts/LoginModalContext'
@@ -13,6 +14,7 @@ import {
   resendConfirmation,
   forgotPassword,
   resetPassword,
+  googleLoginUrl,
   type AuthResult,
 } from '@/services/authService'
 import ShelfLogo from '@/components/branding/ShelfLogo'
@@ -42,14 +44,23 @@ const LINK_BTN = 'font-medium text-nonsprimary hover:underline'
 //
 // Portalled to <body> for the same reason as ConfirmModal: transformed ancestors
 // (the feed/discover fade-up animations) would otherwise trap the fixed overlay.
-export default function LoginModal({ reason, onClose }: { reason?: LoginReason; onClose: () => void }) {
+export default function LoginModal({
+  reason,
+  onClose,
+  initialError = '',
+}: {
+  reason?: LoginReason
+  onClose: () => void
+  /** Shown on open — e.g. why a Google sign-in that just redirected back failed. */
+  initialError?: string
+}) {
   const { t } = useLanguage()
   const { refreshUser } = useAuth()
   const copy = reason ? COPY[reason] : null
 
   const [mode, setMode] = useState<Mode>('login')
   const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
+  const [error, setError] = useState(initialError)
   const [notice, setNotice] = useState('')
 
   const [identifier, setIdentifier] = useState('') // email or username (login)
@@ -248,6 +259,30 @@ export default function LoginModal({ reason, onClose }: { reason?: LoginReason; 
             {busy ? t('authWorking') : submitLabel}
           </button>
         </form>
+
+        {(mode === 'login' || mode === 'signup') && (
+          <>
+            <div className="my-4 flex items-center gap-3 text-xs text-[var(--text-muted)]">
+              <span className="h-px flex-1 bg-[var(--border-subtle)]" />
+              {t('authOr')}
+              <span className="h-px flex-1 bg-[var(--border-subtle)]" />
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                // Come back to this page, minus any previous sign-in error.
+                const back = new URL(window.location.href)
+                back.searchParams.delete('auth_error')
+                back.hash = ''
+                window.location.assign(googleLoginUrl(back.toString()))
+              }}
+              className="inline-flex w-full items-center justify-center gap-2.5 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-6 py-2.5 text-sm font-medium text-[var(--text)] transition-colors hover:bg-[var(--surface-active)]"
+            >
+              <FcGoogle className="h-[18px] w-[18px]" />
+              {t('authContinueGoogle')}
+            </button>
+          </>
+        )}
 
         <div className="mt-4 space-y-1.5 text-center text-xs text-[var(--text-muted)]">
           {mode === 'login' && (
