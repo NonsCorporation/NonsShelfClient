@@ -18,10 +18,10 @@ const SERVER_API =
 // pages stay fast and we don't hammer the API on every crawl.
 const REVALIDATE_SECONDS = 3600
 
-async function getJson<T>(path: string): Promise<T | null> {
+async function getJson<T>(path: string, revalidate = REVALIDATE_SECONDS): Promise<T | null> {
   try {
     const res = await fetch(`${SERVER_API}${path}`, {
-      next: { revalidate: REVALIDATE_SECONDS },
+      next: { revalidate },
     })
     if (!res.ok) return null
     return (await res.json()) as T
@@ -55,4 +55,23 @@ export async function getPublicEditions(id: string): Promise<Edition[]> {
 export async function getPublicList(id: string): Promise<CuratedListDetail | null> {
   const data = await getJson<{ list: CuratedListDetail }>(`/api/lists/${encodeURIComponent(id)}`)
   return data?.list ?? null
+}
+
+/** What anyone may see of a profile (GET /api/profiles/:username/card): name,
+ *  @handle and photo; bio only if public; stats/rating only if the owner's
+ *  privacy settings make them public. Null when missing/unreachable. */
+export type PublicProfileCard = {
+  username: string
+  name: string
+  avatar_url?: string
+  bio?: string
+  stats?: { books: number; movies: number; series: number; finished: number }
+  rating?: { average: number; count: number }
+}
+
+// Profiles change more often than catalog rows: refresh every few minutes.
+const PROFILE_REVALIDATE_SECONDS = 300
+
+export function getPublicProfileCard(username: string): Promise<PublicProfileCard | null> {
+  return getJson<PublicProfileCard>(`/api/profiles/${encodeURIComponent(username)}/card`, PROFILE_REVALIDATE_SECONDS)
 }
