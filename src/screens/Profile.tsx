@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { Link, useParams } from '@/lib/router'
+import { Link, useNavigate, useParams } from '@/lib/router'
 import Layout from '../components/layout/Layout'
 import { ProfileSkeleton } from '@/components/ui/Skeletons'
 import ImportModal from '@/components/import-export/ImportModal'
@@ -61,7 +61,9 @@ import {
   IoCloseOutline,
   IoAddOutline,
   IoCheckmarkCircleOutline,
+  IoChatbubbleEllipsesOutline,
 } from 'react-icons/io5'
+import { useChat } from '../contexts/ChatContext'
 import type { IconType } from 'react-icons'
 import type { MediaType } from '../types'
 
@@ -157,6 +159,10 @@ export default function ProfilePage() {
   const [friendship, setFriendship] = useState<FriendshipStatus>({ status: 'none', isRequester: false })
   const [followingUser, setFollowingUser] = useState(false)
   const [relBusy, setRelBusy] = useState(false)
+  const { startDirect } = useChat()
+  const navigate = useNavigate()
+  const [msgBusy, setMsgBusy] = useState(false)
+  const [msgError, setMsgError] = useState<string | null>(null)
 
 
   useEffect(() => {
@@ -458,6 +464,19 @@ export default function ProfilePage() {
     setRelBusy(false)
   }
 
+  // Opens the existing 1-on-1 chat or creates it; the server enforces the
+  // recipient's "who can message me" setting (403 messages_not_allowed).
+  const messageUser = async () => {
+    if (!authUser) { openLogin('profile'); return }
+    if (!profile || msgBusy) return
+    setMsgBusy(true)
+    setMsgError(null)
+    const r = await startDirect(profile.id)
+    setMsgBusy(false)
+    if (r.ok) navigate(`/messages?chat=${r.data.id}`)
+    else setMsgError(r.code === 'messages_not_allowed' ? t('chatNotAllowed') : r.error)
+  }
+
   if (loading) {
     return (
       <Layout>
@@ -587,8 +606,18 @@ export default function ProfilePage() {
                     {t('friendsLabel')}
                   </button>
                 )}
+
+                <button
+                  onClick={() => void messageUser()}
+                  disabled={msgBusy}
+                  className="flex items-center gap-1.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] px-3 py-1.5 text-xs font-medium text-[var(--text)] transition-colors hover:border-nonsprimary hover:text-nonsprimary disabled:opacity-50"
+                >
+                  <IoChatbubbleEllipsesOutline className="h-3.5 w-3.5" />
+                  {t('chatMessageButton')}
+                </button>
               </div>
             )}
+            {!isSelf && msgError && <p role="alert" className="mt-2 text-xs text-red-400">{msgError}</p>}
           </div>
 
           {/* Share — any profile; opens the shareable image/QR card */}

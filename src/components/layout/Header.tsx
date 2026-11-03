@@ -15,6 +15,7 @@ import {
   IoPersonOutline,
   IoNotificationsOutline,
   IoInformationCircleOutline,
+  IoChatbubblesOutline,
 } from 'react-icons/io5'
 import type { IconType } from 'react-icons'
 import { HiOutlineLibrary } from 'react-icons/hi'
@@ -22,6 +23,7 @@ import { useLanguage } from '../../contexts/LanguageContext'
 import LanguageSelect from '@/components/ui/LanguageSelect'
 import { useAuth } from '../../contexts/AuthContext'
 import { useNotifications } from '../../contexts/NotificationContext'
+import { useOptionalChat } from '../../contexts/ChatContext'
 import { useLoginModal } from '../../contexts/LoginModalContext'
 import BoringAvatar from '@/components/ui/BoringAvatar'
 import { userPath, mediaPath } from '../../lib/paths'
@@ -42,6 +44,7 @@ export default function Header() {
   const { user, isAuthenticated, loading } = useAuth()
   const { ask: askLogout, modal: logoutModal } = useLogoutConfirm()
   const { totalUnread, unreadCount } = useNotifications()
+  const chatUnread = useOptionalChat()?.unreadTotal ?? 0
   const { openLogin } = useLoginModal()
 
   const [accountOpen, setAccountOpen] = useState(false)
@@ -157,6 +160,20 @@ export default function Header() {
 
           {/* Right cluster */}
           <div className="ml-auto flex items-center gap-2">
+            {isAuthenticated && (
+              <Link
+                to="/messages"
+                aria-label={t('chatTitle')}
+                className="relative hidden h-9 w-9 items-center justify-center rounded-full text-[var(--text-muted)] transition-colors hover:bg-[var(--surface)] hover:text-[var(--text)] lg:flex"
+              >
+                <IoChatbubblesOutline className="h-[19px] w-[19px]" />
+                {chatUnread > 0 && (
+                  <span className="absolute right-1 top-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-nonsprimary px-1 text-[10px] font-bold leading-none text-white">
+                    {chatUnread > 99 ? '99+' : chatUnread}
+                  </span>
+                )}
+              </Link>
+            )}
             {isAuthenticated && (
               <Link
                 to="/notifications"
@@ -294,7 +311,7 @@ export default function Header() {
               />
               <span className="relative flex h-6 items-center justify-center">
                 {display ? <Avatar display={display} /> : <IoPersonOutline className={`h-6 w-6 transition-colors duration-200 ${profileOpen ? 'text-[var(--text)]' : 'text-[var(--text-muted)]'}`} />}
-                {isAuthenticated && totalUnread > 0 && (
+                {isAuthenticated && (totalUnread > 0 || chatUnread > 0) && (
                   <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-nonsprimary ring-2 ring-[var(--nav-bg)]" />
                 )}
               </span>
@@ -334,6 +351,21 @@ export default function Header() {
                 {isAuthenticated && (
                   <>
                     <div className="h-px bg-[var(--border-subtle)]" />
+                    <Link
+                      to="/messages"
+                      onClick={() => setProfileOpen(false)}
+                      className={`flex w-full items-center gap-3 px-4 py-3 text-sm transition-colors hover:bg-[var(--surface)] hover:text-[var(--text)] ${path.startsWith('/messages') ? 'text-[var(--text)]' : 'text-[var(--text-muted)]'}`}
+                    >
+                      <span className="relative flex items-center justify-center">
+                        <IoChatbubblesOutline className="h-[18px] w-[18px]" />
+                        {chatUnread > 0 && (
+                          <span className="absolute right-0 top-0 flex h-3.5 min-w-[14px] -translate-y-1/2 translate-x-1/2 items-center justify-center rounded-full bg-nonsprimary px-1 text-[9px] font-bold leading-none text-white">
+                            {chatUnread > 99 ? '99+' : chatUnread}
+                          </span>
+                        )}
+                      </span>
+                      {t('chatTitle')}
+                    </Link>
                     <Link
                       to="/notifications"
                       onClick={() => setProfileOpen(false)}

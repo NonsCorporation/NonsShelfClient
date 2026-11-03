@@ -15,7 +15,10 @@ const PUBLIC_PATHS = new Set(['/', '/discover'])
 
 // A user's profile (/u/<handle>) is public too — a shared profile link must open
 // for anyone. Their full library and the edit page stay signed-in only.
-const isPublicPath = (pathname: string) => PUBLIC_PATHS.has(pathname) || /^\/u\/[^/]+\/?$/.test(pathname)
+// A group invite link (/messages/invite/<token>) opens too, so the screen can
+// show which group it is and offer sign-in instead of bouncing to home.
+const isPublicPath = (pathname: string) =>
+  PUBLIC_PATHS.has(pathname) || /^\/u\/[^/]+\/?$/.test(pathname) || /^\/messages\/invite\/[^/]+\/?$/.test(pathname)
 
 // Which login-modal copy names the thing a blocked route was actually for
 // ("view this profile", "see your notifications", …) instead of the generic
@@ -26,6 +29,7 @@ function reasonFor(pathname: string): LoginReason | undefined {
   if (pathname.startsWith('/notifications')) return 'notifications'
   if (pathname.startsWith('/statistics')) return 'statistics'
   if (pathname.startsWith('/challenge')) return 'challenge'
+  if (pathname.startsWith('/messages')) return 'messages'
   return undefined
 }
 

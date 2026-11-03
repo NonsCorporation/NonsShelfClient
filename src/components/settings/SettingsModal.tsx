@@ -13,7 +13,10 @@ import {
   IoSunnyOutline,
   IoMoonOutline,
   IoPhonePortraitOutline,
+  IoChatbubblesOutline,
+  IoPersonAddOutline,
 } from 'react-icons/io5'
+import { chatApi, type MessagePrivacy } from '@/services/chatService'
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useLogoutConfirm } from '@/components/auth/useLogoutConfirm'
@@ -48,6 +51,14 @@ const VIS_OPTIONS: { key: Visibility; labelKey: string; hintKey: string; icon: I
   { key: 'nobody', labelKey: 'visibilityNobody', hintKey: 'visibilityNobodyHint', icon: IoLockClosedOutline },
   { key: 'friends', labelKey: 'visibilityFriends', hintKey: 'visibilityFriendsHint', icon: IoPeopleOutline },
   { key: 'everyone', labelKey: 'visibilityEveryone', hintKey: 'visibilityEveryoneHint', icon: IoEarthOutline },
+]
+
+// "Who can message me" — same control, one extra rung (people you follow).
+const MSG_OPTIONS: { key: MessagePrivacy; labelKey: string; hintKey: string; icon: IconType }[] = [
+  { key: 'nobody', labelKey: 'visibilityNobody', hintKey: 'msgPrivacyNobodyHint', icon: IoLockClosedOutline },
+  { key: 'friends', labelKey: 'visibilityFriends', hintKey: 'msgPrivacyFriendsHint', icon: IoPeopleOutline },
+  { key: 'following', labelKey: 'msgPrivacyFollowing', hintKey: 'msgPrivacyFollowingHint', icon: IoPersonAddOutline },
+  { key: 'everyone', labelKey: 'visibilityEveryone', hintKey: 'msgPrivacyEveryoneHint', icon: IoEarthOutline },
 ]
 
 // Per-facet copy + icon for the privacy rows.
@@ -86,6 +97,26 @@ export default function SettingsModal({ isOpen, onClose, onOpenImport }: Props) 
   // Two-step delete: 0 = idle, 1 = first confirm, 2 = final confirm.
   const [wipeStep, setWipeStep] = useState(0)
   const [wiping, setWiping] = useState(false)
+  // "Who can message me" lives on the server (it's enforced there), unlike the
+  // facets above; null until loaded, and the row stays hidden if it fails.
+  const [msgPrivacy, setMsgPrivacy] = useState<MessagePrivacy | null>(null)
+
+  useEffect(() => {
+    if (!isOpen || !user) return
+    let cancelled = false
+    chatApi.getPrivacy().then((r) => {
+      if (!cancelled && r.ok) setMsgPrivacy(r.data.message_privacy)
+    })
+    return () => { cancelled = true }
+  }, [isOpen, user])
+
+  const changeMsgPrivacy = async (v: MessagePrivacy) => {
+    const prev = msgPrivacy
+    if (v === prev) return
+    setMsgPrivacy(v)
+    const r = await chatApi.setPrivacy(v)
+    if (!r.ok) setMsgPrivacy(prev)
+  }
 
   // Locks the page's own scroll while the modal is open, so only the modal's
   // own content scrolls (matches FindSomething's pattern).
@@ -159,6 +190,15 @@ export default function SettingsModal({ isOpen, onClose, onOpenImport }: Props) 
                   </div>
                 )
               })}
+              {msgPrivacy && (
+                <div>
+                  <div className="mb-1.5 flex items-center gap-2.5">
+                    <IoChatbubblesOutline className="h-[18px] w-[18px] flex-shrink-0 text-[var(--text-muted)]" />
+                    <p className="text-sm font-medium text-[var(--text)]">{t('privacyMessages')}</p>
+                  </div>
+                  <SegmentedSelect options={MSG_OPTIONS} value={msgPrivacy} onChange={(v) => void changeMsgPrivacy(v)} />
+                </div>
+              )}
             </div>
           </section>
 
@@ -342,10 +382,22 @@ function SectionHeader({ title, hint }: { title: string; hint?: string }) {
 
 // Segmented Only me / Friends / Everyone control.
 function VisibilitySelect({ value, onChange }: { value: Visibility; onChange: (v: Visibility) => void }) {
+  return <SegmentedSelect options={VIS_OPTIONS} value={value} onChange={onChange} />
+}
+
+function SegmentedSelect<K extends string>({
+  options,
+  value,
+  onChange,
+}: {
+  options: { key: K; labelKey: string; hintKey: string; icon: IconType }[]
+  value: K
+  onChange: (v: K) => void
+}) {
   const { t } = useLanguage()
   return (
     <div className="flex gap-1 rounded-xl bg-[var(--surface)] p-1">
-      {VIS_OPTIONS.map((opt) => {
+      {options.map((opt) => {
         const Icon = opt.icon
         const active = value === opt.key
         return (

@@ -8,6 +8,7 @@ import { CollectionProvider } from '@/contexts/CollectionContext'
 import { ListProvider } from '@/contexts/ListContext'
 import { LoginModalProvider } from '@/contexts/LoginModalContext'
 import { NotificationProvider } from '@/contexts/NotificationContext'
+import { ChatProvider } from '@/contexts/ChatContext'
 import Header from '@/components/layout/Header'
 
 // Providers for the public /b and /m pages. Same context tree as the app, but
@@ -29,8 +30,10 @@ export default function PublicProviders({ children }: { children: ReactNode }) {
             <ListProvider>
               <LoginModalProvider>
                 <NotificationProvider>
-                  <Header />
-                  {children}
+                  <ChatProvider>
+                    <Header />
+                    {children}
+                  </ChatProvider>
                 </NotificationProvider>
               </LoginModalProvider>
             </ListProvider>

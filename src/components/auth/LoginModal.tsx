@@ -28,6 +28,7 @@ const COPY: Record<LoginReason, { title: string; text: string }> = {
   library: { title: 'loginModalTitleLibrary', text: 'loginModalTextLibrary' },
   notifications: { title: 'loginModalTitleNotifications', text: 'loginModalTextNotifications' },
   statistics: { title: 'loginModalTitleStatistics', text: 'loginModalTextStatistics' },
+  messages: { title: 'loginModalTitleMessages', text: 'loginModalTextMessages' },
 }
 
 type Mode = 'login' | 'signup' | 'confirm' | 'forgot' | 'reset'

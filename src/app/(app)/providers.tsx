@@ -5,6 +5,7 @@ import type { ReactNode } from 'react'
 import { AuthProvider } from '@/contexts/AuthContext'
 import { LanguageProvider } from '@/contexts/LanguageContext'
 import { NotificationProvider } from '@/contexts/NotificationContext'
+import { ChatProvider } from '@/contexts/ChatContext'
 import { PreferencesProvider } from '@/contexts/PreferencesContext'
 import { CollectionProvider } from '@/contexts/CollectionContext'
 import { ListProvider } from '@/contexts/ListContext'
@@ -35,6 +36,7 @@ export default function Providers({ children }: { children: ReactNode }) {
           <LanguageProvider>
             <PreferencesProvider>
               <NotificationProvider>
+                <ChatProvider>
                 <LoginModalProvider>
                   {/* Rendered once here (not inside each screen's <Layout>) so it
                       persists across client-side navigations instead of
@@ -47,6 +49,7 @@ export default function Providers({ children }: { children: ReactNode }) {
                     {children}
                   </RequireAuth>
                 </LoginModalProvider>
+                </ChatProvider>
               </NotificationProvider>
             </PreferencesProvider>
           </LanguageProvider>

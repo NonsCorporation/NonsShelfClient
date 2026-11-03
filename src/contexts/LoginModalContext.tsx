@@ -9,7 +9,7 @@ import LoginModal from '@/components/auth/LoginModal'
 // thing they're missing out on ("view profiles", "join challenges", …) instead
 // of always the same generic blurb. Omit for a plain "Sign in" click with no
 // specific action behind it.
-export type LoginReason = 'shelf' | 'challenge' | 'profile' | 'library' | 'notifications' | 'statistics'
+export type LoginReason = 'shelf' | 'challenge' | 'profile' | 'library' | 'notifications' | 'statistics' | 'messages'
 
 // Signed-out visitors can browse (discover, catalog pages, public lists), so
 // every gated action — add to shelf, rate, join a challenge, the header's
