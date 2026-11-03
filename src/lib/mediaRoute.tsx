@@ -9,7 +9,7 @@ import MediaOne from '@/screens/MediaOne'
 // Both routes are identical at the data level — the catalog row's `type` drives
 // the book/film differences — so they delegate here.
 
-const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || 'https://shelf.nonsapp.com').replace(/\/+$/, '')
+const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || 'https://someshelf.com').replace(/\/+$/, '')
 
 function canonicalPath(m: BackendMedia): string {
   return `/${m.type === 'book' ? 'b' : 'm'}/${m.uuid || m.id}`

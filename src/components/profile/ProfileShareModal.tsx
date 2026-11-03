@@ -316,7 +316,7 @@ export default function ProfileShareModal({ isOpen, stats, shelfUrl, onClose }: 
           <ShelfLogo className="h-5 w-5" />
         </span>
         <span style={{ fontWeight: 300, fontSize: 11, letterSpacing: '0.18em', textTransform: 'uppercase' }}>
-          shelf.nonsapp.com
+          someshelf.com
         </span>
       </div>
 

@@ -23,14 +23,14 @@ export const metadata: Metadata = {
   icons: { icon: "/shelf.svg" },
   openGraph: {
     type: "website",
-    url: "https://shelf.nonsapp.com",
+    url: "https://someshelf.com",
     title: "SomeShelf",
     description: "Your books and films, all in one shelf.",
     siteName: "SomeShelf",
     locale: "en_US",
     images: [
       {
-        url: "https://shelf.nonsapp.com/img/og.png",
+        url: "https://someshelf.com/img/og.png",
         width: 1200,
         height: 630,
         alt: "SomeShelf — Your books and films, all in one shelf.",
@@ -46,13 +46,13 @@ export const metadata: Metadata = {
     description: "Your books and films, all in one shelf.",
     images: [
       {
-        url: "https://shelf.nonsapp.com/img/og.png",
+        url: "https://someshelf.com/img/og.png",
         alt: "SomeShelf — Your books and films, all in one shelf.",
       },
     ],
   },
   alternates: {
-    canonical: "https://shelf.nonsapp.com",
+    canonical: "https://someshelf.com",
   },
 };
 

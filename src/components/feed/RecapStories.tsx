@@ -228,7 +228,7 @@ function Slide({ children, accent, footer }: { children: React.ReactNode; accent
         {/* Shelf wordmark + link, bottom-left — mirrors ShareModal's header, smaller. */}
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: INK }}>
           <ShelfLogo className="h-3.5 w-3.5" />
-          <span style={{ fontWeight: 300, fontSize: 10, letterSpacing: '0.16em', textTransform: 'uppercase' }}>shelf.nonsapp.com</span>
+          <span style={{ fontWeight: 300, fontSize: 10, letterSpacing: '0.16em', textTransform: 'uppercase' }}>someshelf.com</span>
         </span>
         <span>{footer}</span>
       </div>

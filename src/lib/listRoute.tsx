@@ -7,7 +7,7 @@ import ListDetailScreen from '@/screens/ListDetail'
 // still loads client-side via ListDetailScreen's own fetch — it only needs to
 // give crawlers/social previews a real <title>/description/og:image.
 
-const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || 'https://shelf.nonsapp.com').replace(/\/+$/, '')
+const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || 'https://someshelf.com').replace(/\/+$/, '')
 
 export async function buildListMetadata(id: string): Promise<Metadata> {
   const l = await getPublicList(id)

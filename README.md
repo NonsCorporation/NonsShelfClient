@@ -59,7 +59,7 @@ NEXT_PUBLIC_LIBRARY_API_URL=http://localhost:8081   # this app's backend (browse
 NEXT_PUBLIC_PLATFORM_API_URL=http://localhost:8080  # optional external platform API (cross-posting, cover uploads, admin)
 NEXT_PUBLIC_PLATFORM_APP_URL=http://localhost:3000  # optional external platform web app (outbound links)
 LIBRARY_SERVER_URL=http://localhost:8081            # server-side base for SSR catalog fetches (no same-origin on the server)
-NEXT_PUBLIC_SITE_URL=http://localhost:5173          # canonical/OpenGraph origin for SSR pages (prod: https://shelf.nonsapp.com)
+NEXT_PUBLIC_SITE_URL=http://localhost:5173          # canonical/OpenGraph origin for SSR pages (prod: https://someshelf.com)
 ```
 
 > **Backend dependency:** SSR pages fetch catalog data with no cookie, so
@@ -85,7 +85,7 @@ NEXT_PUBLIC_SITE_URL=http://localhost:5173          # canonical/OpenGraph origin
 ```
 
 One session covers everything: nons-server sets an `access_token` cookie on the
-parent domain (`.nonsapp.com` in prod; plain `localhost` in dev). Both backends
+parent domain (`.someshelf.com` in prod; plain `localhost` in dev). Both backends
 read that same cookie — nons-server minted it, nons-library-server verifies it
 statelessly against nons-server's published public key
 (`/.well-known/jwks.json`, EdDSA). Cookies ignore ports, so the dev setup
