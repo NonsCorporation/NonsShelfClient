@@ -17,6 +17,7 @@ import BoringAvatar from '@/components/ui/BoringAvatar'
 import { searchUsers, type UserHit } from '../services/userService'
 import { userPath } from '../lib/paths'
 import { useRotatingPlaceholder } from '../lib/useRotatingPlaceholder'
+import { defaultSearchTab, parseSearchSort, parseSearchTab, searchParamsFor, withSearchParam, type SearchSort, type SearchTab } from '../lib/searchParams'
 
 const keyOf = (it: { type: string; title: string }) => `${it.type}:${it.title.trim().toLowerCase()}`
 // Builds the minimal MediaItem shape FinishModal/ShelfStatusBar need from a catalog row.
@@ -62,21 +63,22 @@ export default function SearchPage() {
   const [finishItem, setFinishItem] = useState<CatalogItem | null>(null)
   const [loading, setLoading] = useState(true)
   const [importing, setImporting] = useState(false)
-  const [filter, setFilter] = useState<Filter>('all')
-  const [sort, setSort] = useState<'relevance' | 'popular'>('relevance')
   const [page, setPage] = useState(0)
   const [loadingMore, setLoadingMore] = useState(false)
   const [exhausted, setExhausted] = useState(false)
-  // People / Users tabs: separate results modes (each its own endpoint),
-  // toggled independently of the All/Books/Movies/Series catalog filter.
-  // A query starting with "@" means a username, so it opens on Users.
-  const [mode, setMode] = useState<Mode>(q.startsWith('@') ? 'users' : 'catalog')
-  const [prevQ, setPrevQ] = useState(q)
-  if (q !== prevQ) {
-    setPrevQ(q)
-    if (q.startsWith('@')) setMode('users')
-  }
+  // The tab (All/Books/Movies/Series/People/Users) and sort live in the URL
+  // (?tab=, ?sort=) so they survive reloads, shared links and back/forward.
+  // People and Users are separate results modes (each its own endpoint); the
+  // rest filter the catalog. An @name query opens on Users (see lib/searchParams).
+  const tab = parseSearchTab(params.get('tab'), q)
+  const sort = parseSearchSort(params.get('sort'))
+  const mode: Mode = tab === 'people' ? 'people' : tab === 'users' ? 'users' : 'catalog'
+  const filter: Filter = mode === 'catalog' ? (tab as Filter) : 'all'
   const peopleMode = mode === 'people'
+  // Tab clicks replace the history entry: Back leaves search instead of walking
+  // back through every tab tried.
+  const setTab = (next: SearchTab) => setSearchParams(withSearchParam(params, 'tab', next, defaultSearchTab(q)), { replace: true })
+  const setSort = (next: SearchSort) => setSearchParams(withSearchParam(params, 'sort', next, 'relevance'), { replace: true })
   const [users, setUsers] = useState<UserHit[]>([])
   const [usersLoading, setUsersLoading] = useState(false)
   const searchPlaceholder = useRotatingPlaceholder(t('searchFor'), t('searchForWords'), !queryInput)
@@ -106,10 +108,7 @@ export default function SearchPage() {
   }, [q])
 
   const submitQuery = () => {
-    const next = new URLSearchParams(params)
-    if (queryInput) next.set('q', queryInput)
-    else next.delete('q')
-    setSearchParams(next)
+    setSearchParams(searchParamsFor(queryInput, params))
   }
 
   useEffect(() => {
@@ -329,7 +328,7 @@ export default function SearchPage() {
                 {tabs.map((tab) => (
                   <button
                     key={tab.key}
-                    onClick={() => { setFilter(tab.key); setMode('catalog') }}
+                    onClick={() => setTab(tab.key)}
                     className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
                       mode === 'catalog' && filter === tab.key
                         ? 'bg-[var(--surface-active)] text-[var(--text)]'
@@ -346,7 +345,7 @@ export default function SearchPage() {
                   (it searches a different endpoint, people by name), but styled
                   identically to those tabs so it reads as one consistent set. */}
               <button
-                onClick={() => setMode((m) => (m === 'people' ? 'catalog' : 'people'))}
+                onClick={() => setTab(mode === 'people' ? 'all' : 'people')}
                 className={`flex items-center gap-1.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] px-3 py-1.5 text-sm font-medium transition-colors ${
                   peopleMode
                     ? 'bg-[var(--surface-active)] text-[var(--text)]'
@@ -358,7 +357,7 @@ export default function SearchPage() {
               </button>
               {/* Users — SomeShelf accounts, by username or name. */}
               <button
-                onClick={() => setMode((m) => (m === 'users' ? 'catalog' : 'users'))}
+                onClick={() => setTab(mode === 'users' ? 'all' : 'users')}
                 className={`flex items-center gap-1.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] px-3 py-1.5 text-sm font-medium transition-colors ${
                   mode === 'users'
                     ? 'bg-[var(--surface-active)] text-[var(--text)]'

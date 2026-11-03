@@ -32,6 +32,7 @@ import ShelfLogo from '@/components/branding/ShelfLogo'
 import InfinityLoader from '@/components/ui/InfinityLoader'
 import { useLogoutConfirm } from '@/components/auth/useLogoutConfirm'
 import { useRotatingPlaceholder } from '@/lib/useRotatingPlaceholder'
+import { searchParamsFor } from '@/lib/searchParams'
 
 type NavItem = { to: string; label: string; icon: IconType; match: (p: string) => boolean }
 
@@ -548,9 +549,8 @@ function HeaderSearch() {
 
   const submit = () => {
     setOpen(false)
-    const next = new URLSearchParams()
-    if (value) next.set('q', value)
-    const search = next.toString()
+    // Already on /search: keep the chosen tab and sort for the new query.
+    const search = searchParamsFor(value, isSearchPage ? params : null).toString()
     navigate({ pathname: '/search', search: search ? `?${search}` : '' })
   }
 

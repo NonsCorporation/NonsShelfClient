@@ -1,13 +1,14 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Link, useNavigate } from '@/lib/router'
+import { Link, useLocation, useNavigate, useSearchParams } from '@/lib/router'
 import { IoSearch } from 'react-icons/io5'
 import { catalogService, type CatalogItem } from '@/services/catalogService'
 import { mediaPath } from '@/lib/paths'
 import TypeBadge from '@/components/badges/TypeBadge'
 import InfinityLoader from '@/components/ui/InfinityLoader'
 import { useRotatingPlaceholder } from '@/lib/useRotatingPlaceholder'
+import { searchParamsFor } from '@/lib/searchParams'
 
 // The mobile-only catalog search box (desktop gets the header's inline
 // HeaderSearch instead — the bottom nav pill has no room for a search field).
@@ -23,6 +24,8 @@ export default function MobileCatalogSearch({
   onFocusChange?: (focused: boolean) => void
 }) {
   const navigate = useNavigate()
+  const { pathname } = useLocation()
+  const [params] = useSearchParams()
   const inputRef = useRef<HTMLInputElement>(null)
   const [q, setQ] = useState('')
   const searchPlaceholder = useRotatingPlaceholder(t('searchFor'), t('searchForWords'), !q)
@@ -60,7 +63,8 @@ export default function MobileCatalogSearch({
   const submit = () => {
     if (!q.trim()) return
     collapse()
-    navigate({ pathname: '/search', search: `?q=${encodeURIComponent(q.trim())}` })
+    // Already on /search: keep the chosen tab and sort for the new query.
+    navigate({ pathname: '/search', search: `?${searchParamsFor(q, pathname === '/search' ? params : null).toString()}` })
   }
 
   return (
