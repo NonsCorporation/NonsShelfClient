@@ -6,10 +6,11 @@ import { join } from 'node:path'
 import { getPublicProfileCard, type PublicProfileCard } from './serverApi'
 
 // SEO for public profile links (/u/<username>): the page <title>, description,
-// OpenGraph/Twitter tags, JSON-LD, and the link-preview image — an
-// Instagram-share-style card (gradient background, white card, ringed photo,
-// name, @handle, bio, short stats). Everything comes from the anonymous-safe
-// profile card, so it never shows more than the owner's privacy settings allow.
+// OpenGraph/Twitter tags, JSON-LD, and the link-preview image — the in-app
+// share card (ProfileShareModal) laid out horizontally: dark background with a
+// brand glow, photo, name, @handle, short stats and a QR code. Everything comes
+// from the anonymous-safe profile card, so it never shows more than the owner's
+// privacy settings allow.
 
 const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || 'https://someshelf.com').replace(/\/+$/, '')
 
@@ -126,15 +127,20 @@ function initials(name: string): string {
 
 const clip = (s: string, max: number) => (s.length > max ? `${s.slice(0, max - 1).trimEnd()}…` : s)
 
-const INK = '#15151f'
-const MUTED = '#7b7b8c'
-const BRAND = '#6768ab'
-// Instagram-story-like ring, in SomeShelf's colours.
-const RING = 'linear-gradient(135deg, #f0a35e 0%, #d4688f 45%, #6768ab 100%)'
+// Same fixed dark palette as the in-app share card (ProfileShareModal), so a
+// link preview and a shared story image look like the same product.
+const BG = '#000000'
+const INK = '#ffffff'
+const MUTED = '#9ca3af'
+const LINE = '#27272a'
+const PRIMARY = '#6768ab'
+// The share card tints its glow with the photo's dominant colour (computed in
+// the browser); here it uses the brand colour, which is that card's fallback.
+const GLOW = '103,104,171'
 
 function Logo({ size }: { size: number }) {
   return (
-    <svg width={size} height={size} viewBox="86 89 340 340" fill="#ffffff">
+    <svg width={size} height={size} viewBox="86 89 340 340" fill={INK}>
       <g transform="translate(89.6, 89.6) scale(0.65)">
         <path d="m 281.77771,168.55891 a 58.151039,58.151039 47.226629 0 1 55.84784,60.36644 v 137.13181 h -55.84784 z" transform="matrix(2.446384,0,0,2.4904064,-337.33813,-404.93892)" />
         <path d="m 281.77771,168.55891 a 58.151039,58.151039 47.226629 0 1 55.84784,60.36644 v 137.13181 h -55.84784 z" transform="matrix(-2.446384,0,0,2.4904064,837.74641,-411.14917)" />
@@ -145,29 +151,71 @@ function Logo({ size }: { size: number }) {
   )
 }
 
-function Stat({ value, label }: { value: string; label: string }) {
+// Small line icons in the brand colour, drawn as SVG (the image renderer can't
+// use the app's icon components, and the font has no "★"). Each is ONE <path>:
+// the renderer fails on React fragments ("Cannot convert a Symbol value").
+type IconKind = 'book' | 'film' | 'tv' | 'star'
+const ICON_PATHS: Record<Exclude<IconKind, 'star'>, string> = {
+  book: 'M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2z M22 4h-6a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h7z',
+  film: 'M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z M7 3v18 M17 3v18 M3 8h4 M3 12h18 M3 16h4 M17 8h4 M17 16h4',
+  tv: 'M4 7h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2z M17 2l-5 5-5-5',
+}
+const STAR_PATH = 'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z'
+
+function Icon({ kind, size }: { kind: IconKind; size: number }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column' }}>
-      <div style={{ fontSize: 44, fontWeight: 700, color: INK, lineHeight: 1 }}>{value}</div>
-      <div style={{ fontSize: 20, color: MUTED, marginTop: 8 }}>{label}</div>
+    <svg width={size} height={size} viewBox="0 0 24 24">
+      {kind === 'star' ? (
+        <path d={STAR_PATH} fill={PRIMARY} />
+      ) : (
+        <path d={ICON_PATHS[kind]} fill="none" stroke={PRIMARY} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+      )}
+    </svg>
+  )
+}
+
+// One stat, as on the share card: icon + bold number, small uppercase label.
+// Every element with text has display:flex and ONE text child: the renderer
+// rejects a div with several child nodes unless it is a flex container (that
+// once made the whole image fail with a 500).
+function Stat({ kind, value, label }: { kind: IconKind; value: string; label: string }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <Icon kind={kind} size={28} />
+        <div style={{ display: 'flex', fontSize: 40, fontWeight: 700, color: INK, lineHeight: 1 }}>{value}</div>
+      </div>
+      <div style={{ display: 'flex', fontSize: 16, letterSpacing: 2, color: MUTED, marginTop: 10 }}>{label}</div>
     </div>
   )
 }
 
-/** Renders the link-preview card for /u/<id> (falls back to a plain brand card
- *  when the profile can't be loaded). */
+/** The profile link as a QR code (PNG data URL), like the share card's. */
+async function qrDataUrl(url: string): Promise<string | null> {
+  try {
+    const QRCode = (await import('qrcode')).default
+    return await QRCode.toDataURL(url, { margin: 1, width: 440, color: { dark: '#000000', light: '#ffffff' } })
+  } catch {
+    return null
+  }
+}
+
+/** Renders the link-preview card for /u/<id> — the in-app share card laid out
+ *  horizontally (falls back to a plain brand card when the profile can't be
+ *  loaded). */
 export async function renderProfileImage(id: string): Promise<ImageResponse> {
   const [card, fonts] = await Promise.all([getPublicProfileCard(id), loadFonts()])
-  const avatar = card ? await avatarDataUrl(card.avatar_url) : null
+  const profileUrl = card ? `${SITE_URL}/u/${encodeURIComponent(card.username)}` : SITE_URL
+  const [avatar, qr] = card ? await Promise.all([avatarDataUrl(card.avatar_url), qrDataUrl(profileUrl)]) : [null, null]
 
-  const stats: { value: string; label: string }[] = []
+  const stats: { kind: IconKind; value: string; label: string }[] = []
   if (card?.stats) {
     const s = card.stats
-    if (s.books) stats.push({ value: String(s.books), label: s.books === 1 ? 'book' : 'books' })
-    if (s.movies) stats.push({ value: String(s.movies), label: s.movies === 1 ? 'film' : 'films' })
-    if (s.series) stats.push({ value: String(s.series), label: 'series' })
+    if (s.books) stats.push({ kind: 'book', value: String(s.books), label: s.books === 1 ? 'BOOK' : 'BOOKS' })
+    if (s.movies) stats.push({ kind: 'film', value: String(s.movies), label: s.movies === 1 ? 'FILM' : 'FILMS' })
+    if (s.series) stats.push({ kind: 'tv', value: String(s.series), label: 'SERIES' })
   }
-  if (card?.rating) stats.push({ value: `★ ${card.rating.average.toFixed(1)}`, label: 'avg rating' })
+  if (card?.rating) stats.push({ kind: 'star', value: card.rating.average.toFixed(1), label: 'AVG' })
 
   return new ImageResponse(
     (
@@ -177,75 +225,70 @@ export async function renderProfileImage(id: string): Promise<ImageResponse> {
           height: '100%',
           display: 'flex',
           flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          position: 'relative',
+          justifyContent: 'space-between',
+          padding: '52px 72px',
+          color: INK,
           fontFamily: 'Onest',
-          background: 'linear-gradient(135deg, #2c2d5e 0%, #6768ab 45%, #b5679a 78%, #f0a35e 100%)',
+          background: `radial-gradient(circle at 22% 30%, rgba(${GLOW},0.38), transparent 58%), ${BG}`,
         }}
       >
-        {/* soft light blobs, like a story background */}
-        <div style={{ position: 'absolute', top: -160, left: -120, width: 520, height: 520, borderRadius: 9999, background: 'rgba(255,255,255,0.10)', display: 'flex' }} />
-        <div style={{ position: 'absolute', bottom: -200, right: -140, width: 600, height: 600, borderRadius: 9999, background: 'rgba(255,255,255,0.08)', display: 'flex' }} />
+        {/* logo, top — as on the share card */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <Logo size={34} />
+          <div style={{ display: 'flex', fontSize: 20, letterSpacing: 5, color: INK }}>SOMESHELF.COM</div>
+        </div>
 
         {card ? (
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              width: 1010,
-              padding: '48px 56px',
-              gap: 52,
-              background: '#ffffff',
-              borderRadius: 44,
-              boxShadow: '0 30px 80px rgba(20, 16, 50, 0.35)',
-            }}
-          >
-            {/* ringed photo */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 224, height: 224, borderRadius: 9999, background: RING, flexShrink: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 208, height: 208, borderRadius: 9999, background: '#ffffff' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            {/* identity + stats */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 48 }}>
+              {/* The renderer ignores overflow:hidden for clipping, so the photo
+                  is rounded itself, inside a ring drawn by the wrapper. */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 216, height: 216, borderRadius: 9999, border: `3px solid ${LINE}`, flexShrink: 0 }}>
                 {avatar ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={avatar} width={192} height={192} style={{ borderRadius: 9999, objectFit: 'cover' }} alt="" />
+                  <img src={avatar} width={204} height={204} style={{ borderRadius: 9999, objectFit: 'cover' }} alt="" />
                 ) : (
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 192, height: 192, borderRadius: 9999, background: BRAND, color: '#ffffff', fontSize: 72, fontWeight: 700 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 204, height: 204, borderRadius: 9999, background: LINE, color: INK, fontSize: 76, fontWeight: 700 }}>
                     {initials(card.name)}
+                  </div>
+                )}
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <div style={{ display: 'flex', fontSize: 60, fontWeight: 700, lineHeight: 1.1 }}>{clip(card.name, 20)}</div>
+                <div style={{ display: 'flex', fontSize: 28, color: MUTED, marginTop: 6 }}>{`@${clip(card.username, 26)}`}</div>
+                {stats.length > 0 && (
+                  <div style={{ display: 'flex', gap: 40, marginTop: 30, paddingTop: 26, borderTop: `1px solid ${LINE}` }}>
+                    {stats.slice(0, 4).map((s) => (
+                      <Stat key={s.label} kind={s.kind} value={s.value} label={s.label} />
+                    ))}
                   </div>
                 )}
               </div>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 58, fontWeight: 700, color: INK, lineHeight: 1.05 }}>{clip(card.name, 26)}</div>
-              <div style={{ fontSize: 30, color: BRAND, marginTop: 8 }}>@{clip(card.username, 30)}</div>
-              {card.bio && (
-                <div style={{ fontSize: 24, color: '#4a4a5a', marginTop: 18, lineHeight: 1.35 }}>{clip(card.bio, 110)}</div>
-              )}
-              {stats.length > 0 && (
-                <div style={{ display: 'flex', gap: 40, marginTop: 30 }}>
-                  {stats.slice(0, 4).map((s) => (
-                    <Stat key={s.label} value={s.value} label={s.label} />
-                  ))}
+            {/* QR, right — as on the share card */}
+            {qr && (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginLeft: 40 }}>
+                <div style={{ display: 'flex', background: '#ffffff', padding: 14, borderRadius: 22 }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={qr} width={190} height={190} alt="" />
                 </div>
-              )}
-            </div>
+                <div style={{ display: 'flex', fontSize: 17, color: MUTED, marginTop: 14 }}>Scan to follow on SomeShelf</div>
+              </div>
+            )}
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', color: '#ffffff' }}>
-            <Logo size={120} />
-            <div style={{ fontSize: 64, fontWeight: 700, marginTop: 28 }}>SomeShelf</div>
-            <div style={{ fontSize: 30, marginTop: 10, opacity: 0.9 }}>Your books and films, all in one shelf.</div>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <Logo size={110} />
+            <div style={{ display: 'flex', fontSize: 64, fontWeight: 700, marginTop: 26 }}>SomeShelf</div>
+            <div style={{ display: 'flex', fontSize: 28, color: MUTED, marginTop: 10 }}>Your books and films, all in one shelf.</div>
           </div>
         )}
 
-        {/* footer: brand + link (the fallback card already is the brand) */}
-        {card && (
-          <div style={{ position: 'absolute', bottom: 30, display: 'flex', alignItems: 'center', gap: 14, color: '#ffffff', fontSize: 26 }}>
-            <Logo size={34} />
-            <div style={{ display: 'flex', fontWeight: 700 }}>SomeShelf</div>
-            <div style={{ display: 'flex', opacity: 0.85 }}>· someshelf.com/u/{clip(card.username, 30)}</div>
-          </div>
-        )}
+        {/* bottom spacer so the middle block sits centred between logo and edge */}
+        <div style={{ display: 'flex', height: 34 }} />
       </div>
     ),
     { ...PROFILE_IMAGE_SIZE, fonts },
