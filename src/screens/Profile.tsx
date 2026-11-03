@@ -75,7 +75,7 @@ type ProfileView = {
 
 type Tab = 'all' | ShelfStatus
 
-type Friend = { uuid: string; username: string; name: string; avatarUrl?: string }
+type Friend = { username: string; name: string; avatarUrl?: string }
 
 type Translate = (k: string, v?: Record<string, string | number>) => string
 
@@ -191,9 +191,10 @@ export default function ProfilePage() {
           if (!cancelled && res.ok) {
             const data = await res.json()
             const fs: Friend[] = (data.friendships ?? [])
-              .filter((f: { uuid?: string }) => f.uuid)
-              .map((f: { uuid: string; username: string; name: string; avatar_url?: string; avatarUrl?: string }) => ({
-                uuid: f.uuid,
+              // Keyed on username: the library server's friendship payload has no
+              // uuid (nons-server's did), and requiring one hid every friend.
+              .filter((f: { username?: string }) => f.username)
+              .map((f: { username: string; name: string; avatar_url?: string; avatarUrl?: string }) => ({
                 username: f.username,
                 name: f.name || f.username,
                 avatarUrl: f.avatar_url || f.avatarUrl,
@@ -685,7 +686,7 @@ export default function ProfilePage() {
             <div className="no-scrollbar -mx-1 flex gap-4 overflow-x-auto px-1">
               {friends.map((f) => (
                 <Link
-                  key={f.uuid}
+                  key={f.username}
                   to={`/u/${f.username}`}
                   className="group/friend flex flex-shrink-0 flex-col items-center gap-1.5"
                   title={f.name}
