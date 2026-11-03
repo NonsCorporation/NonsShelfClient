@@ -507,6 +507,7 @@ export const en = {
   editProfilePhotoHint: "Click the camera to upload a new profile picture.",
   editProfileUsername: "Username",
   editProfileUsernameHint: "Starts with a letter. Letters, numbers and single underscores between characters. 3–30 characters.",
+  editProfileUsernameKeep: "Leave empty to keep @{username}.",
   editProfileDice: "Suggest a random username",
   editProfileDiceFailed: "Could not get a suggestion. Try again.",
   editProfileBioPlaceholder: "Tell people what you like to read and watch…",

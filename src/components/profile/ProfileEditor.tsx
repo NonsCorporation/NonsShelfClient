@@ -71,8 +71,9 @@ type Props = {
 //
 // In welcome mode it is the mandatory step after signing up, as in nons: there
 // is no skip, the first name and a username are required (photo, bio and
-// location stay optional), and a still-generated handle starts out empty so the
-// person picks their own.
+// location stay optional). The username field starts empty: a still-generated
+// handle ("u3fa91c04be") must be replaced, while a real one is shown as the
+// placeholder and kept if the field is left empty (in both modes).
 export default function ProfileEditor({ mode, onDone, cancelHref = '/' }: Props) {
   const { t } = useLanguage()
   const { user, refreshUser } = useAuth()
@@ -97,7 +98,7 @@ export default function ProfileEditor({ mode, onDone, cancelHref = '/' }: Props)
     if (!user || seeded.current) return
     seeded.current = true
     const initial = formFromAccount(user)
-    if (mode === 'welcome' && isAutoUsername(user.username)) initial.username = ''
+    if (mode === 'welcome') initial.username = ''
     setForm(initial)
   }, [user, mode])
 
@@ -115,6 +116,10 @@ export default function ProfileEditor({ mode, onDone, cancelHref = '/' }: Props)
   const patch = (p: Partial<ProfileForm>) => setForm((f) => (f ? { ...f, ...p } : f))
 
   const accountName = user.name || user.username
+  // A username the person already chose (not the generated one) is kept when the
+  // field is left empty; it doubles as the field's placeholder.
+  const keepUsername = isAutoUsername(user.username) ? '' : user.username
+  const chosenUsername = form.username || keepUsername
   const shownAvatar = removePhoto ? '' : preview || user.avatar_url || ''
 
   const onPickPhoto = async (file: File) => {
@@ -151,7 +156,7 @@ export default function ProfileEditor({ mode, onDone, cancelHref = '/' }: Props)
     if (busy) return
     setSaveErr(null)
     setNameErr(null)
-    const err = usernameError(form.username)
+    const err = usernameError(chosenUsername)
     if (err) {
       setUsernameErr(t(USERNAME_ERROR_KEY[err]))
       return
@@ -173,7 +178,7 @@ export default function ProfileEditor({ mode, onDone, cancelHref = '/' }: Props)
       }
 
       // 2. Fields — only what changed, plus "welcome step done".
-      const res = await updateMyProfile(buildProfilePatch(form, user))
+      const res = await updateMyProfile(buildProfilePatch({ ...form, username: chosenUsername }, user))
       if (!res.ok) {
         if (res.field === 'username') setUsernameErr(res.status === 409 ? t('usernameErrTaken') : res.error)
         else if (res.field === 'first_name' || res.field === 'last_name') setNameErr(res.error)
@@ -183,9 +188,9 @@ export default function ProfileEditor({ mode, onDone, cancelHref = '/' }: Props)
 
       // 3. Session tokens carry the username: renew them after a rename, then
       // re-read /api/me so the whole app shows the new values.
-      if (form.username !== user.username) await renewSession()
+      if (chosenUsername !== user.username) await renewSession()
       await refreshUser()
-      onDone(form.username)
+      onDone(chosenUsername)
     } finally {
       setBusy(false)
     }
@@ -259,7 +264,7 @@ export default function ProfileEditor({ mode, onDone, cancelHref = '/' }: Props)
               id="ep-username"
               type="text"
               value={form.username}
-              placeholder="username"
+              placeholder={keepUsername || 'username'}
               maxLength={USERNAME_MAX_LENGTH}
               autoCapitalize="none"
               autoCorrect="off"
@@ -288,7 +293,11 @@ export default function ProfileEditor({ mode, onDone, cancelHref = '/' }: Props)
           {usernameErr ? (
             <p className="text-xs text-red-500">{usernameErr}</p>
           ) : (
-            <p className="text-xs text-[var(--text-muted)]">{t('editProfileUsernameHint')}</p>
+            <p className="text-xs text-[var(--text-muted)]">
+              {!form.username && keepUsername
+                ? t('editProfileUsernameKeep', { username: keepUsername })
+                : t('editProfileUsernameHint')}
+            </p>
           )}
         </div>
 

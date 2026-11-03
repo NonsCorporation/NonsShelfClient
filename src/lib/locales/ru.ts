@@ -507,6 +507,7 @@ export const ru = {
   editProfilePhotoHint: "Нажмите на камеру, чтобы загрузить новое фото профиля.",
   editProfileUsername: "Имя пользователя",
   editProfileUsernameHint: "Начинается с буквы. Буквы, цифры и одиночные подчёркивания между символами. От 3 до 30 символов.",
+  editProfileUsernameKeep: "Оставьте пустым, чтобы сохранить @{username}.",
   editProfileDice: "Предложить случайное имя пользователя",
   editProfileDiceFailed: "Не удалось получить вариант. Попробуйте ещё раз.",
   editProfileBioPlaceholder: "Расскажите, что вы любите читать и смотреть…",

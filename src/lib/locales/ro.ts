@@ -507,6 +507,7 @@ export const ro = {
   editProfilePhotoHint: "Apasă pe cameră ca să încarci o poză de profil nouă.",
   editProfileUsername: "Nume de utilizator",
   editProfileUsernameHint: "Începe cu o literă. Litere, cifre și liniuțe jos simple între caractere. 3–30 de caractere.",
+  editProfileUsernameKeep: "Lasă gol ca să păstrezi @{username}.",
   editProfileDice: "Sugerează un nume de utilizator aleatoriu",
   editProfileDiceFailed: "Nu s-a putut obține o sugestie. Încearcă din nou.",
   editProfileBioPlaceholder: "Spune ce îți place să citești și să urmărești…",
