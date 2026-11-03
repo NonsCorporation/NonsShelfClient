@@ -31,7 +31,7 @@ import TypeBadge from '@/components/badges/TypeBadge'
 import ShelfLogo from '@/components/branding/ShelfLogo'
 import InfinityLoader from '@/components/ui/InfinityLoader'
 import { useLogoutConfirm } from '@/components/auth/useLogoutConfirm'
-import { useTypingPlaceholder } from '@/lib/useTypingPlaceholder'
+import { useRotatingPlaceholder } from '@/lib/useRotatingPlaceholder'
 
 type NavItem = { to: string; label: string; icon: IconType; match: (p: string) => boolean }
 
@@ -483,8 +483,8 @@ function HeaderSearch() {
   const { pathname } = useLocation()
   const [params] = useSearchParams()
   const isSearchPage = pathname === '/search'
-  const searchPlaceholder = useTypingPlaceholder(t('globalSearch'))
   const [value, setValue] = useState(params.get('q') ?? '')
+  const searchPlaceholder = useRotatingPlaceholder(t('searchFor'), t('searchForWords'), !value)
   const [expanded, setExpanded] = useState(isSearchPage)
   const [open, setOpen] = useState(false)
   const [results, setResults] = useState<CatalogItem[]>([])

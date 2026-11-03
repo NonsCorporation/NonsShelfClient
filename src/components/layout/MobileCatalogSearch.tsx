@@ -7,7 +7,7 @@ import { catalogService, type CatalogItem } from '@/services/catalogService'
 import { mediaPath } from '@/lib/paths'
 import TypeBadge from '@/components/badges/TypeBadge'
 import InfinityLoader from '@/components/ui/InfinityLoader'
-import { useTypingPlaceholder } from '@/lib/useTypingPlaceholder'
+import { useRotatingPlaceholder } from '@/lib/useRotatingPlaceholder'
 
 // The mobile-only catalog search box (desktop gets the header's inline
 // HeaderSearch instead — the bottom nav pill has no room for a search field).
@@ -25,7 +25,7 @@ export default function MobileCatalogSearch({
   const navigate = useNavigate()
   const inputRef = useRef<HTMLInputElement>(null)
   const [q, setQ] = useState('')
-  const searchPlaceholder = useTypingPlaceholder(t('globalSearch'))
+  const searchPlaceholder = useRotatingPlaceholder(t('searchFor'), t('searchForWords'), !q)
   const [results, setResults] = useState<CatalogItem[]>([])
   const [loading, setLoading] = useState(false)
   const [importing, setImporting] = useState(false)

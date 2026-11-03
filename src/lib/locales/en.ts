@@ -396,6 +396,9 @@ export const en = {
 
   // Search / global
   globalSearch: "Search for books, movies, people and users",
+  // Rotating search placeholder: the prefix stays, the words cycle ("|"-separated).
+  searchFor: "Search for ",
+  searchForWords: "books|movies|people|users",
   usersTab: "Users",
   thisIsYou: "← this is you",
   usersSignInPrompt: "Sign in to find other readers on SomeShelf.",

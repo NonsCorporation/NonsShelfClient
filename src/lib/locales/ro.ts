@@ -396,6 +396,9 @@ export const ro = {
 
   // Search / global
   globalSearch: "Caută cărți, filme, persoane și utilizatori",
+  // Rotating search placeholder: the prefix stays, the words cycle ("|"-separated).
+  searchFor: "Caută ",
+  searchForWords: "cărți|filme|persoane|utilizatori",
   usersTab: "Utilizatori",
   thisIsYou: "← acesta ești tu",
   usersSignInPrompt: "Autentifică-te ca să găsești alți cititori pe SomeShelf.",

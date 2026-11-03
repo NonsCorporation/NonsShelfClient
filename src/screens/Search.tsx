@@ -16,7 +16,7 @@ import InfinityLoader from '@/components/ui/InfinityLoader'
 import BoringAvatar from '@/components/ui/BoringAvatar'
 import { searchUsers, type UserHit } from '../services/userService'
 import { userPath } from '../lib/paths'
-import { useTypingPlaceholder } from '../lib/useTypingPlaceholder'
+import { useRotatingPlaceholder } from '../lib/useRotatingPlaceholder'
 
 const keyOf = (it: { type: string; title: string }) => `${it.type}:${it.title.trim().toLowerCase()}`
 // Builds the minimal MediaItem shape FinishModal/ShelfStatusBar need from a catalog row.
@@ -79,7 +79,7 @@ export default function SearchPage() {
   const peopleMode = mode === 'people'
   const [users, setUsers] = useState<UserHit[]>([])
   const [usersLoading, setUsersLoading] = useState(false)
-  const searchPlaceholder = useTypingPlaceholder(t('globalSearch'))
+  const searchPlaceholder = useRotatingPlaceholder(t('searchFor'), t('searchForWords'), !queryInput)
   const [people, setPeople] = useState<PersonHit[]>([])
   const [peopleLoading, setPeopleLoading] = useState(false)
 
