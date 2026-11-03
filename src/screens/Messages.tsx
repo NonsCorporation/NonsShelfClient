@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react'
 import { IoChatbubblesOutline, IoClose } from 'react-icons/io5'
 import { useSearchParams } from '@/lib/router'
-import Layout from '../components/layout/Layout'
 import { useAuth } from '../contexts/AuthContext'
 import { useChat } from '../contexts/ChatContext'
 import { useLanguage } from '../contexts/LanguageContext'
@@ -104,10 +103,15 @@ export default function Messages() {
     </div>
   )
 
+  // Not <Layout>: that one is min-h-screen under the 64px sticky header, so the
+  // page always scrolled by the header's height and the card's top slid under
+  // it. On desktop this page is exactly the viewport below the header (the
+  // list and the thread scroll inside); on mobile the list is a normal page.
   return (
-    <Layout>
+    <div className="app-ambient relative min-h-screen lg:min-h-0">
+      <main className="relative z-10 mx-auto flex max-w-6xl flex-col px-4 pb-32 pt-6 md:px-8 lg:h-[calc(100dvh-4rem)] lg:pb-6">
       {notice && (
-        <div className="mb-3 flex items-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--text-muted)]">
+        <div className="mb-3 flex flex-shrink-0 items-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--text-muted)]">
           <span className="flex-1">{notice}</span>
           <button onClick={() => setNotice(null)} aria-label={t('close')} className="rounded p-0.5 hover:text-[var(--text)]">
             <IoClose className="h-4 w-4" />
@@ -115,7 +119,7 @@ export default function Messages() {
         </div>
       )}
 
-      <div className="lg:flex lg:h-[calc(100dvh-10rem)] lg:min-h-[480px] lg:overflow-hidden lg:rounded-2xl lg:border lg:border-[var(--border)] lg:bg-[var(--container)]">
+      <div className="lg:flex lg:min-h-0 lg:flex-1 lg:overflow-hidden lg:shadow-xl lg:rounded-2xl lg:border lg:border-[var(--border)] lg:bg-[var(--container)]">
         <div className="lg:flex lg:w-80 lg:flex-shrink-0 lg:flex-col lg:border-r lg:border-[var(--border-subtle)]">
           <ChatList
             chats={chats}
@@ -160,6 +164,7 @@ export default function Messages() {
           }}
         />
       )}
-    </Layout>
+      </main>
+    </div>
   )
 }

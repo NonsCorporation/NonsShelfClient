@@ -88,6 +88,9 @@ export default function ChatThread({ chat, meId, onBack, onOpenSettings }: Props
     if (!el) return
     el.style.height = 'auto'
     el.style.height = `${Math.min(el.scrollHeight, 160)}px`
+    // Only show a scrollbar once the text is taller than the box (otherwise
+    // Firefox draws an empty scrollbar track at one line).
+    el.style.overflowY = el.scrollHeight > 160 ? 'auto' : 'hidden'
   }, [text])
 
   const startEdit = (m: ChatMessage) => {
@@ -234,7 +237,22 @@ export default function ChatThread({ chat, meId, onBack, onOpenSettings }: Props
         ) : th.error && th.messages.length === 0 ? (
           <p className="py-16 text-center text-sm text-[var(--text-muted)]">{th.error}</p>
         ) : th.messages.length === 0 ? (
-          <p className="py-16 text-center text-sm text-[var(--text-muted)]">{t('chatNoMessages')}</p>
+          <div className="flex min-h-full flex-col items-center justify-center gap-1 px-6 py-10 text-center">
+            <ChatAvatar chat={chat} meId={meId} size={88} />
+            <p className="mt-3 text-lg font-semibold text-[var(--text)]">{title}</p>
+            <p className="text-sm text-[var(--text-muted)]">
+              {other ? `@${other.username}` : t('chatMembers', { n: chat.participants.length })}
+            </p>
+            {other && (
+              <Link
+                to={userPath(other.username)}
+                className="mt-3 rounded-full border border-[var(--border-subtle)] px-4 py-1.5 text-xs font-medium text-[var(--text)] transition-colors hover:bg-[var(--surface)]"
+              >
+                {t('chatViewProfile')}
+              </Link>
+            )}
+            <p className="mt-5 text-sm text-[var(--text-muted)]">{t('chatNoMessages')}</p>
+          </div>
         ) : (
           <>
             {th.hasMore && (
@@ -335,7 +353,7 @@ export default function ChatThread({ chat, meId, onBack, onOpenSettings }: Props
       </div>
 
       {/* composer */}
-      <div className="flex-shrink-0 border-t border-[var(--border-subtle)] px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2">
+      <div className="flex-shrink-0 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2">
         {(replyTo || editing) && (
           <div className="mb-2 flex items-center gap-2 rounded-xl bg-[var(--surface)] px-3 py-2 text-xs">
             <span className="min-w-0 flex-1">
@@ -350,7 +368,7 @@ export default function ChatThread({ chat, meId, onBack, onOpenSettings }: Props
           </div>
         )}
         {error && <p role="alert" className="mb-2 px-1 text-xs text-red-400">{error}</p>}
-        <div className="flex items-end gap-2">
+        <div className="flex items-end gap-1 rounded-3xl border border-[var(--border-subtle)] bg-[var(--input)] py-1 pl-4 pr-1 transition-colors focus-within:border-[var(--primary-ring)]">
           <textarea
             ref={input}
             value={text}
@@ -359,13 +377,13 @@ export default function ChatThread({ chat, meId, onBack, onOpenSettings }: Props
             rows={1}
             placeholder={t('chatTypeMessage')}
             aria-label={t('chatTypeMessage')}
-            className="max-h-40 min-h-[40px] flex-1 resize-none rounded-2xl border border-[var(--border-subtle)] bg-[var(--input)] px-4 py-2.5 text-sm text-[var(--text)] placeholder:text-[var(--placeholder)] focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[var(--primary-ring)]"
+            className="max-h-40 min-h-[36px] flex-1 resize-none overflow-hidden bg-transparent py-2 text-sm leading-5 text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none"
           />
           <button
             onClick={() => void submit()}
             disabled={!text.trim() || sending}
             aria-label={editing ? t('save') : t('chatSend')}
-            className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-nonsprimary text-white transition-colors hover:bg-nonsprimaryfocus disabled:opacity-40"
+            className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-nonsprimary text-white transition-all hover:bg-nonsprimaryfocus disabled:scale-90 disabled:bg-transparent disabled:text-[var(--text-muted)]"
           >
             <IoPaperPlane className="h-4 w-4" />
           </button>

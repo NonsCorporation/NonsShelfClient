@@ -1048,6 +1048,7 @@ export const en = {
   chatDeleteGroup: 'Delete group',
   chatDeleteChatConfirm: 'The group and all its messages will be deleted for everyone.',
   chatPick: 'Select a conversation',
+  chatViewProfile: 'View profile',
   chatNotFound: "This chat doesn't exist or you're no longer in it.",
   chatMessageButton: 'Message',
   privacyMessages: 'Who can message me',

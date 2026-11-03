@@ -977,6 +977,7 @@ export const ro = {
   chatDeleteGroup: 'Șterge grupul',
   chatDeleteChatConfirm: 'Grupul și toate mesajele lui vor fi șterse pentru toți.',
   chatPick: 'Alege o conversație',
+  chatViewProfile: 'Vezi profilul',
   chatNotFound: 'Această conversație nu există sau nu mai faci parte din ea.',
   chatMessageButton: 'Mesaj',
   privacyMessages: 'Cine îmi poate scrie',

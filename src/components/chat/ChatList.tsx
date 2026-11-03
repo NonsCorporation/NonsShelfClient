@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react'
 import { IoCreateOutline, IoSearchOutline } from 'react-icons/io5'
 import { useLanguage } from '@/contexts/LanguageContext'
 import type { Chat } from '@/services/chatService'
-import { ChatAvatar, chatTitle, formatChatTime, previewText } from './chatFormat'
+import { ChatAvatar, chatTitle, formatChatTime, otherParticipant, previewText } from './chatFormat'
 
 type Props = {
   chats: Chat[]
@@ -80,7 +80,11 @@ export default function ChatList({ chats, loaded, meId, activeId, onSelect, onNe
             {shown.map((c) => {
               const last = c.last_message
               const mine = last && last.sender_id === meId
-              const preview = last ? (last.deleted_at ? t('chatDeleted') : previewText(last.content)) : ''
+              const other = c.type === 'direct' ? otherParticipant(c, meId) : undefined
+              // A chat with no messages yet (just opened from a profile) shows who it is with.
+              const preview = last
+                ? last.deleted_at ? t('chatDeleted') : previewText(last.content)
+                : other ? `@${other.username}` : t('chatMembers', { n: c.participants.length })
               const active = c.id === activeId
               return (
                 <li key={c.id}>

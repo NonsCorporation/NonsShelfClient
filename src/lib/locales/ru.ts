@@ -977,6 +977,7 @@ export const ru = {
   chatDeleteGroup: 'Удалить группу',
   chatDeleteChatConfirm: 'Группа и все её сообщения будут удалены для всех.',
   chatPick: 'Выберите переписку',
+  chatViewProfile: 'Открыть профиль',
   chatNotFound: 'Этого чата нет или вы больше в нём не состоите.',
   chatMessageButton: 'Написать',
   privacyMessages: 'Кто может мне писать',
