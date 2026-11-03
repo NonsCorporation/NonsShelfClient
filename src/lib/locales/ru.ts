@@ -395,7 +395,10 @@ export const ru = {
   membersWatching: 'смотрят сейчас: {n}',
 
   // Search / global
-  globalSearch: 'Поиск книг и фильмов…',
+  globalSearch: "Поиск книг, фильмов, людей и пользователей",
+  usersTab: "Пользователи",
+  thisIsYou: "← это вы",
+  usersSignInPrompt: "Войдите, чтобы находить других читателей в SomeShelf.",
   searchResults: 'Результаты по запросу «{q}»',
   search: 'Поиск',
   searchSubtitle: 'Книги, фильмы и сериалы по всему каталогу.',

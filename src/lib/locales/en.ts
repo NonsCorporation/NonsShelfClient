@@ -395,7 +395,10 @@ export const en = {
   membersWatching: '{n} watching now',
 
   // Search / global
-  globalSearch: 'Search books & films…',
+  globalSearch: "Search for books, movies, people and users",
+  usersTab: "Users",
+  thisIsYou: "← this is you",
+  usersSignInPrompt: "Sign in to find other readers on SomeShelf.",
   searchResults: 'Results for "{q}"',
   search: 'Search',
   searchSubtitle: 'Books, films and series across the catalog.',

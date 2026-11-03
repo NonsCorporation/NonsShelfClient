@@ -31,6 +31,7 @@ import TypeBadge from '@/components/badges/TypeBadge'
 import ShelfLogo from '@/components/branding/ShelfLogo'
 import InfinityLoader from '@/components/ui/InfinityLoader'
 import { useLogoutConfirm } from '@/components/auth/useLogoutConfirm'
+import { useTypingPlaceholder } from '@/lib/useTypingPlaceholder'
 
 type NavItem = { to: string; label: string; icon: IconType; match: (p: string) => boolean }
 
@@ -482,6 +483,7 @@ function HeaderSearch() {
   const { pathname } = useLocation()
   const [params] = useSearchParams()
   const isSearchPage = pathname === '/search'
+  const searchPlaceholder = useTypingPlaceholder(t('globalSearch'))
   const [value, setValue] = useState(params.get('q') ?? '')
   const [expanded, setExpanded] = useState(isSearchPage)
   const [open, setOpen] = useState(false)
@@ -572,7 +574,7 @@ function HeaderSearch() {
             value={value}
             onChange={(e) => { setValue(e.target.value); setOpen(true) }}
             onKeyDown={(e) => e.key === 'Enter' && submit()}
-            placeholder={t('globalSearch')}
+            placeholder={searchPlaceholder}
             aria-label={t('globalSearch')}
             className="h-10 w-64 rounded-full border border-[var(--border-subtle)] bg-[var(--input)] pl-11 pr-3 text-sm text-[var(--text)] placeholder:text-[var(--placeholder)] focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[var(--primary-ring)] md:w-72"
           />

@@ -45,3 +45,29 @@ export async function fetchPublicProfile(username: string): Promise<PublicProfil
     return null
   }
 }
+
+// A SomeShelf account found by the search page's Users tab.
+export type UserHit = {
+  id: number
+  username: string
+  name: string
+  avatarUrl?: string
+}
+
+// nons-library-server GET /api/search/users — username or name, exact matches
+// first (the server ranks them). Signed-in only; [] when signed out or on error.
+export async function searchUsers(q: string, limit = 30): Promise<UserHit[]> {
+  try {
+    const res = await authedFetch(`/api/search/users?q=${encodeURIComponent(q)}&limit=${limit}`)
+    if (!res.ok) return []
+    const data: { users?: { id: number; username: string; name?: string; avatar_url?: string }[] } = await res.json()
+    return (data.users ?? []).map((u) => ({
+      id: u.id,
+      username: u.username,
+      name: u.name || u.username,
+      avatarUrl: u.avatar_url || undefined,
+    }))
+  } catch {
+    return []
+  }
+}

@@ -395,7 +395,10 @@ export const ro = {
   membersWatching: '{n} urmăresc acum',
 
   // Search / global
-  globalSearch: 'Caută cărți și filme…',
+  globalSearch: "Caută cărți, filme, persoane și utilizatori",
+  usersTab: "Utilizatori",
+  thisIsYou: "← acesta ești tu",
+  usersSignInPrompt: "Autentifică-te ca să găsești alți cititori pe SomeShelf.",
   searchResults: 'Rezultate pentru „{q}"',
   search: 'Caută',
   searchSubtitle: 'Cărți, filme și seriale din tot catalogul.',

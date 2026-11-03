@@ -7,6 +7,7 @@ import { catalogService, type CatalogItem } from '@/services/catalogService'
 import { mediaPath } from '@/lib/paths'
 import TypeBadge from '@/components/badges/TypeBadge'
 import InfinityLoader from '@/components/ui/InfinityLoader'
+import { useTypingPlaceholder } from '@/lib/useTypingPlaceholder'
 
 // The mobile-only catalog search box (desktop gets the header's inline
 // HeaderSearch instead — the bottom nav pill has no room for a search field).
@@ -24,6 +25,7 @@ export default function MobileCatalogSearch({
   const navigate = useNavigate()
   const inputRef = useRef<HTMLInputElement>(null)
   const [q, setQ] = useState('')
+  const searchPlaceholder = useTypingPlaceholder(t('globalSearch'))
   const [results, setResults] = useState<CatalogItem[]>([])
   const [loading, setLoading] = useState(false)
   const [importing, setImporting] = useState(false)
@@ -71,7 +73,8 @@ export default function MobileCatalogSearch({
           onChange={(e) => setQ(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && submit()}
           onFocus={() => { setFocused(true); onFocusChange?.(true); if (q.trim()) setOpen(true) }}
-          placeholder={t('globalSearch') || 'Search books, films…'}
+          placeholder={searchPlaceholder}
+          aria-label={t('globalSearch')}
           className="h-11 w-full rounded-2xl border border-[var(--border-subtle)] bg-[var(--input)] pl-11 pr-4 text-sm text-[var(--text)] placeholder:text-[var(--placeholder)] focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[var(--primary-ring)]"
         />
       </div>

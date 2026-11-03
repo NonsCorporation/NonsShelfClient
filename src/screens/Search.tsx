@@ -10,10 +10,13 @@ import type { MediaItem, MediaType, ShelfStatus } from '../types'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
 import { useLoginModal } from '../contexts/LoginModalContext'
-import { IoSearchOutline, IoPersonOutline, IoAppsOutline, IoBookOutline, IoFilmOutline, IoTvOutline } from 'react-icons/io5'
+import { IoSearchOutline, IoPersonOutline, IoPeopleOutline, IoAppsOutline, IoBookOutline, IoFilmOutline, IoTvOutline } from 'react-icons/io5'
 import type { IconType } from 'react-icons'
 import InfinityLoader from '@/components/ui/InfinityLoader'
 import BoringAvatar from '@/components/ui/BoringAvatar'
+import { searchUsers, type UserHit } from '../services/userService'
+import { userPath } from '../lib/paths'
+import { useTypingPlaceholder } from '../lib/useTypingPlaceholder'
 
 const keyOf = (it: { type: string; title: string }) => `${it.type}:${it.title.trim().toLowerCase()}`
 // Builds the minimal MediaItem shape FinishModal/ShelfStatusBar need from a catalog row.
@@ -34,6 +37,9 @@ const BATCH = 8
 const STRONG_MATCH = 0.8
 
 type Filter = 'all' | MediaType
+// What the results area shows: the catalog (with the type filter), people
+// (authors, actors…) or users (SomeShelf accounts).
+type Mode = 'catalog' | 'people' | 'users'
 
 // Dedicated search-results page (its own /search route), split out of Discover so
 // the two concerns don't share a screen. Reads the query from ?q= and searches the
@@ -42,7 +48,7 @@ type Filter = 'all' | MediaType
 // repeatable "Load more" button. A type filter narrows the shown results.
 export default function SearchPage() {
   const { t } = useLanguage()
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated, user: me } = useAuth()
   const { openLogin } = useLoginModal()
   const [params, setSearchParams] = useSearchParams()
   const q = params.get('q')?.trim() ?? ''
@@ -61,9 +67,19 @@ export default function SearchPage() {
   const [page, setPage] = useState(0)
   const [loadingMore, setLoadingMore] = useState(false)
   const [exhausted, setExhausted] = useState(false)
-  // People tab: a separate results mode (fuzzy name search, its own endpoint),
+  // People / Users tabs: separate results modes (each its own endpoint),
   // toggled independently of the All/Books/Movies/Series catalog filter.
-  const [peopleMode, setPeopleMode] = useState(false)
+  // A query starting with "@" means a username, so it opens on Users.
+  const [mode, setMode] = useState<Mode>(q.startsWith('@') ? 'users' : 'catalog')
+  const [prevQ, setPrevQ] = useState(q)
+  if (q !== prevQ) {
+    setPrevQ(q)
+    if (q.startsWith('@')) setMode('users')
+  }
+  const peopleMode = mode === 'people'
+  const [users, setUsers] = useState<UserHit[]>([])
+  const [usersLoading, setUsersLoading] = useState(false)
+  const searchPlaceholder = useTypingPlaceholder(t('globalSearch'))
   const [people, setPeople] = useState<PersonHit[]>([])
   const [peopleLoading, setPeopleLoading] = useState(false)
 
@@ -169,6 +185,30 @@ export default function SearchPage() {
     }
   }, [peopleMode, q])
 
+  // Users tab: debounced search of SomeShelf accounts (exact matches first —
+  // the server ranks them). Signed-in only: profiles need an account anyway.
+  useEffect(() => {
+    if (mode !== 'users' || !q || !isAuthenticated) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setUsers([])
+      setUsersLoading(false)
+      return
+    }
+    let cancelled = false
+    setUsersLoading(true)
+    const timer = setTimeout(async () => {
+      const res = await searchUsers(q)
+      if (!cancelled) {
+        setUsers(res)
+        setUsersLoading(false)
+      }
+    }, 300)
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
+  }, [mode, q, isAuthenticated])
+
   // Import the next batch of books, movies and series from external sources and
   // append the ones not already shown. When a press brings nothing new, the
   // external sources are exhausted for this query and the button is hidden.
@@ -260,7 +300,7 @@ export default function SearchPage() {
           onChange={(e) => setQueryInput(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && submitQuery()}
           onBlur={submitQuery}
-          placeholder={t('globalSearch')}
+          placeholder={searchPlaceholder}
           aria-label={t('globalSearch')}
           className="h-11 w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--input)] pl-11 pr-3 text-sm text-[var(--text)] placeholder:text-[var(--placeholder)] focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[var(--primary-ring)]"
         />
@@ -289,9 +329,9 @@ export default function SearchPage() {
                 {tabs.map((tab) => (
                   <button
                     key={tab.key}
-                    onClick={() => { setFilter(tab.key); setPeopleMode(false) }}
+                    onClick={() => { setFilter(tab.key); setMode('catalog') }}
                     className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
-                      !peopleMode && filter === tab.key
+                      mode === 'catalog' && filter === tab.key
                         ? 'bg-[var(--surface-active)] text-[var(--text)]'
                         : 'text-[var(--text-muted)] hover:bg-[var(--surface-hover)]'
                     }`}
@@ -306,7 +346,7 @@ export default function SearchPage() {
                   (it searches a different endpoint, people by name), but styled
                   identically to those tabs so it reads as one consistent set. */}
               <button
-                onClick={() => setPeopleMode((v) => !v)}
+                onClick={() => setMode((m) => (m === 'people' ? 'catalog' : 'people'))}
                 className={`flex items-center gap-1.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] px-3 py-1.5 text-sm font-medium transition-colors ${
                   peopleMode
                     ? 'bg-[var(--surface-active)] text-[var(--text)]'
@@ -316,8 +356,20 @@ export default function SearchPage() {
                 <IoPersonOutline className="h-4 w-4" />
                 {t('people')}
               </button>
+              {/* Users — SomeShelf accounts, by username or name. */}
+              <button
+                onClick={() => setMode((m) => (m === 'users' ? 'catalog' : 'users'))}
+                className={`flex items-center gap-1.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] px-3 py-1.5 text-sm font-medium transition-colors ${
+                  mode === 'users'
+                    ? 'bg-[var(--surface-active)] text-[var(--text)]'
+                    : 'text-[var(--text-muted)] hover:bg-[var(--surface-hover)]'
+                }`}
+              >
+                <IoPeopleOutline className="h-4 w-4" />
+                {t('usersTab')}
+              </button>
             </div>
-            {!peopleMode && (
+            {mode === 'catalog' && (
               <div className="inline-flex gap-1 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] p-1">
                 {(['relevance', 'popular'] as const).map((s) => (
                   <button
@@ -336,7 +388,59 @@ export default function SearchPage() {
             )}
           </div>
 
-          {peopleMode ? (
+          {mode === 'users' ? (
+            !isAuthenticated ? (
+              <div className="flex flex-col items-center gap-3 py-16 text-center">
+                <p className="text-sm text-[var(--text-muted)]">{t('usersSignInPrompt')}</p>
+                <button
+                  onClick={() => openLogin('profile')}
+                  className="rounded-xl bg-nonsprimary px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-nonsprimaryfocus"
+                >
+                  {t('authSignIn')}
+                </button>
+              </div>
+            ) : usersLoading ? (
+              <div className="grid gap-3 sm:grid-cols-2">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="h-16 animate-pulse rounded-xl bg-[var(--surface)]" />
+                ))}
+              </div>
+            ) : users.length === 0 ? (
+              <p className="py-16 text-center text-sm text-[var(--text-muted)]">{t('noResults')}</p>
+            ) : (
+              <div className="animate-fade-up grid gap-3 sm:grid-cols-2">
+                {users.map((u) => {
+                  const isMe = !!me && me.id === u.id
+                  return (
+                    <Link
+                      key={u.id}
+                      to={userPath(u.username)}
+                      className={`group flex items-center gap-3 rounded-xl border bg-[var(--container)] p-3 transition-colors hover:bg-[var(--surface)] ${
+                        isMe ? 'border-nonsprimary/40' : 'border-[var(--border-subtle)]'
+                      }`}
+                    >
+                      <span className="h-11 w-11 flex-shrink-0 overflow-hidden rounded-full">
+                        {u.avatarUrl ? (
+                          <img src={u.avatarUrl} alt={u.name} loading="lazy" className="h-full w-full object-cover" />
+                        ) : (
+                          <BoringAvatar size={44} name={`user-${u.id}`} />
+                        )}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-semibold text-[var(--text)] group-hover:text-nonsprimary">{u.name}</span>
+                        <span className="block truncate font-mono text-xs text-[var(--text-muted)]">@{u.username}</span>
+                      </span>
+                      {isMe && (
+                        <span className="flex-shrink-0 rounded-full bg-nonsprimary/15 px-2.5 py-1 text-xs font-medium text-nonsprimary">
+                          {t('thisIsYou')}
+                        </span>
+                      )}
+                    </Link>
+                  )
+                })}
+              </div>
+            )
+          ) : peopleMode ? (
             peopleLoading ? (
               <div className="grid grid-cols-3 gap-4 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
                 {Array.from({ length: 12 }).map((_, i) => (
