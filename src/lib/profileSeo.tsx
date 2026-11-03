@@ -8,7 +8,7 @@ import { getPublicProfileCard, type PublicProfileCard } from './serverApi'
 // SEO for public profile links (/u/<username>): the page <title>, description,
 // OpenGraph/Twitter tags, JSON-LD, and the link-preview image — the in-app
 // share card (ProfileShareModal) laid out horizontally: dark background with a
-// brand glow, photo, name, @handle, short stats and a QR code. Everything comes
+// brand glow, a large photo, name, @handle and short stats. Everything comes
 // from the anonymous-safe profile card, so it never shows more than the owner's
 // privacy settings allow.
 
@@ -181,23 +181,13 @@ function Icon({ kind, size }: { kind: IconKind; size: number }) {
 function Stat({ kind, value, label }: { kind: IconKind; value: string; label: string }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <Icon kind={kind} size={28} />
-        <div style={{ display: 'flex', fontSize: 40, fontWeight: 700, color: INK, lineHeight: 1 }}>{value}</div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <Icon kind={kind} size={36} />
+        <div style={{ display: 'flex', fontSize: 56, fontWeight: 700, color: INK, lineHeight: 1 }}>{value}</div>
       </div>
-      <div style={{ display: 'flex', fontSize: 16, letterSpacing: 2, color: MUTED, marginTop: 10 }}>{label}</div>
+      <div style={{ display: 'flex', fontSize: 20, letterSpacing: 3, color: MUTED, marginTop: 12 }}>{label}</div>
     </div>
   )
-}
-
-/** The profile link as a QR code (PNG data URL), like the share card's. */
-async function qrDataUrl(url: string): Promise<string | null> {
-  try {
-    const QRCode = (await import('qrcode')).default
-    return await QRCode.toDataURL(url, { margin: 1, width: 440, color: { dark: '#000000', light: '#ffffff' } })
-  } catch {
-    return null
-  }
 }
 
 /** Renders the link-preview card for /u/<id> — the in-app share card laid out
@@ -205,8 +195,7 @@ async function qrDataUrl(url: string): Promise<string | null> {
  *  loaded). */
 export async function renderProfileImage(id: string): Promise<ImageResponse> {
   const [card, fonts] = await Promise.all([getPublicProfileCard(id), loadFonts()])
-  const profileUrl = card ? `${SITE_URL}/u/${encodeURIComponent(card.username)}` : SITE_URL
-  const [avatar, qr] = card ? await Promise.all([avatarDataUrl(card.avatar_url), qrDataUrl(profileUrl)]) : [null, null]
+  const avatar = card ? await avatarDataUrl(card.avatar_url) : null
 
   const stats: { kind: IconKind; value: string; label: string }[] = []
   if (card?.stats) {
@@ -226,7 +215,7 @@ export async function renderProfileImage(id: string): Promise<ImageResponse> {
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'space-between',
-          padding: '52px 72px',
+          padding: '48px 64px',
           color: INK,
           fontFamily: 'Onest',
           background: `radial-gradient(circle at 22% 30%, rgba(${GLOW},0.38), transparent 58%), ${BG}`,
@@ -239,27 +228,27 @@ export async function renderProfileImage(id: string): Promise<ImageResponse> {
         </div>
 
         {card ? (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             {/* identity + stats */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 48 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 60 }}>
               {/* The renderer ignores overflow:hidden for clipping, so the photo
                   is rounded itself, inside a ring drawn by the wrapper. */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 216, height: 216, borderRadius: 9999, border: `3px solid ${LINE}`, flexShrink: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 312, height: 312, borderRadius: 9999, border: `4px solid ${LINE}`, flexShrink: 0 }}>
                 {avatar ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={avatar} width={204} height={204} style={{ borderRadius: 9999, objectFit: 'cover' }} alt="" />
+                  <img src={avatar} width={296} height={296} style={{ borderRadius: 9999, objectFit: 'cover' }} alt="" />
                 ) : (
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 204, height: 204, borderRadius: 9999, background: LINE, color: INK, fontSize: 76, fontWeight: 700 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 296, height: 296, borderRadius: 9999, background: LINE, color: INK, fontSize: 110, fontWeight: 700 }}>
                     {initials(card.name)}
                   </div>
                 )}
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column' }}>
-                <div style={{ display: 'flex', fontSize: 60, fontWeight: 700, lineHeight: 1.1 }}>{clip(card.name, 20)}</div>
-                <div style={{ display: 'flex', fontSize: 28, color: MUTED, marginTop: 6 }}>{`@${clip(card.username, 26)}`}</div>
+                <div style={{ display: 'flex', fontSize: 84, fontWeight: 700, lineHeight: 1.05 }}>{clip(card.name, 16)}</div>
+                <div style={{ display: 'flex', fontSize: 38, color: MUTED, marginTop: 8 }}>{`@${clip(card.username, 22)}`}</div>
                 {stats.length > 0 && (
-                  <div style={{ display: 'flex', gap: 40, marginTop: 30, paddingTop: 26, borderTop: `1px solid ${LINE}` }}>
+                  <div style={{ display: 'flex', gap: 44, marginTop: 36, paddingTop: 32, borderTop: `1px solid ${LINE}` }}>
                     {stats.slice(0, 4).map((s) => (
                       <Stat key={s.label} kind={s.kind} value={s.value} label={s.label} />
                     ))}
@@ -268,16 +257,6 @@ export async function renderProfileImage(id: string): Promise<ImageResponse> {
               </div>
             </div>
 
-            {/* QR, right — as on the share card */}
-            {qr && (
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginLeft: 40 }}>
-                <div style={{ display: 'flex', background: '#ffffff', padding: 14, borderRadius: 22 }}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={qr} width={190} height={190} alt="" />
-                </div>
-                <div style={{ display: 'flex', fontSize: 17, color: MUTED, marginTop: 14 }}>Scan to follow on SomeShelf</div>
-              </div>
-            )}
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
