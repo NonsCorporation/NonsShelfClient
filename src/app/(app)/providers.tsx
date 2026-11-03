@@ -10,6 +10,7 @@ import { CollectionProvider } from '@/contexts/CollectionContext'
 import { ListProvider } from '@/contexts/ListContext'
 import { LoginModalProvider } from '@/contexts/LoginModalContext'
 import RequireAuth from '@/components/auth/RequireAuth'
+import OnboardingGate from '@/components/auth/OnboardingGate'
 import Header from '@/components/layout/Header'
 
 // Mirrors the old src/main.tsx provider tree, with RequireAuth gating the
@@ -42,6 +43,7 @@ export default function Providers({ children }: { children: ReactNode }) {
                       highlight pop in instantly instead of animating. */}
                   <Header />
                   <RequireAuth>
+                    <OnboardingGate />
                     {children}
                   </RequireAuth>
                 </LoginModalProvider>

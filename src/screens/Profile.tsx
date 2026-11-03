@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, useParams } from '@/lib/router'
 import Layout from '../components/layout/Layout'
 import { ProfileSkeleton } from '@/components/ui/Skeletons'
@@ -13,7 +13,6 @@ import { authedFetch } from '../lib/api'
 import type { MediaItem, ShelfStatus, Collection, Challenge } from '../types'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
-import { useProfileCustomization } from '../lib/profileCustomization'
 import { useCollections } from '../contexts/CollectionContext'
 import { currentUser } from '../lib/user'
 import { isLibrarian } from '../services/librarianService'
@@ -71,6 +70,9 @@ type ProfileView = {
   handle: string
   avatar: string
   role?: string
+  bio?: string
+  /** "City, Country", only what the owner lets this viewer see. */
+  location?: string
 }
 
 type Tab = 'all' | ShelfStatus
@@ -102,16 +104,8 @@ export default function ProfilePage() {
   const { id: routeId } = useParams<{ id: string }>()
   const { user: authUser, loading: authLoading } = useAuth()
 
-  const [baseProfile, setProfile] = useState<ProfileView | null>(null)
+  const [profile, setProfile] = useState<ProfileView | null>(null)
   const [isSelf, setIsSelf] = useState(true)
-  // Mock profile edits (name, photo, bio, location) — stored locally, own profile only.
-  const { custom } = useProfileCustomization(authUser?.id)
-  // Own profile: layer the display name and photo edits over the account's. The
-  // real handle stays as-is — it's what API calls and share links key on.
-  const profile = useMemo<ProfileView | null>(
-    () => (baseProfile && isSelf ? { ...baseProfile, name: custom.name || baseProfile.name, avatar: custom.avatar || baseProfile.avatar } : baseProfile),
-    [baseProfile, isSelf, custom.name, custom.avatar],
-  )
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
   const [tab, setTab] = useState<Tab>('all')
@@ -183,6 +177,8 @@ export default function ProfilePage() {
           handle: authUser?.username ?? currentUser.handle,
           avatar: authUser?.avatar_url || '',
           role: authUser?.role,
+          bio: authUser?.bio || undefined,
+          location: [authUser?.location_city, authUser?.location_country].filter(Boolean).join(', ') || undefined,
         })
         setOtherCollections([])
         // Load friends (best-effort — silently ignored if unreachable).
@@ -219,7 +215,7 @@ export default function ProfilePage() {
             userRole = data.role
           }
         } catch { /* library server unreachable — no badge */ }
-        setProfile({ id: p.id, name: p.name, handle: p.username, avatar: p.avatarUrl || '', role: userRole })
+        setProfile({ id: p.id, name: p.name, handle: p.username, avatar: p.avatarUrl || '', role: userRole, bio: p.bio, location: p.location })
         const theirCollections = await collectionService.getUserCollections(p.id)
         if (cancelled) return
         setOtherCollections(theirCollections)
@@ -490,16 +486,16 @@ export default function ProfilePage() {
               <h1 className="truncate text-2xl font-bold tracking-tight text-[var(--text)]">{profile.name}</h1>
               {isLibrarian(profile.role) && <LibrarianBadge />}
             </div>
-            <p className="text-sm text-[var(--text-muted)]">@{(isSelf && custom.username) || profile.handle}</p>
+            <p className="text-sm text-[var(--text-muted)]">@{profile.handle}</p>
 
-            {/* Bio + location — own profile only for now (the edits are a local mock) */}
-            {isSelf && custom.bio && (
-              <p className="mt-2 whitespace-pre-line break-words text-sm text-[var(--text)]">{custom.bio}</p>
+            {/* Bio + location — the server only sends what this viewer may see */}
+            {profile.bio && (
+              <p className="mt-2 whitespace-pre-line break-words text-sm text-[var(--text)]">{profile.bio}</p>
             )}
-            {isSelf && (custom.city || custom.country) && (
+            {profile.location && (
               <p className="mt-1.5 flex items-center gap-1 text-xs text-[var(--text-muted)]">
                 <IoLocationOutline className="h-3.5 w-3.5 flex-shrink-0" />
-                {[custom.city, custom.country].filter(Boolean).join(', ')}
+                {profile.location}
               </p>
             )}
 

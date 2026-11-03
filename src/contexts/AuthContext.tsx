@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, useCallback } from 'rea
 import type { ReactNode } from 'react'
 import { authedFetch, setOnSessionExpired } from '../lib/api'
 import { logoutRequest } from '../services/authService'
+import type { Visibility } from '../lib/profile'
 
 // Shape of nons-library-server's /api/me response.
 export interface LibraryUser {
@@ -13,6 +14,16 @@ export interface LibraryUser {
   name?: string
   role?: string
   avatar_url?: string
+  // Editable profile (see PUT /api/me/profile). Absent on a server that predates it.
+  first_name?: string
+  last_name?: string
+  bio?: string
+  location_country?: string
+  location_city?: string
+  bio_visibility?: Visibility
+  location_visibility?: Visibility
+  /** False until the post-signup welcome step is saved or skipped. */
+  finished_introduction?: boolean
 }
 
 interface AuthContextType {

@@ -15,6 +15,10 @@ const RESERVED = new Set([
   'blog', 'news', 'home', 'index', 'root',
 ])
 
+/** True for the handle the server generates at signup ("u" + 10 hex digits,
+ *  e.g. u3fa91c04be) — i.e. the person never picked one themselves. */
+export const isAutoUsername = (username: string) => /^u[0-9a-f]{10}$/.test(username)
+
 export type UsernameError = 'required' | 'short' | 'long' | 'start' | 'chars' | 'reserved' | 'idLike'
 
 /** Returns why a username is invalid, or null when it's fine. */
