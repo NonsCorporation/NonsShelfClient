@@ -5,13 +5,14 @@ import type { MediaItem, ShelfStatus } from '@/types'
 import { deletePost } from '@/services/commentService'
 import { libraryService } from '@/services/libraryService'
 import { useAuth } from '@/contexts/AuthContext'
+import { useLoginModal } from '@/contexts/LoginModalContext'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { mediaPath, userPath } from '@/lib/paths'
 import BoringAvatar from '@/components/ui/BoringAvatar'
 import ShelfStatusBar from '@/components/media/ShelfStatusBar'
 import CustomPagesHint from '@/components/ui/CustomPagesHint'
 import FinishModal from '@/components/reading/FinishModal'
-import { IoChatbubbleOutline, IoTrashOutline, IoShareOutline } from 'react-icons/io5'
+import { IoChatbubbleOutline, IoTrashOutline, IoShareOutline, IoChevronUp } from 'react-icons/io5'
 import { IoMdStar, IoMdStarHalf, IoMdStarOutline } from 'react-icons/io'
 import TypeBadge from '@/components/badges/TypeBadge'
 import CommentThread from '@/components/feed/CommentThread'
@@ -98,6 +99,9 @@ export default function ActivityCard({
 }) {
   const { t } = useLanguage()
   const { user } = useAuth()
+  // Signed-out visitors (public profiles) see cards read-only: liking,
+  // commenting and shelving open the sign-in prompt instead of calling the API.
+  const { openLogin } = useLoginModal()
   const { showActivityReactions } = usePreferences()
   // Only gates the banner when *I* am the reactor (my own like/repost/comment on
   // someone else's post) — other people's reactions are unaffected by my setting.
@@ -170,6 +174,7 @@ export default function ActivityCard({
   // Set the viewer's own shelf status from the feed. Optimistic, then persisted;
   // the resolved item (full catalog fields) replaces the optimistic one.
   const handleSetStatus = async (status: ShelfStatus) => {
+    if (!user) { openLogin('shelf'); return }
     // "Finished" gets the full rate/review/dates flow (same as the "in
     // progress" row on Home), not an immediate silent status flip.
     if (status === 'done') {
@@ -368,9 +373,18 @@ export default function ActivityCard({
 
       {/* footer: like · comment */}
       <div className="mt-4 flex items-center gap-4 border-t border-[var(--divider)] pt-3 text-sm">
-        <LikeButton postId={a.postId} />
+        {user ? (
+          <LikeButton postId={a.postId} />
+        ) : (
+          <button
+            onClick={() => openLogin()}
+            className="inline-flex items-center gap-1.5 font-medium text-[var(--text-muted)] transition-colors hover:text-[var(--text)]"
+          >
+            <IoChevronUp className="h-4 w-4" />
+          </button>
+        )}
         <button
-          onClick={toggleComments}
+          onClick={user ? toggleComments : () => openLogin()}
           className={`inline-flex items-center gap-1.5 font-medium transition-colors ${
             showComments ? 'text-nonsprimary' : 'text-[var(--text-muted)] hover:text-[var(--text)]'
           }`}

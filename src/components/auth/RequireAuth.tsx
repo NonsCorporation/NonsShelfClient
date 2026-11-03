@@ -13,6 +13,10 @@ import AppLoadingSkeleton from '@/components/ui/Skeletons'
 // has nothing to show without a session.
 const PUBLIC_PATHS = new Set(['/', '/discover'])
 
+// A user's profile (/u/<handle>) is public too — a shared profile link must open
+// for anyone. Their full library and the edit page stay signed-in only.
+const isPublicPath = (pathname: string) => PUBLIC_PATHS.has(pathname) || /^\/u\/[^/]+\/?$/.test(pathname)
+
 // Which login-modal copy names the thing a blocked route was actually for
 // ("view this profile", "see your notifications", …) instead of the generic
 // fallback. Checked longest-prefix-first isn't needed since these don't nest.
@@ -36,7 +40,7 @@ export default function RequireAuth({ children }: { children: ReactNode }) {
   const navigate = useNavigate()
   const { openLogin } = useLoginModal()
 
-  const blocked = !loading && !isAuthenticated && !PUBLIC_PATHS.has(pathname)
+  const blocked = !loading && !isAuthenticated && !isPublicPath(pathname)
 
   useEffect(() => {
     if (!blocked) return

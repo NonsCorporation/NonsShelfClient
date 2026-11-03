@@ -13,6 +13,7 @@ import { authedFetch } from '../lib/api'
 import type { MediaItem, ShelfStatus, Collection, Challenge } from '../types'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
+import { useLoginModal } from '../contexts/LoginModalContext'
 import { useCollections } from '../contexts/CollectionContext'
 import { currentUser } from '../lib/user'
 import { isLibrarian } from '../services/librarianService'
@@ -103,6 +104,9 @@ export default function ProfilePage() {
   const { t } = useLanguage()
   const { id: routeId } = useParams<{ id: string }>()
   const { user: authUser, loading: authLoading } = useAuth()
+  // Profiles are public: a signed-out visitor sees them read-only, and anything
+  // that needs an account (follow, friend request) opens the sign-in prompt.
+  const { openLogin } = useLoginModal()
 
   const [profile, setProfile] = useState<ProfileView | null>(null)
   const [isSelf, setIsSelf] = useState(true)
@@ -271,7 +275,7 @@ export default function ProfilePage() {
   // Relationship with the profile owner — friend-request status + follow
   // state, both fetched from the library backend. Only relevant on someone else's profile.
   useEffect(() => {
-    if (!profile || isSelf) { setFriendship({ status: 'none', isRequester: false }); setFollowingUser(false); return }
+    if (!profile || isSelf || !authUser) { setFriendship({ status: 'none', isRequester: false }); setFollowingUser(false); return }
     let cancelled = false
     Promise.all([getFriendshipStatus(profile.handle), isFollowing(profile.handle)]).then(([fs, fw]) => {
       if (cancelled) return
@@ -279,7 +283,7 @@ export default function ProfilePage() {
       setFollowingUser(fw)
     })
     return () => { cancelled = true }
-  }, [profile, isSelf])
+  }, [profile, isSelf, authUser])
 
   // The shelf preview row — server-filtered/sorted/capped, so switching tabs
   // or a collection chip re-fetches just SHELF_PREVIEW_SIZE items instead of
@@ -353,13 +357,16 @@ export default function ProfilePage() {
         if (cancelled) return
         setPosts(res.items)
         setPostsTotal(res.total)
-        getCommentCounts(res.items.map((a) => a.postId))
-          .then((counts) => { if (!cancelled) setPostCommentCounts(counts) })
-          .catch(() => {})
+        // Comment counts need an account (signed-out visitors just see the posts).
+        if (authUser) {
+          getCommentCounts(res.items.map((a) => a.postId))
+            .then((counts) => { if (!cancelled) setPostCommentCounts(counts) })
+            .catch(() => {})
+        }
       })
       .finally(() => { if (!cancelled) setPostsLoading(false) })
     return () => { cancelled = true }
-  }, [profile, postsPage])
+  }, [profile, postsPage, authUser])
 
   const postsPageCount = Math.ceil(postsTotal / POSTS_PER_PAGE)
 
@@ -372,7 +379,7 @@ export default function ProfilePage() {
     // Wrapped in an IIFE, not called directly: react-hooks/set-state-in-effect
     // flags a setState-triggering call made straight from the effect body.
     ;(async () => {
-      if (posts.length === 0) {
+      if (posts.length === 0 || !authUser) {
         if (!cancelled) setMyStatuses(new Map())
         return
       }
@@ -381,11 +388,12 @@ export default function ProfilePage() {
       if (!cancelled) setMyStatuses(m)
     })()
     return () => { cancelled = true }
-  }, [posts])
+  }, [posts, authUser])
 
   // Relationship actions — each optimistically updates local state and rolls
   // back if the request fails.
   const toggleFollow = async () => {
+    if (!authUser) { openLogin('profile'); return }
     if (!profile || relBusy) return
     setRelBusy(true)
     const next = !followingUser
@@ -396,6 +404,7 @@ export default function ProfilePage() {
   }
 
   const addFriend = async () => {
+    if (!authUser) { openLogin('profile'); return }
     if (!profile || relBusy) return
     setRelBusy(true)
     const prev = friendship
@@ -406,6 +415,7 @@ export default function ProfilePage() {
   }
 
   const cancelRequest = async () => {
+    if (!authUser) { openLogin('profile'); return }
     if (!profile || relBusy) return
     setRelBusy(true)
     const prev = friendship
@@ -416,6 +426,7 @@ export default function ProfilePage() {
   }
 
   const acceptRequest = async () => {
+    if (!authUser) { openLogin('profile'); return }
     if (!profile || relBusy) return
     setRelBusy(true)
     const prev = friendship
@@ -426,6 +437,7 @@ export default function ProfilePage() {
   }
 
   const declineRequest = async () => {
+    if (!authUser) { openLogin('profile'); return }
     if (!profile || relBusy) return
     setRelBusy(true)
     const prev = friendship
@@ -436,6 +448,7 @@ export default function ProfilePage() {
   }
 
   const unfriend = async () => {
+    if (!authUser) { openLogin('profile'); return }
     if (!profile || relBusy) return
     setRelBusy(true)
     const prev = friendship
