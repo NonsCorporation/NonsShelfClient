@@ -4,10 +4,46 @@ import { authedFetch } from '../lib/api'
 // Mirrors commentService's shape: batched status/counts so the feed can avoid
 // a call per card.
 
-export async function getLikeStatus(postId: number): Promise<{ liked: boolean; count: number }> {
-  const res = await authedFetch(`/api/feed/posts/${postId}/like`)
-  if (!res.ok) return { liked: false, count: 0 }
-  return res.json()
+type LikeStatus = { liked: boolean; count: number }
+
+// Every LikeButton asks for its own post's status when it mounts, so a feed page
+// would fire one request per card. Calls made within a few ms of each other are
+// collected here and answered by the two batch endpoints (counts + who-liked)
+// instead — two requests per page however many cards there are.
+type LikeBatch = Map<number, { promise: Promise<LikeStatus>; resolve: (s: LikeStatus) => void }>
+let pending: LikeBatch | null = null
+
+const BATCH_MS = 10
+
+async function flushLikeStatuses(batch: LikeBatch): Promise<void> {
+  const ids = [...batch.keys()]
+  let counts: Record<string, number> = {}
+  let liked: Record<string, boolean> = {}
+  try {
+    ;[counts, liked] = await Promise.all([getLikeCounts(ids), getLikeStatuses(ids)])
+  } catch {
+    /* fall through: everyone gets the empty default */
+  }
+  for (const [id, entry] of batch) {
+    entry.resolve({ liked: !!liked[String(id)], count: counts[String(id)] ?? 0 })
+  }
+}
+
+export function getLikeStatus(postId: number): Promise<LikeStatus> {
+  if (!pending) {
+    const batch: LikeBatch = new Map()
+    pending = batch
+    setTimeout(() => {
+      pending = null
+      void flushLikeStatuses(batch)
+    }, BATCH_MS)
+  }
+  const existing = pending.get(postId)
+  if (existing) return existing.promise // e.g. Strict Mode's second mount
+  let resolve!: (s: LikeStatus) => void
+  const promise = new Promise<LikeStatus>((r) => { resolve = r })
+  pending.set(postId, { promise, resolve })
+  return promise
 }
 
 export async function addLike(postId: number): Promise<void> {
