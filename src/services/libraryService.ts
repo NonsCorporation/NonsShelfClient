@@ -292,6 +292,26 @@ export interface ILibraryService {
 }
 
 class ApiLibraryService implements ILibraryService {
+  // Shares one request between callers asking for the same thing at about the
+  // same time. A feed shows several cards for the same book, and each card's
+  // status button wants that book's progress — without this, N cards means N
+  // identical requests. The window is short, and any write clears it, so a read
+  // right after a change always hits the server.
+  private recent = new Map<string, { at: number; value: Promise<unknown> }>()
+  private static readonly RECENT_MS = 3000
+
+  private shared<T>(key: string, load: () => Promise<T>): Promise<T> {
+    const hit = this.recent.get(key)
+    if (hit && Date.now() - hit.at < ApiLibraryService.RECENT_MS) return hit.value as Promise<T>
+    const value = load()
+    this.recent.set(key, { at: Date.now(), value })
+    // A failed load must not be served to the next caller.
+    value.catch(() => {
+      if (this.recent.get(key)?.value === value) this.recent.delete(key)
+    })
+    return value
+  }
+
   // The library view is the user's shelf, enriched with their favorites and
   // ratings (both keyed by media id).
   async getStatuses(mediaIds: string[]): Promise<Map<string, ShelfStatus>> {
@@ -635,6 +655,7 @@ class ApiLibraryService implements ILibraryService {
   // Append a reading/watching progress event (book page and/or percent),
   // backdatable via eventDate. Powers the "update progress" modal + the calendar.
   async logProgress(mediaId: string, p: ProgressUpdate): Promise<void> {
+    this.recent.clear()
     await authedFetch('/api/activity/progress', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -649,19 +670,23 @@ class ApiLibraryService implements ILibraryService {
     })
   }
 
-  async getEpisodeStats(mediaId: string): Promise<{ watched: number; total: number }> {
-    const res = await authedFetch(`/api/media/${Number(mediaId)}/episodes`)
-    if (!res.ok) return { watched: 0, total: 0 }
-    const data = await res.json()
-    return { watched: data.watched_count ?? 0, total: data.total ?? 0 }
+  getEpisodeStats(mediaId: string): Promise<{ watched: number; total: number }> {
+    return this.shared(`episodes:${Number(mediaId)}`, async () => {
+      const res = await authedFetch(`/api/media/${Number(mediaId)}/episodes`)
+      if (!res.ok) return { watched: 0, total: 0 }
+      const data = await res.json()
+      return { watched: data.watched_count ?? 0, total: data.total ?? 0 }
+    })
   }
 
   // The user's logged reading-progress updates for a book (newest first).
-  async getProgress(mediaId: string): Promise<ProgressEntry[]> {
-    const res = await authedFetch(`/api/activity/progress?media_id=${Number(mediaId)}`)
-    if (!res.ok) return []
-    const data = await res.json()
-    return (data.items ?? []) as ProgressEntry[]
+  getProgress(mediaId: string): Promise<ProgressEntry[]> {
+    return this.shared(`progress:${Number(mediaId)}`, async () => {
+      const res = await authedFetch(`/api/activity/progress?media_id=${Number(mediaId)}`)
+      if (!res.ok) return []
+      const data = await res.json()
+      return (data.items ?? []) as ProgressEntry[]
+    })
   }
 
   // The user's full interaction timeline for a media item (newest first).
@@ -700,6 +725,7 @@ class ApiLibraryService implements ILibraryService {
 
   // Mark/unmark a single series episode as watched.
   async setEpisodeWatched(episodeId: number, watched: boolean): Promise<void> {
+    this.recent.clear()
     await authedFetch(`/api/episodes/${episodeId}/watch`, { method: watched ? 'PUT' : 'DELETE' })
   }
 
@@ -708,6 +734,7 @@ class ApiLibraryService implements ILibraryService {
   async finish(mediaId: string, opts: FinishOptions): Promise<void> {
     const id = Number(mediaId)
     const share = opts.share ?? true
+    this.recent.clear()
     // Rating and review are saved first, without their own feed posts, so the
     // finished event below can carry both — one post instead of three.
     if (typeof opts.rating === 'number' && opts.rating > 0) await this.setRating(id, opts.rating, false)
@@ -728,6 +755,7 @@ class ApiLibraryService implements ILibraryService {
   // with an optional "why I stopped" note — one backend call (the mirror of
   // finish(), which spans several because it also writes rating/review).
   async markDNF(mediaId: string, opts: DNFOptions): Promise<void> {
+    this.recent.clear()
     await authedFetch(`/api/shelf/${Number(mediaId)}/dnf`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
