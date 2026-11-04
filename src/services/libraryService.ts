@@ -708,13 +708,15 @@ class ApiLibraryService implements ILibraryService {
   async finish(mediaId: string, opts: FinishOptions): Promise<void> {
     const id = Number(mediaId)
     const share = opts.share ?? true
+    // Rating and review are saved first, without their own feed posts, so the
+    // finished event below can carry both — one post instead of three.
+    if (typeof opts.rating === 'number' && opts.rating > 0) await this.setRating(id, opts.rating, false)
+    if (opts.review !== undefined && opts.review !== '') await this.setReview(mediaId, opts.review, false)
     await authedFetch(`/api/shelf/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: 'done', share }),
+      body: JSON.stringify({ status: 'done', share, include_review: true }),
     })
-    if (typeof opts.rating === 'number' && opts.rating > 0) await this.setRating(id, opts.rating, share)
-    if (opts.review !== undefined && opts.review !== '') await this.setReview(mediaId, opts.review, share)
     if (opts.finishedAt) {
       // This progress row only carries the finished date — never its own post
       // (the shelf "finished" event above already represents the finish).
