@@ -895,6 +895,11 @@ export const ro = {
 
   // Lists
   listsInfoTooltip: 'Listele sunt publice — oricine are linkul le poate vedea, chiar și fără cont. Folosește-le ca recomandări curate (ex. „Cel mai bun sci-fi al deceniului”) și distribuie linkul prietenilor.',
+  listsPageSubtitle: 'Liste curate, cu o notă pentru fiecare titlu.',
+  listsPageEmpty: 'Încă nu ai liste. Creează-o pe prima — o selecție scurtă, o recomandare, o ordine de citit.',
+  listsOpenAll: 'Deschide toate listele',
+  listsNewList: 'Listă nouă',
+  listsNamePlaceholder: 'Numele listei…',
 
   // Tags
   tagsInfoTooltip: 'Etichetele sunt adunate de la toți cei care termină acest titlu. Când destui oameni aleg aceeași etichetă, ea apare pe pagina titlului — ajutând întreaga comunitate să filtreze și să descopere după atmosferă, ritm, avertismente de conținut și altele.',

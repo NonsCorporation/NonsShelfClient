@@ -9,6 +9,7 @@ import {
   IoSearch,
   IoCloudUploadOutline,
   IoLayersOutline,
+  IoExpandOutline,
   IoBookmarkOutline,
   IoTimeOutline,
   IoCheckmarkDoneOutline,
@@ -250,6 +251,8 @@ export default function LibraryScreen() {
   const { user: authUser, loading: authLoading } = useAuth()
   const { collections, createCollection } = useCollections()
   const { lists, createList } = useLists()
+  // The expanded all-lists page for the signed-in user.
+  const listsPageHref = authUser ? `/lists?by=${authUser.id}` : '/lists'
   const navigate = useNavigate()
   const [params, setParams] = useSearchParams()
   const shelf = (params.get('shelf') as ShelfKey) || 'all'
@@ -1183,6 +1186,13 @@ export default function LibraryScreen() {
             <p className="mb-1.5 flex items-center gap-1 px-2 text-[10px] font-semibold uppercase tracking-widest text-[var(--text-muted)]">
               Lists
               <InfoTooltip text={t('listsInfoTooltip')} />
+              <Link
+                to={listsPageHref}
+                title={t('listsOpenAll')}
+                className="ml-auto flex-shrink-0 rounded-md p-1 text-[var(--text-muted)] transition-colors hover:text-[var(--text)]"
+              >
+                <IoExpandOutline className="h-3 w-3" />
+              </Link>
             </p>
 
             {filteredLists.map((l) => (
@@ -1384,6 +1394,13 @@ export default function LibraryScreen() {
       {!readOnly && (lists.length > 0 || creatingList) && (
         <div className="mb-4 lg:hidden">
           <div className="no-scrollbar -mx-4 flex items-center gap-1.5 overflow-x-auto px-4 pb-1">
+            <Link
+              to={listsPageHref}
+              title={t('listsOpenAll')}
+              className="flex shrink-0 items-center rounded-full border border-[var(--border-subtle)] p-1.5 text-[var(--text-muted)]"
+            >
+              <IoExpandOutline className="h-3.5 w-3.5" />
+            </Link>
             {filteredLists.map((l) => (
               <Link
                 key={l.id}

@@ -966,6 +966,11 @@ export const en = {
 
   // Lists
   listsInfoTooltip: 'Lists are public — anyone with the link can view them, even signed out. Use them as curated recommendations (e.g. "Best sci-fi of the decade") and share the link with friends.',
+  listsPageSubtitle: 'Curated lists with a note for every pick.',
+  listsPageEmpty: "No lists yet. Create your first one — a shortlist, a recommendation, a reading order.",
+  listsOpenAll: 'Open all lists',
+  listsNewList: 'New list',
+  listsNamePlaceholder: 'List name…',
 
   // Tags
   tagsInfoTooltip: "Tags are crowdsourced from everyone who finishes this item. Once enough people agree on one, it shows up on the item's page — helping the whole community filter and discover by mood, pacing, content warnings, and more.",

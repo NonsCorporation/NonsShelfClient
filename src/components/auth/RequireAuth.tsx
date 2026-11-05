@@ -25,7 +25,7 @@ const isPublicPath = (pathname: string) =>
 // fallback. Checked longest-prefix-first isn't needed since these don't nest.
 function reasonFor(pathname: string): LoginReason | undefined {
   if (pathname.startsWith('/u/')) return 'profile'
-  if (pathname.startsWith('/library') || pathname.startsWith('/shelf')) return 'library'
+  if (pathname.startsWith('/library') || pathname.startsWith('/lists') || pathname.startsWith('/shelf')) return 'library'
   if (pathname.startsWith('/notifications')) return 'notifications'
   if (pathname.startsWith('/statistics')) return 'statistics'
   if (pathname.startsWith('/challenge')) return 'challenge'
