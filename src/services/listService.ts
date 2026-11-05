@@ -32,9 +32,10 @@ async function discoverLists(limit = 12): Promise<CuratedListDiscoverEntry[]> {
   return (data.lists ?? []) as CuratedListDiscoverEntry[]
 }
 
-/** Another user's public (non-empty) lists, as cards with covers. */
-async function userLists(userId: string | number): Promise<CuratedListDiscoverEntry[]> {
-  const res = await authedFetch(`/api/users/${encodeURIComponent(String(userId))}/lists`)
+/** Another user's public (non-empty) lists, as cards with covers. `user` is
+ *  their username or public uuid. */
+async function userLists(user: string): Promise<CuratedListDiscoverEntry[]> {
+  const res = await authedFetch(`/api/users/${encodeURIComponent(user)}/lists`)
   if (!res.ok) return []
   const data = await res.json()
   return (data.lists ?? []) as CuratedListDiscoverEntry[]

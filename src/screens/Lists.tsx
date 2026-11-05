@@ -12,7 +12,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { useLists } from '../contexts/ListContext'
 import type { CuratedList, CuratedListDiscoverEntry } from '../types'
 
-// All curated lists of one user (/lists?by=<user id>) — the expanded version of
+// All curated lists of one user (/lists?by=<username or uuid>) — the expanded version of
 // the "Lists" block in the library sidebar. `by` defaults to the signed-in
 // user; `?create` opens the new-list form straight away (used by the "create
 // your own list" prompt at the bottom of a public list).
@@ -23,8 +23,11 @@ export default function ListsScreen() {
   const [params, setParams] = useSearchParams()
   const { lists: ownLists, loading: ownLoading, createList } = useLists()
 
+  // `by` is a user's username or public uuid; missing means the signed-in user.
   const by = params.get('by')
-  const isOwn = !by || (!!user && String(user.id) === by)
+  const isOwn =
+    !by ||
+    (!!user && (user.username.toLowerCase() === by.toLowerCase() || user.uuid === by))
 
   // Someone else's lists come from the public per-user endpoint; the
   // signed-in user's own come from the list context, which also includes

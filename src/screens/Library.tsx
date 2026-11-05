@@ -252,7 +252,7 @@ export default function LibraryScreen() {
   const { collections, createCollection } = useCollections()
   const { lists, createList } = useLists()
   // The expanded all-lists page for the signed-in user.
-  const listsPageHref = authUser ? `/lists?by=${authUser.id}` : '/lists'
+  const listsPageHref = authUser ? `/lists?by=${encodeURIComponent(authUser.username)}` : '/lists'
   const navigate = useNavigate()
   const [params, setParams] = useSearchParams()
   const shelf = (params.get('shelf') as ShelfKey) || 'all'
