@@ -15,7 +15,7 @@ import { useLists } from '../contexts/ListContext'
 import { useLoginModal } from '../contexts/LoginModalContext'
 import type { CuratedListDetail } from '../types'
 
-// A single curated list (/list/<id-or-uuid>): editable title +
+// A single curated list (/list/<uuid>; a legacy numeric id redirects to it): editable title +
 // description, plus each item's per-item note — editable inline, Goodreads
 // "Listopia" style. Lists are public reads (anyone signed in can view any
 // user's list); only the owner sees the edit controls (title/description,
@@ -41,6 +41,11 @@ export default function ListDetailScreen() {
   }, [id])
 
   useEffect(() => { setLoading(true); load() }, [load])
+
+  // Old links used the numeric id (/list/5); canonicalize them to the uuid.
+  useEffect(() => {
+    if (data?.uuid && id !== data.uuid) navigate(`/list/${data.uuid}`, { replace: true })
+  }, [data, id, navigate])
 
   const isOwner = !!user && !!data && data.user_id === user.id
 

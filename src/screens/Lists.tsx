@@ -68,7 +68,7 @@ export default function ListsScreen() {
     setBusy(true)
     try {
       const l = await createList(trimmed)
-      navigate(`/list/${l.id}`)
+      navigate(`/list/${l.uuid || l.id}`)
     } catch {
       setBusy(false)
     }
@@ -167,7 +167,7 @@ export default function ListsScreen() {
 function OwnListRow({ list, t }: { list: CuratedList; t: (k: string, p?: Record<string, string | number>) => string }) {
   return (
     <Link
-      to={`/list/${list.id}`}
+      to={`/list/${list.uuid || list.id}`}
       className="group flex items-start gap-3 rounded-2xl border border-[var(--border-subtle)] bg-[var(--container)] p-4 transition-colors hover:border-nonsprimary/50"
     >
       <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-[var(--primary-soft)] text-nonsprimary">

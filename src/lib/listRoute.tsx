@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { getPublicList } from './serverApi'
 import ListDetailScreen from '@/screens/ListDetail'
 
-// Server-side metadata for the public curated-list page (/list/<id-or-uuid>).
+// Server-side metadata for the public curated-list page (/list/<uuid>; a numeric id is redirected client-side).
 // Unlike mediaRoute.tsx, this doesn't also SSR the list content — the list
 // still loads client-side via ListDetailScreen's own fetch — it only needs to
 // give crawlers/social previews a real <title>/description/og:image.
