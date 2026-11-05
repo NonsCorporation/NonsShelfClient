@@ -9,9 +9,9 @@ import { useLogoutConfirm } from '@/components/auth/useLogoutConfirm'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 import ImportModal from '@/components/import-export/ImportModal'
 import LanguageSelect from '@/components/ui/LanguageSelect'
+import LanguagePicker from '@/components/ui/LanguagePicker'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { usePreferences, FEED_BLOCKS, type FeedBlock, type Theme } from '@/contexts/PreferencesContext'
-import { MEDIA_LANG_OPTIONS } from '@/lib/mediaLangs'
 import { libraryService } from '@/services/libraryService'
 import { SegmentedSelect, Switch, type Option } from './ui'
 
@@ -77,14 +77,12 @@ export default function AccountSettings() {
             <span className={`${label} block`}>Preferred film/series language</span>
             <span className="text-xs text-[var(--text-muted)]">When available, titles and synopses show in this language.</span>
           </span>
-          <select
+          <LanguagePicker
             value={preferredMediaLang}
-            onChange={(e) => setPreferredMediaLang(e.target.value)}
-            className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] p-2 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-nonsprimary sm:w-[26rem]"
-          >
-            <option value="">Catalog default</option>
-            {MEDIA_LANG_OPTIONS.map((opt) => <option key={opt.code} value={opt.code}>{opt.label}</option>)}
-          </select>
+            onChange={setPreferredMediaLang}
+            emptyLabel="Catalog default"
+            className="sm:w-[26rem]"
+          />
         </div>
         <div className={`${line} !flex-row items-center`}>
           <span className={label}>{t('settingsShowInProgress')}</span>

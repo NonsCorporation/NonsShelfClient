@@ -53,7 +53,6 @@ import {
   IoChevronDown,
   IoChevronBack,
   IoChevronForward,
-  IoLanguageOutline,
   IoCalendarOutline,
   IoBookmarksOutline,
   IoChatbubbleOutline,
@@ -66,6 +65,7 @@ import { isLibrarian } from '../services/librarianService'
 import { statusLabel, STATUS_COLOR } from '../lib/shelf'
 import TypeBadge from '@/components/badges/TypeBadge'
 import BoringAvatar from '@/components/ui/BoringAvatar'
+import LanguagePicker from '@/components/ui/LanguagePicker'
 
 // Intl.DisplayNames instance for resolving ISO 639-1 codes to English language
 // names ("ru" → "Russian", "bg" → "Bulgarian"). Created once at module level.
@@ -789,20 +789,14 @@ export default function MediaOnePage({
               {!isBook && altLangs.length > 0 && (
                 <>
                   {item.year && <span className="text-[var(--border-strong)]">·</span>}
-                  <span className="relative inline-flex items-center gap-1">
-                    <IoLanguageOutline className="h-3 w-3 text-[var(--text-muted)]" />
-                    <select
-                      value={mediaLang}
-                      onChange={(e) => changeMediaLang(e.target.value)}
-                      className="appearance-none bg-transparent pr-3 text-[10px] uppercase tracking-widest text-[var(--text-muted)] focus:outline-none cursor-pointer hover:text-[var(--text)] transition-colors"
-                    >
-                      <option value="">Default</option>
-                      {altLangs.map((lang) => (
-                        <option key={lang.code} value={lang.code}>{lang.label}</option>
-                      ))}
-                    </select>
-                    <IoChevronDown className="pointer-events-none absolute right-0 h-2.5 w-2.5" />
-                  </span>
+                  <LanguagePicker
+                    variant="inline"
+                    size="sm"
+                    value={mediaLang}
+                    onChange={changeMediaLang}
+                    options={altLangs.map((l) => l.code)}
+                    emptyLabel="Default"
+                  />
                 </>
               )}
             </div>
@@ -993,20 +987,14 @@ export default function MediaOnePage({
               {!isBook && altLangs.length > 0 && (
                 <>
                   <span className="text-[var(--border-strong)]">·</span>
-                  <span className="relative inline-flex items-center gap-1">
-                    <IoLanguageOutline className="h-3.5 w-3.5 text-[var(--text-muted)]" />
-                    <select
-                      value={mediaLang}
-                      onChange={(e) => changeMediaLang(e.target.value)}
-                      className="appearance-none bg-transparent pr-3 text-xs uppercase tracking-widest text-[var(--text-muted)] focus:outline-none cursor-pointer hover:text-[var(--text)] transition-colors"
-                    >
-                      <option value="">Default</option>
-                      {altLangs.map((lang) => (
-                        <option key={lang.code} value={lang.code}>{lang.label}</option>
-                      ))}
-                    </select>
-                    <IoChevronDown className="pointer-events-none absolute right-0 h-3 w-3" />
-                  </span>
+                  <LanguagePicker
+                    variant="inline"
+                    size="md"
+                    value={mediaLang}
+                    onChange={changeMediaLang}
+                    options={altLangs.map((l) => l.code)}
+                    emptyLabel="Default"
+                  />
                 </>
               )}
             </div>

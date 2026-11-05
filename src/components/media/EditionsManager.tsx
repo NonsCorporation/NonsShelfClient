@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
+import LanguagePicker from '@/components/ui/LanguagePicker'
 import { IoTrashOutline, IoCreateOutline, IoAdd, IoCheckmark, IoClose, IoLanguageOutline, IoCloudDownloadOutline, IoSparklesOutline, IoSwapHorizontalOutline, IoSearch, IoGitMergeOutline, IoStar, IoStarOutline } from 'react-icons/io5'
 import { authedFetch, downloadCoverToB2 } from '@/lib/api'
 import { librarianService } from '@/services/librarianService'
@@ -633,16 +634,12 @@ function EditionRowForm({
       </div>
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         <input className={input} placeholder={t('publisher')} value={form.publisher} onChange={(e) => setForm((s) => ({ ...s, publisher: e.target.value }))} />
-        <select
-          className={input}
+        <LanguagePicker
           value={form.language}
-          onChange={(e) => setForm((s) => ({ ...s, language: e.target.value }))}
-        >
-          <option value="">{t('language') || 'Language'}</option>
-          {LANG_OPTIONS.map((l) => (
-            <option key={l.code} value={l.code}>{l.label}</option>
-          ))}
-        </select>
+          onChange={(code) => setForm((s) => ({ ...s, language: code }))}
+          options={LANG_OPTIONS.map((l) => l.code)}
+          emptyLabel={t('language') || 'Language'}
+        />
         <input className={input} placeholder={t('publishedYear')} value={form.published_year} onChange={(e) => setForm((s) => ({ ...s, published_year: e.target.value }))} />
         <input className={input} type="number" placeholder={t('pages')} value={form.pages} onChange={(e) => setForm((s) => ({ ...s, pages: e.target.value }))} />
       </div>

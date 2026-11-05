@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import LanguagePicker from '@/components/ui/LanguagePicker'
 import { createPortal } from 'react-dom'
 import { IoClose, IoPersonOutline, IoCloudDownloadOutline, IoCheckmark, IoSearch, IoAdd, IoTrashOutline, IoChevronUp, IoChevronDown } from 'react-icons/io5'
 import { librarianService } from '@/services/librarianService'
@@ -341,16 +342,14 @@ export default function PersonModal({ isOpen, person, initialName, onClose, onSa
                   value={row.name}
                   onChange={(e) => updateName(i, { name: e.target.value })}
                 />
-                <select
-                  className="h-10 flex-shrink-0 rounded-lg border border-[var(--border-subtle)] bg-[var(--input)] px-2 text-xs font-normal text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-ring)]"
-                  value={row.lang}
-                  onChange={(e) => updateName(i, { lang: e.target.value })}
+                <LanguagePicker
+                  className="w-36 flex-shrink-0"
                   title="Language"
-                >
-                  {(LANG_OPTIONS.includes(row.lang) ? LANG_OPTIONS : [row.lang, ...LANG_OPTIONS]).map((code) => (
-                    <option key={code} value={code}>{langLabel(code)}</option>
-                  ))}
-                </select>
+                  value={row.lang}
+                  onChange={(code) => updateName(i, { lang: code })}
+                  options={LANG_OPTIONS.filter(Boolean)}
+                  emptyLabel="—"
+                />
 
                 {/* P badge for primary, trash for the rest */}
                 {i === 0 ? (
