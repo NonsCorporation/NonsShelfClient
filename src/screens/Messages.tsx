@@ -16,7 +16,7 @@ import NewChatModal from '../components/chat/NewChatModal'
 import GroupSettingsPanel from '../components/chat/GroupSettingsPanel'
 
 // /messages — chat list + open conversation. The `?chat=` param (a group's uuid,
-// or @username for a direct chat; old numeric ids still work and are rewritten)
+// or the other person's username for a direct chat; old numeric ids still work and are rewritten)
 // is the one source of truth for which chat is open (nons kept a parallel state copy that
 // drifted from the URL and reopened the wrong chat on back/forward).
 // Desktop: two panes. Mobile: the list is the page; an open chat is a
@@ -57,7 +57,7 @@ export default function Messages() {
   // profile's "Message" button or a just-accepted invite) — fetch it directly.
   useEffect(() => {
     if (!chatRefParam || !chatsLoaded || chat) return
-    // "@username" can only match a chat we already have; a uuid / old numeric id
+    // A username can only match a chat we already have; a uuid / old numeric id
     // is asked of the server.
     if (!isFetchableChatRef(chatRefParam)) {
       // eslint-disable-next-line react-hooks/set-state-in-effect

@@ -16,26 +16,28 @@ export function otherParticipant(chat: Chat, meId: number): ChatParticipant | un
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
-/** What goes in /messages?chat=: "@username" for a direct chat, the chat's uuid
- *  for a group (numeric id only as a last resort). */
+/** What goes in /messages?chat=: the other person's username for a direct chat
+ *  (no "@" — it would be percent-encoded), the chat's uuid for a group (numeric
+ *  id only as a last resort). A username can't be all digits or uuid-shaped, so
+ *  the three forms never collide. */
 export function chatRef(chat: Chat, meId: number): string {
   if (chat.type === 'direct') {
     const other = otherParticipant(chat, meId)
-    if (other?.username) return `@${other.username}`
+    if (other?.username) return other.username
   }
   return chat.uuid || String(chat.id)
 }
 
-/** Finds the chat a ?chat= value points at: "@username" (the direct chat with
- *  that person), a uuid, or — for old links — a numeric id. */
+/** Finds the chat a ?chat= value points at: a uuid (group), an old numeric id,
+ *  or a username (the direct chat with that person; a leading "@" is tolerated). */
 export function findChatByRef(chats: Chat[], ref: string, meId: number): Chat | null {
-  if (ref.startsWith('@')) {
-    const name = ref.slice(1).toLowerCase()
-    return chats.find((c) => c.type === 'direct' && otherParticipant(c, meId)?.username.toLowerCase() === name) ?? null
-  }
   if (UUID_RE.test(ref)) return chats.find((c) => c.uuid?.toLowerCase() === ref.toLowerCase()) ?? null
-  const id = Number(ref)
-  return id ? chats.find((c) => c.id === id) ?? null : null
+  if (/^\d+$/.test(ref)) {
+    const id = Number(ref)
+    return id ? chats.find((c) => c.id === id) ?? null : null
+  }
+  const name = ref.replace(/^@/, '').toLowerCase()
+  return chats.find((c) => c.type === 'direct' && otherParticipant(c, meId)?.username.toLowerCase() === name) ?? null
 }
 
 /** True when a ?chat= value can be fetched from the server (uuid or numeric id). */
