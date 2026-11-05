@@ -180,11 +180,8 @@ export default function LanguagePicker({
         className={triggerCls}
       >
         <span className="flex min-w-0 items-center gap-2">
-          {current.code ? (
-            <LangFlag lang={current.code} />
-          ) : (
-            <IoLanguageOutline className={inline ? (size === 'md' ? 'h-3.5 w-3.5' : 'h-3 w-3') : 'h-4 w-4 text-[var(--text-muted)]'} />
-          )}
+          {/* Flags only appear in the open menu; the closed trigger stays plain. */}
+          <IoLanguageOutline className={inline ? (size === 'md' ? 'h-3.5 w-3.5' : 'h-3 w-3') : 'h-4 w-4 text-[var(--text-muted)]'} />
           <span className="truncate">{current.native}</span>
         </span>
         <IoChevronDown className={`flex-shrink-0 transition-transform ${chevronCls} ${open ? 'rotate-180' : ''}`} />
