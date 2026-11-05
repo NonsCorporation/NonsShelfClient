@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Link } from '@/lib/router'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Link, useSearchParams } from '@/lib/router'
 import Layout from '../components/layout/Layout'
 import MobileHeaderRow from '../components/layout/MobileHeaderRow'
 import CatalogCard from '@/components/media/CatalogCard'
@@ -60,7 +60,28 @@ export default function DiscoverPage() {
   const { openLogin } = useLoginModal()
 
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all')
-  const [pageTab, setPageTab] = useState<PageTab>('discover')
+  // The page tab and the new-challenge popup live in the URL — /discover?tab=challenges
+  // and /discover?tab=challenges&create — so both are linkable and survive a
+  // reload and back/forward.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const pageTab: PageTab = searchParams.get('tab') === 'challenges' ? 'challenges' : 'discover'
+  const showCreateChallenge = pageTab === 'challenges' && searchParams.has('create') && isAuthenticated
+  const setPageTab = (tab: PageTab) => {
+    const next = new URLSearchParams(searchParams)
+    next.delete('create')
+    if (tab === 'challenges') next.set('tab', 'challenges')
+    else next.delete('tab')
+    setSearchParams(next, { replace: true })
+  }
+  const setShowCreateChallenge = useCallback((open: boolean) => {
+    const next = new URLSearchParams(searchParams)
+    next.set('tab', 'challenges')
+    if (open) next.set('create', '')
+    else next.delete('create')
+    // Opening is a real navigation step (Back closes the popup); closing
+    // replaces the entry so it doesn't pile up history.
+    setSearchParams(next, open ? undefined : { replace: true })
+  }, [searchParams, setSearchParams])
   // Every section below is computed by the backend /api/discover/* endpoints;
   // the page just holds and renders what it's given (no in-memory derivation).
   const [hero, setHero] = useState<CatalogItem[]>([])
@@ -86,7 +107,6 @@ export default function DiscoverPage() {
   // Challenges tab — fetched lazily, only once the tab is actually opened.
   const [challenges, setChallenges] = useState<Challenge[]>([])
   const [challengesLoading, setChallengesLoading] = useState(false)
-  const [showCreateChallenge, setShowCreateChallenge] = useState(false)
   // Friends map (nons user id -> display info), for prioritizing "you" and
   // your friends in a challenge's avatar stack — same source Profile.tsx and
   // the activity feed use. Only worth fetching once the Challenges tab is open.
@@ -184,6 +204,17 @@ export default function DiscoverPage() {
     }).then((m) => { if (!cancelled) setFriendMap(m) })
     return () => { cancelled = true }
   }, [pageTab, authUser])
+
+  // A signed-out visitor following a /discover?tab=challenges&create link gets
+  // the login prompt instead of the popup, and the param is dropped.
+  const wantsCreate = pageTab === 'challenges' && searchParams.has('create')
+  useEffect(() => {
+    if (!wantsCreate || authLoading || isAuthenticated) return
+    openLogin('challenge')
+    const next = new URLSearchParams(searchParams)
+    next.delete('create')
+    setSearchParams(next, { replace: true })
+  }, [wantsCreate, authLoading, isAuthenticated, openLogin, searchParams, setSearchParams])
 
   const handleJoinChallenge = async (c: Challenge) => {
     if (!isAuthenticated) {
