@@ -501,7 +501,6 @@ export const ru = {
   welcomeContinue: "Продолжить",
   editProfileTitle: "Редактирование профиля",
   editProfileBackToProfile: "Назад к профилю",
-  editProfileSubtitle: 'Ваш профиль и то, кто его видит, — в одном месте.',
   editProfileTabProfile: 'Профиль',
   editProfileTabPrivacy: 'Приватность',
   privacyAutosaved: 'Изменения приватности сохраняются автоматически.',

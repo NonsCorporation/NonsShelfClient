@@ -76,7 +76,7 @@ export default function PrivacySettings() {
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-3">
       {PRIVACY_FACETS.map((facet) => {
         const meta = FACET_META[facet]
         return (
@@ -120,8 +120,8 @@ function Row({
   children?: React.ReactNode
 }) {
   return (
-    <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--container)] p-4 sm:p-5">
-      <div className="flex items-start gap-3.5">
+    <div className="flex flex-col gap-4 rounded-2xl border border-[var(--border-subtle)] bg-[var(--container)] p-4 sm:flex-row sm:items-center sm:gap-6 sm:p-5">
+      <div className="flex min-w-0 flex-1 items-start gap-3.5">
         <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-[var(--primary-soft)] text-nonsprimary">
           <Icon className="h-5 w-5" />
         </span>
@@ -131,7 +131,7 @@ function Row({
         </div>
         {aside}
       </div>
-      {children && <div className="mt-4">{children}</div>}
+      {children && <div className="sm:w-[26rem] sm:flex-shrink-0">{children}</div>}
     </div>
   )
 }
@@ -174,7 +174,7 @@ function SegmentedSelect<K extends string>({
             aria-checked={active}
             onClick={() => onChange(opt.key)}
             title={t(opt.hintKey)}
-            className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-xs font-medium transition-colors ${
+            className={`flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-2 py-2 text-xs font-medium transition-colors ${
               active
                 ? 'bg-[var(--container)] text-[var(--text)] shadow-sm'
                 : 'text-[var(--text-muted)] hover:text-[var(--text)]'

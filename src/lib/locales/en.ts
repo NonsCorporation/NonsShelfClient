@@ -501,7 +501,6 @@ export const en = {
   welcomeContinue: "Continue",
   editProfileTitle: "Edit profile",
   editProfileBackToProfile: "Back to profile",
-  editProfileSubtitle: 'Your profile and who can see it, in one place.',
   editProfileTabProfile: 'Profile',
   editProfileTabPrivacy: 'Privacy',
   privacyAutosaved: 'Privacy changes are saved automatically.',

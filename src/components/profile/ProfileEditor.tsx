@@ -199,7 +199,7 @@ export default function ProfileEditor({ mode, onDone, cancelHref = '/' }: Props)
   return (
     <>
       {/* Photo */}
-      <section className="mb-8 flex items-center gap-5 border-b border-[var(--border-subtle)] pb-8">
+      <section className="mb-5 flex items-center gap-5 border-b border-[var(--border-subtle)] pb-5">
         <EditableAvatar
           editable
           hasCustom={!!shownAvatar}
@@ -222,7 +222,7 @@ export default function ProfileEditor({ mode, onDone, cancelHref = '/' }: Props)
         </div>
       </section>
 
-      <div className="space-y-7">
+      <div className="space-y-4">
         {/* Name */}
         <div className="flex flex-col gap-2">
           <div className="grid grid-cols-2 gap-3">
@@ -304,19 +304,21 @@ export default function ProfileEditor({ mode, onDone, cancelHref = '/' }: Props)
         {/* Bio */}
         <div className="flex flex-col gap-2">
           <div className="flex items-center justify-between">
-            <label htmlFor="ep-bio" className="text-sm font-medium text-[var(--text)]">{t('bio')}</label>
+            <label htmlFor="ep-bio" className="text-sm font-medium text-[var(--text)]">
+              {t('bio')}
+              <span className="ml-2 text-xs font-normal text-[var(--text-muted)]">{form.bio.length}/{BIO_MAX}</span>
+            </label>
             <VisibilityToggle value={form.bioVisibility} onChange={(v) => patch({ bioVisibility: v })} />
           </div>
           <textarea
             id="ep-bio"
             value={form.bio}
-            rows={4}
+            rows={2}
             maxLength={BIO_MAX}
             placeholder={t('editProfileBioPlaceholder')}
             onChange={(e) => patch({ bio: e.target.value })}
             className={`${INPUT} resize-none border-[var(--border-subtle)]`}
           />
-          <span className="self-end text-xs text-[var(--text-muted)]">{form.bio.length}/{BIO_MAX}</span>
         </div>
 
         {/* Location */}
@@ -354,7 +356,7 @@ export default function ProfileEditor({ mode, onDone, cancelHref = '/' }: Props)
         <div role="alert" className="mt-6 rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-400">{saveErr}</div>
       )}
 
-      <div className="mt-10 flex gap-3 border-t border-[var(--border-subtle)] pt-6">
+      <div className="mt-6 flex gap-3 border-t border-[var(--border-subtle)] pt-4">
         {mode === 'edit' && (
           <Link
             to={cancelHref}

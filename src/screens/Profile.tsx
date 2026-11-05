@@ -43,7 +43,6 @@ import {
 import InfoTooltip from '@/components/ui/InfoTooltip'
 import {
   IoSettingsOutline,
-  IoPencilOutline,
   IoLocationOutline,
   IoLibraryOutline,
   IoBookOutline,
@@ -629,18 +628,6 @@ export default function ProfilePage() {
             >
               <IoShareOutline className="h-5 w-5" />
             </button>
-
-            {/* Edit profile — own profile only */}
-            {isSelf && (
-              <Link
-                to={`/u/${encodeURIComponent(routeId || profile.handle)}/edit`}
-                aria-label={t('editProfile')}
-                title={t('editProfile')}
-                className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border-subtle)] text-[var(--text-muted)] transition-colors hover:bg-[var(--surface)] hover:text-[var(--text)]"
-              >
-                <IoPencilOutline className="h-5 w-5" />
-              </Link>
-            )}
 
             {/* Settings — own profile only; opens the full settings modal */}
             {isSelf && (

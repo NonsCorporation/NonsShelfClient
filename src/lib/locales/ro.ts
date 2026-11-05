@@ -501,7 +501,6 @@ export const ro = {
   welcomeContinue: "Continuă",
   editProfileTitle: "Editează profilul",
   editProfileBackToProfile: "Înapoi la profil",
-  editProfileSubtitle: 'Profilul tău și cine îl poate vedea, într-un singur loc.',
   editProfileTabProfile: 'Profil',
   editProfileTabPrivacy: 'Confidențialitate',
   privacyAutosaved: 'Modificările de confidențialitate se salvează automat.',

@@ -56,44 +56,47 @@ export default function EditProfile() {
 
   return (
     <Layout>
-      <div className="mx-auto max-w-2xl">
+      <div className="mx-auto max-w-4xl">
         <Link
           to={profileHref}
-          className="mb-6 inline-flex items-center gap-2 text-sm text-[var(--text-muted)] transition-colors hover:text-[var(--text)]"
+          className="mb-4 inline-flex items-center gap-2 text-sm text-[var(--text-muted)] transition-colors hover:text-[var(--text)]"
         >
           <IoArrowBack className="h-4 w-4" />
           {t('editProfileBackToProfile')}
         </Link>
 
-        <h1 className="text-2xl font-bold tracking-tight text-[var(--text)]">{t('editProfileTitle')}</h1>
-        <p className="mt-1 mb-6 text-sm text-[var(--text-muted)]">{t('editProfileSubtitle')}</p>
+        {/* Title and tabs share a row on wide screens, so the content starts
+            higher and there's less to scroll. */}
+        <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <h1 className="text-2xl font-bold tracking-tight text-[var(--text)]">{t('editProfileTitle')}</h1>
 
-        {/* Tabs — segmented, same look as the other pill controls. */}
-        <div className="mb-6 flex gap-1 rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface)] p-1" role="tablist">
-          {tabs.map(({ key, label, icon: Icon }) => {
-            const active = tab === key
-            return (
-              <button
-                key={key}
-                type="button"
-                role="tab"
-                aria-selected={active}
-                onClick={() => setTab(key)}
-                className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-200 ${
-                  active
-                    ? 'bg-[var(--container)] text-[var(--text)] shadow-sm'
-                    : 'text-[var(--text-muted)] hover:text-[var(--text)]'
-                }`}
-              >
-                <Icon className={`h-4 w-4 ${active ? 'text-nonsprimary' : ''}`} />
-                {label}
-              </button>
-            )
-          })}
+          {/* Tabs — segmented, same look as the other pill controls. */}
+          <div className="flex gap-1 rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface)] p-1 sm:w-80" role="tablist">
+            {tabs.map(({ key, label, icon: Icon }) => {
+              const active = tab === key
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => setTab(key)}
+                  className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition-all duration-200 ${
+                    active
+                      ? 'bg-[var(--container)] text-[var(--text)] shadow-sm'
+                      : 'text-[var(--text-muted)] hover:text-[var(--text)]'
+                  }`}
+                >
+                  <Icon className={`h-4 w-4 ${active ? 'text-nonsprimary' : ''}`} />
+                  {label}
+                </button>
+              )
+            })}
+          </div>
         </div>
 
         <div role="tabpanel" hidden={tab !== 'profile'}>
-          <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--container)] p-5 sm:p-7">
+          <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--container)] p-5">
             <ProfileEditor mode="edit" cancelHref={profileHref} onDone={(username) => navigate(userPath(username))} />
           </div>
         </div>
