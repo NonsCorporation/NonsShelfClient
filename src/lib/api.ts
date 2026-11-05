@@ -8,8 +8,8 @@
 // This app's backend (accounts, catalog, shelves, social). Empty = same origin.
 export const LIBRARY_API_URL = process.env.NEXT_PUBLIC_LIBRARY_API_URL || ''
 
-// Optional external platform API — only cover uploads and admin roles still go
-// there.
+// Optional external platform API — only admin roles (and relative activity
+// links) still go there.
 export const PLATFORM_API_URL = process.env.NEXT_PUBLIC_PLATFORM_API_URL || 'http://localhost:8080'
 
 // ── Transparent session refresh ─────────────────────────────────────────────
@@ -93,10 +93,11 @@ export function platformFetch(input: string, init: RequestInit = {}): Promise<Re
   return fetch(`${PLATFORM_API_URL}${input}`, { ...init, credentials: 'include' })
 }
 
-// downloadCoverToB2 sends a public image URL to the platform API, which downloads
-// it and stores it in the B2 bucket under library/, returning the CDN URL.
+// downloadCoverToB2 sends a public image URL to this app's own backend (librarian
+// only), which downloads it and stores it in the B2 bucket under library/,
+// returning the CDN URL (cdn.someshelf.com).
 export async function downloadCoverToB2(coverUrl: string): Promise<string> {
-  const res = await platformFetch('/api/upload/library-cover', {
+  const res = await authedFetch('/api/upload/library-cover', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ url: coverUrl }),

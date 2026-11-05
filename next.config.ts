@@ -11,6 +11,7 @@ const nextConfig: NextConfig = {
       { protocol: 'https', hostname: '*.googleapis.com' },
       { protocol: 'https', hostname: '*.nonsapp.com' },
       { protocol: 'http', hostname: '*.nonsapp.com' },
+      { protocol: 'https', hostname: '*.someshelf.com' },
 
       { protocol: 'https', hostname: 'fantlab.ru' },
       { protocol: 'http',  hostname: 'fantlab.ru' },
