@@ -83,6 +83,8 @@ export function profileJsonLd(card: PublicProfileCard): string {
 // keeps only one font per (family, weight), so the Cyrillic subset registered
 // under the same name was never picked and Cyrillic fell back to a generic face.
 export const ONEST_STACK = 'Onest, OnestCyrillic'
+// Media cards also carry Arabic (pre-shaped by lib/ogText), in its own family.
+export const ONEST_STACK_AR = `${ONEST_STACK}, NotoSansArabic`
 const FONT_FILES: { name: string; file: string; weight: 400 | 700 }[] = [
   { name: 'Onest', file: 'onest-latin-400.woff', weight: 400 },
   { name: 'Onest', file: 'onest-latin-700.woff', weight: 700 },
@@ -92,16 +94,20 @@ const FONT_FILES: { name: string; file: string; weight: 400 | 700 }[] = [
 
 // Onest (the site's font), Latin + Cyrillic: the image renderer's built-in font
 // is Latin-only, so Russian names would otherwise come out as empty boxes.
-export async function loadFonts() {
+const ARABIC_FONT_FILES: { name: string; file: string; weight: 400 | 700 }[] = [
+  { name: 'NotoSansArabic', file: 'noto-sans-arabic-400.woff', weight: 400 },
+  { name: 'NotoSansArabic', file: 'noto-sans-arabic-700.woff', weight: 700 },
+]
+
+export async function loadFonts({ arabic = false }: { arabic?: boolean } = {}) {
   const dir = join(process.cwd(), 'assets', 'fonts')
-  return Promise.all(
-    FONT_FILES.map(async ({ name, file, weight }) => ({
-      name,
-      data: await readFile(join(dir, file)),
-      weight,
-      style: 'normal' as const,
-    })),
-  )
+  const load = ({ name, file, weight }: { name: string; file: string; weight: 400 | 700 }) =>
+    readFile(join(dir, file)).then((data) => ({ name, data, weight, style: 'normal' as const }))
+  type Font = Awaited<ReturnType<typeof load>>
+  const base = await Promise.all(FONT_FILES.map(load))
+  // Arabic is optional: if those files are missing, Arabic text just isn't drawn.
+  const extra: (Font | null)[] = arabic ? await Promise.all(ARABIC_FONT_FILES.map((f) => load(f).catch(() => null))) : []
+  return [...base, ...extra.filter((f): f is Font => f !== null)]
 }
 
 /** The profile photo as a data URL, or null (missing, slow, or a format the

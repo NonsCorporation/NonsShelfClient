@@ -17,6 +17,8 @@
     "@types/qrcode": "^1.5.6",
     "@zxing/browser": "^0.1.5",
     "@zxing/library": "^0.21.3",
+    "arabic-persian-reshaper": "^1.0.1",
+    "bidi-js": "^1.1.0",
     "boring-avatars": "^2.0.4",
     "country-flag-icons": "^1.6.20",
     "dompurify": "^3.4.11",

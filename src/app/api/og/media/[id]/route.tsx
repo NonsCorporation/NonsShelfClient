@@ -4,7 +4,8 @@ import { getPublicMedia, getPublicRating } from '@/lib/serverApi'
 import { loadLocalizations, localizedFor, parseLang } from '@/lib/mediaLocalize'
 import { hashHue } from '@/lib/hashHue'
 import { analyzeCover, hslToRgb255 } from '@/lib/coverColorServer'
-import { avatarDataUrl, loadFonts, ONEST_STACK, Logo, BG, INK, MUTED, LINE, PRIMARY } from '@/lib/profileSeo'
+import { toVisualRtl, hasArabicScript } from '@/lib/ogText'
+import { avatarDataUrl, loadFonts, ONEST_STACK, ONEST_STACK_AR, Logo, BG, INK, MUTED, LINE, PRIMARY } from '@/lib/profileSeo'
 
 // Link-preview card for a book/film/series page (/b/<id>, /m/<id>), referenced
 // from the page's og:image / twitter:image. Horizontal 1200x630: cover on the
@@ -25,13 +26,13 @@ const TYPE_LABEL = { book: 'BOOK', movie: 'FILM', series: 'SERIES' } as Record<s
 
 const clip = (s: string, max: number) => (s.length > max ? `${s.slice(0, max - 1).trimEnd()}…` : s)
 
-// The card's fonts (Onest) cover Latin and Cyrillic only. For any other script
-// the renderer fetches a fallback font at runtime — and for Arabic that font
-// crashes it ("lookupType: 5 - substFormat: 3 is not yet supported"), which made
-// /m/<id>?lang=ar a 500 and left Telegram with no preview image. The renderer
-// can't shape Arabic anyway (letters come out unjoined), so keep the image to
-// scripts we ship fonts for; the localized title still goes in og:title.
-const UNSUPPORTED = /[^\u0020-\u007E\u00A0-\u017F\u0400-\u04FF\u2010-\u2027\u2030-\u203A\u20AC\u2116]/g
+// Scripts the card can draw: Latin and Cyrillic (Onest) and Arabic (Noto Sans
+// Arabic, pre-shaped by lib/ogText). Anything else would make the renderer fetch
+// a fallback font at runtime — and for Arabic that font crashes it ("lookupType:
+// 5 - substFormat: 3 is not yet supported"), which once made /m/<id>?lang=ar a
+// 500 and left Telegram with no preview. So other scripts fall back to the
+// catalog title; the localized title still goes in og:title.
+const UNSUPPORTED = /[^\u0020-\u007E\u00A0-\u017F\u0400-\u04FF\u0600-\u06FF\u2010-\u2027\u2030-\u203A\u20AC\u2116]/g
 const safe = (s: string) => s.replace(UNSUPPORTED, '').replace(/\s+/g, ' ').trim()
 const isSafe = (s: string) => !!s && safe(s) === s.replace(/\s+/g, ' ').trim()
 
@@ -39,6 +40,12 @@ const isSafe = (s: string) => !!s && safe(s) === s.replace(/\s+/g, ' ').trim()
 function pickTitle(candidates: (string | undefined)[]): string {
   const list = candidates.filter((c): c is string => !!c)
   return list.find(isSafe) ?? list.map(safe).find(Boolean) ?? 'SomeShelf'
+}
+
+// Arabic is drawn on one line (wrapping would break the right-to-left order),
+// so shrink the type until the line fits `width` (~0.55em per glyph).
+function fitLine(chars: number, width: number, max: number): number {
+  return Math.max(26, Math.min(max, Math.floor(width / (Math.max(chars, 1) * 0.55))))
 }
 
 // Longer titles get smaller type so they stay within ~3 lines.
@@ -53,7 +60,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
   const { id } = await ctx.params
   const lang = parseLang(req.nextUrl.searchParams.get('lang') ?? undefined)
 
-  const [media, fonts] = await Promise.all([getPublicMedia(id), loadFonts()])
+  const [media, fonts] = await Promise.all([getPublicMedia(id), loadFonts({ arabic: true })])
   const headers = { 'Cache-Control': 'public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800' }
 
   const brandCard = () =>
@@ -82,7 +89,10 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
   // title + author). The glow takes that hue too, since there's no artwork.
   const hue = hashHue(`${rawTitle}${media.author || ''}`)
   const glow = rgb ?? hslToRgb255(hue, 0.6, 0.5)
-  const title = clip(rawTitle, 90)
+  const rtl = hasArabicScript(rawTitle)
+  const logicalTitle = clip(rawTitle, rtl ? 60 : 90)
+  // Arabic must be pre-shaped and put in visual order for the renderer.
+  const title = rtl ? toVisualRtl(logicalTitle, lang) : logicalTitle
   const byline = safe((media.type === 'book' ? media.author : media.director) || '')
   const meta = [byline, media.year ? String(media.year) : ''].filter(Boolean).join('  ·  ')
 
@@ -96,7 +106,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
           justifyContent: 'space-between',
           padding: '40px 64px 44px',
           color: INK,
-          fontFamily: ONEST_STACK,
+          fontFamily: ONEST_STACK_AR,
           background: `radial-gradient(circle at 18% 50%, rgba(${glow.join(',')},0.55), transparent 60%), ${BG}`,
         }}
       >
@@ -127,8 +137,8 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
               <div style={{ display: 'flex', fontSize: 22, color: 'rgba(255,255,255,0.75)' }}>
                 {clip(byline, 28)}
               </div>
-              <div style={{ display: 'flex', justifyContent: 'center', textAlign: 'center', fontSize: 38, fontWeight: 700, lineHeight: 1.15 }}>
-                {clip(title, 60)}
+              <div style={{ display: 'flex', justifyContent: 'center', textAlign: 'center', fontSize: rtl ? fitLine(title.length, 252, 38) : 38, fontWeight: 700, lineHeight: 1.15, whiteSpace: rtl ? 'nowrap' : 'normal' }}>
+                {rtl ? title : clip(title, 60)}
               </div>
               <div style={{ display: 'flex' }} />
             </div>
@@ -138,7 +148,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
             <div style={{ display: 'flex', fontSize: 22, letterSpacing: 6, color: PRIMARY, fontWeight: 700 }}>
               {TYPE_LABEL[media.type] ?? 'MEDIA'}
             </div>
-            <div style={{ display: 'flex', fontSize: titleSize(title), fontWeight: 700, lineHeight: 1.08, marginTop: 14 }}>
+            <div style={{ display: 'flex', fontSize: rtl ? fitLine(title.length, 716, 84) : titleSize(title), fontWeight: 700, lineHeight: 1.08, marginTop: 14, whiteSpace: rtl ? 'nowrap' : 'normal' }}>
               {title}
             </div>
             {meta ? (
