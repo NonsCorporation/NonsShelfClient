@@ -971,6 +971,9 @@ export const en = {
   listsOpenAll: 'Open all lists',
   listsNewList: 'New list',
   listsNamePlaceholder: 'List name…',
+  listCtaTitle: 'Want to create your own list?',
+  listCtaText: 'Pick your favorite books and films, add a note to each, and share the link.',
+  listCtaButton: 'Create a list',
 
   // Tags
   tagsInfoTooltip: "Tags are crowdsourced from everyone who finishes this item. Once enough people agree on one, it shows up on the item's page — helping the whole community filter and discover by mood, pacing, content warnings, and more.",

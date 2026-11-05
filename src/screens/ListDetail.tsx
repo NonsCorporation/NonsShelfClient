@@ -12,6 +12,7 @@ import { mediaPath } from '../lib/paths'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
 import { useLists } from '../contexts/ListContext'
+import { useLoginModal } from '../contexts/LoginModalContext'
 import type { CuratedListDetail } from '../types'
 
 // A single curated list (/list/<id-or-uuid>): editable title +
@@ -22,6 +23,7 @@ import type { CuratedListDetail } from '../types'
 export default function ListDetailScreen() {
   const { t } = useLanguage()
   const { user } = useAuth()
+  const { openLogin } = useLoginModal()
   const navigate = useNavigate()
   const { id = '' } = useParams<{ id: string }>()
   const { updateList: updateListInContext, deleteList: deleteListInContext } = useLists()
@@ -419,6 +421,32 @@ export default function ListDetailScreen() {
             </li>
           ))}
         </ol>
+      )}
+
+      {/* Invite to make one's own — visitors and other users; the owner is
+          already looking at their own list. */}
+      {!isOwner && (
+        <div className="mt-10 flex flex-col items-center gap-3 rounded-2xl border border-dashed border-[var(--border)] px-6 py-8 text-center">
+          <p className="text-base font-semibold text-[var(--text)]">{t('listCtaTitle')}</p>
+          <p className="max-w-md text-sm text-[var(--text-muted)]">{t('listCtaText')}</p>
+          {user ? (
+            <Link
+              to="/lists?create"
+              className="flex items-center gap-1.5 rounded-xl bg-nonsprimary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-nonsprimaryfocus"
+            >
+              <IoAdd className="h-4 w-4" />
+              {t('listCtaButton')}
+            </Link>
+          ) : (
+            <button
+              onClick={() => openLogin('library')}
+              className="flex items-center gap-1.5 rounded-xl bg-nonsprimary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-nonsprimaryfocus"
+            >
+              <IoAdd className="h-4 w-4" />
+              {t('listCtaButton')}
+            </button>
+          )}
+        </div>
       )}
 
       {confirmDelete && (

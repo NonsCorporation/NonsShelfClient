@@ -900,6 +900,9 @@ export const ro = {
   listsOpenAll: 'Deschide toate listele',
   listsNewList: 'Listă nouă',
   listsNamePlaceholder: 'Numele listei…',
+  listCtaTitle: 'Vrei să-ți creezi propria listă?',
+  listCtaText: 'Alege cărțile și filmele preferate, adaugă o notă pentru fiecare și distribuie linkul.',
+  listCtaButton: 'Creează o listă',
 
   // Tags
   tagsInfoTooltip: 'Etichetele sunt adunate de la toți cei care termină acest titlu. Când destui oameni aleg aceeași etichetă, ea apare pe pagina titlului — ajutând întreaga comunitate să filtreze și să descopere după atmosferă, ritm, avertismente de conținut și altele.',
