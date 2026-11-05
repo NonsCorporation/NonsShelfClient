@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, useNavigate, useParams } from '@/lib/router'
+import { chatRef } from '../components/chat/chatFormat'
 import Layout from '../components/layout/Layout'
 import { ProfileSkeleton } from '@/components/ui/Skeletons'
 import { libraryService } from '../services/libraryService'
@@ -455,7 +456,7 @@ export default function ProfilePage() {
     setMsgError(null)
     const r = await startDirect(profile.id)
     setMsgBusy(false)
-    if (r.ok) navigate(`/messages?chat=${r.data.id}`)
+    if (r.ok) navigate(`/messages?chat=${chatRef(r.data, authUser.id)}`)
     else setMsgError(r.code === 'messages_not_allowed' ? t('chatNotAllowed') : r.error)
   }
 

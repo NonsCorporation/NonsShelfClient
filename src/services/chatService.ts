@@ -40,6 +40,8 @@ export type ChatMessage = {
 
 export type Chat = {
   id: number
+  /** Public id used in /messages?chat=<uuid> links (groups). */
+  uuid?: string
   type: ChatType
   title: string
   avatar_url?: string
@@ -96,7 +98,8 @@ async function call<T>(path: string, init?: RequestInit & { json?: unknown }): P
 
 export const chatApi = {
   listChats: () => call<{ chats: Chat[] }>('/api/chats?limit=100'),
-  getChat: (id: number) => call<Chat>(`/api/chats/${id}`),
+  /** By numeric id or public uuid. */
+  getChat: (idOrUuid: number | string) => call<Chat>(`/api/chats/${idOrUuid}`),
   /** Opens (or reuses) the 1-on-1 chat with a user. 403 code "messages_not_allowed"
    *  when their privacy settings don't let you start a conversation. */
   startDirect: (userId: number) => call<Chat>(`/api/chats/direct/${userId}`, { method: 'POST' }),

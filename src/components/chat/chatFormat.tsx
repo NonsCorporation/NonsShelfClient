@@ -14,6 +14,33 @@ export function otherParticipant(chat: Chat, meId: number): ChatParticipant | un
   return chat.participants.find((p) => p.user_id !== meId)
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+/** What goes in /messages?chat=: "@username" for a direct chat, the chat's uuid
+ *  for a group (numeric id only as a last resort). */
+export function chatRef(chat: Chat, meId: number): string {
+  if (chat.type === 'direct') {
+    const other = otherParticipant(chat, meId)
+    if (other?.username) return `@${other.username}`
+  }
+  return chat.uuid || String(chat.id)
+}
+
+/** Finds the chat a ?chat= value points at: "@username" (the direct chat with
+ *  that person), a uuid, or — for old links — a numeric id. */
+export function findChatByRef(chats: Chat[], ref: string, meId: number): Chat | null {
+  if (ref.startsWith('@')) {
+    const name = ref.slice(1).toLowerCase()
+    return chats.find((c) => c.type === 'direct' && otherParticipant(c, meId)?.username.toLowerCase() === name) ?? null
+  }
+  if (UUID_RE.test(ref)) return chats.find((c) => c.uuid?.toLowerCase() === ref.toLowerCase()) ?? null
+  const id = Number(ref)
+  return id ? chats.find((c) => c.id === id) ?? null : null
+}
+
+/** True when a ?chat= value can be fetched from the server (uuid or numeric id). */
+export const isFetchableChatRef = (ref: string) => UUID_RE.test(ref) || /^\d+$/.test(ref)
+
 export function chatTitle(chat: Chat, meId: number, deletedLabel: string): string {
   if (chat.type === 'group') return chat.title || deletedLabel
   const other = otherParticipant(chat, meId)
@@ -61,7 +88,7 @@ export function previewText(content: string): string {
 }
 
 /** Most preview cards shown under a single message. */
-const MAX_PREVIEWS = 10
+const MAX_PREVIEWS = 5
 
 const URL_RE = /(https?:\/\/[^\s<]+[^\s<.,;:!?)\]'"])/gi
 
