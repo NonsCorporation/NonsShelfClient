@@ -505,8 +505,6 @@ export const ro = {
   editProfileTabPrivacy: 'Confidențialitate',
   privacyAutosaved: 'Modificările de confidențialitate se salvează automat.',
   privacyMessagesHint: 'Cine poate începe o conversație cu tine.',
-  settingsProfilePrivacy: 'Profil și confidențialitate',
-  settingsProfilePrivacyHint: 'Editează profilul și alege cine îl poate vedea.',
   editProfilePhoto: "Poză de profil",
   editProfileChangePhoto: "Schimbă poza",
   editProfileResetPhoto: "Elimină poza",

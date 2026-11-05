@@ -505,8 +505,6 @@ export const ru = {
   editProfileTabPrivacy: 'Приватность',
   privacyAutosaved: 'Изменения приватности сохраняются автоматически.',
   privacyMessagesHint: 'Кому разрешено начинать с вами чат.',
-  settingsProfilePrivacy: 'Профиль и приватность',
-  settingsProfilePrivacyHint: 'Измените профиль и выберите, кто его видит.',
   editProfilePhoto: "Фото профиля",
   editProfileChangePhoto: "Сменить фото",
   editProfileResetPhoto: "Удалить фото",

@@ -505,8 +505,6 @@ export const en = {
   editProfileTabPrivacy: 'Privacy',
   privacyAutosaved: 'Privacy changes are saved automatically.',
   privacyMessagesHint: 'Who is allowed to start a chat with you.',
-  settingsProfilePrivacy: 'Profile & privacy',
-  settingsProfilePrivacyHint: 'Edit your profile and choose who can see it.',
   editProfilePhoto: "Profile photo",
   editProfileChangePhoto: "Change photo",
   editProfileResetPhoto: "Remove photo",

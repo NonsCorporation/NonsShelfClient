@@ -2,8 +2,6 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, useNavigate, useParams } from '@/lib/router'
 import Layout from '../components/layout/Layout'
 import { ProfileSkeleton } from '@/components/ui/Skeletons'
-import ImportModal from '@/components/import-export/ImportModal'
-import SettingsModal from '@/components/settings/SettingsModal'
 import { libraryService } from '../services/libraryService'
 import { collectionService } from '../services/collectionService'
 import { challengeService } from '../services/challengeService'
@@ -115,8 +113,6 @@ export default function ProfilePage() {
   const [notFound, setNotFound] = useState(false)
   const [tab, setTab] = useState<Tab>('all')
   const [collectionFilter, setCollectionFilter] = useState<number | null>(null)
-  const [importOpen, setImportOpen] = useState(false)
-  const [settingsOpen, setSettingsOpen] = useState(false)
   const [shareOpen, setShareOpen] = useState(false)
   const [friends, setFriends] = useState<Friend[]>([])
   // A small preview of the shelf (server-filtered/sorted, capped at
@@ -244,25 +240,12 @@ export default function ProfilePage() {
     return () => { cancelled = true }
   }, [profile])
 
-  // Reflects the settings modal in the URL as #settings, so it can be linked
-  // to directly (e.g. from the incognito confirm's "manage your privacy
-  // settings" link) and closes/reopens correctly with browser back/forward.
+  // Old links pointed at /u/<handle>#settings (the retired settings modal);
+  // send them to the privacy tab of the edit page.
   useEffect(() => {
-    if (typeof window === 'undefined' || !isSelf) return
-    const sync = () => setSettingsOpen(window.location.hash === '#settings')
-    sync()
-    window.addEventListener('hashchange', sync)
-    return () => window.removeEventListener('hashchange', sync)
-  }, [isSelf])
-
-  const openSettings = () => {
-    window.history.pushState(null, '', '#settings')
-    setSettingsOpen(true)
-  }
-  const closeSettings = () => {
-    window.history.replaceState(null, '', window.location.pathname + window.location.search)
-    setSettingsOpen(false)
-  }
+    if (typeof window === 'undefined' || !isSelf || window.location.hash !== '#settings') return
+    navigate(`/u/${encodeURIComponent(routeId || '')}/edit?tab=privacy`, { replace: true })
+  }, [isSelf, routeId, navigate])
 
   // Own profile: pull the current year's reading challenge (viewer-aware) even
   // when unjoined, so its shield appears as a "join" prompt. Other profiles use
@@ -629,15 +612,16 @@ export default function ProfilePage() {
               <IoShareOutline className="h-5 w-5" />
             </button>
 
-            {/* Settings — own profile only; opens the full settings modal */}
+            {/* Settings — own profile only; opens the edit page */}
             {isSelf && (
-              <button
-                onClick={openSettings}
+              <Link
+                to={`/u/${encodeURIComponent(routeId || profile.handle)}/edit`}
                 aria-label={t('settingsTitle')}
+                title={t('settingsTitle')}
                 className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border-subtle)] text-[var(--text-muted)] transition-colors hover:bg-[var(--surface)] hover:text-[var(--text)]"
               >
                 <IoSettingsOutline className="h-5 w-5" />
-              </button>
+              </Link>
             )}
           </div>
         </div>
@@ -905,8 +889,6 @@ export default function ProfilePage() {
         )}
       </section>
 
-      <SettingsModal isOpen={settingsOpen} onClose={closeSettings} onOpenImport={() => setImportOpen(true)} />
-      <ImportModal isOpen={importOpen} onClose={() => setImportOpen(false)} onImported={() => setRefreshTick((n) => n + 1)} />
       <ProfileShareModal
         isOpen={shareOpen}
         onClose={() => setShareOpen(false)}

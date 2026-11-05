@@ -15,6 +15,7 @@ import {
   IoPersonOutline,
   IoNotificationsOutline,
   IoInformationCircleOutline,
+  IoPencilOutline,
   IoChatbubblesOutline,
 } from 'react-icons/io5'
 import type { IconType } from 'react-icons'
@@ -221,6 +222,17 @@ export default function Header() {
 
                     <div className="h-px bg-[var(--border-subtle)]" />
 
+                    <Link
+                      to={`${userPath(display.profileId)}/edit`}
+                      onClick={() => setAccountOpen(false)}
+                      className="flex w-full items-center gap-3 px-4 py-3 text-sm text-[var(--text-muted)] transition-colors hover:bg-[var(--surface)] hover:text-[var(--text)]"
+                    >
+                      <IoPencilOutline className="h-[18px] w-[18px]" />
+                      {t('editProfile')}
+                    </Link>
+
+                    <div className="h-px bg-[var(--border-subtle)]" />
+
                     <div className="p-2">
                       <p className="px-2 pb-1.5 pt-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
                         {t('language')}
@@ -351,6 +363,16 @@ export default function Header() {
                 {isAuthenticated && (
                   <>
                     <div className="h-px bg-[var(--border-subtle)]" />
+                    {display && (
+                      <Link
+                        to={`${userPath(display.profileId)}/edit`}
+                        onClick={() => setProfileOpen(false)}
+                        className="flex w-full items-center gap-3 px-4 py-3 text-sm text-[var(--text-muted)] transition-colors hover:bg-[var(--surface)] hover:text-[var(--text)]"
+                      >
+                        <IoPencilOutline className="h-[18px] w-[18px]" />
+                        {t('editProfile')}
+                      </Link>
+                    )}
                     <Link
                       to="/messages"
                       onClick={() => setProfileOpen(false)}

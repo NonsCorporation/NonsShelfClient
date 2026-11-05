@@ -257,7 +257,7 @@ export default function MediaModal({ isOpen, initialData, initialType, catalogOn
                   <p className="mt-2">
                     Want this for your whole shelf instead of one item at a time?{' '}
                     {user && (
-                      <Link to={`${userPath(user.username)}#settings`} className="font-medium text-nonsprimary hover:underline">
+                      <Link to={`${userPath(user.username)}/edit?tab=privacy`} className="font-medium text-nonsprimary hover:underline">
                         Manage your privacy settings
                       </Link>
                     )}

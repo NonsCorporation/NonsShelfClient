@@ -1,16 +1,17 @@
 'use client'
 
 import { useEffect } from 'react'
-import { IoArrowBack, IoLockClosedOutline, IoPersonOutline } from 'react-icons/io5'
+import { IoArrowBack, IoLockClosedOutline, IoPersonOutline, IoSettingsOutline } from 'react-icons/io5'
 import { Link, useNavigate, useParams, useSearchParams } from '@/lib/router'
 import Layout from '../components/layout/Layout'
 import ProfileEditor from '../components/profile/ProfileEditor'
 import PrivacySettings from '../components/settings/PrivacySettings'
+import AccountSettings from '../components/settings/AccountSettings'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
 import { userPath } from '../lib/paths'
 
-type TabKey = 'profile' | 'privacy'
+type TabKey = 'profile' | 'privacy' | 'settings'
 
 // /u/<handle>/edit — your profile and who can see it, in one place. Two tabs
 // (kept in the URL: ?tab=privacy): the profile form (shared with the post-signup
@@ -24,11 +25,12 @@ export default function EditProfile() {
   const { user, loading: authLoading } = useAuth()
   const [params, setParams] = useSearchParams()
 
-  const tab: TabKey = params.get('tab') === 'privacy' ? 'privacy' : 'profile'
+  const rawTab = params.get('tab')
+  const tab: TabKey = rawTab === 'privacy' || rawTab === 'settings' ? rawTab : 'profile'
   const setTab = (next: TabKey) => {
     const p = new URLSearchParams(params)
-    if (next === 'privacy') p.set('tab', 'privacy')
-    else p.delete('tab')
+    if (next === 'profile') p.delete('tab')
+    else p.set('tab', next)
     setParams(p, { replace: true })
   }
 
@@ -52,6 +54,7 @@ export default function EditProfile() {
   const tabs: { key: TabKey; label: string; icon: typeof IoPersonOutline }[] = [
     { key: 'profile', label: t('editProfileTabProfile'), icon: IoPersonOutline },
     { key: 'privacy', label: t('editProfileTabPrivacy'), icon: IoLockClosedOutline },
+    { key: 'settings', label: t('settingsTitle'), icon: IoSettingsOutline },
   ]
 
   return (
@@ -71,7 +74,7 @@ export default function EditProfile() {
           <h1 className="text-2xl font-bold tracking-tight text-[var(--text)]">{t('editProfileTitle')}</h1>
 
           {/* Tabs — segmented, same look as the other pill controls. */}
-          <div className="flex gap-1 rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface)] p-1 sm:w-80" role="tablist">
+          <div className="flex gap-1 rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface)] p-1 sm:w-[30rem]" role="tablist">
             {tabs.map(({ key, label, icon: Icon }) => {
               const active = tab === key
               return (
@@ -81,7 +84,7 @@ export default function EditProfile() {
                   role="tab"
                   aria-selected={active}
                   onClick={() => setTab(key)}
-                  className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition-all duration-200 ${
+                  className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium transition-all duration-200 ${
                     active
                       ? 'bg-[var(--container)] text-[var(--text)] shadow-sm'
                       : 'text-[var(--text-muted)] hover:text-[var(--text)]'
@@ -103,6 +106,10 @@ export default function EditProfile() {
 
         <div role="tabpanel" hidden={tab !== 'privacy'} className="animate-fade-up">
           <PrivacySettings />
+        </div>
+
+        <div role="tabpanel" hidden={tab !== 'settings'} className="animate-fade-up">
+          <AccountSettings />
         </div>
       </div>
     </Layout>
