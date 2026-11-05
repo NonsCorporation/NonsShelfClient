@@ -1,21 +1,15 @@
 import {
   IoClose,
-  IoLockClosedOutline,
-  IoPeopleOutline,
-  IoEarthOutline,
-  IoLibraryOutline,
-  IoStarOutline,
-  IoPulseOutline,
+  IoChevronForward,
+  IoShieldCheckmarkOutline,
   IoCloudUploadOutline,
   IoLogOutOutline,
   IoTrashOutline,
   IoSunnyOutline,
   IoMoonOutline,
   IoPhonePortraitOutline,
-  IoChatbubblesOutline,
-  IoPersonAddOutline,
 } from 'react-icons/io5'
-import { chatApi, type MessagePrivacy } from '@/services/chatService'
+import { Link } from '@/lib/router'
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useLogoutConfirm } from '@/components/auth/useLogoutConfirm'
@@ -24,10 +18,7 @@ import { useLanguage } from '@/contexts/LanguageContext'
 import LanguageSelect from '@/components/ui/LanguageSelect'
 import {
   usePreferences,
-  PRIVACY_FACETS,
   FEED_BLOCKS,
-  type PrivacyFacet,
-  type Visibility,
   type FeedBlock,
   type Theme,
 } from '@/contexts/PreferencesContext'
@@ -41,29 +32,6 @@ type Props = {
   onClose: () => void
   /** Open the import flow (lives as its own modal on the profile page). */
   onOpenImport: () => void
-}
-
-// Visibility options, widest-audience last, each with an icon for the segmented
-// control. Order matches the platform's mental model: private → friends → public.
-const VIS_OPTIONS: { key: Visibility; labelKey: string; hintKey: string; icon: IconType }[] = [
-  { key: 'nobody', labelKey: 'visibilityNobody', hintKey: 'visibilityNobodyHint', icon: IoLockClosedOutline },
-  { key: 'friends', labelKey: 'visibilityFriends', hintKey: 'visibilityFriendsHint', icon: IoPeopleOutline },
-  { key: 'everyone', labelKey: 'visibilityEveryone', hintKey: 'visibilityEveryoneHint', icon: IoEarthOutline },
-]
-
-// "Who can message me" — same control, one extra rung (people you follow).
-const MSG_OPTIONS: { key: MessagePrivacy; labelKey: string; hintKey: string; icon: IconType }[] = [
-  { key: 'nobody', labelKey: 'visibilityNobody', hintKey: 'msgPrivacyNobodyHint', icon: IoLockClosedOutline },
-  { key: 'friends', labelKey: 'visibilityFriends', hintKey: 'msgPrivacyFriendsHint', icon: IoPeopleOutline },
-  { key: 'following', labelKey: 'msgPrivacyFollowing', hintKey: 'msgPrivacyFollowingHint', icon: IoPersonAddOutline },
-  { key: 'everyone', labelKey: 'visibilityEveryone', hintKey: 'msgPrivacyEveryoneHint', icon: IoEarthOutline },
-]
-
-// Per-facet copy + icon for the privacy rows.
-const FACET_META: Record<PrivacyFacet, { labelKey: string; icon: IconType }> = {
-  shelf: { labelKey: 'privacyShelf', icon: IoLibraryOutline },
-  ratings: { labelKey: 'privacyRatings', icon: IoStarOutline },
-  activity: { labelKey: 'privacyActivity', icon: IoPulseOutline },
 }
 
 // Theme options for the segmented control, in the order they read best: match
@@ -86,36 +54,15 @@ const FEED_BLOCK_META: Record<FeedBlock, string> = {
 export default function SettingsModal({ isOpen, onClose, onOpenImport }: Props) {
   const { t, language, setLanguage } = useLanguage()
   const {
-    showInProgress, setShowInProgress, privacy, setVisibility,
+    showInProgress, setShowInProgress,
     preferredMediaLang, setPreferredMediaLang, feedBlocks, setFeedBlockVisible,
-    theme, setTheme, showActivityReactions, setShowActivityReactions,
+    theme, setTheme,
   } = usePreferences()
   const { user } = useAuth()
   const { ask: askLogout, modal: logoutModal } = useLogoutConfirm()
   // Two-step delete: 0 = idle, 1 = first confirm, 2 = final confirm.
   const [wipeStep, setWipeStep] = useState(0)
   const [wiping, setWiping] = useState(false)
-  // "Who can message me" lives on the server (it's enforced there), unlike the
-  // facets above; null until loaded, and the row stays hidden if it fails.
-  const [msgPrivacy, setMsgPrivacy] = useState<MessagePrivacy | null>(null)
-
-  useEffect(() => {
-    if (!isOpen || !user) return
-    let cancelled = false
-    chatApi.getPrivacy().then((r) => {
-      if (!cancelled && r.ok) setMsgPrivacy(r.data.message_privacy)
-    })
-    return () => { cancelled = true }
-  }, [isOpen, user])
-
-  const changeMsgPrivacy = async (v: MessagePrivacy) => {
-    const prev = msgPrivacy
-    if (v === prev) return
-    setMsgPrivacy(v)
-    const r = await chatApi.setPrivacy(v)
-    if (!r.ok) setMsgPrivacy(prev)
-  }
-
   // Locks the page's own scroll while the modal is open, so only the modal's
   // own content scrolls (matches FindSomething's pattern).
   useEffect(() => {
@@ -156,34 +103,21 @@ export default function SettingsModal({ isOpen, onClose, onOpenImport }: Props) 
         </div>
 
         <div className="flex flex-col gap-7 overflow-y-auto px-6 py-5">
-          {/* ── Privacy ─────────────────────────────────────────────────── */}
-          <section>
-            <SectionHeader title={t('settingsPrivacy')} hint={t('settingsPrivacyHint')} />
-            <div className="flex flex-col gap-4">
-              {PRIVACY_FACETS.map((facet) => {
-                const meta = FACET_META[facet]
-                const Icon = meta.icon
-                return (
-                  <div key={facet}>
-                    <div className="mb-1.5 flex items-center gap-2.5">
-                      <Icon className="h-[18px] w-[18px] flex-shrink-0 text-[var(--text-muted)]" />
-                      <p className="text-sm font-medium text-[var(--text)]">{t(meta.labelKey)}</p>
-                    </div>
-                    <VisibilitySelect value={privacy[facet]} onChange={(v) => setVisibility(facet, v)} />
-                  </div>
-                )
-              })}
-              {msgPrivacy && (
-                <div>
-                  <div className="mb-1.5 flex items-center gap-2.5">
-                    <IoChatbubblesOutline className="h-[18px] w-[18px] flex-shrink-0 text-[var(--text-muted)]" />
-                    <p className="text-sm font-medium text-[var(--text)]">{t('privacyMessages')}</p>
-                  </div>
-                  <SegmentedSelect options={MSG_OPTIONS} value={msgPrivacy} onChange={(v) => void changeMsgPrivacy(v)} />
-                </div>
-              )}
-            </div>
-          </section>
+          {/* ── Profile & privacy ───────────────────────────────────────── */}
+          {user && (
+            <Link
+              to={`/u/${user.username}/edit?tab=privacy`}
+              onClick={onClose}
+              className="flex items-center gap-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] px-4 py-3 text-left text-sm text-[var(--text)] transition-colors hover:border-[var(--border)]"
+            >
+              <IoShieldCheckmarkOutline className="h-[18px] w-[18px] flex-shrink-0 text-nonsprimary" />
+              <span className="min-w-0 flex-1">
+                <span className="block font-medium">{t('settingsProfilePrivacy')}</span>
+                <span className="text-xs text-[var(--text-muted)]">{t('settingsProfilePrivacyHint')}</span>
+              </span>
+              <IoChevronForward className="h-4 w-4 flex-shrink-0 text-[var(--text-muted)]" />
+            </Link>
+          )}
 
           {/* ── Preferences ─────────────────────────────────────────────── */}
           <section>
@@ -246,20 +180,6 @@ export default function SettingsModal({ isOpen, onClose, onOpenImport }: Props) 
                   <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition-transform ${showInProgress ? 'translate-x-4' : 'translate-x-0.5'}`} />
                 </span>
               </button>
-
-              {/* Show my activity reactions */}
-              <div className="flex flex-col gap-1">
-                <button
-                  onClick={() => setShowActivityReactions(!showActivityReactions)}
-                  className="flex items-center justify-between gap-3 text-left"
-                >
-                  <span className="text-sm text-[var(--text)]">{t('settingsShowActivityReactions')}</span>
-                  <span className={`relative h-5 w-9 flex-shrink-0 rounded-full transition-colors ${showActivityReactions ? 'bg-nonsprimary' : 'bg-[var(--border-strong)]'}`}>
-                    <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition-transform ${showActivityReactions ? 'translate-x-4' : 'translate-x-0.5'}`} />
-                  </span>
-                </button>
-                <p className="text-xs text-[var(--text-muted)]">{t('settingsShowActivityReactionsHint')}</p>
-              </div>
             </div>
           </section>
 
@@ -359,46 +279,6 @@ function SectionHeader({ title, hint }: { title: string; hint?: string }) {
     <div className="mb-3">
       <h3 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">{title}</h3>
       {hint && <p className="mt-1 text-xs text-[var(--text-muted)]">{hint}</p>}
-    </div>
-  )
-}
-
-// Segmented Only me / Friends / Everyone control.
-function VisibilitySelect({ value, onChange }: { value: Visibility; onChange: (v: Visibility) => void }) {
-  return <SegmentedSelect options={VIS_OPTIONS} value={value} onChange={onChange} />
-}
-
-function SegmentedSelect<K extends string>({
-  options,
-  value,
-  onChange,
-}: {
-  options: { key: K; labelKey: string; hintKey: string; icon: IconType }[]
-  value: K
-  onChange: (v: K) => void
-}) {
-  const { t } = useLanguage()
-  return (
-    <div className="flex gap-1 rounded-xl bg-[var(--surface)] p-1">
-      {options.map((opt) => {
-        const Icon = opt.icon
-        const active = value === opt.key
-        return (
-          <button
-            key={opt.key}
-            onClick={() => onChange(opt.key)}
-            title={t(opt.hintKey)}
-            className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-medium transition-colors ${
-              active
-                ? 'bg-[var(--container)] text-[var(--text)] shadow-sm'
-                : 'text-[var(--text-muted)] hover:text-[var(--text)]'
-            }`}
-          >
-            <Icon className={`h-3.5 w-3.5 ${active ? 'text-nonsprimary' : ''}`} />
-            {t(opt.labelKey)}
-          </button>
-        )
-      })}
     </div>
   )
 }
