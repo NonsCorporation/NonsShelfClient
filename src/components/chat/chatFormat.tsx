@@ -60,6 +60,9 @@ export function previewText(content: string): string {
   return text.replace(/\s+/g, ' ').trim()
 }
 
+/** Most preview cards shown under a single message. */
+const MAX_PREVIEWS = 10
+
 const URL_RE = /(https?:\/\/[^\s<]+[^\s<.,;:!?)\]'"])/gi
 
 /** Message body. New messages are plain text (URLs become links). Messages
@@ -77,9 +80,10 @@ export function MessageText({ content, className = '' }: { content: string; clas
     return <div className={`chat-html break-words ${className}`} dangerouslySetInnerHTML={{ __html: withRel }} />
   }
   const parts: ReactNode[] = []
-  // The first SomeShelf link in the message also gets a preview card under the
-  // text (like a pasted YouTube link); every such link gets a hover card.
-  let card: LinkRef | null = null
+  // Every SomeShelf link gets a hover card, and also a preview card under the
+  // text (like a pasted YouTube link) — each distinct link once, up to
+  // MAX_PREVIEWS per message.
+  const cards = new Map<string, LinkRef>()
   let last = 0
   for (const m of content.matchAll(URL_RE)) {
     const i = m.index ?? 0
@@ -90,7 +94,7 @@ export function MessageText({ content, className = '' }: { content: string; clas
       </a>
     )
     const link = parseLink(m[0])
-    if (link && !card) card = link
+    if (link && cards.size < MAX_PREVIEWS) cards.set(`${link.kind}:${link.id}`, link)
     parts.push(link ? <LinkHoverCard key={i} link={link}>{anchor}</LinkHoverCard> : anchor)
     last = i + m[0].length
   }
@@ -98,7 +102,7 @@ export function MessageText({ content, className = '' }: { content: string; clas
   return (
     <div className={className}>
       <div className="whitespace-pre-wrap break-words">{parts}</div>
-      {card && <LinkPreviewCard link={card} />}
+      {[...cards.entries()].map(([key, link]) => <LinkPreviewCard key={key} link={link} />)}
     </div>
   )
 }
