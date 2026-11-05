@@ -75,7 +75,7 @@ export function LinkPreviewCard({ link }: { link: LinkRef }) {
   return (
     <Link
       to={p.href}
-      className="mt-2 flex w-full max-w-xs items-start gap-3 rounded-xl border-l-[3px] border-nonsprimary bg-[var(--container)] p-2.5 text-[var(--text)] no-underline transition-colors hover:bg-[var(--surface)]"
+      className="mt-2 flex w-full max-w-xs items-start gap-3 rounded-xl border-l-[3px] border-nonsprimary bg-[var(--container)] p-2.5 text-[var(--text)] no-underline transition-colors hover:bg-[color-mix(in_srgb,var(--container),white_7%)]"
     >
       <Thumb p={p} size="md" />
       <Body p={p} />
