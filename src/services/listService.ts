@@ -32,6 +32,14 @@ async function discoverLists(limit = 12): Promise<CuratedListDiscoverEntry[]> {
   return (data.lists ?? []) as CuratedListDiscoverEntry[]
 }
 
+/** Another user's public (non-empty) lists, as cards with covers. */
+async function userLists(userId: string | number): Promise<CuratedListDiscoverEntry[]> {
+  const res = await authedFetch(`/api/users/${encodeURIComponent(String(userId))}/lists`)
+  if (!res.ok) return []
+  const data = await res.json()
+  return (data.lists ?? []) as CuratedListDiscoverEntry[]
+}
+
 /** Lists are public reads — idOrUuid may be either the numeric id or the
  *  public uuid, both accepted by the same backend endpoint. */
 async function getList(idOrUuid: string): Promise<CuratedListDetail | null> {
@@ -102,6 +110,7 @@ async function removeListItem(listId: number, mediaId: number): Promise<void> {
 export const listService = {
   listLists,
   discoverLists,
+  userLists,
   getList,
   createList,
   updateList,

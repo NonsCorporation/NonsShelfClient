@@ -26,15 +26,15 @@ export default function ListsScreen() {
   const by = params.get('by')
   const isOwn = !by || (!!user && String(user.id) === by)
 
-  // Someone else's lists come from the public discover feed (they're public
-  // reads); the signed-in user's own come from the list context, which also
-  // includes lists that are still empty.
+  // Someone else's lists come from the public per-user endpoint; the
+  // signed-in user's own come from the list context, which also includes
+  // lists that are still empty.
   const [other, setOther] = useState<{ by: string; lists: CuratedListDiscoverEntry[] } | null>(null)
   useEffect(() => {
     if (isOwn || !by) return
     let cancelled = false
-    listService.discoverLists(200)
-      .then((all) => { if (!cancelled) setOther({ by, lists: all.filter((l) => String(l.user_id) === by) }) })
+    listService.userLists(by)
+      .then((lists) => { if (!cancelled) setOther({ by, lists }) })
       .catch(() => { if (!cancelled) setOther({ by, lists: [] }) })
     return () => { cancelled = true }
   }, [isOwn, by])
