@@ -25,6 +25,22 @@ const TYPE_LABEL = { book: 'BOOK', movie: 'FILM', series: 'SERIES' } as Record<s
 
 const clip = (s: string, max: number) => (s.length > max ? `${s.slice(0, max - 1).trimEnd()}…` : s)
 
+// The card's fonts (Onest) cover Latin and Cyrillic only. For any other script
+// the renderer fetches a fallback font at runtime — and for Arabic that font
+// crashes it ("lookupType: 5 - substFormat: 3 is not yet supported"), which made
+// /m/<id>?lang=ar a 500 and left Telegram with no preview image. The renderer
+// can't shape Arabic anyway (letters come out unjoined), so keep the image to
+// scripts we ship fonts for; the localized title still goes in og:title.
+const UNSUPPORTED = /[^\u0020-\u007E\u00A0-\u017F\u0400-\u04FF\u2010-\u2027\u2030-\u203A\u20AC\u2116]/g
+const safe = (s: string) => s.replace(UNSUPPORTED, '').replace(/\s+/g, ' ').trim()
+const isSafe = (s: string) => !!s && safe(s) === s.replace(/\s+/g, ' ').trim()
+
+/** First candidate fully drawable with our fonts; else the first one stripped. */
+function pickTitle(candidates: (string | undefined)[]): string {
+  const list = candidates.filter((c): c is string => !!c)
+  return list.find(isSafe) ?? list.map(safe).find(Boolean) ?? 'SomeShelf'
+}
+
 // Longer titles get smaller type so they stay within ~3 lines.
 function titleSize(title: string): number {
   if (title.length <= 18) return 84
@@ -40,8 +56,8 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
   const [media, fonts] = await Promise.all([getPublicMedia(id), loadFonts()])
   const headers = { 'Cache-Control': 'public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800' }
 
-  if (!media) {
-    return new ImageResponse(
+  const brandCard = () =>
+    new ImageResponse(
       (
         <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 28, background: BG, color: INK, fontFamily: ONEST_STACK }}>
           <Logo size={110} />
@@ -50,7 +66,8 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
       ),
       { ...SIZE, fonts, headers },
     )
-  }
+
+  if (!media) return brandCard()
 
   const [loc, rating, coverData] = await Promise.all([
     loadLocalizations(media, id),
@@ -60,17 +77,16 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
   const localized = localizedFor(media, loc, lang)
   const { usable, rgb } = await analyzeCover(coverData)
   const cover = usable ? coverData : null
-  const rawTitle = localized?.title ?? media.title
+  const rawTitle = pickTitle([localized?.title, media.title, media.original_title])
   // No cover: the same generated placeholder as the statistics page (hue from
   // title + author). The glow takes that hue too, since there's no artwork.
   const hue = hashHue(`${rawTitle}${media.author || ''}`)
   const glow = rgb ?? hslToRgb255(hue, 0.6, 0.5)
   const title = clip(rawTitle, 90)
-  const byline = media.type === 'book' ? media.author : media.director
+  const byline = safe((media.type === 'book' ? media.author : media.director) || '')
   const meta = [byline, media.year ? String(media.year) : ''].filter(Boolean).join('  ·  ')
 
-  return new ImageResponse(
-    (
+  const card = (
       <div
         style={{
           width: '100%',
@@ -109,7 +125,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
               }}
             >
               <div style={{ display: 'flex', fontSize: 22, color: 'rgba(255,255,255,0.75)' }}>
-                {clip(media.type === 'book' ? media.author || '' : media.director || '', 28)}
+                {clip(byline, 28)}
               </div>
               <div style={{ display: 'flex', justifyContent: 'center', textAlign: 'center', fontSize: 38, fontWeight: 700, lineHeight: 1.15 }}>
                 {clip(title, 60)}
@@ -146,7 +162,15 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
         {/* bottom spacer keeps the middle block centred */}
         <div style={{ display: 'flex', height: 8 }} />
       </div>
-    ),
-    { ...SIZE, fonts, headers },
   )
+
+  // Render eagerly so a renderer failure is caught here (a lazily streamed
+  // ImageResponse would surface as a bare 500); fall back to the brand card.
+  try {
+    const png = await new ImageResponse(card, { ...SIZE, fonts }).arrayBuffer()
+    return new Response(png, { headers: { 'Content-Type': 'image/png', ...headers } })
+  } catch (err) {
+    console.error('og/media render failed', id, lang, err)
+    return brandCard()
+  }
 }
