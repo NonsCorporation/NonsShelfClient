@@ -2,7 +2,9 @@ import { ImageResponse } from 'next/og'
 import type { NextRequest } from 'next/server'
 import { getPublicMedia, getPublicRating } from '@/lib/serverApi'
 import { loadLocalizations, localizedFor, parseLang } from '@/lib/mediaLocalize'
-import { avatarDataUrl, loadFonts, Logo, BG, INK, MUTED, LINE, PRIMARY, GLOW } from '@/lib/profileSeo'
+import { hashHue } from '@/lib/hashHue'
+import { analyzeCover, hslToRgb255 } from '@/lib/coverColorServer'
+import { avatarDataUrl, loadFonts, ONEST_STACK, Logo, BG, INK, MUTED, LINE, PRIMARY } from '@/lib/profileSeo'
 
 // Link-preview card for a book/film/series page (/b/<id>, /m/<id>), referenced
 // from the page's og:image / twitter:image. Horizontal 1200x630: cover on the
@@ -41,7 +43,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
   if (!media) {
     return new ImageResponse(
       (
-        <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 28, background: BG, color: INK, fontFamily: 'Onest' }}>
+        <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 28, background: BG, color: INK, fontFamily: ONEST_STACK }}>
           <Logo size={110} />
           <div style={{ display: 'flex', fontSize: 72, fontWeight: 700 }}>SomeShelf</div>
         </div>
@@ -50,13 +52,20 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
     )
   }
 
-  const [loc, rating, cover] = await Promise.all([
+  const [loc, rating, coverData] = await Promise.all([
     loadLocalizations(media, id),
     getPublicRating(String(media.id)),
     avatarDataUrl(media.cover_url ? media.cover_url.replace(/^http:\/\//i, 'https://') : undefined),
   ])
   const localized = localizedFor(media, loc, lang)
-  const title = clip(localized?.title ?? media.title, 90)
+  const { usable, rgb } = await analyzeCover(coverData)
+  const cover = usable ? coverData : null
+  const rawTitle = localized?.title ?? media.title
+  // No cover: the same generated placeholder as the statistics page (hue from
+  // title + author). The glow takes that hue too, since there's no artwork.
+  const hue = hashHue(`${rawTitle}${media.author || ''}`)
+  const glow = rgb ?? hslToRgb255(hue, 0.6, 0.5)
+  const title = clip(rawTitle, 90)
   const byline = media.type === 'book' ? media.author : media.director
   const meta = [byline, media.year ? String(media.year) : ''].filter(Boolean).join('  ·  ')
 
@@ -71,8 +80,8 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
           justifyContent: 'space-between',
           padding: '40px 64px 44px',
           color: INK,
-          fontFamily: 'Onest',
-          background: `radial-gradient(circle at 18% 50%, rgba(${GLOW},0.38), transparent 60%), ${BG}`,
+          fontFamily: ONEST_STACK,
+          background: `radial-gradient(circle at 18% 50%, rgba(${glow.join(',')},0.55), transparent 60%), ${BG}`,
         }}
       >
         {/* brand, top */}
@@ -86,8 +95,26 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
             // eslint-disable-next-line @next/next/no-img-element
             <img src={cover} width={COVER.width} height={COVER.height} style={{ borderRadius: 18, objectFit: 'cover', border: `2px solid ${LINE}` }} alt="" />
           ) : (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: COVER.width, height: COVER.height, borderRadius: 18, background: LINE }}>
-              <Logo size={120} />
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+                width: COVER.width,
+                height: COVER.height,
+                padding: 24,
+                borderRadius: 18,
+                border: `2px solid ${LINE}`,
+                background: `hsl(${hue}, 22%, 15%)`,
+              }}
+            >
+              <div style={{ display: 'flex', fontSize: 22, color: 'rgba(255,255,255,0.75)' }}>
+                {clip(media.type === 'book' ? media.author || '' : media.director || '', 28)}
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'center', textAlign: 'center', fontSize: 38, fontWeight: 700, lineHeight: 1.15 }}>
+                {clip(title, 60)}
+              </div>
+              <div style={{ display: 'flex' }} />
             </div>
           )}
 

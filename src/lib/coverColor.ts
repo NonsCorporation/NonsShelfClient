@@ -57,6 +57,17 @@ async function extract(url: string): Promise<string | null> {
   ctx.drawImage(img, 0, 0, size, size)
 
   const { data } = ctx.getImageData(0, 0, size, size)
+  return dominantFromRGBA(data)
+}
+
+/** Dominant colour of RGBA pixels (4 bytes each) as hex, or null for a fully
+ *  neutral image. `lightness` bounds the result's HSL lightness (the glow on a
+ *  dark link preview wants a brighter floor than a calendar bar). Pure, so the
+ *  server can reuse it on pixels decoded by sharp. */
+export function dominantFromRGBA(
+  data: ArrayLike<number>,
+  lightness: [number, number] = [0.18, 0.82],
+): string | null {
   const buckets = new Map<string, { r: number; g: number; b: number; count: number }>()
 
   for (let i = 0; i < data.length; i += 4) {
@@ -92,15 +103,15 @@ async function extract(url: string): Promise<string | null> {
   }
   if (!best) return null
 
-  return legible(best.r / best.count, best.g / best.count, best.b / best.count)
+  return legible(best.r / best.count, best.g / best.count, best.b / best.count, lightness)
 }
 
 // The dominant color as found, only nudged off the extremes of lightness so a
 // thin bar stays visible against the page — hue and saturation are untouched,
 // so a genuinely muted cover still renders muted.
-function legible(r: number, g: number, b: number): string {
+function legible(r: number, g: number, b: number, [lo, hi]: [number, number]): string {
   const [h, s, l] = rgbToHsl(r, g, b)
-  const [nr, ng, nb] = hslToRgb(h, s, clamp(l, 0.18, 0.82))
+  const [nr, ng, nb] = hslToRgb(h, s, clamp(l, lo, hi))
   return `#${[nr, ng, nb].map((v) => Math.round(v).toString(16).padStart(2, '0')).join('')}`
 }
 

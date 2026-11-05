@@ -79,11 +79,15 @@ export function profileJsonLd(card: PublicProfileCard): string {
 
 // ── the preview image ────────────────────────────────────────────────────────
 
-const FONT_FILES: { file: string; weight: 400 | 700 }[] = [
-  { file: 'onest-latin-400.woff', weight: 400 },
-  { file: 'onest-latin-700.woff', weight: 700 },
-  { file: 'onest-cyrillic-400.woff', weight: 400 },
-  { file: 'onest-cyrillic-700.woff', weight: 700 },
+// Two family names, used together as `fontFamily: ONEST_STACK`: the renderer
+// keeps only one font per (family, weight), so the Cyrillic subset registered
+// under the same name was never picked and Cyrillic fell back to a generic face.
+export const ONEST_STACK = 'Onest, OnestCyrillic'
+const FONT_FILES: { name: string; file: string; weight: 400 | 700 }[] = [
+  { name: 'Onest', file: 'onest-latin-400.woff', weight: 400 },
+  { name: 'Onest', file: 'onest-latin-700.woff', weight: 700 },
+  { name: 'OnestCyrillic', file: 'onest-cyrillic-400.woff', weight: 400 },
+  { name: 'OnestCyrillic', file: 'onest-cyrillic-700.woff', weight: 700 },
 ]
 
 // Onest (the site's font), Latin + Cyrillic: the image renderer's built-in font
@@ -91,8 +95,8 @@ const FONT_FILES: { file: string; weight: 400 | 700 }[] = [
 export async function loadFonts() {
   const dir = join(process.cwd(), 'assets', 'fonts')
   return Promise.all(
-    FONT_FILES.map(async ({ file, weight }) => ({
-      name: 'Onest',
+    FONT_FILES.map(async ({ name, file, weight }) => ({
+      name,
       data: await readFile(join(dir, file)),
       weight,
       style: 'normal' as const,
@@ -217,7 +221,7 @@ export async function renderProfileImage(id: string): Promise<ImageResponse> {
           justifyContent: 'space-between',
           padding: '48px 64px',
           color: INK,
-          fontFamily: 'Onest',
+          fontFamily: ONEST_STACK,
           background: `radial-gradient(circle at 22% 30%, rgba(${GLOW},0.38), transparent 58%), ${BG}`,
         }}
       >

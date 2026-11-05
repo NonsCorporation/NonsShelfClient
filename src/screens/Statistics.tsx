@@ -1,5 +1,6 @@
 'use client'
 
+import { hashHue } from '@/lib/hashHue'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { IoChevronBack, IoChevronForward, IoBookOutline, IoFilmOutline, IoTvOutline, IoStar, IoHeartOutline, IoChatbubbleOutline, IoCheckmarkDoneOutline, IoLibraryOutline, IoTimeOutline, IoAlbumsOutline, IoPersonOutline, IoPeopleOutline, IoBarChartOutline, IoPieChartOutline, IoStatsChartOutline } from 'react-icons/io5'
 import type { IconType } from 'react-icons'
@@ -857,15 +858,9 @@ function starColor(r: number): string {
   return `hsl(${Math.round(((r - 1) / 9) * 120)}, 62%, 52%)`
 }
 
-// Deterministic hue from a string, so an item with no cover always gets the
-// same generated placeholder color — same idea the recap story cards use for
-// their cover-wall slide. Exported so the reading calendar's finish badges can
-// draw the same no-cover placeholder.
-export function hashHue(seed: string): number {
-  let h = 0
-  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0
-  return h % 360
-}
+// Same generated no-cover placeholder colour as the recap story cards (see
+// lib/hashHue). Re-exported so the reading calendar can draw it too.
+export { hashHue }
 
 // OpenLibrary (and some other hosts) return 200 OK with a 1x1 placeholder gif
 // for isbns with no real cover, instead of a 404 — so treat any tiny decoded
