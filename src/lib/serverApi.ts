@@ -43,6 +43,31 @@ export async function getPublicCredits(id: string): Promise<MediaCredits> {
   )
 }
 
+/** Community score: mean of scored ratings (1..10) and how many there are. */
+export async function getPublicRating(id: string): Promise<{ average: number; count: number }> {
+  const data = await getJson<{ average?: number; count?: number }>(
+    `/api/media/${encodeURIComponent(id)}/reviews?limit=1`,
+  )
+  return { average: data?.average ?? 0, count: data?.count ?? 0 }
+}
+
+export type PublicAltTitle = {
+  id: number
+  country_code: string
+  language: string
+  title: string
+  overview: string
+  title_type: string
+}
+
+/** Localized titles/synopses for films & series (empty for books/unavailable). */
+export async function getPublicAltTitles(id: string): Promise<PublicAltTitle[]> {
+  const data = await getJson<{ titles: PublicAltTitle[] }>(
+    `/api/media/${encodeURIComponent(id)}/alt-titles`,
+  )
+  return data?.titles ?? []
+}
+
 /** Book editions (empty for films/series or when unavailable). */
 export async function getPublicEditions(id: string): Promise<Edition[]> {
   const data = await getJson<{ editions: Edition[] }>(

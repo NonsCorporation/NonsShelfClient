@@ -127,6 +127,12 @@ interface MediaOneProps {
   initialItem?: MediaItem | null
   initialCredits?: MediaCredits | null
   initialEditions?: Edition[]
+  /** Film/series alt titles fetched on the server, so ?lang= renders localized. */
+  initialAltTitles?: AltTitle[]
+  /** Language from ?lang= (already validated against the catalog), or ''. */
+  initialLang?: string
+  /** Book edition matching initialLang, preselected for the server render. */
+  initialEditionId?: number
 }
 
 export default function MediaOnePage({
@@ -134,6 +140,9 @@ export default function MediaOnePage({
   initialItem = null,
   initialCredits = null,
   initialEditions = [],
+  initialAltTitles = [],
+  initialLang = '',
+  initialEditionId,
 }: MediaOneProps = {}) {
   const { t } = useLanguage()
   const { preferredMediaLang } = usePreferences()
@@ -161,7 +170,7 @@ export default function MediaOnePage({
   // leaves a non-page-multiple count).
   const editionsPageRef = useRef(0)
   const [episodes, setEpisodes] = useState<EpisodesResponse | null>(null)
-  const [editionId, setEditionId] = useState<number | null>(initialItem?.editionId ?? null)
+  const [editionId, setEditionId] = useState<number | null>(initialEditionId ?? initialItem?.editionId ?? null)
   // The user's chosen reading edition's own cover/title/pages, carried from their
   // shelf signals. Used to show that printing's cover even when the edition isn't
   // in the carousel page that's been loaded yet.
@@ -179,13 +188,13 @@ export default function MediaOnePage({
     // /b page for no-JS clients (crawlers), killing their social-card preview.
     // Server-render as '' (no ?e= edition deep-link is ever present for a crawler
     // hit anyway); the client initializer below resolves the real language.
-    if (typeof window === 'undefined') return ''
+    if (typeof window === 'undefined') return initialLang
     const eUuid = new URLSearchParams(window.location.search).get('e')
     if (eUuid && initialEditions.length) {
       const ed = initialEditions.find((e) => e.uuid === eUuid)
       if (ed?.language) return ed.language
     }
-    return ''
+    return initialLang
   })
 
   const [userRating, setUserRating] = useState<number | null>(initialItem?.rating ?? null)
@@ -227,8 +236,8 @@ export default function MediaOnePage({
   const [progressOpen, setProgressOpen] = useState(false)
   const [finishOpen, setFinishOpen] = useState(false)
   const [dnfOpen, setDnfOpen] = useState(false)
-  const [altTitles, setAltTitles] = useState<AltTitle[]>([])
-  const [mediaLang, setMediaLang] = useState('')
+  const [altTitles, setAltTitles] = useState<AltTitle[]>(initialAltTitles)
+  const [mediaLang, setMediaLang] = useState(initialItem?.type === 'book' ? '' : initialLang)
   // Bumped when the progress modal closes, so the reading-progress log refetches.
   const [progressRefresh, setProgressRefresh] = useState(0)
 
@@ -434,15 +443,25 @@ export default function MediaOnePage({
   useEffect(() => {
     if (!id || item?.type === 'book') return
     let cancelled = false
-    setAltTitles([])
-    setMediaLang('')
+    // Keep the server-seeded titles/lang (from ?lang=) on first mount so the
+    // localized render doesn't flash back to the original title.
+    if (!initialAltTitles.length) {
+      setAltTitles([])
+      setMediaLang(initialLang)
+    }
     authedFetch(`/api/media/${id}/alt-titles`)
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
         if (cancelled || !d) return
         const titles: AltTitle[] = d.titles ?? []
         setAltTitles(titles)
-        if (preferredMediaLang && titles.some((t) => t.language === preferredMediaLang)) {
+        // An explicit ?lang= in the URL wins over the saved preference. Read it
+        // live (not from the prop) so a later "Default" choice isn't undone.
+        const urlLang = (new URLSearchParams(window.location.search).get('lang') ?? '')
+          .toLowerCase().split(/[-_]/)[0]
+        if (urlLang && titles.some((t) => t.language === urlLang)) {
+          setMediaLang(urlLang)
+        } else if (preferredMediaLang && titles.some((t) => t.language === preferredMediaLang)) {
           setMediaLang(preferredMediaLang)
         }
       })
@@ -511,6 +530,18 @@ export default function MediaOnePage({
     }
   }
 
+  // Switch the film/series language and mirror it in the URL (?lang=) so the
+  // link being shared/indexed matches what's on screen. History is rewritten in
+  // place (no navigation, no server round-trip); Default drops the param.
+  const changeMediaLang = (lang: string) => {
+    setMediaLang(lang)
+    const next = new URLSearchParams(window.location.search)
+    if (lang) next.set('lang', lang)
+    else next.delete('lang')
+    const qs = next.toString()
+    window.history.replaceState(window.history.state, '', qs ? `?${qs}` : window.location.pathname)
+  }
+
   // Select an edition: reflect it in the URL (?e=<edition-uuid>) so the choice is
   // shareable, and — when the book is on the user's shelf — persist it as the
   // edition they're reading. Re-clicking the selected one clears it.
@@ -520,11 +551,14 @@ export default function MediaOnePage({
     const next = new URLSearchParams(params)
     if (selected) {
       next.delete('e')
+      next.delete('lang')
       setEditionId(null)
       setSelectedLang('')
       if (item.status) await libraryService.setEdition(item.id, 0)
     } else {
       if (e.uuid) next.set('e', e.uuid)
+      if (e.language) next.set('lang', e.language)
+      else next.delete('lang')
       setEditionId(e.id)
       setSelectedLang(e.language ?? '')
       if (item.status) await libraryService.setEdition(item.id, e.id)
@@ -759,7 +793,7 @@ export default function MediaOnePage({
                     <IoLanguageOutline className="h-3 w-3 text-[var(--text-muted)]" />
                     <select
                       value={mediaLang}
-                      onChange={(e) => setMediaLang(e.target.value)}
+                      onChange={(e) => changeMediaLang(e.target.value)}
                       className="appearance-none bg-transparent pr-3 text-[10px] uppercase tracking-widest text-[var(--text-muted)] focus:outline-none cursor-pointer hover:text-[var(--text)] transition-colors"
                     >
                       <option value="">Default</option>
@@ -963,7 +997,7 @@ export default function MediaOnePage({
                     <IoLanguageOutline className="h-3.5 w-3.5 text-[var(--text-muted)]" />
                     <select
                       value={mediaLang}
-                      onChange={(e) => setMediaLang(e.target.value)}
+                      onChange={(e) => changeMediaLang(e.target.value)}
                       className="appearance-none bg-transparent pr-3 text-xs uppercase tracking-widest text-[var(--text-muted)] focus:outline-none cursor-pointer hover:text-[var(--text)] transition-colors"
                     >
                       <option value="">Default</option>

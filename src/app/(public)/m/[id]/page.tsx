@@ -1,14 +1,16 @@
 import type { Metadata } from 'next'
-import MediaRoute, { buildMediaMetadata } from '@/lib/mediaRoute'
+import MediaRoute, { buildMediaMetadata, type SearchParams } from '@/lib/mediaRoute'
 
-type Params = { params: Promise<{ id: string }> }
+type Props = { params: Promise<{ id: string }>; searchParams: SearchParams }
 
-export async function generateMetadata({ params }: Params): Promise<Metadata> {
+export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
   const { id } = await params
-  return buildMediaMetadata(id)
+  const { lang } = await searchParams
+  return buildMediaMetadata(id, lang)
 }
 
-export default async function FilmPage({ params }: Params) {
+export default async function FilmPage({ params, searchParams }: Props) {
   const { id } = await params
-  return <MediaRoute id={id} />
+  const { lang } = await searchParams
+  return <MediaRoute id={id} lang={lang} />
 }

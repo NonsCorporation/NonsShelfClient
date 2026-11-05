@@ -88,7 +88,7 @@ const FONT_FILES: { file: string; weight: 400 | 700 }[] = [
 
 // Onest (the site's font), Latin + Cyrillic: the image renderer's built-in font
 // is Latin-only, so Russian names would otherwise come out as empty boxes.
-async function loadFonts() {
+export async function loadFonts() {
   const dir = join(process.cwd(), 'assets', 'fonts')
   return Promise.all(
     FONT_FILES.map(async ({ file, weight }) => ({
@@ -102,7 +102,7 @@ async function loadFonts() {
 
 /** The profile photo as a data URL, or null (missing, slow, or a format the
  *  image renderer can't draw — then the card shows initials instead). */
-async function avatarDataUrl(url?: string): Promise<string | null> {
+export async function avatarDataUrl(url?: string): Promise<string | null> {
   if (!url) return null
   try {
     const res = await fetch(url, {
@@ -129,16 +129,16 @@ const clip = (s: string, max: number) => (s.length > max ? `${s.slice(0, max - 1
 
 // Same fixed dark palette as the in-app share card (ProfileShareModal), so a
 // link preview and a shared story image look like the same product.
-const BG = '#000000'
-const INK = '#ffffff'
-const MUTED = '#9ca3af'
-const LINE = '#27272a'
-const PRIMARY = '#6768ab'
+export const BG = '#000000'
+export const INK = '#ffffff'
+export const MUTED = '#9ca3af'
+export const LINE = '#27272a'
+export const PRIMARY = '#6768ab'
 // The share card tints its glow with the photo's dominant colour (computed in
 // the browser); here it uses the brand colour, which is that card's fallback.
-const GLOW = '103,104,171'
+export const GLOW = '103,104,171'
 
-function Logo({ size }: { size: number }) {
+export function Logo({ size }: { size: number }) {
   return (
     <svg width={size} height={size} viewBox="86 89 340 340" fill={INK}>
       <g transform="translate(89.6, 89.6) scale(0.65)">
