@@ -4,6 +4,8 @@ import DOMPurify from 'dompurify'
 import type { ReactNode } from 'react'
 import BoringAvatar from '@/components/ui/BoringAvatar'
 import type { Chat, ChatParticipant } from '@/services/chatService'
+import { parseLink, type LinkRef } from '@/lib/linkPreview'
+import { LinkHoverCard, LinkPreviewCard } from './LinkPreview'
 
 // Display helpers shared by the chat screens.
 
@@ -75,19 +77,30 @@ export function MessageText({ content, className = '' }: { content: string; clas
     return <div className={`chat-html break-words ${className}`} dangerouslySetInnerHTML={{ __html: withRel }} />
   }
   const parts: ReactNode[] = []
+  // The first SomeShelf link in the message also gets a preview card under the
+  // text (like a pasted YouTube link); every such link gets a hover card.
+  let card: LinkRef | null = null
   let last = 0
   for (const m of content.matchAll(URL_RE)) {
     const i = m.index ?? 0
     if (i > last) parts.push(content.slice(last, i))
-    parts.push(
+    const anchor = (
       <a key={i} href={m[0]} target="_blank" rel="noopener noreferrer nofollow" className="underline underline-offset-2">
         {m[0]}
-      </a>,
+      </a>
     )
+    const link = parseLink(m[0])
+    if (link && !card) card = link
+    parts.push(link ? <LinkHoverCard key={i} link={link}>{anchor}</LinkHoverCard> : anchor)
     last = i + m[0].length
   }
   if (last < content.length) parts.push(content.slice(last))
-  return <div className={`whitespace-pre-wrap break-words ${className}`}>{parts}</div>
+  return (
+    <div className={className}>
+      <div className="whitespace-pre-wrap break-words">{parts}</div>
+      {card && <LinkPreviewCard link={card} />}
+    </div>
+  )
 }
 
 /** "14:05" today, "Mon" this week, "12 Mar" this year, else "12.03.2025". */
