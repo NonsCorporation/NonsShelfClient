@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { IoChatbubblesOutline, IoClose } from 'react-icons/io5'
 import { useSearchParams } from '@/lib/router'
 import { useAuth } from '../contexts/AuthContext'
@@ -159,11 +160,14 @@ export default function Messages() {
         {desktop && <div className="flex min-w-0 flex-1 flex-col">{threadPane}</div>}
       </div>
 
-      {/* mobile: full-screen overlay */}
-      {overlay && (
+      {/* mobile: full-screen overlay. Portalled to <body>: inside <main>
+          (a z-10 stacking context) its z-index couldn't rise above the floating
+          bottom nav, which stayed visible over the conversation. */}
+      {overlay && typeof document !== 'undefined' && createPortal(
         <div className="fixed inset-0 z-[60] flex flex-col bg-[var(--bg)]" style={kb}>
           {threadPane}
-        </div>
+        </div>,
+        document.body,
       )}
 
       {newOpen && (
