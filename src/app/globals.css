@@ -517,3 +517,13 @@ html[data-theme="light"] .review-content .spoiler-text.revealed {
     --cal-inset: 3px;
   }
 }
+
+/* Rich chat messages reuse the review styles; inside a coloured bubble the
+   quote must follow the bubble's text colour instead of the page's. */
+.chat-html blockquote {
+  color: inherit;
+  background: rgba(127, 127, 127, 0.18);
+  border-left-color: currentColor;
+}
+.chat-html blockquote::after { color: currentColor; }
+.chat-html a { text-decoration: underline; text-underline-offset: 2px; }

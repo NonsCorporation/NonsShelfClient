@@ -1,7 +1,7 @@
 'use client'
 
 import DOMPurify from 'dompurify'
-import type { ReactNode } from 'react'
+import { useMemo, type ReactNode } from 'react'
 import BoringAvatar from '@/components/ui/BoringAvatar'
 import type { Chat, ChatParticipant } from '@/services/chatService'
 import { parseLink, type LinkRef } from '@/lib/linkPreview'
@@ -83,8 +83,9 @@ const looksLikeHtml = (s: string) => /<\/?[a-z][^>]*>/i.test(s)
 
 /** One-line plain text of a message, for chat-list previews and reply quotes. */
 export function previewText(content: string): string {
+  // Spoilers must not leak into previews (chat list, reply quotes).
   const text = looksLikeHtml(content)
-    ? (DOMPurify.sanitize(content, { ALLOWED_TAGS: [] }) as string)
+    ? (DOMPurify.sanitize(content.replace(/<span[^>]*data-spoiler[^>]*>[\s\S]*?<\/span>/gi, '▒▒▒'), { ALLOWED_TAGS: [] }) as string)
     : content
   return text.replace(/\s+/g, ' ').trim()
 }
@@ -94,19 +95,75 @@ const MAX_PREVIEWS = 5
 
 const URL_RE = /(https?:\/\/[^\s<]+[^\s<.,;:!?)\]'"])/gi
 
+const RICH_TAGS = ['b', 'strong', 'i', 'em', 'u', 's', 'a', 'p', 'br', 'ul', 'ol', 'li', 'code', 'pre', 'blockquote', 'span']
+
+/** Rich (HTML) message → safe HTML plus the SomeShelf links it contains.
+ *  Always sanitized with a small allow-list — nons rendered messages unsanitized,
+ *  which let a crafted message run script in other people's browsers. Spoiler
+ *  spans keep only a data attribute (we add our own class, never theirs), bare
+ *  URLs in the text become links, and links open in a new tab without giving the
+ *  target page access to ours. */
+function prepareHtml(content: string): { html: string; links: LinkRef[] } {
+  const clean = DOMPurify.sanitize(content, { ALLOWED_TAGS: RICH_TAGS, ALLOWED_ATTR: ['href', 'data-spoiler'] }) as string
+  if (typeof DOMParser === 'undefined') return { html: clean, links: [] }
+  const doc = new DOMParser().parseFromString(clean, 'text/html')
+
+  doc.body.querySelectorAll('span[data-spoiler]').forEach((el) => el.classList.add('spoiler-text'))
+
+  // Bare URLs in text nodes (outside existing links) → <a>.
+  const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT)
+  const texts: Text[] = []
+  for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+    if (!(n.parentElement?.closest('a'))) texts.push(n as Text)
+  }
+  for (const node of texts) {
+    const value = node.data
+    const matches = [...value.matchAll(URL_RE)]
+    if (!matches.length) continue
+    const frag = doc.createDocumentFragment()
+    let last = 0
+    for (const m of matches) {
+      const i = m.index ?? 0
+      if (i > last) frag.append(value.slice(last, i))
+      const a = doc.createElement('a')
+      a.setAttribute('href', m[0])
+      a.textContent = m[0]
+      frag.append(a)
+      last = i + m[0].length
+    }
+    if (last < value.length) frag.append(value.slice(last))
+    node.replaceWith(frag)
+  }
+
+  const links = new Map<string, LinkRef>()
+  doc.body.querySelectorAll('a[href]').forEach((a) => {
+    a.setAttribute('target', '_blank')
+    a.setAttribute('rel', 'noopener noreferrer nofollow')
+    const link = parseLink(a.getAttribute('href') ?? '')
+    if (link && links.size < MAX_PREVIEWS) links.set(`${link.kind}:${link.id}`, link)
+  })
+  return { html: doc.body.innerHTML, links: [...links.values()] }
+}
+
 /** Message body. New messages are plain text (URLs become links). Messages
  *  copied from nons may be rich-text HTML: those are ALWAYS sanitized with a
  *  small allow-list — nons rendered them unsanitized, which let a crafted
  *  message run script in other people's browsers. */
 export function MessageText({ content, className = '' }: { content: string; className?: string }) {
-  if (looksLikeHtml(content)) {
-    const clean = DOMPurify.sanitize(content, {
-      ALLOWED_TAGS: ['b', 'strong', 'i', 'em', 'u', 's', 'a', 'p', 'br', 'ul', 'ol', 'li', 'code', 'pre', 'blockquote'],
-      ALLOWED_ATTR: ['href'],
-    }) as string
-    // Links open in a new tab without giving the target page access to ours.
-    const withRel = clean.replace(/<a /g, '<a target="_blank" rel="noopener noreferrer nofollow" ')
-    return <div className={`chat-html break-words ${className}`} dangerouslySetInnerHTML={{ __html: withRel }} />
+  const rich = looksLikeHtml(content)
+  const prepared = useMemo(() => (rich ? prepareHtml(content) : null), [content, rich])
+  if (prepared) {
+    return (
+      <div className={className}>
+        <div
+          className="review-content chat-html break-words"
+          // Reveal a tapped spoiler (delegated: one handler for all of them).
+          onClick={(e) => (e.target as HTMLElement).closest('.spoiler-text')?.classList.toggle('revealed')}
+          dangerouslySetInnerHTML={{ __html: prepared.html }}
+        />
+        {prepared.links.map((link) => <LinkPreviewCard key={`${link.kind}:${link.id}`} link={link} />)}
+      </div>
+    )
   }
   const parts: ReactNode[] = []
   // Every SomeShelf link gets a hover card, and also a preview card under the

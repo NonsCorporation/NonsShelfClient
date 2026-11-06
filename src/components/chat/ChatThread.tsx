@@ -1,6 +1,6 @@
 'use client'
 
-import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
+import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { IoArrowBack, IoArrowUndoOutline, IoClose, IoCreateOutline, IoPaperPlane, IoPeopleOutline, IoTrashOutline } from 'react-icons/io5'
 import { Link } from '@/lib/router'
 import { useLanguage } from '@/contexts/LanguageContext'
@@ -9,6 +9,8 @@ import DropdownMenu from '@/components/ui/DropdownMenu'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 import { userPath } from '@/lib/paths'
 import { MESSAGE_MAX, type Chat, type ChatMessage } from '@/services/chatService'
+import MessageEditor, { type MessageEditorHandle } from './MessageEditor'
+import { contentToEditorHtml, toMessageContent } from './messageContent'
 import { ChatAvatar, MessageText, PersonAvatar, chatTitle, dayLabel, formatClock, otherParticipant, previewText } from './chatFormat'
 
 type Props = {
@@ -45,7 +47,7 @@ export default function ChatThread({ chat, meId, onBack, onOpenSettings }: Props
   const [sending, setSending] = useState(false)
 
   const scroller = useRef<HTMLDivElement>(null)
-  const input = useRef<HTMLTextAreaElement>(null)
+  const input = useRef<MessageEditorHandle>(null)
   const stickToBottom = useRef(true)
   const prevHeight = useRef<{ height: number; top: number } | null>(null)
 
@@ -82,23 +84,12 @@ export default function ChatThread({ chat, meId, onBack, onOpenSettings }: Props
     }
   }
 
-  // Auto-grow the composer up to ~6 lines.
-  useLayoutEffect(() => {
-    const el = input.current
-    if (!el) return
-    el.style.height = 'auto'
-    el.style.height = `${Math.min(el.scrollHeight, 160)}px`
-    // Only show a scrollbar once the text is taller than the box (otherwise
-    // Firefox draws an empty scrollbar track at one line).
-    el.style.overflowY = el.scrollHeight > 160 ? 'auto' : 'hidden'
-  }, [text])
-
   const startEdit = (m: ChatMessage) => {
     setReplyTo(null)
     setEditing(m)
-    // Plain text is edited as-is (line breaks kept); HTML copied from nons is
-    // edited as its plain text.
-    setText(/<\/?[a-z][^>]*>/i.test(m.content) ? previewText(m.content) : m.content)
+    // Plain text keeps its line breaks; formatted (HTML) messages open with
+    // their formatting.
+    setText(contentToEditorHtml(m.content))
     setTimeout(() => input.current?.focus(), 0)
   }
   const startReply = (m: ChatMessage) => {
@@ -113,7 +104,7 @@ export default function ChatThread({ chat, meId, onBack, onOpenSettings }: Props
   }
 
   const submit = async () => {
-    const content = text.trim()
+    const content = toMessageContent(text)
     if (!content || sending) return
     if ([...content].length > MESSAGE_MAX) {
       setError(t('chatTooLong', { n: [...content].length, max: MESSAGE_MAX }))
@@ -131,6 +122,7 @@ export default function ChatThread({ chat, meId, onBack, onOpenSettings }: Props
       return
     }
     const quoted = replyTo
+    const draft = text
     setText('')
     setReplyTo(null)
     stickToBottom.current = true
@@ -139,25 +131,18 @@ export default function ChatThread({ chat, meId, onBack, onOpenSettings }: Props
     setSending(false)
     if (!r.ok) {
       // Give the text back so nothing typed is lost.
-      setText((cur) => cur || content)
+      setText((cur) => cur || draft)
       setReplyTo((cur) => cur ?? quoted)
       setError(r.error || t('chatSendFailed'))
     }
     if (!isTouch()) input.current?.focus()
   }
 
-  const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Escape' && (editing || replyTo)) {
-      e.preventDefault()
-      cancelMode()
-      return
-    }
-    // Enter sends on desktop; on touch keyboards Enter is a new line and the
-    // button sends (like most mobile messengers).
-    if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing && !isTouch()) {
-      e.preventDefault()
-      void submit()
-    }
+  // Escape cancels a reply/edit in progress.
+  const onEscape = () => {
+    if (!editing && !replyTo) return false
+    cancelMode()
+    return true
   }
 
   const doDelete = async () => {
@@ -180,7 +165,8 @@ export default function ChatThread({ chat, meId, onBack, onOpenSettings }: Props
 
   const other = chat.type === 'direct' ? otherParticipant(chat, meId) : undefined
   const title = chatTitle(chat, meId, t('chatDeletedUser'))
-  const charCount = [...text].length
+  const outgoing = toMessageContent(text)
+  const charCount = [...outgoing].length
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -369,19 +355,18 @@ export default function ChatThread({ chat, meId, onBack, onOpenSettings }: Props
         )}
         {error && <p role="alert" className="mb-2 px-1 text-xs text-red-400">{error}</p>}
         <div className="flex items-end gap-1 rounded-3xl border border-[var(--border-subtle)] bg-[var(--input)] py-1 pl-4 pr-1 transition-colors focus-within:border-[var(--primary-ring)]">
-          <textarea
+          <MessageEditor
             ref={input}
             value={text}
-            onChange={(e) => setText(e.target.value)}
-            onKeyDown={onKeyDown}
-            rows={1}
+            onChange={setText}
             placeholder={t('chatTypeMessage')}
-            aria-label={t('chatTypeMessage')}
-            className="max-h-40 min-h-[36px] flex-1 resize-none overflow-hidden bg-transparent py-2 text-sm leading-5 text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none"
+            submitOnEnter={!isTouch()}
+            onSubmit={() => void submit()}
+            onEscape={onEscape}
           />
           <button
             onClick={() => void submit()}
-            disabled={!text.trim() || sending}
+            disabled={!outgoing || sending}
             aria-label={editing ? t('save') : t('chatSend')}
             className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-nonsprimary text-white transition-all hover:bg-nonsprimaryfocus disabled:scale-90 disabled:bg-transparent disabled:text-[var(--text-muted)]"
           >
