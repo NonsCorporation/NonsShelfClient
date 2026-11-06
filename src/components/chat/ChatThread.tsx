@@ -286,16 +286,14 @@ export default function ChatThread({ chat, meId, onBack, onOpenSettings }: Props
                           deleted
                             ? 'border border-dashed border-[var(--border-subtle)] bg-transparent text-[var(--text-muted)]'
                             : own
-                              ? 'bg-nonsprimary text-white'
+                              ? 'bg-[color-mix(in_srgb,var(--text)_16%,transparent)] text-[var(--text)]'
                               : 'bg-[var(--surface)] text-[var(--text)]'
                         } ${m.pending ? 'opacity-60' : ''}`}
                       >
                         {!deleted && m.reply_to && (
                           <button
                             onClick={() => jumpTo(m.reply_to!.id)}
-                            className={`mb-1.5 block w-full rounded-lg border-l-2 px-2 py-1 text-left text-xs ${
-                              own ? 'border-white/70 bg-white/15 text-white/90' : 'border-nonsprimary bg-[var(--container)] text-[var(--text-muted)]'
-                            }`}
+                            className="mb-1.5 block w-full rounded-lg border-l-2 border-nonsprimary bg-[var(--container)] px-2 py-1 text-left text-xs text-[var(--text-muted)]"
                           >
                             <span className="block font-semibold">{nameOf(m.reply_to.sender_id)}</span>
                             <span className="line-clamp-2">
@@ -304,7 +302,7 @@ export default function ChatThread({ chat, meId, onBack, onOpenSettings }: Props
                           </button>
                         )}
                         {deleted ? <span className="italic">{t('chatDeleted')}</span> : <MessageText content={m.content} />}
-                        <span className={`mt-0.5 flex items-center justify-end gap-1 text-[10px] ${own && !deleted ? 'text-white/70' : 'text-[var(--text-muted)]'}`}>
+                        <span className={`mt-0.5 flex items-center justify-end gap-1 text-[10px] text-[var(--text-muted)]`}>
                           {m.edited_at && !deleted && <span>{t('chatEdited')}</span>}
                           <span>{formatClock(m.created_at, language)}</span>
                         </span>
