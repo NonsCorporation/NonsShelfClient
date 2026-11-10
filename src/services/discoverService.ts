@@ -20,6 +20,8 @@ export type DiscoverPerson = {
 export type PopularReview = {
   /** Review (rating row) id — the like/comment target. */
   id: number
+  /** Public id, for the ?review= link to the review on its media page. */
+  uuid: string
   userId: number
   username?: string
   name?: string
@@ -85,7 +87,7 @@ export const discoverService = {
       if (!res.ok) return []
       const d = (await res.json()) as {
         items?: {
-          id: number; user_id: number; username?: string; name?: string; avatar_url?: string
+          id: number; uuid?: string; user_id: number; username?: string; name?: string; avatar_url?: string
           value: number; review: string; updated_at: number
           like_count: number; comment_count: number; media?: BackendMedia
         }[]
@@ -94,6 +96,7 @@ export const discoverService = {
         .filter((r) => r.media)
         .map((r) => ({
           id: r.id,
+          uuid: r.uuid ?? '',
           userId: r.user_id,
           username: r.username || undefined,
           name: r.name || undefined,

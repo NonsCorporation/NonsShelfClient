@@ -18,6 +18,7 @@ import AwardsSection from '@/components/awards/AwardsSection'
 import MediaHistory from '@/components/media/MediaHistory'
 import StarsSelector from '../StarsSelector'
 import ReviewEditor from '../components/review/ReviewEditor'
+import CopyReviewLink from '../components/review/CopyReviewLink'
 import ReviewContent from '../components/review/ReviewContent'
 import LikeButton from '@/components/feed/LikeButton'
 import CommentThread from '@/components/feed/CommentThread'
@@ -210,7 +211,7 @@ export default function MediaOnePage({
   const [commSort, setCommSort] = useState<CommSort>('newest')
   const [commWithReview, setCommWithReview] = useState(false)
   const [commDetailedOnly, setCommDetailedOnly] = useState(false)
-  const [reviewsPage, setReviewsPage] = useState<ReviewsPage>({ items: [], total: 0, average: 0, count: 0 })
+  const [reviewsPage, setReviewsPage] = useState<ReviewsPage>({ items: [], total: 0, average: 0, count: 0, page: 0 })
   const [reviewsLoading, setReviewsLoading] = useState(false)
   // Which review's comment thread is expanded (its id), and per-review comment
   // counts so each row can show its count without mounting every thread.
@@ -220,6 +221,12 @@ export default function MediaOnePage({
   const [friendStatuses, setFriendStatuses] = useState<FriendShelfStatus[]>([])
   const [friendsLoaded, setFriendsLoaded] = useState(false)
   const commSectionRef = useRef<HTMLDivElement>(null)
+  // ?review=<uuid> deep link: the first reviews fetch asks the server for the
+  // page holding that review, then it's scrolled to and briefly highlighted.
+  // The ref is consumed once so later paging/sorting behaves normally; the param
+  // stays in the URL so a reload replays the highlight.
+  const anchorRef = useRef<string | null>(params.get('review'))
+  const [highlightReview, setHighlightReview] = useState<number | null>(null)
   const editionsRef = useRef<HTMLDivElement>(null)
   const scrollEditions = (dir: number) => editionsRef.current?.scrollBy({ left: dir * 340, behavior: 'smooth' })
   const [shareOpen, setShareOpen] = useState(false)
@@ -358,13 +365,35 @@ export default function MediaOnePage({
     if (!mediaNumId) return
     let cancelled = false
     setReviewsLoading(true)
-    getReviews(mediaNumId, { sort: commSort, withReview: commWithReview, detailed: commDetailedOnly, page: commPage, perPage: COMM_PER_PAGE })
-      .then((p) => { if (!cancelled) setReviewsPage(p) })
+    const anchor = anchorRef.current
+    getReviews(mediaNumId, { sort: commSort, withReview: commWithReview, detailed: commDetailedOnly, page: commPage, perPage: COMM_PER_PAGE, anchor: anchor ?? undefined })
+      .then((p) => {
+        if (cancelled) return
+        setReviewsPage(p)
+        if (!anchor) return
+        anchorRef.current = null
+        const hit = p.items.find((r) => r.uuid === anchor || String(r.id) === anchor)
+        if (hit) setHighlightReview(hit.id)
+        // The server returned the anchor's page; adopt it so the pager agrees
+        // (the refetch this triggers is the same page, now without the anchor).
+        if (p.page !== commPage) setCommPage(p.page)
+      })
       .finally(() => { if (!cancelled) setReviewsLoading(false) })
     return () => {
       cancelled = true
     }
   }, [mediaNumId, commSort, commWithReview, commDetailedOnly, commPage])
+
+  // Scroll the deep-linked review into view once it has rendered, hold the
+  // highlight for a moment, then let it fade.
+  useEffect(() => {
+    if (highlightReview == null) return
+    const scroll = setTimeout(() => {
+      document.getElementById(`review-${highlightReview}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }, 120)
+    const clear = setTimeout(() => setHighlightReview(null), 3200)
+    return () => { clearTimeout(scroll); clearTimeout(clear) }
+  }, [highlightReview])
 
   // Batch the comment count for every review on the current page in one call,
   // so each row shows its count without mounting all the threads. An open thread
@@ -1686,7 +1715,13 @@ export default function MediaOnePage({
                       {commPageItems.map((r) => {
                         const display = r.name || r.username || 'User'
                         return (
-                          <div key={r.userId} className="py-3 first:pt-0 last:pb-0">
+                          <div
+                            key={r.userId}
+                            id={`review-${r.id}`}
+                            className={`-mx-2 rounded-lg px-2 py-3 transition-colors duration-700 first:pt-0 last:pb-0 ${
+                              highlightReview === r.id ? 'bg-nonsprimary/15 ring-1 ring-nonsprimary/40' : ''
+                            }`}
+                          >
                             <div className="flex items-center gap-3">
                               {r.avatarUrl ? (
                                 <img src={r.avatarUrl} alt="" loading="lazy" className="h-7 w-7 flex-shrink-0 rounded-full object-cover" />
@@ -1706,21 +1741,27 @@ export default function MediaOnePage({
                             {r.review && <ReviewContent content={r.review} className="mt-2 pl-10 text-xs leading-6 text-[var(--text-muted)]" />}
                             {/* Like/comment a review — signed-in only (the endpoints are
                                 auth-only). Likes here share their tally with the feed post
-                                that echoes this review; the comment thread is its own. */}
-                            {user && r.id > 0 && (
+                                that echoes this review; the comment thread is its own.
+                                Copy-link needs no session, so it shows for everyone. */}
+                            {((user && r.id > 0) || r.uuid) && (
                               <div className="mt-2 flex items-center gap-4 pl-10 text-xs">
-                                <LikeButton reviewId={r.id} />
-                                <button
-                                  onClick={() => setOpenReviewComments((cur) => (cur === r.id ? null : r.id))}
-                                  className={`inline-flex items-center gap-1.5 font-medium transition-colors ${
-                                    openReviewComments === r.id ? 'text-nonsprimary' : 'text-[var(--text-muted)] hover:text-[var(--text)]'
-                                  }`}
-                                >
-                                  <IoChatbubbleOutline className="h-4 w-4" />
-                                  {(reviewCommentCounts[String(r.id)] ?? 0) > 0
-                                    ? reviewCommentCounts[String(r.id)]
-                                    : t('comment')}
-                                </button>
+                                {user && r.id > 0 && (
+                                  <>
+                                    <LikeButton reviewId={r.id} />
+                                    <button
+                                      onClick={() => setOpenReviewComments((cur) => (cur === r.id ? null : r.id))}
+                                      className={`inline-flex items-center gap-1.5 font-medium transition-colors ${
+                                        openReviewComments === r.id ? 'text-nonsprimary' : 'text-[var(--text-muted)] hover:text-[var(--text)]'
+                                      }`}
+                                    >
+                                      <IoChatbubbleOutline className="h-4 w-4" />
+                                      {(reviewCommentCounts[String(r.id)] ?? 0) > 0
+                                        ? reviewCommentCounts[String(r.id)]
+                                        : t('comment')}
+                                    </button>
+                                  </>
+                                )}
+                                {r.uuid && <CopyReviewLink reviewUuid={r.uuid} />}
                               </div>
                             )}
                             {user && openReviewComments === r.id && (

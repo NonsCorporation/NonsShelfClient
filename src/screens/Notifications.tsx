@@ -187,7 +187,7 @@ export default function Notifications() {
 
   const handleNavigate = (n: LibNotification) => {
     if (n.post_id) {
-      navigate({ pathname: '/', search: `?post=${n.post_id}` })
+      navigate({ pathname: '/', search: `?post=${n.post?.uuid ?? n.post_id}` })
     } else if (n.actor?.username && (n.type === 'friend_request' || n.type === 'friend_accepted' || n.type === 'follow')) {
       // Social events open the actor's profile, where accept/decline lives.
       navigate(userPath(n.actor.username))

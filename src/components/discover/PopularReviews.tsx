@@ -51,7 +51,7 @@ function ReviewCard({ review: r }: { review: PopularReview }) {
   const text = reviewToPlainText(r.review)
   return (
     <Link
-      to={mediaPath(r.media)}
+      to={r.uuid ? `${mediaPath(r.media)}?review=${r.uuid}` : mediaPath(r.media)}
       className="flex w-72 flex-shrink-0 snap-start flex-col gap-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--container)] p-3 transition-colors hover:border-[var(--border)] sm:w-80"
     >
       <div className="flex items-center gap-3">

@@ -18,6 +18,8 @@ export interface NotificationActor {
 }
 
 export interface NotificationPost {
+  /** The post's public id — what ?post= links use. */
+  uuid?: string
   subject_user_id: number
   media_title: string
   media_uuid?: string

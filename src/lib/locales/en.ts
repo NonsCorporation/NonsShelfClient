@@ -355,6 +355,7 @@ export const en = {
   popularReviewsHint: 'Most liked and discussed by members',
   popularReviewsLikes: '{n} likes',
   popularReviewsComments: '{n} comments',
+  copyReviewLink: 'Copy link',
   newAndNoteworthy: 'New & noteworthy',
   newReleases: 'New releases',
   newestAdditions: 'Just added',

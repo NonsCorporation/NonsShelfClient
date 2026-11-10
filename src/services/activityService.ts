@@ -22,6 +22,8 @@ export type Activity = {
   id: string
   /** The stored feed post's id — what comments attach to and deletion targets. */
   postId: number
+  /** The post's public id, for shareable ?post= links. */
+  postUuid?: string
   /** The subject's nons user id — who performed the action (the comment target). */
   userId: number
   user: { name: string; handle: string; color: string; uuid?: string; avatarUrl?: string; role?: string }
@@ -90,6 +92,7 @@ type Friendship = {
 type ActivityEvent = {
   user_id: number
   post_id: number
+  post_uuid?: string
   type: ActivityType
   value?: number
   note?: string // reviewed: the review text
@@ -198,6 +201,7 @@ function toActivity(e: ActivityEvent, user: Activity['user'], friends?: Map<numb
     // when both appear on the same feed page.
     id: e.reaction ? `r-${e.post_id}-${e.reaction.actor_id}-${e.reaction.type}` : `p-${e.post_id}`,
     postId: e.post_id,
+    postUuid: e.post_uuid || undefined,
     userId: e.user_id,
     user,
     type: e.type,

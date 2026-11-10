@@ -355,6 +355,7 @@ export const ro = {
   popularReviewsHint: 'Cele mai apreciate și comentate de membri',
   popularReviewsLikes: '{n} aprecieri',
   popularReviewsComments: '{n} comentarii',
+  copyReviewLink: 'Copiază linkul',
   newAndNoteworthy: 'Noutăți și recomandări',
   newReleases: 'Apariții recente',
   newestAdditions: 'Adăugate recent',

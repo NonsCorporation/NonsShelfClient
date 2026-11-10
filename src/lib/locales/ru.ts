@@ -355,6 +355,7 @@ export const ru = {
   popularReviewsHint: 'Больше всего оценок и обсуждений',
   popularReviewsLikes: 'Нравится: {n}',
   popularReviewsComments: 'Комментарии: {n}',
+  copyReviewLink: 'Копировать ссылку',
   newAndNoteworthy: 'Новое и заметное',
   newReleases: 'Новинки',
   newestAdditions: 'Только что добавлено',

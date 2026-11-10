@@ -10,6 +10,8 @@ export type ReviewSort = 'newest' | 'oldest' | 'high' | 'low'
 export type CommunityReview = {
   /** Review (rating row) id — the like/comment target for this review. */
   id: number
+  /** Public id — what shareable ?review= links use. */
+  uuid: string
   userId: number
   username?: string
   name?: string
@@ -29,10 +31,13 @@ export type ReviewsPage = {
   average: number
   /** Number of scored ratings. */
   count: number
+  /** Zero-based page this response holds — the page the `anchor` review is on. */
+  page: number
 }
 
 type WireReview = {
   id: number
+  uuid?: string
   user_id: number
   username?: string
   name?: string
@@ -43,9 +48,9 @@ type WireReview = {
   updated_at: number
 }
 
-type WirePage = { items?: WireReview[]; total?: number; average?: number; count?: number }
+type WirePage = { items?: WireReview[]; total?: number; average?: number; count?: number; page?: number }
 
-const EMPTY: ReviewsPage = { items: [], total: 0, average: 0, count: 0 }
+const EMPTY: ReviewsPage = { items: [], total: 0, average: 0, count: 0, page: 0 }
 
 export interface ReviewQuery {
   sort?: ReviewSort
@@ -56,6 +61,8 @@ export interface ReviewQuery {
   perPage?: number
   /** When set, only return reviews from these user IDs (friends filter). */
   userIds?: number[]
+  /** A review's uuid: return the page that holds it (under the same sort/filters) instead of `page`. */
+  anchor?: string
 }
 
 // Fetch a page of community reviews + the aggregate score. `mediaId` is the
@@ -70,6 +77,7 @@ export async function getReviews(mediaId: number | string, q: ReviewQuery = {}):
   if (q.withReview) params.set('with_review', '1')
   if (q.detailed) params.set('detailed', '1')
   if (q.userIds && q.userIds.length > 0) params.set('user_ids', q.userIds.join(','))
+  if (q.anchor) params.set('anchor', q.anchor)
   try {
     const res = await authedFetch(`/api/media/${mediaId}/reviews?${params}`)
     if (!res.ok) return EMPTY
@@ -77,6 +85,7 @@ export async function getReviews(mediaId: number | string, q: ReviewQuery = {}):
     return {
       items: (data.items ?? []).map((r) => ({
         id: r.id,
+        uuid: r.uuid ?? '',
         userId: r.user_id,
         username: r.username || undefined,
         name: r.name || undefined,
@@ -89,6 +98,7 @@ export async function getReviews(mediaId: number | string, q: ReviewQuery = {}):
       total: data.total ?? 0,
       average: data.average ?? 0,
       count: data.count ?? 0,
+      page: data.page ?? 0,
     }
   } catch {
     return EMPTY

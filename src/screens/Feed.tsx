@@ -80,7 +80,8 @@ export default function FeedPage() {
   const { feedBlocks } = usePreferences()
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [searchParams, setSearchParams] = useSearchParams()
-  const focusPostId = searchParams.get('post') ? Number(searchParams.get('post')) : null
+  // ?post= is a post's uuid (older links carry the numeric id — both match).
+  const focusPost = searchParams.get('post') || null
   // Zero-based, mirrors ?page= (1-based, param omitted on page 1) — same
   // convention as Library.tsx so back/forward and deep-links to a given
   // page work without extra client state.
@@ -209,10 +210,10 @@ export default function FeedPage() {
 
   // When arriving via a ?post= deep-link, scroll to and highlight that card.
   useEffect(() => {
-    if (!focusPostId || loading) return
+    if (!focusPost || loading) return
     const t = setTimeout(() => focusCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 150)
     return () => clearTimeout(t)
-  }, [focusPostId, loading])
+  }, [focusPost, loading])
 
   // Jump to the top of the feed, then push the chosen page into the URL —
   // the activity effect above owns the actual fetch.
@@ -556,7 +557,7 @@ export default function FeedPage() {
                 return <div key={`block-${row.id}`} className="empty:hidden">{renderDiscoverBlock(row.id)}</div>
               }
               const a = row.a
-              const isFocused = focusPostId != null && a.postId === focusPostId
+              const isFocused = focusPost != null && (a.postUuid === focusPost || String(a.postId) === focusPost)
               const onDeleted = (postId: number) => {
                 setActivity((prev) => prev.filter((x) => x.postId !== postId))
                 setActivityTotal((n) => Math.max(0, n - 1))
