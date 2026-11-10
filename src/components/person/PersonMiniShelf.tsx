@@ -1,8 +1,8 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from '@/lib/router'
-import { IoBookOutline, IoFilmOutline, IoStar } from 'react-icons/io5'
+import { IoBookOutline, IoChevronBack, IoChevronForward, IoFilmOutline, IoStar } from 'react-icons/io5'
 import { authedFetch } from '@/lib/api'
 import { statusLabel, STATUS_COLOR } from '@/lib/shelf'
 import { useAuth } from '@/contexts/AuthContext'
@@ -32,6 +32,31 @@ export default function PersonMiniShelf({ personUuid }: { personUuid: string }) 
   const { user } = useAuth()
   const [works, setWorks] = useState<Work[]>([])
   const userId = user?.id
+  const railRef = useRef<HTMLDivElement>(null)
+  // Which directions the row can still scroll — drives the arrow buttons, which
+  // exist because the scrollbar is hidden and a mouse wheel only scrolls vertically.
+  const [canScroll, setCanScroll] = useState({ back: false, forward: false })
+
+  const measure = useCallback(() => {
+    const el = railRef.current
+    if (!el) return
+    setCanScroll({ back: el.scrollLeft > 4, forward: el.scrollLeft + el.clientWidth < el.scrollWidth - 4 })
+  }, [])
+
+  // Re-measure when the works load and when the row is resized.
+  useEffect(() => {
+    measure()
+    const el = railRef.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [works, measure])
+
+  const scrollBy = (dir: 1 | -1) => {
+    const el = railRef.current
+    if (el) el.scrollBy({ left: dir * Math.max(200, el.clientWidth * 0.8), behavior: 'smooth' })
+  }
 
   useEffect(() => {
     if (!userId) return
@@ -47,10 +72,29 @@ export default function PersonMiniShelf({ personUuid }: { personUuid: string }) 
 
   return (
     <div>
-      <h3 className="mb-3 text-[10px] uppercase tracking-widest text-[var(--text-muted)]">
-        {t('personYourShelf')}
-      </h3>
-      <div className="no-scrollbar -mx-1 flex gap-3 overflow-x-auto px-1 pb-1">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <h3 className="text-[10px] uppercase tracking-widest text-[var(--text-muted)]">{t('personYourShelf')}</h3>
+        {(canScroll.back || canScroll.forward) && (
+          <div className="flex items-center gap-1">
+            {([-1, 1] as const).map((dir) => {
+              const enabled = dir === -1 ? canScroll.back : canScroll.forward
+              return (
+                <button
+                  key={dir}
+                  type="button"
+                  disabled={!enabled}
+                  onClick={() => scrollBy(dir)}
+                  aria-label={dir === -1 ? 'Scroll left' : 'Scroll right'}
+                  className="flex h-6 w-6 items-center justify-center rounded-full border border-[var(--border-subtle)] text-[var(--text-muted)] transition-colors hover:border-[var(--border)] hover:text-[var(--text)] disabled:opacity-30 disabled:hover:border-[var(--border-subtle)] disabled:hover:text-[var(--text-muted)]"
+                >
+                  {dir === -1 ? <IoChevronBack className="h-3.5 w-3.5" /> : <IoChevronForward className="h-3.5 w-3.5" />}
+                </button>
+              )
+            })}
+          </div>
+        )}
+      </div>
+      <div ref={railRef} onScroll={measure} className="no-scrollbar -mx-1 flex gap-3 overflow-x-auto px-1 pb-1">
         {works.map((w) => (
           <Link
             key={w.uuid}

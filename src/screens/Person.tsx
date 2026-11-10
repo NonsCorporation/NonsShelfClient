@@ -156,7 +156,7 @@ export default function PersonPage({ initialData, initialLang = '' }: { initialD
         </div>
 
         {/* ── Right: identity + credits ── */}
-        <div className="flex flex-1 flex-col gap-6">
+        <div className="flex min-w-0 flex-1 flex-col gap-6">
           <div>
             <div className="flex items-start justify-between gap-4">
               <h1 className="text-3xl font-bold leading-tight tracking-tight text-[var(--text)] md:text-[2.6rem]">
