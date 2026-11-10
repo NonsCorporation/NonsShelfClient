@@ -356,23 +356,62 @@ export default function Statistics() {
     ...(recap.minutes
       ? [{ icon: IoTimeOutline, value: fmtDuration(recap.minutes), label: t('recapTimeSpent'), color: '#4fd1c5' }]
       : []),
+    ...(recap.ratedCount
+      ? [{ icon: IoStar, value: recap.avgRating.toFixed(1), label: t('recapAvg'), color: '#f5a623' }]
+      : []),
+    ...(recap.reviewCount
+      ? [{ icon: IoChatbubbleOutline, value: recap.reviewCount, label: t('reviewsTitle'), color: '#c9c7d6' }]
+      : []),
   ]
 
-  // Covers of what was finished in the period, tiled to fill a 12-tile backdrop
-  // grid for the hero band (Wrapped/Year-in-Review style) — repeats if there
-  // are fewer than 12 so a light month still reads as a full mosaic.
-  const coverTiles = useMemo(() => {
-    const urls = recap.items.map((i) => i.coverUrl).filter((u): u is string => !!u)
-    if (urls.length === 0) return []
-    return Array.from({ length: 12 }, (_, i) => urls[i % urls.length])
-  }, [recap.items])
+  // The hero's fanned hand of covers: the period's highest rated first, topped
+  // up with the most recent finishes, five at most. Each gets a slot in the fan
+  // assigned centre-out, so the best title sits front and middle. The first
+  // one's cover also tints the hero's backdrop.
+  const heroCovers = useMemo(() => {
+    const seen = new Set<string>()
+    const picked: MediaItem[] = []
+    for (const i of [...recap.topRated, ...[...recap.items].reverse()]) {
+      if (!i.coverUrl || seen.has(i.id)) continue
+      seen.add(i.id)
+      picked.push(i)
+      if (picked.length === 5) break
+    }
+    const mid = (picked.length - 1) / 2
+    const slots = picked.map((_, k) => k).sort((a, b) => Math.abs(a - mid) - Math.abs(b - mid))
+    return picked.map((item, k) => ({ item, slot: slots[k], off: slots[k] - mid }))
+  }, [recap.topRated, recap.items])
 
-  // A tiny peek of 3 covers on the export button, so it reads as "here's what
-  // you'll get" rather than a bare label.
-  const exportPreview = useMemo(
-    () => recap.items.map((i) => i.coverUrl).filter((u): u is string => !!u).slice(0, 3),
-    [recap.items],
-  )
+  // The period drawn as a strip of cells — one per day for periods up to about
+  // two months, one per month beyond that — each holding what was finished in
+  // it. It's the hero's footer: the shape of the month at a glance.
+  const rhythm = useMemo(() => {
+    if (recap.items.length === 0) return null
+    const start = new Date(period.from * 1000)
+    const end = new Date(period.to * 1000 - 1000)
+    const dayIndex = (d: Date) =>
+      Math.round((new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime() - start.getTime()) / 86_400_000)
+    const days = dayIndex(end) + 1
+    const byDay = days <= 62
+    const count = byDay ? days : (end.getFullYear() - start.getFullYear()) * 12 + end.getMonth() - start.getMonth() + 1
+    if (count <= 0 || count > 240) return null
+    const cells = Array.from({ length: count }, (_, k) => {
+      const d = byDay
+        ? new Date(start.getFullYear(), start.getMonth(), start.getDate() + k)
+        : new Date(start.getFullYear(), start.getMonth() + k, 1)
+      const label = byDay
+        ? d.toLocaleDateString(locale, { day: 'numeric', month: 'short' })
+        : d.toLocaleDateString(locale, { month: 'short', year: 'numeric' })
+      return { label, items: [] as MediaItem[] }
+    })
+    for (const i of recap.items) {
+      if (!i.finishedAt) continue
+      const d = new Date(i.finishedAt)
+      const k = byDay ? dayIndex(d) : (d.getFullYear() - start.getFullYear()) * 12 + d.getMonth() - start.getMonth()
+      if (cells[k]) cells[k].items.push(i)
+    }
+    return { cells, byDay, max: Math.max(1, ...cells.map((c) => c.items.length)) }
+  }, [recap.items, period, locale])
 
   // "What you finished" grouped by month when the period spans more than one
   // calendar month (year / custom range) — a single-month recap stays flat,
@@ -396,34 +435,7 @@ export default function Statistics() {
     <div className="flex flex-col gap-6">
       {/* Recap — pick any period, see a detailed breakdown, generate story cards */}
       <section className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--container)] p-4 shadow-sm sm:p-6">
-        <div className="mb-4 flex flex-wrap items-center gap-3">
-          <div>
-            <h2 className="text-base font-semibold text-[var(--text)]">{t('recapHeading')}</h2>
-            <p className="mt-0.5 text-xs text-[var(--text-muted)]">{recapLabel}</p>
-          </div>
-          <button
-            onClick={() => setRecapOpen(true)}
-            disabled={recap.counts.total === 0}
-            className="flex items-center gap-2 rounded-full border border-[color-mix(in_srgb,var(--color-nonsprimary)_45%,transparent)] px-3 py-1.5 text-xs font-semibold text-[var(--color-nonsprimary)] transition-colors hover:bg-[color-mix(in_srgb,var(--color-nonsprimary)_10%,transparent)] disabled:pointer-events-none disabled:opacity-40"
-          >
-            {exportPreview.length > 0 ? (
-              <span className="flex -space-x-3">
-                {exportPreview.map((src, i) => (
-                  <span
-                    key={i}
-                    className="h-6 w-4.5 overflow-hidden rounded-sm shadow-sm ring-2 ring-[var(--container)]"
-                    style={{ transform: `rotate(${(i - (exportPreview.length - 1) / 2) * 8}deg)`, zIndex: i }}
-                  >
-                    <img src={src} alt="" className="h-full w-full object-cover" />
-                  </span>
-                ))}
-              </span>
-            ) : (
-              <IoAlbumsOutline className="h-4 w-4" />
-            )}
-            {t('recapCreateCards')}
-          </button>
-        </div>
+        <h2 className="mb-4 text-base font-semibold text-[var(--text)]">{t('recapHeading')}</h2>
 
         {/* Period controls — mode, pickers and the type filter in one wrapping row */}
         <div className="mb-5 flex flex-wrap items-center gap-2">
@@ -480,41 +492,112 @@ export default function Statistics() {
           </div>
         </div>
 
-        {/* Hero band — Wrapped/Year-in-Review style: a mosaic of the period's own
-            covers behind the headline count, always dark so it reads the same
-            regardless of the app's light/dark theme. */}
-        <div className="relative mb-5 overflow-hidden rounded-2xl bg-[#15131f]">
-          {coverTiles.length > 0 && (
-            <div className="absolute inset-0 grid grid-cols-6 gap-px opacity-45 sm:grid-cols-8">
-              {coverTiles.map((src, i) => (
-                <div key={i} className="aspect-square overflow-hidden">
-                  <img src={src} alt="" className="h-full w-full scale-110 object-cover blur-[1px] saturate-[1.3]" />
-                </div>
-              ))}
-            </div>
+        {/* Hero — the period as a poster: its best cover blurred into a colour
+            wash behind the headline count, the top titles fanned out like a
+            hand of cards, and the period's day-by-day rhythm along the bottom.
+            Always dark, so it reads (and screenshots) the same in either theme. */}
+        <div className="relative mb-5 overflow-hidden rounded-2xl border border-white/10 bg-[#0f0e15]">
+          {heroCovers[0] && (
+            <img
+              key={heroCovers[0].item.id}
+              src={heroCovers[0].item.coverUrl}
+              alt=""
+              className="pointer-events-none absolute inset-0 h-full w-full scale-150 object-cover opacity-60 blur-3xl saturate-150"
+            />
           )}
-          <div className="absolute inset-0 bg-gradient-to-t from-[#15131f] via-[#15131fcc] to-[#15131f66]" />
-          <div className="relative z-10 flex flex-col gap-4 p-5 sm:p-7 lg:flex-row lg:items-center lg:justify-between">
+          <div className="absolute inset-0 bg-gradient-to-br from-[#0f0e15]/90 via-[#0f0e15]/60 to-[#0f0e15]/30" />
+          <div className="relative z-10">
             {recap.counts.total === 0 ? (
-              <p className="text-sm text-white/70">{t('recapEmpty')}</p>
+              <div className="p-5 sm:p-7">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/50">{recapLabel}</p>
+                <p className="mt-2 text-sm text-white/70">{t('recapEmpty')}</p>
+              </div>
             ) : (
               <>
-                <div className="flex items-baseline gap-3">
-                  <p className="text-6xl font-bold leading-none tracking-tight text-white">{recap.counts.total}</p>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-white/60">{t('statFinished')}</p>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  {recapChips.map((c) => (
-                    <span
-                      key={c.label}
-                      className="flex items-center gap-1.5 rounded-full border border-white/15 bg-white/10 py-1.5 pl-2.5 pr-3 text-xs backdrop-blur-sm"
+                <div className="flex flex-col gap-7 p-5 sm:p-7 lg:flex-row lg:items-center lg:justify-between lg:gap-10">
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/55">{recapLabel}</p>
+                    <div className="mt-2 flex items-baseline gap-3">
+                      <p className="text-6xl font-bold leading-none tracking-tight text-white">{recap.counts.total}</p>
+                      <p className="text-sm text-white/60">{t('recapFinishedTotal')}</p>
+                    </div>
+                    <div className="mt-4 flex flex-wrap items-center gap-1.5">
+                      {recapChips.map((c) => (
+                        <span
+                          key={c.label}
+                          className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.08] py-1 pl-2 pr-2.5 text-xs backdrop-blur-sm"
+                        >
+                          <c.icon className="h-3.5 w-3.5" style={{ color: c.color }} />
+                          <span className="font-bold text-white">{c.value}</span>
+                          <span className="text-white/60">{c.label}</span>
+                        </span>
+                      ))}
+                    </div>
+                    <button
+                      onClick={() => setRecapOpen(true)}
+                      className="mt-5 inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-xs font-semibold text-black transition-opacity hover:opacity-90"
                     >
-                      <c.icon className="h-3.5 w-3.5" style={{ color: c.color }} />
-                      <span className="font-bold text-white">{c.value}</span>
-                      <span className="text-white/70">{c.label}</span>
-                    </span>
-                  ))}
+                      <IoAlbumsOutline className="h-4 w-4" />
+                      {t('recapCreateCards')}
+                    </button>
+                  </div>
+
+                  {heroCovers.length > 0 && (
+                    <div
+                      className="relative mx-auto h-[166px] flex-shrink-0 lg:mx-0 lg:mr-4"
+                      style={{ width: 96 + (heroCovers.length - 1) * 40 }}
+                    >
+                      {heroCovers.map(({ item, slot, off }) => (
+                        <span
+                          key={item.id}
+                          className="absolute top-1 block w-24 hover:z-20!"
+                          style={{
+                            left: slot * 40,
+                            transform: `translateY(${Math.abs(off) * 7}px) rotate(${off * 6}deg)`,
+                            zIndex: 10 - Math.round(Math.abs(off) * 2),
+                          }}
+                        >
+                          <Link
+                            to={mediaPath({ type: item.type, uuid: item.uuid, id: item.id })}
+                            title={item.title}
+                            className="relative block aspect-[2/3] overflow-hidden rounded-lg shadow-[0_12px_28px_-8px_rgba(0,0,0,0.85)] ring-1 ring-white/15 transition-transform duration-200 ease-out hover:-translate-y-2"
+                          >
+                            <FinishedCover url={item.coverUrl} title={item.title} author={item.author} type={item.type} badge={false} />
+                          </Link>
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
+
+                {rhythm && (
+                  <div className="border-t border-white/10 px-5 pb-4 pt-3.5 sm:px-7">
+                    <div className="flex h-7 items-stretch gap-[3px]">
+                      {rhythm.cells.map((c, k) => (
+                        <span
+                          key={k}
+                          title={c.items.length ? `${c.label} · ${c.items.map((i) => i.title).join(', ')}` : c.label}
+                          className="flex min-w-0 flex-1 flex-col-reverse gap-px overflow-hidden rounded-[3px] bg-white/[0.07]"
+                        >
+                          {rhythm.byDay
+                            ? c.items.slice(0, 4).map((i) => (
+                                <span key={i.id} className="flex-1" style={{ backgroundColor: TYPE_COLOR[i.type] }} />
+                              ))
+                            : c.items.length > 0 && (
+                                <span
+                                  className="w-full rounded-[3px] bg-[#8f90e0]"
+                                  style={{ height: `${Math.max(18, (c.items.length / rhythm.max) * 100)}%` }}
+                                />
+                              )}
+                        </span>
+                      ))}
+                    </div>
+                    <div className="mt-1.5 flex justify-between text-[10px] text-white/40">
+                      <span>{rhythm.cells[0].label}</span>
+                      <span>{rhythm.cells[rhythm.cells.length - 1].label}</span>
+                    </div>
+                  </div>
+                )}
               </>
             )}
           </div>
@@ -522,6 +605,36 @@ export default function Statistics() {
 
         {recap.counts.total > 0 && (
           <div className="flex flex-col divide-y divide-[var(--border-subtle)]">
+            {/* Highest rated — a ranked row, the numeral doing the talking. */}
+            {recap.topRated.length > 0 && (
+              <div className="pb-4">
+                <p className="mb-3 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">
+                  <IoStar className="h-3.5 w-3.5" /> {t('recapTopRated')}
+                </p>
+                <ol className="grid grid-cols-1 gap-x-5 gap-y-3 sm:grid-cols-2 lg:grid-cols-5">
+                  {recap.topRated.map((i, k) => (
+                    <li key={i.id}>
+                      <Link to={mediaPath({ type: i.type, uuid: i.uuid, id: i.id })} className="group/top flex items-center gap-2.5">
+                        <span className="w-5 flex-shrink-0 text-center text-2xl font-bold leading-none text-[var(--border-strong)] transition-colors group-hover/top:text-[var(--text-muted)]">
+                          {k + 1}
+                        </span>
+                        <span className="relative block aspect-[2/3] w-10 flex-shrink-0 overflow-hidden rounded-md ring-1 ring-black/5">
+                          <FinishedCover url={i.coverUrl} title={i.title} author={i.author} type={i.type} badge={false} />
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-[13px] font-semibold text-[var(--text)] group-hover/top:text-nonsprimary" title={i.title}>{i.title}</span>
+                          <span className="mt-0.5 flex items-center gap-1 text-[11px] text-[var(--text-muted)]">
+                            <IoStar className="h-3 w-3" style={{ color: '#f5a623' }} />
+                            {((i.rating || 0) / 2).toFixed(1)}
+                          </span>
+                        </span>
+                      </Link>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            )}
+
             {/* Most-read author */}
             {recap.authors.length > 0 && (
               <div className="py-4">
@@ -712,20 +825,16 @@ export default function Statistics() {
       )}
 
       {/* Summary cards */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      {/* One panel split by hairlines rather than eight separate boxes: the
+          1px gaps over the border-coloured grid background draw the dividers. */}
+      <div className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-[var(--border-subtle)] bg-[var(--border-subtle)] shadow-sm sm:grid-cols-4">
         {cards.map((c) => (
-          <div
-            key={c.label}
-            className="group rounded-2xl border border-[var(--border-subtle)] bg-[var(--container)] p-4 transition-all hover:-translate-y-0.5 hover:border-[color-mix(in_srgb,var(--text-muted)_35%,transparent)] hover:shadow-sm"
-          >
-            <span
-              className="flex h-9 w-9 items-center justify-center rounded-xl transition-transform group-hover:scale-105"
-              style={{ backgroundColor: `color-mix(in srgb, ${c.color} 15%, transparent)` }}
-            >
-              <c.icon className="h-4.5 w-4.5" style={{ color: c.color }} />
-            </span>
-            <p className="mt-3 text-2xl font-bold leading-none text-[var(--text)]">{c.value}</p>
-            <p className="mt-1.5 text-[11px] uppercase tracking-wide text-[var(--text-muted)]">{c.label}</p>
+          <div key={c.label} className="bg-[var(--container)] px-4 py-3.5 transition-colors hover:bg-[var(--container-2)]">
+            <p className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-[var(--text-muted)]">
+              <c.icon className="h-3.5 w-3.5 flex-shrink-0" style={{ color: c.color }} />
+              <span className="truncate">{c.label}</span>
+            </p>
+            <p className="mt-2 text-2xl font-bold leading-none tracking-tight text-[var(--text)]">{c.value}</p>
           </div>
         ))}
       </div>
@@ -853,9 +962,11 @@ export default function Statistics() {
   )
 }
 
-// A smooth red→green hue for a 1..10 rating.
+// One amber ramp for a 1..10 rating: a dim burnt orange at the bottom warming
+// up to bright gold at the top, so the breakdown reads as a single scale.
 function starColor(r: number): string {
-  return `hsl(${Math.round(((r - 1) / 9) * 120)}, 62%, 52%)`
+  const k = (r - 1) / 9
+  return `hsl(${Math.round(18 + k * 26)}, ${Math.round(55 + k * 35)}%, ${Math.round(34 + k * 26)}%)`
 }
 
 // Same generated no-cover placeholder colour as the recap story cards (see
@@ -871,7 +982,7 @@ const MIN_COVER_DIM = 4
 // (from title+author) when there's no image or it fails to load, so the shelf
 // never shows an empty box — and carries the same TypeBadge overlay used on
 // covers everywhere else in the app.
-function FinishedCover({ url, title, author, type }: { url?: string; title?: string; author?: string; type: MediaType }) {
+function FinishedCover({ url, title, author, type, badge = true }: { url?: string; title?: string; author?: string; type: MediaType; badge?: boolean }) {
   const [broken, setBroken] = useState(!url)
   useEffect(() => setBroken(!url), [url])
   return (
@@ -897,34 +1008,47 @@ function FinishedCover({ url, title, author, type }: { url?: string; title?: str
           }}
         />
       )}
-      <TypeBadge type={type} position="top-1 right-1" size="h-5 w-5" iconSize="h-2.5 w-2.5" />
+      {badge && <TypeBadge type={type} position="top-1 right-1" size="h-5 w-5" iconSize="h-2.5 w-2.5" />}
     </>
   )
 }
 
-// Simple vertical bar chart (12 months). Bars scale to the series max, drawn
-// over a faint full-height track so empty months still read as part of the grid.
+// Simple vertical bar chart (12 months). Bars scale to the series max and
+// stand on a shared baseline, each with its count above it; the best month is
+// drawn at full strength and the rest slightly held back, so the peak reads
+// first. Empty months keep a short stub so the year still reads as 12 slots.
 function BarChart({ values, labels, color }: { values: number[]; labels: string[]; color: string }) {
   const max = Math.max(1, ...values)
   return (
-    <div className="flex h-40 items-end gap-1 sm:gap-2">
-      {values.map((v, i) => (
-        <div key={i} className="group relative flex h-full flex-1 flex-col items-center justify-end gap-1">
-          <span className="text-[10px] font-semibold text-[var(--text)] opacity-0 transition-opacity group-hover:opacity-100">{v || ''}</span>
-          <div className="relative w-full flex-1 overflow-hidden rounded-md bg-[color-mix(in_srgb,var(--container-2)_60%,transparent)]">
-            <div
-              title={`${labels[i]}: ${v}`}
-              className="absolute bottom-0 w-full rounded-md transition-all duration-300 group-hover:brightness-110"
-              style={{
-                height: `${v ? Math.max((v / max) * 100, 6) : 0}%`,
-                backgroundImage: v ? `linear-gradient(to top, color-mix(in srgb, ${color} 55%, transparent), ${color})` : undefined,
-                backgroundColor: v ? undefined : 'transparent',
-              }}
-            />
+    <div className="flex h-44 items-stretch gap-1.5 sm:gap-3">
+      {values.map((v, i) => {
+        const peak = v > 0 && v === max
+        return (
+          <div key={i} className="group flex flex-1 flex-col items-center" title={`${labels[i]}: ${v}`}>
+            {/* Heights come from flex-grow shares (spacer vs bar) rather than a
+                percentage height, which needs no definite parent height. */}
+            <div className="flex w-full flex-1 flex-col items-center border-b border-[var(--border)]">
+              <span style={{ flex: `${1 - (v / max) * 0.85} 1 0%` }} />
+              <span className={`mb-1 text-[10px] font-semibold tabular-nums ${peak ? 'text-[var(--text)]' : 'text-[var(--text-muted)]'}`}>
+                {v || ''}
+              </span>
+              <div
+                className="w-full max-w-9 rounded-t-md transition-all duration-300 group-hover:opacity-100"
+                style={{
+                  flex: v ? `${(v / max) * 0.85} 1 0%` : '0 0 3px',
+                  minHeight: v ? 6 : undefined,
+                  opacity: v ? (peak ? 1 : 0.7) : 1,
+                  backgroundImage: v ? `linear-gradient(to top, color-mix(in srgb, ${color} 35%, transparent), ${color})` : undefined,
+                  backgroundColor: v ? undefined : 'var(--container-2)',
+                }}
+              />
+            </div>
+            <span className={`mt-1.5 text-[9px] uppercase sm:text-[10px] ${peak ? 'font-semibold text-[var(--text)]' : 'text-[var(--text-muted)]'}`}>
+              {labels[i]}
+            </span>
           </div>
-          <span className="text-[9px] uppercase text-[var(--text-muted)] sm:text-[10px]">{labels[i]}</span>
-        </div>
-      ))}
+        )
+      })}
     </div>
   )
 }
