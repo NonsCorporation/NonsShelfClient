@@ -4,7 +4,7 @@ import { getPublicMedia, getPublicRating } from '@/lib/serverApi'
 import { loadLocalizations, localizedFor, parseLang } from '@/lib/mediaLocalize'
 import { hashHue } from '@/lib/hashHue'
 import { analyzeCover, hslToRgb255 } from '@/lib/coverColorServer'
-import { toVisualRtl, hasArabicScript } from '@/lib/ogText'
+import { toVisualRtl, hasArabicScript, clipText, safeText, pickDrawable } from '@/lib/ogText'
 import { avatarDataUrl, loadFonts, ONEST_STACK, ONEST_STACK_AR, Logo, BG, INK, MUTED, LINE, PRIMARY } from '@/lib/profileSeo'
 
 // Link-preview card for a book/film/series page (/b/<id>, /m/<id>), referenced
@@ -24,23 +24,11 @@ const COVER = { width: 300, height: 450 } // 2:3
 const STAR_PATH = 'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z'
 const TYPE_LABEL = { book: 'BOOK', movie: 'FILM', series: 'SERIES' } as Record<string, string>
 
-const clip = (s: string, max: number) => (s.length > max ? `${s.slice(0, max - 1).trimEnd()}…` : s)
+const clip = clipText
+const safe = safeText
 
-// Scripts the card can draw: Latin and Cyrillic (Onest) and Arabic (Noto Sans
-// Arabic, pre-shaped by lib/ogText). Anything else would make the renderer fetch
-// a fallback font at runtime — and for Arabic that font crashes it ("lookupType:
-// 5 - substFormat: 3 is not yet supported"), which once made /m/<id>?lang=ar a
-// 500 and left Telegram with no preview. So other scripts fall back to the
-// catalog title; the localized title still goes in og:title.
-const UNSUPPORTED = /[^\u0020-\u007E\u00A0-\u017F\u0400-\u04FF\u0600-\u06FF\u2010-\u2027\u2030-\u203A\u20AC\u2116]/g
-const safe = (s: string) => s.replace(UNSUPPORTED, '').replace(/\s+/g, ' ').trim()
-const isSafe = (s: string) => !!s && safe(s) === s.replace(/\s+/g, ' ').trim()
-
-/** First candidate fully drawable with our fonts; else the first one stripped. */
-function pickTitle(candidates: (string | undefined)[]): string {
-  const list = candidates.filter((c): c is string => !!c)
-  return list.find(isSafe) ?? list.map(safe).find(Boolean) ?? 'SomeShelf'
-}
+/** First candidate fully drawable with our fonts (see lib/ogText). */
+const pickTitle = (candidates: (string | undefined)[]) => pickDrawable(candidates)
 
 // Arabic is drawn on one line (wrapping would break the right-to-left order),
 // so shrink the type until the line fits `width` (~0.55em per glyph).

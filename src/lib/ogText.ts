@@ -20,3 +20,23 @@ export function toVisualRtl(s: string, lang = 'ar'): string {
   const shaped = shaper.convertArabic(s)
   return bidi.getReorderedString(shaped, bidi.getEmbeddingLevels(shaped, 'rtl'))
 }
+
+// ── Drawable-text helpers shared by the link-preview cards ──────────────────
+
+export const clipText = (s: string, max: number) => (s.length > max ? `${s.slice(0, max - 1).trimEnd()}…` : s)
+
+// Scripts the card can draw: Latin and Cyrillic (Onest) and Arabic (Noto Sans
+// Arabic, pre-shaped above). Anything else would make the renderer fetch a
+// fallback font at runtime — and for Arabic that font crashes it ("lookupType: 5
+// - substFormat: 3 is not yet supported"), which once made /m/<id>?lang=ar a 500
+// and left Telegram with no preview. So other scripts are dropped here and the
+// card falls back to another spelling; the full text still goes in og:title.
+const UNSUPPORTED = /[^\u0020-\u007E\u00A0-\u017F\u0400-\u04FF\u0600-\u06FF\u2010-\u2027\u2030-\u203A\u20AC\u2116]/g
+export const safeText = (s: string) => s.replace(UNSUPPORTED, '').replace(/\s+/g, ' ').trim()
+const isSafe = (s: string) => !!s && safeText(s) === s.replace(/\s+/g, ' ').trim()
+
+/** First candidate fully drawable with our fonts; else the first one stripped. */
+export function pickDrawable(candidates: (string | undefined)[], fallback = 'SomeShelf'): string {
+  const list = candidates.filter((c): c is string => !!c)
+  return list.find(isSafe) ?? list.map(safeText).find(Boolean) ?? fallback
+}
