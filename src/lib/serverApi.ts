@@ -100,3 +100,29 @@ const PROFILE_REVALIDATE_SECONDS = 300
 export function getPublicProfileCard(username: string): Promise<PublicProfileCard | null> {
   return getJson<PublicProfileCard>(`/api/profiles/${encodeURIComponent(username)}/card`, PROFILE_REVALIDATE_SECONDS)
 }
+
+/** GET /api/people/:uuid — a person, their name variants and every credit. */
+export type PublicPerson = {
+  person: {
+    uuid: string
+    name: string
+    name_lang?: string
+    photo_url?: string
+    bio?: string
+    birth_year?: number
+    birth_date?: string
+    death_year?: number
+    death_date?: string
+  }
+  aliases: { name: string; lang?: string }[]
+  credits: {
+    role: string
+    character?: string
+    media: { uuid: string; type: 'book' | 'movie' | 'series'; title: string; year?: number; cover_url?: string }
+  }[]
+}
+
+// People change rarely (bio edits, new credits) — same cadence as the catalog.
+export function getPublicPerson(uuid: string): Promise<PublicPerson | null> {
+  return getJson<PublicPerson>(`/api/people/${encodeURIComponent(uuid)}`)
+}

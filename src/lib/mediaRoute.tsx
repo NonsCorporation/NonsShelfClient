@@ -18,7 +18,7 @@ import MediaOne from '@/screens/MediaOne'
 const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || 'https://someshelf.com').replace(/\/+$/, '')
 
 // og:locale wants language_TERRITORY; these are the usual defaults per language.
-const OG_LOCALES: Record<string, string> = {
+export const OG_LOCALES: Record<string, string> = {
   en: 'en_US', ru: 'ru_RU', de: 'de_DE', fr: 'fr_FR', es: 'es_ES', it: 'it_IT', pt: 'pt_PT',
   ja: 'ja_JP', ko: 'ko_KR', zh: 'zh_CN', ar: 'ar_AR', tr: 'tr_TR', pl: 'pl_PL', nl: 'nl_NL',
   sv: 'sv_SE', da: 'da_DK', fi: 'fi_FI', nb: 'nb_NO', cs: 'cs_CZ', uk: 'uk_UA',

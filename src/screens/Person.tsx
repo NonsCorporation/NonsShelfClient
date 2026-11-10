@@ -1,3 +1,5 @@
+'use client'
+
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate, Link } from '@/lib/router'
 import Layout from '../components/layout/Layout'
@@ -5,6 +7,7 @@ import { DetailPageSkeleton } from '@/components/ui/Skeletons'
 import PersonModal from '@/components/person/PersonModal'
 import AwardsSection from '@/components/awards/AwardsSection'
 import PersonMiniShelf from '@/components/person/PersonMiniShelf'
+import { nameForLang } from '@/lib/personLocalize'
 import { authedFetch } from '../lib/api'
 import { isLibrarian } from '../services/librarianService'
 import { useLanguage } from '../contexts/LanguageContext'
@@ -18,6 +21,7 @@ interface PersonResp {
     name: string
     photo_url?: string
     bio?: string
+    name_lang?: string
     birth_year?: number
     birth_date?: string // YYYY-MM-DD (full or partial)
     death_year?: number
@@ -27,7 +31,7 @@ interface PersonResp {
   credits: {
     role: string
     character?: string
-    media: { uuid: string; type: 'book' | 'movie'; title: string; year?: number; cover_url?: string }
+    media: { uuid: string; type: 'book' | 'movie' | 'series'; title: string; year?: number; cover_url?: string }
   }[]
 }
 
@@ -55,13 +59,16 @@ function formatLifeDate(dateStr: string | undefined, year: number | undefined, l
 const mediaHref = (m: PersonResp['credits'][number]['media']) =>
   `${m.type === 'book' ? '/b' : '/m'}/${m.uuid}`
 
-export default function PersonPage() {
+// `initialData` is the public person fetched on the server (so the bio and
+// credits are in the HTML crawlers see); `initialLang` is the ?lang= the server
+// resolved ('' = default), which picks the spelling of the name in the heading.
+export default function PersonPage({ initialData, initialLang = '' }: { initialData?: PersonResp; initialLang?: string }) {
   const { t, language } = useLanguage()
   const navigate = useNavigate()
   const { user } = useAuth()
   const { uuid } = useParams<{ uuid: string }>()
-  const [data, setData] = useState<PersonResp | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [data, setData] = useState<PersonResp | null>(initialData ?? null)
+  const [loading, setLoading] = useState(!initialData)
   const [editing, setEditing] = useState(false)
   const [suggestionToast, setSuggestionToast] = useState('')
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -78,10 +85,11 @@ export default function PersonPage() {
     if (!uuid) return
     authedFetch(`/api/people/${uuid}`)
       .then((r) => (r.ok ? r.json() : null))
-      .then((d) => setData(d))
+      // A failed refresh must not blank a page the server already rendered.
+      .then((d) => { if (d || !initialData) setData(d) })
       .catch(() => setData(null))
       .finally(() => setLoading(false))
-  }, [uuid])
+  }, [uuid, initialData])
 
   useEffect(() => {
     load()
@@ -152,7 +160,7 @@ export default function PersonPage() {
           <div>
             <div className="flex items-start justify-between gap-4">
               <h1 className="text-3xl font-bold leading-tight tracking-tight text-[var(--text)] md:text-[2.6rem]">
-                {person.name}
+                {nameForLang(person, aliases, initialLang)}
               </h1>
               {canInteract && (
                 <button
