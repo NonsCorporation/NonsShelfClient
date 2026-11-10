@@ -4,6 +4,7 @@ import Layout from '../components/layout/Layout'
 import { DetailPageSkeleton } from '@/components/ui/Skeletons'
 import PersonModal from '@/components/person/PersonModal'
 import AwardsSection from '@/components/awards/AwardsSection'
+import PersonMiniShelf from '@/components/person/PersonMiniShelf'
 import { authedFetch } from '../lib/api'
 import { isLibrarian } from '../services/librarianService'
 import { useLanguage } from '../contexts/LanguageContext'
@@ -193,6 +194,10 @@ export default function PersonPage() {
               <p className="text-sm leading-7 text-[var(--text-muted)]">{person.bio}</p>
             </div>
           )}
+
+          {/* The viewer's own read/seen entries by this person — first row after
+              the bio. One entry per work however many roles they had on it. */}
+          <PersonMiniShelf personUuid={person.uuid} />
 
           {/* Awards — librarian-curated recognitions (Best Actor, Nobel, …).
               On desktop this renders below the portrait instead (2-col grid,
