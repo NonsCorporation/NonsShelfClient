@@ -4,6 +4,7 @@ import { getPublicPerson } from '@/lib/serverApi'
 import { parseLang } from '@/lib/mediaLocalize'
 import { langCode, lifeSpan, nameForLang, personLangs } from '@/lib/personLocalize'
 import { hashHue } from '@/lib/hashHue'
+import { analyzeCover, hslToRgb255 } from '@/lib/coverColorServer'
 import { toVisualRtl, hasArabicScript, clipText, safeText, pickDrawable } from '@/lib/ogText'
 import { avatarDataUrl, loadFonts, ONEST_STACK, ONEST_STACK_AR, Logo, BG, INK, MUTED, LINE, PRIMARY } from '@/lib/profileSeo'
 
@@ -70,11 +71,16 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ uuid: strin
   const works = credits.map((c) => c.media).filter((m) => (seen.has(m.uuid) ? false : (seen.add(m.uuid), true)))
   const withArt = works.filter((m) => m.cover_url).slice(0, MAX_COVERS)
 
-  const [photoData, ...coverData] = await Promise.all([
+  const [rawPhoto, ...coverData] = await Promise.all([
     avatarDataUrl(person.photo_url ? person.photo_url.replace(/^http:\/\//i, 'https://') : undefined),
     ...withArt.map((m) => avatarDataUrl(m.cover_url!.replace(/^http:\/\//i, 'https://'))),
   ])
   const covers = coverData.filter((c): c is string => !!c)
+  // The card's glow is the photo's dominant colour, like the media card's is the
+  // cover's. A missing/1px photo has none, so that case falls back to a colour
+  // derived from the name (the same one the initial-letter placeholder uses).
+  const { usable, rgb } = await analyzeCover(rawPhoto)
+  const photoData = usable ? rawPhoto : null
 
   // The localized spelling first; if our fonts can't draw it (CJK etc.) fall back
   // to the canonical name, then any other drawable spelling.
@@ -87,6 +93,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ uuid: strin
   const roles = new Set(credits.map((c) => c.role))
   const tag = ROLE_TAG.find(([r]) => roles.has(r))?.[1] ?? 'PERSON'
   const hue = hashHue(rawName)
+  const glow = rgb ?? hslToRgb255(hue, 0.6, 0.5)
   const initial = safeText(rawName).charAt(0).toUpperCase() || '?'
 
   const card = (
@@ -100,7 +107,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ uuid: strin
         padding: '40px 64px 44px',
         color: INK,
         fontFamily: ONEST_STACK_AR,
-        background: `radial-gradient(circle at 18% 50%, hsla(${hue}, 55%, 45%, 0.45), transparent 60%), ${BG}`,
+        background: `radial-gradient(ellipse 90% 140% at 22% 50%, rgba(${glow.join(',')},0.8), transparent 75%), ${BG}`,
       }}
     >
       {/* brand, top */}
