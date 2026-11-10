@@ -7,7 +7,7 @@ import { DetailPageSkeleton } from '@/components/ui/Skeletons'
 import PersonModal from '@/components/person/PersonModal'
 import AwardsSection from '@/components/awards/AwardsSection'
 import PersonMiniShelf from '@/components/person/PersonMiniShelf'
-import { nameForLang } from '@/lib/personLocalize'
+import { aliasLang, nameForLang } from '@/lib/personLocalize'
 import { authedFetch } from '../lib/api'
 import { isLibrarian } from '../services/librarianService'
 import { useLanguage } from '../contexts/LanguageContext'
@@ -70,6 +70,9 @@ export default function PersonPage({ initialData, initialLang = '' }: { initialD
   const [data, setData] = useState<PersonResp | null>(initialData ?? null)
   const [loading, setLoading] = useState(!initialData)
   const [editing, setEditing] = useState(false)
+  // The name shown in the heading. null = the server-resolved one (?lang=); set
+  // when the viewer picks one of the person's other names from the chips below.
+  const [shownName, setShownName] = useState<string | null>(null)
   const [suggestionToast, setSuggestionToast] = useState('')
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const canInteract = !!user
@@ -111,6 +114,20 @@ export default function PersonPage({ initialData, initialLang = '' }: { initialD
   }
 
   const { person, aliases, credits } = data
+  const heading = shownName ?? nameForLang(person, aliases, initialLang)
+
+  // Show the page under one of the person's other names (or back to the main one
+  // when `a` is null). A name in a known language also sets ?lang= so the view
+  // survives a reload and can be shared — the server renders it the same way.
+  // history.replaceState keeps it instant (no server round trip, no history entry).
+  const pickName = (a: { name: string; lang?: string } | null) => {
+    setShownName(a ? a.name : person.name)
+    const url = new URL(window.location.href)
+    const code = a ? aliasLang(a) : ''
+    if (code) url.searchParams.set('lang', code)
+    else url.searchParams.delete('lang')
+    window.history.replaceState(window.history.state, '', url)
+  }
   const grouped = ROLE_ORDER.map((role) => ({
     role,
     items: credits.filter((c) => c.role === role),
@@ -160,7 +177,7 @@ export default function PersonPage({ initialData, initialLang = '' }: { initialD
           <div>
             <div className="flex items-start justify-between gap-4">
               <h1 className="text-3xl font-bold leading-tight tracking-tight text-[var(--text)] md:text-[2.6rem]">
-                {nameForLang(person, aliases, initialLang)}
+                {heading}
               </h1>
               {canInteract && (
                 <button
@@ -182,15 +199,26 @@ export default function PersonPage({ initialData, initialLang = '' }: { initialD
               <div className="mt-3">
                 <p className="mb-1.5 text-xs text-[var(--text-muted)]">{t('alsoKnownAs')}</p>
                 <div className="flex flex-wrap gap-1.5">
-                  {aliases.map((a, i) => (
-                    <span
-                      key={i}
-                      className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border-subtle)] bg-[var(--surface)] px-2.5 py-1 text-xs text-[var(--text)]"
-                    >
-                      {a.name}
-                      {a.lang && <span className="text-[10px] font-semibold text-[var(--text-muted)]">{a.lang.toUpperCase()}</span>}
-                    </span>
-                  ))}
+                  {aliases.map((a, i) => {
+                    const active = heading === a.name
+                    return (
+                      <button
+                        key={i}
+                        type="button"
+                        aria-pressed={active}
+                        title={active ? person.name : undefined}
+                        onClick={() => pickName(active ? null : a)}
+                        className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs text-[var(--text)] transition-colors ${
+                          active
+                            ? 'border-nonsprimary bg-nonsprimary/10'
+                            : 'border-[var(--border-subtle)] bg-[var(--surface)] hover:border-[var(--border)]'
+                        }`}
+                      >
+                        {a.name}
+                        {a.lang && <span className="text-[10px] font-semibold text-[var(--text-muted)]">{a.lang.toUpperCase()}</span>}
+                      </button>
+                    )
+                  })}
                 </div>
               </div>
             )}
