@@ -16,6 +16,23 @@ export type DiscoverPerson = {
   works: CatalogItem[]
 }
 
+// A review that members have reacted to, with the work it's about.
+export type PopularReview = {
+  /** Review (rating row) id — the like/comment target. */
+  id: number
+  userId: number
+  username?: string
+  name?: string
+  avatarUrl?: string
+  /** 1..10, or 0 for a review with no score. */
+  value: number
+  review: string
+  updatedAt: number
+  likeCount: number
+  commentCount: number
+  media: CatalogItem
+}
+
 export type Spotlights = { book: CatalogItem[]; movie: CatalogItem[]; series: CatalogItem[] }
 
 // scope → query string. "all" (undefined) omits the type param.
@@ -55,6 +72,41 @@ export const discoverService = {
       }
     } catch {
       return { book: [], movie: [], series: [] }
+    }
+  },
+
+  // The most-liked / most-discussed reviews. Public, so signed-out visitors see
+  // them too. Never throws — failures resolve to an empty list.
+  async popularReviews(limit = 6, type?: MediaType): Promise<PopularReview[]> {
+    try {
+      const params = new URLSearchParams({ limit: String(limit) })
+      if (type) params.set('type', type)
+      const res = await authedFetch(`/api/reviews/popular?${params}`, noCache)
+      if (!res.ok) return []
+      const d = (await res.json()) as {
+        items?: {
+          id: number; user_id: number; username?: string; name?: string; avatar_url?: string
+          value: number; review: string; updated_at: number
+          like_count: number; comment_count: number; media?: BackendMedia
+        }[]
+      }
+      return (d.items ?? [])
+        .filter((r) => r.media)
+        .map((r) => ({
+          id: r.id,
+          userId: r.user_id,
+          username: r.username || undefined,
+          name: r.name || undefined,
+          avatarUrl: r.avatar_url || undefined,
+          value: r.value,
+          review: r.review,
+          updatedAt: r.updated_at,
+          likeCount: r.like_count,
+          commentCount: r.comment_count,
+          media: mapMedia(r.media!),
+        }))
+    } catch {
+      return []
     }
   },
 

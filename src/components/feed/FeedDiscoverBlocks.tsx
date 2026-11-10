@@ -22,7 +22,7 @@ type Translate = (key: string, vars?: Record<string, string | number>) => string
 
 const RAIL_SIZE = 10
 
-function RailPanel({
+export function RailPanel({
   icon, title, hint, seeAllTo, t, aside, children,
 }: {
   icon: ReactNode
@@ -60,7 +60,7 @@ function RailPanel({
 }
 
 // Horizontal scroller, bled to the panel edge so posters can run off-screen.
-function Rail({ children }: { children: ReactNode }) {
+export function Rail({ children }: { children: ReactNode }) {
   return <div className="no-scrollbar -mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-1">{children}</div>
 }
 

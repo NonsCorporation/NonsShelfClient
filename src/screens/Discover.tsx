@@ -6,6 +6,7 @@ import CatalogCard from '@/components/media/CatalogCard'
 import FindSomething from '@/components/import-export/FindSomething'
 import AboutBadge from '@/components/discover/AboutBadge'
 import ListCard from '@/components/discover/ListCard'
+import PopularReviews from '@/components/discover/PopularReviews'
 import BoringAvatar from '@/components/ui/BoringAvatar'
 import ShelfStatusBar from '@/components/media/ShelfStatusBar'
 import FinishModal from '@/components/reading/FinishModal'
@@ -449,6 +450,9 @@ export default function DiscoverPage() {
 
           {/* ── Universes (franchises) — shared catalog groupings ── */}
           <UniversesRail universes={universes} t={t} />
+
+          {/* ── Popular reviews — most-liked / discussed, home page for signed-out visitors ── */}
+          {typeFilter === 'all' && <PopularReviews />}
 
           {/* ── Trending — a compact list with covers, distinct from the card rails ── */}
           <TrendingList title={t('trendingNow')} items={trending} statusOf={statusOf} onStatusChange={handleStatusChange} />

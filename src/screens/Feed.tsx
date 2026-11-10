@@ -17,6 +17,7 @@ import BoringAvatar from '@/components/ui/BoringAvatar'
 import Pagination from '@/components/ui/Pagination'
 import { getCommentCounts } from '../services/commentService'
 import type { CatalogItem } from '../services/catalogService'
+import PopularReviews from '@/components/discover/PopularReviews'
 import { discoverService } from '../services/discoverService'
 import type { Spotlights } from '../services/discoverService'
 import { listService } from '../services/listService'
@@ -57,7 +58,7 @@ function dayBucket(at: number): DayBucket {
 // Discovery rails are slotted into the activity stream after these many cards
 // (1-based), in order — so the first page reads post, post, rail, post, ….
 const DISCOVER_INSERT_AFTER = [2, 6, 10, 14]
-type DiscoverBlockId = 'popular' | 'friends' | 'releases' | 'lists'
+type DiscoverBlockId = 'popular' | 'reviews' | 'friends' | 'releases' | 'lists'
 
 // One flat row of the rendered activity stream.
 type StreamRow =
@@ -301,6 +302,7 @@ export default function FeedPage() {
     const ids: DiscoverBlockId[] = []
     const sp = discover?.spotlights
     if (!discover || (sp && (sp.book.length || sp.movie.length || sp.series.length))) ids.push('popular')
+    ids.push('reviews') // self-fetching; renders nothing until a review has reactions
     if (friendPicks.length >= 2) ids.push('friends')
     if (discover && discover.releases.length > 0) ids.push('releases')
     if (discover && discover.lists.length > 0) ids.push('lists')
@@ -313,6 +315,8 @@ export default function FeedPage() {
         return discover
           ? <PopularNowRail spotlights={discover.spotlights} onShelf={onShelf} onAdd={quickAdd} t={t} />
           : <RailSkeleton />
+      case 'reviews':
+        return <PopularReviews />
       case 'friends':
         return <FriendPicksRail picks={friendPicks} t={t} />
       case 'releases':
@@ -529,7 +533,7 @@ export default function FeedPage() {
             </button>
           </div>
           {/* No friends' posts yet — the rails carry the page instead. */}
-          {stream.map((row) => row.kind === 'block' && <div key={`block-${row.id}`}>{renderDiscoverBlock(row.id)}</div>)}
+          {stream.map((row) => row.kind === 'block' && <div key={`block-${row.id}`} className="empty:hidden">{renderDiscoverBlock(row.id)}</div>)}
           </div>
         ) : (
           <div className={`animate-fade-up flex flex-col gap-4 transition-opacity ${activityLoading ? 'opacity-60' : ''}`}>
@@ -549,7 +553,7 @@ export default function FeedPage() {
                 )
               }
               if (row.kind === 'block') {
-                return <div key={`block-${row.id}`}>{renderDiscoverBlock(row.id)}</div>
+                return <div key={`block-${row.id}`} className="empty:hidden">{renderDiscoverBlock(row.id)}</div>
               }
               const a = row.a
               const isFocused = focusPostId != null && a.postId === focusPostId
