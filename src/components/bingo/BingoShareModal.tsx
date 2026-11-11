@@ -185,8 +185,8 @@ export default function BingoShareModal({ board, mask, answers, link, embedded, 
   // still leaves covers wide enough to read; bigger boards fall back to plain squares.
   const areaH = AREA_H
   const widthFit = (AREA_W - (cols - 1) * gap) / cols
-  // Under each cover sits the book's title (up to three lines) and its author. Rather than reserving the
-  // worst case for every row, each row only gets the height its own titles need, which leaves more for covers.
+  // Under each cover sits the book's title (up to three lines) and its author. The caption area is as tall
+  // as the longest title on the board needs, and the same for every row.
   const captionFor = (c: number, r: number) => {
     const f = nameFontFor(c)
     const perLine = Math.max(1, Math.floor(c / (f * 0.6)))
@@ -203,7 +203,9 @@ export default function BingoShareModal({ board, mask, answers, link, embedded, 
   const portraitFit = (() => {
     if (!prompt || mosaic) return null
     for (let c = Math.floor(widthFit); c >= 24; c--) {
-      const caps = Array.from({ length: rows }, (_, r) => captionFor(c, r))
+      // Every row gets the same caption height (the tallest any row needs), so the rows are evenly spaced.
+      const tallest = Math.max(...Array.from({ length: rows }, (_, r) => captionFor(c, r)))
+      const caps = Array<number>(rows).fill(tallest)
       const height = caps.reduce((x, y) => x + y, 0) + rows * Math.round(c * COVER_RATIO) + (rows - 1) * gapY
       if (height <= areaH) return { cell: c, caps }
     }
