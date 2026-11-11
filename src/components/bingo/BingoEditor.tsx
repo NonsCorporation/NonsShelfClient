@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { IoClose, IoShuffleOutline, IoStar, IoTrashOutline } from 'react-icons/io5'
+import { IoChatbubbleEllipsesOutline, IoCheckboxOutline, IoClose, IoShuffleOutline, IoStar, IoTrashOutline } from 'react-icons/io5'
 import MediaPicker from '@/components/media/MediaPicker'
 import BingoGrid from './BingoGrid'
 import {
@@ -11,13 +11,14 @@ import {
   BINGO_CENTER,
   BINGO_DESC_MAX,
   BINGO_TITLE_MAX,
+  cellFromCatalog,
   emptyCells,
   filledCount,
   newBingoId,
   type Bingo,
   type BingoCell,
+  type BingoKind,
 } from '@/lib/bingo'
-import type { CatalogItem } from '@/services/catalogService'
 import { useLanguage } from '@/contexts/LanguageContext'
 
 type Props = {
@@ -34,22 +35,12 @@ type Props = {
 const inputCls =
   'h-10 w-full rounded-lg border border-[var(--border-subtle)] bg-[var(--input)] px-3 text-sm text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-ring)]'
 
-function cellFromCatalog(item: CatalogItem): BingoCell {
-  return {
-    kind: 'media',
-    title: item.title.slice(0, BINGO_CELL_MAX),
-    type: item.type,
-    coverUrl: item.coverUrl || undefined,
-    credit: ((item.type === 'book' ? item.author : item.director || item.author) || undefined)?.slice(0, BINGO_CELL_MAX),
-    year: item.year || undefined,
-  }
-}
-
 // Create / edit a bingo. Mounted only while open, so the draft state simply
 // initialises from `initial` — no syncing effects.
 export default function BingoEditor({ initial, isEdit = false, author, onClose, onSave }: Props) {
   const { t } = useLanguage()
   const editingExisting = isEdit && !!initial
+  const [kind, setKind] = useState<BingoKind>(initial?.kind ?? 'list')
   const [title, setTitle] = useState(initial?.title ?? '')
   const [description, setDescription] = useState(initial?.description ?? '')
   const [freeCenter, setFreeCenter] = useState(initial?.freeCenter ?? true)
@@ -72,6 +63,15 @@ export default function BingoEditor({ initial, isEdit = false, author, onClose, 
       document.body.style.overflow = prev
     }
   }, [onClose])
+
+  const prompt = kind === 'prompt'
+  const switchKind = (next: BingoKind) => {
+    if (next === kind) return
+    setKind(next)
+    setMode(next === 'prompt' ? 'text' : 'catalog')
+    // Prompt squares are plain descriptions, so drop any catalog details.
+    if (next === 'prompt') setCells((cs) => cs.map((c) => (c ? { kind: 'text', title: c.title } : c)))
+  }
 
   const filled = filledCount(cells, freeCenter)
   const needed = BINGO_CELLS
@@ -110,6 +110,7 @@ export default function BingoEditor({ initial, isEdit = false, author, onClose, 
     if (!canSave) return
     onSave({
       id: editingExisting && initial ? initial.id : newBingoId(),
+      kind,
       title: title.trim().slice(0, BINGO_TITLE_MAX),
       description: description.trim().slice(0, BINGO_DESC_MAX),
       author,
@@ -144,6 +145,32 @@ export default function BingoEditor({ initial, isEdit = false, author, onClose, 
         <div className="grid min-h-0 flex-1 gap-5 overflow-y-auto p-5 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
           {/* Left: details + the board */}
           <div className="flex flex-col gap-4">
+            <div className="grid grid-cols-2 gap-2">
+              {([
+                { key: 'list', icon: IoCheckboxOutline, label: t('bingoKindList'), hint: t('bingoKindListHint') },
+                { key: 'prompt', icon: IoChatbubbleEllipsesOutline, label: t('bingoKindPrompt'), hint: t('bingoKindPromptHint') },
+              ] as const).map((k) => (
+                <button
+                  key={k.key}
+                  type="button"
+                  disabled={editingExisting && kind !== k.key}
+                  onClick={() => switchKind(k.key)}
+                  aria-pressed={kind === k.key}
+                  className={`flex flex-col gap-1 rounded-xl border p-3 text-left transition-colors disabled:opacity-40 ${
+                    kind === k.key
+                      ? 'border-nonsprimary bg-[var(--primary-soft)]'
+                      : 'border-[var(--border-subtle)] bg-[var(--surface)] hover:bg-[var(--surface-hover)]'
+                  }`}
+                >
+                  <span className="flex items-center gap-1.5 text-sm font-semibold text-[var(--text)]">
+                    <k.icon className="h-4 w-4 text-nonsprimary" />
+                    {k.label}
+                  </span>
+                  <span className="text-[11px] leading-snug text-[var(--text-muted)]">{k.hint}</span>
+                </button>
+              ))}
+            </div>
+
             <label className="flex flex-col gap-1.5 text-sm font-medium text-[var(--text)]">
               {t('title')}
               <input
@@ -238,6 +265,9 @@ export default function BingoEditor({ initial, isEdit = false, author, onClose, 
                   </div>
                 )}
 
+                {prompt && <p className="text-xs text-[var(--text-muted)]">{t('bingoPromptHelp')}</p>}
+
+                {!prompt && (
                 <div className="flex rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] p-1">
                   {(['catalog', 'text'] as const).map((m) => (
                     <button
@@ -252,8 +282,9 @@ export default function BingoEditor({ initial, isEdit = false, author, onClose, 
                     </button>
                   ))}
                 </div>
+                )}
 
-                {mode === 'catalog' ? (
+                {mode === 'catalog' && !prompt ? (
                   <MediaPicker onPick={(item) => place(cellFromCatalog(item))} />
                 ) : (
                   <form
@@ -268,7 +299,7 @@ export default function BingoEditor({ initial, isEdit = false, author, onClose, 
                       value={text}
                       maxLength={BINGO_CELL_MAX}
                       onChange={(e) => setText(e.target.value)}
-                      placeholder={t('bingoTextPlaceholder')}
+                      placeholder={prompt ? t('bingoPromptPlaceholder') : t('bingoTextPlaceholder')}
                       className={inputCls}
                     />
                     <button
@@ -276,7 +307,7 @@ export default function BingoEditor({ initial, isEdit = false, author, onClose, 
                       disabled={!text.trim()}
                       className="rounded-lg bg-nonsprimary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-nonsprimaryfocus disabled:opacity-40"
                     >
-                      {t('bingoUseText')}
+                      {prompt ? t('bingoUsePrompt') : t('bingoUseText')}
                     </button>
                   </form>
                 )}
