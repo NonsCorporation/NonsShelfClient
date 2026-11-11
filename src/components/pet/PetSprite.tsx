@@ -200,10 +200,7 @@ const BREEDS: Record<PetBreed, Features> = {
     side: [{ x: 8, y: 0, rows: ['.bbbb.', 'bhppbd', 'bhppbd', 'bhppbd', 'bhppbd', 'bhppbd', 'bhppbd', 'bbppbd', 'bbbbbd', 'bbbbbb'] }],
     tail: [{ x: 28, y: 24, low: true, rows: ['.ww.', 'wwww', 'wwww', '.ww.'] }],
     markSide: [{ x: 4, y: 20, low: true, rows: ['.ll', 'lll'] }],
-    post: [
-      { x: 15, y: 19, low: true, rows: ['pp'] },
-      { x: 14, y: 24, low: true, rows: ['ww.ww', 'ww.ww'] },
-    ],
+    post: [{ x: 15, y: 19, low: true, rows: ['pp'] }],
   },
   bear: {
     side: [{ x: 6, y: 4, rows: ['.bbbb.', 'bqqqqb', 'bqqqqb', 'bqqqqb', 'bbbbbb', 'bbbbbb'] }],
@@ -211,8 +208,7 @@ const BREEDS: Record<PetBreed, Features> = {
     post: [{ x: 14, y: 18, low: true, rows: ['kkkk', '.kk.'] }],
   },
   dino: {
-    side: [{ x: 8, y: 5, rows: ['..dd..', '.dddd.', 'dddddd', 'dddddd'] }],
-    center: [{ x: 13, y: 1, rows: ['..dd..', '.dddd.', '.dhdd.', 'dhdddd', 'dhdddd', 'dddddd', 'dddddd'] }],
+    center: [{ x: 10, y: 4, rows: ['..d..dd..d..', '.dd.dhdd.dd.', '.dd.dddd.dd.', 'dddddddddddd'] }],
     tail: [{ x: 28, y: 18, low: true, rows: ['..dd', '.ddd', 'dddd', 'dddd', 'dddd', 'ddd.'] }],
     markCenter: [
       { x: 11, y: 24, low: true, rows: ['qqqqqqqqqq'] },
@@ -264,7 +260,7 @@ const BREEDS: Record<PetBreed, Features> = {
   },
   unicorn: {
     side: [{ x: 7, y: 5, rows: ['..bb.', '.bppb', 'bppbd', 'bbbbb'] }],
-    center: [{ x: 14, y: 1, rows: ['.yy.', '.wy.', '.yy.', '.wy.', '.yyy', 'wyyy', 'yyyy'] }],
+    center: [{ x: 13, y: 2, rows: ['....yy', '...wyy', '..yyy.', '..wyy.', '.yyy..', '.yyy..'] }],
     tail: [{ x: 27, y: 18, low: true, rows: ['..yy', '.yyy', 'yyyy', 'yyyy', 'yyy.', 'yy..'] }],
     markCenter: [{ x: 15, y: 10, rows: ['.y.', 'yyy', '.y.'] }],
     markSide: [{ x: 4, y: 11, rows: ['pp', 'ppp', 'pp'] }],
@@ -371,10 +367,10 @@ function build(stage: PetStage, mood: PetMood, breed: PetBreed): { body: Grid; m
   f.markCenter?.forEach((b) => placeAxis(b, 'clip'))
 
   if (stage === 'sage') {
-    // gold scarf around the belly, with a tail hanging between the feet
+    // gold scarf around the belly, with a short flap on one side
     stamp(g, ['......yyyyyyyyyyyyyyyyyyyy......'], 0, 25, 'clip')
     stamp(g, ['.......YYYYYYYYYYYYYYYYYY.......'], 0, 26, 'clip')
-    stamp(g, ['yyyy', 'yyYY', '.yY.', '.yY.'], 14, 27)
+    stamp(g, ['yy', 'yY', 'YY'], 20, 27)
   }
 
   outline(g)
