@@ -186,9 +186,10 @@ export function usePet() {
   const saved = useSyncExternalStore(subscribe, read, getServerSnapshot)
 
   // Re-render once a minute so the hunger bar and mood drift in real time.
-  useTick(60_000)
+  const tick = useTick(60_000)
+  const now = Math.max(tick, saved.savedAt)
 
-  const pet = toView(saved, saved.savedAt === 0 ? 0 : Date.now())
+  const pet = toView(saved, now)
 
   const rename = useCallback((name: string) => {
     write({ ...read(), name: name.slice(0, PET_NAME_MAX) })
@@ -214,7 +215,24 @@ export function usePet() {
 
   const reset = useCallback(() => write(freshPet()), [])
 
-  return { pet, ready: saved.savedAt !== 0, rename, feed, reset }
+  // Mock-only helpers so the growth stages and moods can be tried out.
+  const addXp = useCallback((amount: number) => {
+    const cur = read()
+    write({ ...cur, xp: Math.max(0, cur.xp + amount) })
+  }, [])
+
+  /** Jump straight to the start of the next stage (no-op when fully grown). */
+  const evolve = useCallback(() => {
+    const cur = read()
+    const next = PET_STAGES.find((s) => s.minXp > cur.xp)
+    if (next) write({ ...cur, xp: next.minXp })
+  }, [])
+
+  const setFullness = useCallback((value: number) => {
+    write({ ...read(), fullness: Math.max(0, Math.min(100, value)), savedAt: Date.now() })
+  }, [])
+
+  return { pet, now, ready: saved.savedAt !== 0, rename, feed, reset, addXp, evolve, setFullness }
 }
 
 /** Re-renders the caller every `ms` so time-derived values stay fresh. */
@@ -228,7 +246,7 @@ function useTick(ms: number) {
   )
   return useSyncExternalStore(
     sub,
-    () => Math.floor(Date.now() / ms),
+    () => Math.floor(Date.now() / ms) * ms,
     () => 0,
   )
 }

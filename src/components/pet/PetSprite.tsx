@@ -10,132 +10,228 @@ type Props = {
   eating?: boolean
 }
 
-const BODY = '#6768ab'
-const BODY_DARK = '#4e4f86'
-const BELLY = '#a9aadc'
+// Pixel-art pet: every sprite is a 16x16 grid of palette letters, drawn as
+// <rect> runs with crisp edges. '.' is transparent.
+const COLORS: Record<string, string> = {
+  o: '#2b2457', // outline
+  b: '#6768ab', // body
+  d: '#4e4f86', // dark body (ears, feet)
+  l: '#b6b7ee', // belly
+  w: '#ffffff', // eye highlight
+  k: '#1a1a24', // eyes, mouth, glasses
+  p: '#ff7a85', // cheeks, tongue
+  y: '#f5a623', // gold
+  s: '#8ecbff', // sweat
+  e: '#efeaff', // egg shell
+  m: '#9a8fd6', // egg spots
+}
 
-/** Hand-drawn SVG pet; the face follows the mood, the silhouette follows the stage. */
+const EGG = [
+  '................',
+  '.....oooooo.....',
+  '....oeeeeeeo....',
+  '...oeeeeeeeeo...',
+  '...oeeeeeeeeo...',
+  '..oeeeeeeeeeeo..',
+  '..oeeeeeeeeeeo..',
+  '..oeeeeeeeeeeo..',
+  '..oeeeeeeeeeeo..',
+  '..oeeeeeeeeeeo..',
+  '..oeeeeeeeeeeo..',
+  '..oeeeeeeeeeeo..',
+  '...oeeeeeeeeo...',
+  '...oeeeeeeeeo...',
+  '....oooooooo....',
+  '................',
+]
+
+// [x, y, colour] overlays on the egg: spots and a crack.
+const EGG_DETAILS: [number, number, string][] = [
+  [5, 5, 'm'], [6, 5, 'm'], [5, 6, 'm'],
+  [10, 8, 'm'], [9, 8, 'm'], [10, 9, 'm'], [9, 9, 'm'],
+  [4, 10, 'm'], [5, 10, 'm'],
+  [4, 3, 'o'], [5, 4, 'o'], [6, 3, 'o'], [7, 4, 'o'], [8, 3, 'o'], [9, 4, 'o'],
+]
+
+const HATCHLING = [
+  '................',
+  '................',
+  '................',
+  '................',
+  '....oooooooo....',
+  '...obbbbbbbbo...',
+  '..obbbbbbbbbbo..',
+  '..obbbbbbbbbbo..',
+  '..obbbbbbbbbbo..',
+  '..obbbbbbbbbbo..',
+  '..obbbllllbbbo..',
+  '..obbbllllbbbo..',
+  '...obbbbbbbbo...',
+  '...oddo..oddo...',
+  '...oooo..oooo...',
+  '................',
+]
+
+const BLOB = [
+  '................',
+  '...oo......oo...',
+  '...odo....odo...',
+  '..oooooooooooo..',
+  '.obbbbbbbbbbbbo.',
+  'obbbbbbbbbbbbbbo',
+  'obbbbbbbbbbbbbbo',
+  'obbbbbbbbbbbbbbo',
+  'obbbbbbbbbbbbbbo',
+  'obbbbbbbbbbbbbbo',
+  'obbbbllllllbbbbo',
+  'obbbbllllllbbbbo',
+  '.obbbllllllbbbo.',
+  '.oobbbbbbbbbboo.',
+  '..oddo....oddo..',
+  '..oooo....oooo..',
+]
+
+type Px = [number, number, string]
+
+type Face = { eyeY: number; mouthY: number; cheekY: number }
+const FACE_BIG: Face = { eyeY: 6, mouthY: 9, cheekY: 8 }
+const FACE_SMALL: Face = { eyeY: 7, mouthY: 10, cheekY: 9 }
+
+/** Eyes, mouth and cheeks for a mood; x is mirrored around the 16px centre. */
+function face(mood: PetMood, f: Face): { eyes: Px[]; mouth: Px[]; extra: Px[] } {
+  const { eyeY: y, mouthY: m, cheekY: c } = f
+  const mirror = (px: Px[]): Px[] => [...px, ...px.map(([x, yy, col]): Px => [15 - x, yy, col])]
+  const extra: Px[] = []
+  let eyes: Px[]
+  let mouth: Px[]
+  if (mood === 'happy') {
+    // ^ ^ eyes, open smile, blushing cheeks
+    eyes = mirror([[3, y + 1, 'k'], [4, y, 'k'], [5, y + 1, 'k']])
+    mouth = [
+      [5, m, 'k'], [6, m, 'k'], [7, m, 'k'], [8, m, 'k'], [9, m, 'k'], [10, m, 'k'],
+      [6, m + 1, 'p'], [7, m + 1, 'p'], [8, m + 1, 'p'], [9, m + 1, 'p'],
+    ]
+    extra.push(...mirror([[2, c, 'p']]))
+  } else if (mood === 'content') {
+    eyes = mirror([[4, y, 'w'], [5, y, 'k'], [4, y + 1, 'k'], [5, y + 1, 'k']])
+    mouth = [[6, m, 'k'], [7, m + 1, 'k'], [8, m + 1, 'k'], [9, m, 'k']]
+  } else if (mood === 'hungry') {
+    eyes = mirror([[4, y, 'w'], [5, y, 'k'], [4, y + 1, 'k'], [5, y + 1, 'k']])
+    mouth = [[6, m + 1, 'k'], [7, m, 'k'], [8, m, 'k'], [9, m + 1, 'k']]
+    extra.push(...mirror([[3, y - 2, 'k'], [4, y - 2, 'k']]))
+  } else {
+    // starving: flat eyes, open mouth, sweat drop
+    eyes = mirror([[3, y + 1, 'k'], [4, y + 1, 'k'], [5, y + 1, 'k']])
+    mouth = [[7, m, 'k'], [8, m, 'k'], [7, m + 1, 'k'], [8, m + 1, 'k']]
+    extra.push([13, y - 2, 's'], [13, y - 1, 's'])
+  }
+  return { eyes, mouth, extra }
+}
+
+const GLASSES: Px[] = (() => {
+  const out: Px[] = []
+  const frame = (x0: number) => {
+    for (let x = x0; x < x0 + 5; x++) for (let y = 5; y <= 8; y++) {
+      if (x === x0 || x === x0 + 4 || y === 5 || y === 8) out.push([x, y, 'k'])
+    }
+  }
+  frame(2)
+  frame(9)
+  out.push([7, 6, 'k'], [8, 6, 'k'])
+  return out
+})()
+
+const CAP: Px[] = (() => {
+  const out: Px[] = []
+  for (let x = 6; x <= 9; x++) out.push([x, 0, 'k'])
+  for (let x = 3; x <= 12; x++) out.push([x, 1, 'k'])
+  for (let x = 4; x <= 11; x++) out.push([x, 2, 'k'])
+  out.push([13, 2, 'y'], [13, 3, 'y'], [13, 4, 'y'], [12, 4, 'y'])
+  return out
+})()
+
+/** Paint a base grid plus overlays into merged horizontal runs of pixels. */
+function toRects(base: string[], overlays: Px[]) {
+  const grid = base.map((row) => row.split(''))
+  for (const [x, y, c] of overlays) if (grid[y]?.[x] !== undefined) grid[y][x] = c
+  const rects: { x: number; y: number; w: number; c: string }[] = []
+  grid.forEach((row, y) => {
+    let x = 0
+    while (x < row.length) {
+      const c = row[x]
+      if (c === '.') {
+        x++
+        continue
+      }
+      let w = 1
+      while (x + w < row.length && row[x + w] === c) w++
+      rects.push({ x, y, w, c })
+      x += w
+    }
+  })
+  return rects
+}
+
 export default function PetSprite({ stage, mood, className, eating }: Props) {
-  const sad = mood === 'hungry' || mood === 'starving'
+  let base: string[]
+  let overlays: Px[]
+  let mouthStart = -1
+
+  if (stage === 'egg') {
+    base = EGG
+    overlays = EGG_DETAILS
+  } else {
+    const small = stage === 'hatchling'
+    base = small ? HATCHLING : BLOB
+    const { eyes, mouth, extra } = face(mood, small ? FACE_SMALL : FACE_BIG)
+    // Mouth is drawn separately so it can animate while eating.
+    overlays = [...(stage === 'hatchling' ? [] : stage === 'bookworm' || stage === 'sage' ? GLASSES : []), ...eyes, ...extra]
+    if (stage === 'sage') overlays = [...overlays, ...CAP]
+    mouthStart = overlays.length
+    overlays = [...overlays, ...mouth]
+  }
+
+  const bodyRects = toRects(base, overlays.slice(0, mouthStart === -1 ? undefined : mouthStart))
+  const mouthRects = mouthStart === -1 ? [] : toRects(Array(16).fill('.'.repeat(16)), overlays.slice(mouthStart))
+
+  // The bob is a 1px hop in `steps` so it reads as pixel-art, not tweened.
+  const anim = mood === 'starving' ? 'none' : mood === 'hungry' ? 'pet-hop 2s steps(1) infinite' : 'pet-hop 1s steps(1) infinite'
+
   return (
     <>
       <style>{`
-        @keyframes pet-bob { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-5px) } }
-        @keyframes pet-slump { 0%,100% { transform: translateY(0) scaleY(1) } 50% { transform: translateY(2px) scaleY(.98) } }
-        @keyframes pet-wobble { 0%,100% { transform: rotate(-4deg) } 50% { transform: rotate(4deg) } }
-        @keyframes pet-chomp { 0%,100% { transform: scaleY(1) } 30% { transform: scaleY(.55) } 60% { transform: scaleY(1.15) } }
-        @keyframes pet-blink { 0%,92%,100% { transform: scaleY(1) } 96% { transform: scaleY(.1) } }
-        .pet-body { transform-origin: 100px 190px; animation: pet-bob 2.4s ease-in-out infinite; }
-        .pet-body[data-sad="true"] { animation: pet-slump 3.6s ease-in-out infinite; }
-        .pet-egg { transform-origin: 100px 190px; animation: pet-wobble 2.8s ease-in-out infinite; }
-        .pet-chomp { transform-box: fill-box; transform-origin: center; animation: pet-chomp .5s ease-in-out 2; }
-        .pet-eye { transform-box: fill-box; transform-origin: center; animation: pet-blink 4.5s infinite; }
-        @media (prefers-reduced-motion: reduce) { .pet-body, .pet-egg, .pet-chomp, .pet-eye { animation: none } }
+        @keyframes pet-hop { 0%,49.99% { transform: translateY(0) } 50%,100% { transform: translateY(-1px) } }
+        @keyframes pet-shake { 0%,49.99% { transform: translateX(-.5px) } 50%,100% { transform: translateX(.5px) } }
+        @keyframes pet-chomp { 0%,49.99% { transform: translateY(0) } 50%,100% { transform: translateY(.5px) } }
+        .pet-hop { animation: var(--pet-anim) }
+        .pet-shake { animation: pet-shake .8s steps(1) infinite }
+        .pet-chomp { animation: pet-chomp .2s steps(1) 6 }
+        @media (prefers-reduced-motion: reduce) { .pet-hop, .pet-shake, .pet-chomp { animation: none } }
       `}</style>
-      <svg viewBox="0 0 200 200" className={className} role="img" aria-hidden="true">
-        <ellipse cx="100" cy="190" rx="52" ry="6" fill="currentColor" opacity="0.12" />
-        {stage === 'egg' ? <Egg mood={mood} /> : <Creature stage={stage} mood={mood} sad={sad} eating={!!eating} />}
+      <svg
+        viewBox="0 0 16 17"
+        shapeRendering="crispEdges"
+        className={className}
+        style={{ imageRendering: 'pixelated' }}
+        role="img"
+        aria-hidden="true"
+      >
+        {/* shadow */}
+        <rect x={stage === 'egg' ? 4 : 3} y={16} width={stage === 'egg' ? 8 : 10} height={1} fill="currentColor" opacity={0.15} />
+        <g
+          className={stage === 'egg' ? 'pet-shake' : 'pet-hop'}
+          style={{ ['--pet-anim' as string]: anim }}
+        >
+          {bodyRects.map((r, i) => (
+            <rect key={i} x={r.x} y={r.y} width={r.w} height={1} fill={COLORS[r.c]} />
+          ))}
+          <g className={eating ? 'pet-chomp' : undefined}>
+            {mouthRects.map((r, i) => (
+              <rect key={i} x={r.x} y={r.y} width={r.w} height={1} fill={COLORS[r.c]} />
+            ))}
+          </g>
+        </g>
       </svg>
     </>
-  )
-}
-
-function Egg({ mood }: { mood: PetMood }) {
-  return (
-    <g className="pet-egg">
-      <path d="M100 38c-34 0-56 50-56 92 0 33 24 56 56 56s56-23 56-56c0-42-22-92-56-92z" fill="#e9e6f5" stroke={BODY_DARK} strokeWidth="3" />
-      <circle cx="78" cy="110" r="9" fill={BODY} opacity="0.55" />
-      <circle cx="122" cy="132" r="12" fill={BODY} opacity="0.55" />
-      <circle cx="96" cy="160" r="7" fill={BODY} opacity="0.55" />
-      <path d="M72 78l12 10 8-12 10 12 10-10 12 12" fill="none" stroke={BODY_DARK} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-      {(mood === 'hungry' || mood === 'starving') && (
-        <path d="M150 54c4 0 8 4 8 8" fill="none" stroke={BODY_DARK} strokeWidth="3" strokeLinecap="round" opacity="0.5" />
-      )}
-    </g>
-  )
-}
-
-function Creature({ stage, mood, sad, eating }: { stage: PetStage; mood: PetMood; sad: boolean; eating: boolean }) {
-  const big = stage === 'bookworm' || stage === 'sage'
-  const scale = stage === 'hatchling' ? 0.78 : 1
-  return (
-    <g className="pet-body" data-sad={sad} style={{ transformOrigin: '100px 190px' }}>
-      <g transform={`translate(${100 - 100 * scale} ${190 - 190 * scale}) scale(${scale})`}>
-        {/* feet */}
-        <ellipse cx="74" cy="184" rx="14" ry="7" fill={BODY_DARK} />
-        <ellipse cx="126" cy="184" rx="14" ry="7" fill={BODY_DARK} />
-
-        {/* ears / leaf tuft */}
-        <path d="M70 62c-8-18-2-30 8-32 4 12 2 24-8 32z" fill={BODY_DARK} />
-        <path d="M130 62c8-18 2-30-8-32-4 12-2 24 8 32z" fill={BODY_DARK} />
-
-        {/* body */}
-        <path
-          d="M100 48c-42 0-66 34-66 76 0 36 26 62 66 62s66-26 66-62c0-42-24-76-66-76z"
-          fill={BODY}
-        />
-        <ellipse cx="100" cy="150" rx="34" ry="28" fill={BELLY} opacity="0.85" />
-
-        {/* arms */}
-        <ellipse cx="38" cy="132" rx="9" ry="16" fill={BODY_DARK} transform="rotate(14 38 132)" />
-        <ellipse cx="162" cy="132" rx="9" ry="16" fill={BODY_DARK} transform="rotate(-14 162 132)" />
-
-        {/* eyes */}
-        <g>
-          <ellipse className="pet-eye" cx="78" cy="104" rx="9" ry={mood === 'starving' ? 6 : 11} fill="#fff" />
-          <ellipse className="pet-eye" cx="122" cy="104" rx="9" ry={mood === 'starving' ? 6 : 11} fill="#fff" />
-          <circle cx="80" cy={sad ? 108 : 105} r="5" fill="#1a1a1a" />
-          <circle cx="120" cy={sad ? 108 : 105} r="5" fill="#1a1a1a" />
-          <circle cx="82" cy={sad ? 106 : 103} r="1.6" fill="#fff" />
-          <circle cx="122" cy={sad ? 106 : 103} r="1.6" fill="#fff" />
-        </g>
-
-        {/* brows when sad */}
-        {sad && (
-          <g stroke={BODY_DARK} strokeWidth="3" strokeLinecap="round">
-            <path d="M68 90l16 -5" />
-            <path d="M132 90l-16 -5" />
-          </g>
-        )}
-
-        {/* cheeks */}
-        {mood === 'happy' && (
-          <g fill="#ff7a85" opacity="0.55">
-            <ellipse cx="62" cy="124" rx="8" ry="5" />
-            <ellipse cx="138" cy="124" rx="8" ry="5" />
-          </g>
-        )}
-
-        {/* mouth */}
-        <g className={eating ? 'pet-chomp' : undefined}>
-          {mood === 'happy' && <path d="M86 124q14 18 28 0z" fill="#3a2a4a" stroke="#3a2a4a" strokeWidth="2.5" strokeLinejoin="round" />}
-          {mood === 'content' && <path d="M88 126q12 8 24 0" fill="none" stroke="#3a2a4a" strokeWidth="3" strokeLinecap="round" />}
-          {mood === 'hungry' && <path d="M90 130q10 -7 20 0" fill="none" stroke="#3a2a4a" strokeWidth="3" strokeLinecap="round" />}
-          {mood === 'starving' && <ellipse cx="100" cy="130" rx="7" ry="5" fill="#3a2a4a" />}
-        </g>
-
-        {/* sweat / stomach rumble */}
-        {mood === 'starving' && <path d="M158 84q6 10 0 14q-6 -4 0 -14z" fill="#8ecbff" />}
-
-        {/* bookworm+: reading glasses */}
-        {big && (
-          <g fill="none" stroke="#1a1a1a" strokeWidth="3">
-            <circle cx="78" cy="104" r="15" />
-            <circle cx="122" cy="104" r="15" />
-            <path d="M93 104h14" />
-          </g>
-        )}
-
-        {/* sage: little graduation cap */}
-        {stage === 'sage' && (
-          <g>
-            <path d="M58 52l42-20 42 20-42 20z" fill="#1a1a1a" />
-            <path d="M78 64v14c0 6 44 6 44 0V64" fill="#2a2a2a" />
-            <path d="M142 52v22" stroke="#f5a623" strokeWidth="3" strokeLinecap="round" />
-            <circle cx="142" cy="78" r="4" fill="#f5a623" />
-          </g>
-        )}
-      </g>
-    </g>
   )
 }
