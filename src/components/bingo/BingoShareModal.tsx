@@ -38,7 +38,8 @@ const AREA_W = CARD_W - CARD_PAD_X * 2
 const AREA_H = 540
 // Cover shape (height / width) and caption height on prompt boards.
 const COVER_RATIO = 1.25
-const CAPTION_H = 30
+// Room under each cover for a title of up to two lines plus the author.
+const CAPTION_H = 34
 // Above this many squares the board is drawn as a pixel mosaic instead of DOM nodes.
 const MOSAIC_OVER = 400
 
@@ -315,7 +316,7 @@ export default function BingoShareModal({ board, mask, answers, link, embedded, 
   // Prompt boards: the prompt in the middle of the (darkened) cover, and under it the book's title and author.
   const promptFont = Math.max(6, Math.min(9.5, cell * 0.16))
   const promptLines = Math.max(3, Math.floor((coverH - 8) / (promptFont * 1.15)))
-  const nameFont = Math.max(6.5, Math.min(8.5, cell * 0.15))
+  const nameFont = Math.max(6.5, Math.min(7.5, cell * 0.14))
   const renderPortraitCell = (i: number) => {
     const cellData = board.cells[i]
     const art = answers?.[i] ?? null
@@ -356,7 +357,7 @@ export default function BingoShareModal({ board, mask, answers, link, embedded, 
           {art && !free && (
             <>
               <div style={{ fontSize: nameFont, lineHeight: 1.15, fontWeight: 600, color: '#f4f4f5', ...clamp(2) }}>{art.title}</div>
-              {art.credit && <div style={{ marginTop: 1, fontSize: nameFont * 0.88, lineHeight: 1.15, color: MUTED, ...clamp(1) }}>{art.credit}</div>}
+              {art.credit && <div style={{ marginTop: 1, fontSize: nameFont * 0.9, lineHeight: 1.15, color: MUTED, ...clamp(1) }}>{art.credit}</div>}
             </>
           )}
         </div>
