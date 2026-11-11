@@ -11,6 +11,7 @@ import BoringAvatar from '@/components/ui/BoringAvatar'
 import ShelfStatusBar from '@/components/media/ShelfStatusBar'
 import FinishModal from '@/components/reading/FinishModal'
 import CreateChallengeModal from '@/components/challenges/CreateChallengeModal'
+import BingoTab from '@/components/bingo/BingoTab'
 import ChallengeAvatarStack, { type ChallengeViewer } from '@/components/challenges/ChallengeAvatarStack'
 import type { CatalogItem } from '../services/catalogService'
 import { discoverService } from '../services/discoverService'
@@ -53,7 +54,7 @@ const roleLabel = (t: Translate, role: string) => {
 type Creator = DiscoverPerson
 
 type TypeFilter = 'all' | MediaType
-type PageTab = 'discover' | 'challenges'
+type PageTab = 'discover' | 'challenges' | 'bingo'
 
 export default function DiscoverPage() {
   const { t } = useLanguage()
@@ -65,13 +66,17 @@ export default function DiscoverPage() {
   // and /discover?tab=challenges&create — so both are linkable and survive a
   // reload and back/forward.
   const [searchParams, setSearchParams] = useSearchParams()
-  const pageTab: PageTab = searchParams.get('tab') === 'challenges' ? 'challenges' : 'discover'
+  const tabParam = searchParams.get('tab')
+  const pageTab: PageTab = tabParam === 'challenges' ? 'challenges' : tabParam === 'bingo' ? 'bingo' : 'discover'
   const showCreateChallenge = pageTab === 'challenges' && searchParams.has('create') && isAuthenticated
   const setPageTab = (tab: PageTab) => {
     const next = new URLSearchParams(searchParams)
     next.delete('create')
-    if (tab === 'challenges') next.set('tab', 'challenges')
-    else next.delete('tab')
+    // A board that was open in the Bingo tab (or arrived via a share link) shouldn't follow you to another tab.
+    next.delete('b')
+    next.delete('share')
+    if (tab === 'discover') next.delete('tab')
+    else next.set('tab', tab)
     setSearchParams(next, { replace: true })
   }
   const setShowCreateChallenge = useCallback((open: boolean) => {
@@ -299,6 +304,7 @@ export default function DiscoverPage() {
   const pageTabs: { key: PageTab; label: string }[] = [
     { key: 'discover', label: t('discover') },
     { key: 'challenges', label: t('challenges') },
+    { key: 'bingo', label: t('bingo') },
   ]
 
   return (
@@ -359,7 +365,9 @@ export default function DiscoverPage() {
         ))}
       </div>
 
-      {pageTab === 'challenges' ? (
+      {pageTab === 'bingo' ? (
+        <BingoTab />
+      ) : pageTab === 'challenges' ? (
         <div>
           <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-[var(--text-muted)]">{t('challengesSubtitle') || 'Reading and watching goals the community is working on.'}</p>
