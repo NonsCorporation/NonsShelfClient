@@ -89,14 +89,14 @@ export default function Pet() {
 
         {/* Pet stage */}
         <section className={`relative overflow-hidden bg-[var(--surface)] p-5 ${FRAME}`}>
-          <div className="relative -mx-5 -mt-5 mb-4 h-64 overflow-hidden border-b-2 border-[var(--border-strong)] sm:h-72">
+          <div className="relative -mx-5 -mt-5 mb-4 h-80 overflow-hidden border-b-2 border-[var(--border-strong)]">
             <PetScene scene={pet.scene} className="absolute inset-0 h-full w-full" />
             <PetSprite
               stage={pet.stage}
               mood={pet.mood}
               look={look}
               eating={eating}
-              className="absolute bottom-[8%] left-1/2 h-52 w-52 -translate-x-1/2 text-black sm:h-60 sm:w-60"
+              className="absolute bottom-[5%] left-1/2 h-64 w-64 -translate-x-1/2 text-black"
             />
           </div>
           <div className="relative flex flex-col items-center">

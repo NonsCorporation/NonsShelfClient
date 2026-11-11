@@ -13,15 +13,15 @@ type Props = {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Pixel-art pet on a 24x24 grid. Bodies are generated from shape masks with
-// light/shadow dithering and an automatic outline; breed features are small
-// ASCII stamps. Each letter is a palette slot:
+// Pixel-art pet on a 32x32 grid. Bodies are generated from shape masks with
+// light/shadow dithering and an automatic outline; breed features and markings
+// are ASCII stamps. Each letter is a palette slot:
 //   b body  d shade  h highlight  l belly  q belly shade  p inner ear / blush
 //   o outline  k ink  w white  y gold  Y dark gold  s sweat  e/E egg shell  m egg spot
 // ─────────────────────────────────────────────────────────────────────────────
 
-const W = 24
-const H = 24
+const W = 32
+const H = 32
 type Grid = string[][]
 
 const BASES = ['#6768ab', '#5aa9e6', '#4fbf8f', '#f09a4a', '#ec7fb0', '#e0605f', '#e8c547', '#7d8794']
@@ -37,7 +37,7 @@ function paletteFor(color: number): Record<string, string> {
   const l = mix(b, '#ffffff', 0.62)
   return {
     b,
-    o: mix(b, '#000000', 0.72),
+    o: mix(b, '#000000', 0.74),
     d: mix(b, '#000000', 0.3),
     h: mix(b, '#ffffff', 0.28),
     l,
@@ -82,8 +82,8 @@ function fillBody(g: Grid, cy: number, rx: number, ry: number) {
       const lit = -(nx * 0.5 + ny * 0.8) // light comes from the top-left
       const odd = (x + y) % 2 === 0
       let c = 'b'
-      if (lit > 0.62) c = 'h'
-      else if (lit > 0.5 && odd) c = 'h'
+      if (lit > 0.64) c = 'h'
+      else if (lit > 0.52 && odd) c = 'h'
       else if (lit < -0.5) c = 'd'
       else if (lit < -0.38 && odd) c = 'd'
       g[y][x] = c
@@ -123,30 +123,33 @@ function outline(g: Grid) {
 
 // ── egg ──
 const EGG_SPOTS: [number, number, number, number][] = [
-  [14, 8, 3, 2],
-  [8, 13, 3, 3],
-  [14, 15, 2, 2],
-  [10, 19, 3, 1],
-  [11, 6, 2, 1],
+  [18, 8, 4, 3],
+  [10, 18, 4, 4],
+  [19, 19, 3, 3],
+  [13, 26, 5, 2],
+  [14, 6, 2, 2],
+  [22, 12, 2, 2],
+  [9, 24, 2, 2],
 ]
 const EGG_CRACK: [number, number][] = [
-  [7, 11], [8, 10], [9, 11], [10, 10], [11, 11], [12, 10], [13, 11], [14, 10], [15, 11], [16, 10],
+  [8, 14], [9, 13], [10, 14], [11, 13], [12, 14], [13, 12], [14, 13], [15, 12], [16, 13],
+  [17, 12], [18, 13], [19, 12], [20, 13], [21, 12], [22, 13], [23, 12],
 ]
 
 function buildEgg(): Grid {
   const g = blank()
-  const cy = 13.2
-  const ry = 9.6
+  const cy = 17.2
+  const ry = 12.8
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
       const py = y + 0.5 - cy
-      const rx = 7.6 * (1 + (0.14 * py) / ry) // wider at the bottom, like an egg
+      const rx = 10 * (1 + (0.14 * py) / ry) // wider at the bottom, like an egg
       const nx = (x + 0.5 - W / 2) / rx
       const ny = py / ry
       if (nx * nx + ny * ny > 1) continue
       const lit = -(nx * 0.5 + ny * 0.8)
       const odd = (x + y) % 2 === 0
-      g[y][x] = lit > 0.62 ? 'w' : lit < -0.5 || (lit < -0.38 && odd) ? 'E' : 'e'
+      g[y][x] = lit > 0.64 ? 'w' : lit < -0.5 || (lit < -0.38 && odd) ? 'E' : 'e'
     }
   }
   for (const [sx, sy, sw, sh] of EGG_SPOTS) {
@@ -172,6 +175,10 @@ type Features = {
   center?: Block[]
   /** Not mirrored, drawn behind the body (tails). */
   tail?: Block[]
+  /** Markings painted on the body only (stripes, face discs); mirrored. */
+  markSide?: Block[]
+  /** Markings on the axis. */
+  markCenter?: Block[]
   /** Drawn after the outline and face, on the axis (noses, beaks). */
   post?: Block[]
   /** Like `post`, mirrored (whiskers). */
@@ -180,63 +187,93 @@ type Features = {
 
 const BREEDS: Record<PetBreed, Features> = {
   cat: {
-    side: [{ x: 5, y: 1, rows: ['b....', 'bb...', 'bpb..', 'bppb.', 'bpppb', 'bbbbb'] }],
-    post: [{ x: 11, y: 13, low: true, rows: ['pp'] }],
+    side: [{ x: 6, y: 2, rows: ['bb......', 'bbd.....', 'bpbd....', 'bppbd...', 'bpppbd..', 'bppppbd.', 'bpppppbd', 'bbbbbbbb'] }],
+    markCenter: [{ x: 13, y: 9, rows: ['d.dd.d', 'd.dd.d', '.d..d.'] }],
+    markSide: [{ x: 3, y: 22, low: true, rows: ['ddd.', '.ddd'] }],
+    post: [{ x: 15, y: 19, low: true, rows: ['pp'] }],
     postSide: [
-      { x: 0, y: 14, low: true, rows: ['kk'] },
-      { x: 0, y: 16, low: true, rows: ['kk'] },
+      { x: 0, y: 21, low: true, rows: ['kkk'] },
+      { x: 0, y: 23, low: true, rows: ['kkk'] },
     ],
   },
   bunny: {
-    side: [{ x: 6, y: 0, rows: ['.bb.', 'bppb', 'bppb', 'bppb', 'bppb', 'bppb', 'bbbb'] }],
-    post: [{ x: 11, y: 13, low: true, rows: ['pp'] }],
+    side: [{ x: 8, y: 0, rows: ['.bbbb.', 'bhppbd', 'bhppbd', 'bhppbd', 'bhppbd', 'bhppbd', 'bhppbd', 'bbppbd', 'bbbbbd', 'bbbbbb'] }],
+    tail: [{ x: 28, y: 24, low: true, rows: ['.ww.', 'wwww', 'wwww', '.ww.'] }],
+    markSide: [{ x: 4, y: 20, low: true, rows: ['.ll', 'lll'] }],
+    post: [
+      { x: 15, y: 19, low: true, rows: ['pp'] },
+      { x: 14, y: 24, low: true, rows: ['ww.ww', 'ww.ww'] },
+    ],
   },
   bear: {
-    side: [{ x: 4, y: 2, rows: ['.bb.', 'bddb', 'bddb', 'bbbb'] }],
-    center: [{ x: 9, y: 13, low: true, rows: ['.llll.', 'llllll', 'llllll', '.llll.'] }],
-    post: [{ x: 11, y: 13, low: true, rows: ['kk'] }],
+    side: [{ x: 6, y: 4, rows: ['.bbbb.', 'bqqqqb', 'bqqqqb', 'bqqqqb', 'bbbbbb', 'bbbbbb'] }],
+    center: [{ x: 12, y: 18, low: true, rows: ['.llllll.', 'llllllll', 'llllllll', 'llllllll', '.llllll.', '..llll..'] }],
+    post: [{ x: 14, y: 18, low: true, rows: ['kkkk', '.kk.'] }],
   },
   dino: {
-    side: [{ x: 6, y: 3, rows: ['.d.', 'ddd', 'ddd'] }],
-    center: [{ x: 10, y: 1, rows: ['.dd.', '.dd.', 'dddd', 'dddd'] }],
-    tail: [{ x: 21, y: 14, low: true, rows: ['..d', '.dd', 'bdd', 'bd.'] }],
+    side: [{ x: 8, y: 5, rows: ['..dd..', '.dddd.', 'dddddd', 'dddddd'] }],
+    center: [{ x: 13, y: 1, rows: ['..dd..', '.dddd.', '.dhdd.', 'dhdddd', 'dhdddd', 'dddddd', 'dddddd'] }],
+    tail: [{ x: 28, y: 18, low: true, rows: ['..dd', '.ddd', 'dddd', 'dddd', 'dddd', 'ddd.'] }],
+    markCenter: [
+      { x: 11, y: 24, low: true, rows: ['qqqqqqqqqq'] },
+      { x: 11, y: 26, low: true, rows: ['qqqqqqqqqq'] },
+    ],
+    markSide: [
+      { x: 5, y: 17, low: true, rows: ['dd', 'dd'] },
+      { x: 7, y: 23, low: true, rows: ['dd'] },
+    ],
   },
   owl: {
     side: [
-      { x: 5, y: 2, rows: ['d...', 'dd..', 'ddd.', 'dddd'] },
-      { x: 0, y: 10, low: true, rows: ['..d', '.dd', '.dd', 'ddd', 'ddd', 'ddd', '.dd', '.dd', '..d'] },
+      { x: 7, y: 3, rows: ['d.....', 'dd....', 'ddd...', 'dddd..', 'ddddd.', 'dddddd'] },
+      { x: 0, y: 15, low: true, rows: ['...d', '..dd', '.ddd', 'dddd', 'dddd', 'dddd', 'dddd', '.ddd', '.ddd', '..dd', '...d'] },
     ],
-    post: [{ x: 11, y: 12, low: true, rows: ['yy', 'yy'] }],
+    markSide: [{ x: 6, y: 12, low: true, rows: ['.lllll.', 'lllllll', 'lllllll', 'lllllll', 'lllllll', 'lllllll', '.lllll.'] }],
+    markCenter: [{ x: 11, y: 23, low: true, rows: ['q.q.q.q.q.q', '.q.q.q.q.q.', 'q.q.q.q.q.q'] }],
+    post: [{ x: 14, y: 18, low: true, rows: ['yyyy', '.yy.'] }],
   },
   frog: {
-    side: [{ x: 5, y: 2, rows: ['.bbb.', 'bhhbb', 'bbbbb', 'bbbbb'] }],
+    side: [{ x: 7, y: 3, rows: ['..bbbb..', '.bhhhbb.', 'bhhhhbbb', 'bhhhbbbb', 'bbbbbbbb', 'bbbbbbbb'] }],
+    markSide: [
+      { x: 5, y: 12, rows: ['dd', 'dd'] },
+      { x: 8, y: 10, rows: ['d'] },
+    ],
+    markCenter: [{ x: 12, y: 24, low: true, rows: ['d..d..d..d', '.d..d..d..'] }],
+    post: [{ x: 9, y: 22, low: true, rows: ['o............o', '.oooooooooooo.'] }],
   },
   alien: {
-    side: [{ x: 5, y: 0, rows: ['yy..', 'yy..', '.d..', '..d.', '..d.', '...d'] }],
+    side: [{ x: 9, y: 0, rows: ['yyy..', 'yyy..', '..d..', '..d..', '...d.', '...d.', '....d', '....d'] }],
+    markCenter: [{ x: 13, y: 10, rows: ['d..d..d', '.d.dd.d'] }],
   },
   fox: {
-    side: [{ x: 4, y: 0, rows: ['d.....', 'dd....', 'dbb...', 'dbbb..', 'dblbb.', 'dbllbb', 'bbbbbb'] }],
+    side: [{ x: 5, y: 0, rows: ['d.......', 'dd......', 'ddb.....', 'ddbb....', 'dlbbb...', 'dllbbb..', 'dlllbbb.', 'dllllbbb', 'dbbbbbbb', 'bbbbbbbb'] }],
     tail: [
-      { x: 20, y: 8, low: true, rows: ['...l', '..ll', '..dl', '.ddd', '.ddd', 'dddd', 'dddd', 'dddd'] },
+      { x: 26, y: 10, low: true, rows: ['.....l', '....ll', '...lll', '...ddl', '..dddd', '.ddddd', '.ddddd', 'dddddd', 'dddddd', 'dddddd', 'dddddd', '.ddddd', '..dddd'] },
     ],
-    post: [{ x: 11, y: 13, low: true, rows: ['kk'] }],
+    markSide: [{ x: 3, y: 19, low: true, rows: ['..ll', '.lll', 'llll', 'lll.'] }],
+    post: [{ x: 15, y: 19, low: true, rows: ['kk'] }],
   },
   mouse: {
-    side: [{ x: 2, y: 1, rows: ['.bbbb.', 'bppppb', 'bppppb', 'bppppb', '.bbbb.'] }],
-    tail: [{ x: 19, y: 16, low: true, rows: ['....p', '....p', '...p.', '..p..', 'pp...'] }],
-    post: [{ x: 11, y: 13, low: true, rows: ['pp'] }],
-    postSide: [{ x: 0, y: 14, low: true, rows: ['kk'] }],
+    side: [{ x: 3, y: 2, rows: ['..bbbb..', '.bppppb.', 'bppppppb', 'bppppppb', 'bppppppb', '.bppppb.', '..bbbb..'] }],
+    tail: [{ x: 26, y: 23, low: true, rows: ['....pp', '....pp', '...pp.', '..pp..', '.pp...', 'pp....'] }],
+    post: [{ x: 15, y: 19, low: true, rows: ['pp'] }],
+    postSide: [
+      { x: 0, y: 21, low: true, rows: ['kkk'] },
+      { x: 0, y: 23, low: true, rows: ['kk'] },
+    ],
   },
   unicorn: {
-    side: [{ x: 6, y: 3, rows: ['.b.', 'bpb', 'bbb'] }],
-    center: [{ x: 11, y: 0, rows: ['yy', 'wy', 'yy', 'wy', 'yy', 'yy'] }],
-    tail: [{ x: 21, y: 15, low: true, rows: ['.yy', 'yyy', 'yyy', '.yy', '..y'] }],
+    side: [{ x: 7, y: 5, rows: ['..bb.', '.bppb', 'bppbd', 'bbbbb'] }],
+    center: [{ x: 14, y: 1, rows: ['.yy.', '.wy.', '.yy.', '.wy.', '.yyy', 'wyyy', 'yyyy'] }],
+    tail: [{ x: 27, y: 18, low: true, rows: ['..yy', '.yyy', 'yyyy', 'yyyy', 'yyy.', 'yy..'] }],
+    markCenter: [{ x: 15, y: 10, rows: ['.y.', 'yyy', '.y.'] }],
+    markSide: [{ x: 4, y: 11, rows: ['pp', 'ppp', 'pp'] }],
   },
 }
 
 // ── face ──
 type Layout = {
-  /** Top row of the 4x4 eyes. */
+  /** Top row of the 5x5 eyes. */
   y0: number
   /** Top row of the mouth. */
   m: number
@@ -246,40 +283,45 @@ type Layout = {
   /** Left eyebrow pixels for sad moods. */
   brow: [number, number][]
   sweat: [number, number][]
+  /** Shift applied to head-top features / face-level features / inward x on this body. */
+  dyHead: number
+  dyLow: number
+  dx: number
 }
 const LAYOUT_BIG: Layout = {
-  y0: 10, m: 14, ch: 14, cx: 3,
-  brow: [[5, 8], [6, 8], [7, 7], [8, 7]],
-  sweat: [[21, 8], [21, 9], [22, 9]],
+  y0: 14, m: 20, ch: 20, cx: 4,
+  brow: [[7, 12], [8, 12], [9, 11], [10, 11], [11, 10], [12, 10]],
+  sweat: [[27, 9], [27, 10], [28, 10], [27, 11], [28, 11]],
+  dyHead: 0, dyLow: 0, dx: 0,
 }
 const LAYOUT_SMALL: Layout = {
-  y0: 12, m: 16, ch: 15, cx: 5,
-  brow: [[6, 11], [7, 11], [8, 10], [9, 10]],
-  sweat: [[19, 10], [19, 11], [20, 11]],
+  y0: 17, m: 23, ch: 22, cx: 6,
+  brow: [[8, 15], [9, 15], [10, 14], [11, 14], [12, 13]],
+  sweat: [[24, 15], [24, 16], [25, 16], [24, 17], [25, 17]],
+  dyHead: 5, dyLow: 3, dx: 3,
 }
 
-const EYE_X = 6 // left eye spans x 6..9, the right one mirrors to 14..17
+const EYE_X = 8 // left eye spans x 8..12, the right one mirrors to 19..23
 const EYES: Record<PetMood, string[]> = {
-  happy: ['....', '.kk.', 'k..k', '....'],
-  content: ['.kk.', 'kwkk', 'kkkk', '.kk.'],
-  hungry: ['kkkk', 'kwkk', '.kk.', '....'],
-  starving: ['....', '....', 'kkkk', '....'],
+  happy: ['.....', '.kkk.', 'kk.kk', 'k...k', '.....'],
+  content: ['.kkk.', 'kwwkk', 'kkkkk', 'kkkwk', '.kkk.'],
+  hungry: ['kkkkk', 'kwwkk', 'kkkkk', '.kkk.', '.....'],
+  starving: ['.....', '.....', 'kkkkk', '.....', '.....'],
 }
 const MOUTHS: Record<PetMood, string[]> = {
-  happy: ['kkkk', 'kppk', '.kk.'],
-  content: ['k..k', '.kk.'],
-  hungry: ['.kk.', 'k..k'],
-  starving: ['.kk.', 'kkkk', '.kk.'],
+  happy: ['kkkkkk', 'kppppk', '.kppk.', '..kk..'],
+  content: ['k....k', '.kkkk.'],
+  hungry: ['.kkkk.', 'k....k'],
+  starving: ['.kkkk.', 'kkkkkk', 'kkkkkk', '.kkkk.'],
 }
 
 function glasses(g: Grid, y0: number) {
-  const ring = ['kkkkkk', 'k....k', 'k....k', 'k....k', 'k....k', 'kkkkkk']
-  for (const x of [EYE_X - 1, W - EYE_X - 5]) {
-    stamp(g, ring, x, y0 - 1)
-  }
-  stamp(g, ['kk'], 11, y0 + 1)
-  stamp(g, ['kk'], 3, y0 + 1)
-  stamp(g, ['kk'], 19, y0 + 1)
+  const ring = ['kkkkkkk', 'k.....k', 'k.....k', 'k.....k', 'k.....k', 'k.....k', 'kkkkkkk']
+  stamp(g, ring, EYE_X - 1, y0 - 1)
+  stamp(g, ring, W - EYE_X - 6, y0 - 1)
+  stamp(g, ['kkkk'], 14, y0 + 1)
+  stamp(g, ['kk'], 5, y0 + 1)
+  stamp(g, ['kk'], 25, y0 + 1)
 }
 
 function build(stage: PetStage, mood: PetMood, breed: PetBreed): { body: Grid; mouth: Grid } {
@@ -290,51 +332,49 @@ function build(stage: PetStage, mood: PetMood, breed: PetBreed): { body: Grid; m
   const L = small ? LAYOUT_SMALL : LAYOUT_BIG
 
   if (small) {
-    fillBody(g, 15.5, 7.2, 6.2)
-    fillBelly(g, 20, 3.8, 2.6)
-    stamp(g, ['ddd', 'ddd'], 8, 21)
-    stamp(g, ['ddd', 'ddd'], 13, 21)
-    stamp(g, ['dd', 'dd', 'dd'], 3, 16)
-    stamp(g, ['dd', 'dd', 'dd'], 19, 16)
+    fillBody(g, 21, 9.6, 8.3)
+    fillBelly(g, 27, 5.6, 2.8)
+    stamp(g, ['hddd', 'dddd'], 9, 29)
+    stamp(g, ['hddd', 'dddd'], 19, 29)
+    stamp(g, ['hd', 'dd', 'dd'], 4, 22)
+    stamp(g, ['dh', 'dd', 'dd'], 26, 22)
   } else {
-    fillBody(g, 13.5, 9.6, 8.2)
-    fillBelly(g, 18.6, 5.2, 3.4)
-    stamp(g, ['dddd', 'dddd'], 6, 21)
-    stamp(g, ['dddd', 'dddd'], 14, 21)
-    stamp(g, ['dd', 'dd', 'dd', 'dd'], 1, 14)
-    stamp(g, ['dd', 'dd', 'dd', 'dd'], 21, 14)
+    fillBody(g, 18.5, 12.8, 10.9)
+    fillBelly(g, 26.2, 7.4, 4.2)
+    stamp(g, ['hdddd', 'ddddd'], 7, 29)
+    stamp(g, ['hdddd', 'ddddd'], 20, 29)
+    stamp(g, ['.hd', 'hdd', 'ddd', '.dd'], 1, 19)
+    stamp(g, ['dh.', 'ddh', 'ddd', 'dd.'], 28, 19)
   }
 
-  // breed features (head-top ones drop 4px on the small body, face-level ones 2px)
+  // breed features
   const f = BREEDS[breed]
-  const place = (b: Block, mirrored: boolean, mode: 'over' | 'behind') => {
-    const rows = mirrored ? flip(b.rows) : b.rows
+  const dyOf = (b: Block) => (b.low ? L.dyLow : L.dyHead)
+  const place = (b: Block, mirrored: boolean, mode: 'over' | 'behind' | 'clip') => {
     const w = b.rows[0].length
-    const dy = small ? (b.low ? 2 : 4) : 0
-    let x = mirrored ? W - b.x - w : b.x
-    if (small) x += mirrored ? (b.x < W / 2 ? -2 : 2) : b.x < W / 2 ? 2 : -2
-    stamp(g, rows, x, b.y + dy, mode)
+    const x = (mirrored ? W - b.x - w : b.x) + (mirrored ? -L.dx : L.dx)
+    stamp(g, mirrored ? flip(b.rows) : b.rows, x, b.y + dyOf(b), mode)
   }
-  const placeSide = (b: Block, mode: 'over' | 'behind' = 'over') => {
+  const placeSide = (b: Block, mode: 'over' | 'behind' | 'clip' = 'over') => {
     place(b, false, mode)
     place(b, true, mode)
   }
-  const placeAxis = (b: Block, mode: 'over' | 'behind' = 'over') => {
+  const placeAxis = (b: Block, mode: 'over' | 'behind' | 'clip' = 'over') => {
     const w = b.rows[0].length
-    stamp(g, b.rows, Math.round(W / 2 - w / 2), b.y + (small ? (b.low ? 2 : 4) : 0), mode)
+    stamp(g, b.rows, Math.round(W / 2 - w / 2), b.y + dyOf(b), mode)
   }
-  f.tail?.forEach((b) => {
-    const dx = small ? -2 : 0
-    stamp(g, b.rows, b.x + dx, b.y + (small ? 2 : 0), 'behind')
-  })
+
+  f.tail?.forEach((b) => stamp(g, b.rows, b.x - L.dx, b.y + dyOf(b), 'behind'))
   f.side?.forEach((b) => placeSide(b))
   f.center?.forEach((b) => placeAxis(b))
+  f.markSide?.forEach((b) => placeSide(b, 'clip'))
+  f.markCenter?.forEach((b) => placeAxis(b, 'clip'))
 
   if (stage === 'sage') {
-    // gold scarf around the belly
-    stamp(g, ['.....yyyyyyyyyyyyyy.....'], 0, 19, 'clip')
-    stamp(g, ['......YYYYYYYYYYYY......'], 0, 20, 'clip')
-    stamp(g, ['yY', 'yY'], 11, 21)
+    // gold scarf around the belly, with a tail hanging between the feet
+    stamp(g, ['......yyyyyyyyyyyyyyyyyyyy......'], 0, 25, 'clip')
+    stamp(g, ['.......YYYYYYYYYYYYYYYYYY.......'], 0, 26, 'clip')
+    stamp(g, ['yyyy', 'yyYY', '.yY.', '.yY.'], 14, 27)
   }
 
   outline(g)
@@ -345,10 +385,9 @@ function build(stage: PetStage, mood: PetMood, breed: PetBreed): { body: Grid; m
 
   if (stage === 'bookworm' || stage === 'sage') glasses(g, L.y0)
 
-  // eyes
   const eye = EYES[mood]
   stamp(g, eye, EYE_X, L.y0)
-  stamp(g, eye, W - EYE_X - 4, L.y0)
+  stamp(g, eye, W - EYE_X - 5, L.y0)
 
   const put = (x: number, y: number, c: string) => {
     if (x >= 0 && x < W && y >= 0 && y < H) g[y][x] = c
@@ -361,15 +400,19 @@ function build(stage: PetStage, mood: PetMood, breed: PetBreed): { body: Grid; m
   }
   if (mood === 'starving') for (const [x, y] of L.sweat) put(x, y, 's')
   if (mood === 'happy') {
-    for (const dx of [0, 1]) {
+    for (const dx of [0, 1, 2]) {
       put(L.cx + dx, L.ch, 'p')
       put(W - 1 - L.cx - dx, L.ch, 'p')
+      if (!small) {
+        put(L.cx + dx, L.ch + 1, 'p')
+        put(W - 1 - L.cx - dx, L.ch + 1, 'p')
+      }
     }
   }
 
   // mouth lives on its own layer so it can animate while eating
   const mouth = blank()
-  stamp(mouth, MOUTHS[mood], 10, L.m)
+  stamp(mouth, MOUTHS[mood], 13, L.m)
   return { body: g, mouth }
 }
 
@@ -414,7 +457,7 @@ export default function PetSprite({ stage, mood, look, className, eating }: Prop
         @media (prefers-reduced-motion: reduce) { .pet-hop, .pet-shake, .pet-chomp { animation: none } }
       `}</style>
       <svg
-        viewBox="0 0 24 25"
+        viewBox="0 0 32 33"
         shapeRendering="crispEdges"
         className={className}
         style={{ imageRendering: 'pixelated' }}
@@ -422,7 +465,7 @@ export default function PetSprite({ stage, mood, look, className, eating }: Prop
         aria-hidden="true"
       >
         {/* shadow */}
-        <rect x={stage === 'egg' ? 6 : 5} y={24} width={stage === 'egg' ? 12 : 14} height={1} fill="currentColor" opacity={0.15} />
+        <rect x={stage === 'egg' ? 8 : 6} y={32} width={stage === 'egg' ? 16 : 20} height={1} fill="currentColor" opacity={0.18} />
         <g className={stage === 'egg' ? 'pet-shake' : 'pet-hop'} style={{ ['--pet-anim' as string]: anim }}>
           {bodyRects.map((r, i) => (
             <rect key={i} x={r.x} y={r.y} width={r.w} height={1} fill={palette[r.c]} />
