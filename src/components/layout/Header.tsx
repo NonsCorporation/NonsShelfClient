@@ -162,7 +162,7 @@ export default function Header() {
 
           {/* Right cluster */}
           <div className="ml-auto flex items-center gap-2">
-            {isAuthenticated && (
+            {isLibrarian(user?.role) && (
               <Link
                 to="/pet"
                 aria-label={t('pet')}
@@ -384,14 +384,16 @@ export default function Header() {
                         {t('editProfile')}
                       </Link>
                     )}
-                    <Link
-                      to="/pet"
-                      onClick={() => setProfileOpen(false)}
-                      className={`flex w-full items-center gap-3 px-4 py-3 text-sm transition-colors hover:bg-[var(--surface)] hover:text-[var(--text)] ${path === '/pet' ? 'text-[var(--text)]' : 'text-[var(--text-muted)]'}`}
-                    >
-                      <IoPawOutline className="h-[18px] w-[18px]" />
-                      {t('pet')}
-                    </Link>
+                    {isLibrarian(user?.role) && (
+                      <Link
+                        to="/pet"
+                        onClick={() => setProfileOpen(false)}
+                        className={`flex w-full items-center gap-3 px-4 py-3 text-sm transition-colors hover:bg-[var(--surface)] hover:text-[var(--text)] ${path === '/pet' ? 'text-[var(--text)]' : 'text-[var(--text-muted)]'}`}
+                      >
+                        <IoPawOutline className="h-[18px] w-[18px]" />
+                        {t('pet')}
+                      </Link>
+                    )}
                     <Link
                       to="/messages"
                       onClick={() => setProfileOpen(false)}

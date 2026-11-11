@@ -8,6 +8,7 @@ import PetScene from '../components/pet/PetScene'
 import ConfirmModal from '../components/ui/ConfirmModal'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
+import { isLibrarian } from '../services/librarianService'
 import { PET_BREEDS, PET_COLOR_COUNT, PET_FOODS, PET_NAME_MAX, PET_SCENES, petLookFor, stageProgress, usePet, type PetFood, type PetFoodKind } from '../lib/pet'
 
 const PIXEL = { fontFamily: "'Press Start 2P', ui-monospace, monospace" } as const
@@ -48,6 +49,15 @@ export default function Pet() {
   }
 
   useEffect(() => () => window.clearTimeout(eatTimer.current), [])
+
+  // Librarians only for now (the pet is still a client-side mock).
+  if (!isLibrarian(user?.role)) {
+    return (
+      <Layout>
+        <p className="py-24 text-center text-sm text-[var(--text-muted)]">{t('notAuthorized')}</p>
+      </Layout>
+    )
+  }
 
   if (!ready) {
     return (
