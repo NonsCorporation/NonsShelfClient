@@ -26,6 +26,39 @@ export const PET_FOODS: PetFood[] = [
   { id: 'watch-series', kind: 'watch', labelKey: 'petFoodWatchSeries', fill: 50, xp: 45 },
 ]
 
+export const PET_BREEDS = ['cat', 'bunny', 'bear', 'dino', 'owl', 'frog', 'alien', 'fox', 'mouse', 'unicorn'] as const
+export type PetBreed = (typeof PET_BREEDS)[number]
+export const PET_COLOR_COUNT = 8
+
+export type PetLook = { breed: PetBreed; color: number }
+
+/** Deterministic 32-bit hash (FNV-1a + avalanche) so ids that are close together still look unrelated. */
+function hash32(input: string): number {
+  let h = 0x811c9dc5
+  for (let i = 0; i < input.length; i++) {
+    h ^= input.charCodeAt(i)
+    h = Math.imul(h, 0x01000193)
+  }
+  h ^= h >>> 16
+  h = Math.imul(h, 0x85ebca6b)
+  h ^= h >>> 13
+  h = Math.imul(h, 0xc2b2ae35)
+  h ^= h >>> 16
+  return h >>> 0
+}
+
+/** Every account always gets the same breed and colour, derived from its id. */
+export function petLookFor(seed: string | number): PetLook {
+  const h = hash32(`pet:${seed}`)
+  return {
+    breed: PET_BREEDS[h % PET_BREEDS.length],
+    color: Math.floor(h / PET_BREEDS.length) % PET_COLOR_COUNT,
+  }
+}
+
+export const PET_SCENES = ['meadow', 'night', 'battlefield', 'beach', 'space'] as const
+export type PetScene = (typeof PET_SCENES)[number]
+
 export type PetStage = 'egg' | 'hatchling' | 'bookworm' | 'sage'
 
 export const PET_STAGES: { stage: PetStage; minXp: number }[] = [
@@ -41,6 +74,7 @@ export const PET_NAME_MAX = 20
 
 type PetSaved = {
   name: string
+  scene: PetScene
   /** Fullness (0–100) as of `savedAt`; the live value decays from there. */
   fullness: number
   savedAt: number
@@ -57,6 +91,7 @@ const DECAY_PER_HOUR = 6
 
 const SERVER_PET: PetSaved = {
   name: '',
+  scene: 'meadow',
   fullness: 60,
   savedAt: 0,
   xp: 0,
@@ -153,6 +188,7 @@ export function stageProgress(xp: number): { pct: number; toNext: number } | nul
 
 export type PetView = {
   name: string
+  scene: PetScene
   hasName: boolean
   fullness: number
   mood: PetMood
@@ -168,6 +204,7 @@ function toView(p: PetSaved, now: number): PetView {
   const fullness = fullnessAt(p, now)
   return {
     name: p.name,
+    scene: PET_SCENES.includes(p.scene) ? p.scene : 'meadow',
     hasName: p.name.trim().length > 0,
     fullness,
     mood: moodFor(fullness),
@@ -213,7 +250,9 @@ export function usePet() {
     return true
   }, [])
 
-  const reset = useCallback(() => write(freshPet()), [])
+  const reset = useCallback(() => write({ ...freshPet(), scene: read().scene }), [])
+
+  const setScene = useCallback((scene: PetScene) => write({ ...read(), scene }), [])
 
   // Mock-only helpers so the growth stages and moods can be tried out.
   const addXp = useCallback((amount: number) => {
@@ -232,7 +271,7 @@ export function usePet() {
     write({ ...read(), fullness: Math.max(0, Math.min(100, value)), savedAt: Date.now() })
   }, [])
 
-  return { pet, now, ready: saved.savedAt !== 0, rename, feed, reset, addXp, evolve, setFullness }
+  return { pet, now, ready: saved.savedAt !== 0, rename, feed, reset, addXp, evolve, setFullness, setScene }
 }
 
 /** Re-renders the caller every `ms` so time-derived values stay fresh. */

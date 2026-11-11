@@ -4,9 +4,11 @@ import { useEffect, useRef, useState } from 'react'
 import { IoBookOutline, IoFilmOutline, IoPencilOutline, IoCheckmark, IoPawOutline, IoRefresh } from 'react-icons/io5'
 import Layout from '../components/layout/Layout'
 import PetSprite from '../components/pet/PetSprite'
+import PetScene from '../components/pet/PetScene'
 import ConfirmModal from '../components/ui/ConfirmModal'
 import { useLanguage } from '../contexts/LanguageContext'
-import { PET_FOODS, PET_NAME_MAX, stageProgress, usePet, type PetFood, type PetFoodKind } from '../lib/pet'
+import { useAuth } from '../contexts/AuthContext'
+import { PET_BREEDS, PET_COLOR_COUNT, PET_FOODS, PET_NAME_MAX, PET_SCENES, petLookFor, stageProgress, usePet, type PetFood, type PetFoodKind } from '../lib/pet'
 
 const PIXEL = { fontFamily: "'Press Start 2P', ui-monospace, monospace" } as const
 const FRAME = 'border-2 border-[var(--border-strong)] shadow-[4px_4px_0_0_var(--border)]'
@@ -27,7 +29,8 @@ const MOOD_KEY = {
 
 export default function Pet() {
   const { t } = useLanguage()
-  const { pet, now, ready, rename, feed, reset, addXp, evolve, setFullness } = usePet()
+  const { user } = useAuth()
+  const { pet, now, ready, rename, feed, reset, addXp, evolve, setFullness, setScene } = usePet()
 
   const [draft, setDraft] = useState('')
   const [editing, setEditing] = useState(false)
@@ -35,6 +38,14 @@ export default function Pet() {
   const [eating, setEating] = useState(false)
   const [confirmReset, setConfirmReset] = useState(false)
   const eatTimer = useRef<number | undefined>(undefined)
+
+  // Breed and colour come from the account id; `lookShift` is a mock-only preview that isn't saved.
+  const [lookShift, setLookShift] = useState(0)
+  const baseLook = petLookFor(user?.uuid || user?.id || 'guest')
+  const look = {
+    breed: PET_BREEDS[(PET_BREEDS.indexOf(baseLook.breed) + lookShift) % PET_BREEDS.length],
+    color: (baseLook.color + Math.floor(lookShift / PET_BREEDS.length) * 3 + lookShift) % PET_COLOR_COUNT,
+  }
 
   useEffect(() => () => window.clearTimeout(eatTimer.current), [])
 
@@ -78,14 +89,17 @@ export default function Pet() {
 
         {/* Pet stage */}
         <section className={`relative overflow-hidden bg-[var(--surface)] p-5 ${FRAME}`}>
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_50%_0%,var(--primary-soft),transparent_70%)]" />
-          <div className="relative flex flex-col items-center">
+          <div className="relative -mx-5 -mt-5 mb-4 h-64 overflow-hidden border-b-2 border-[var(--border-strong)] sm:h-72">
+            <PetScene scene={pet.scene} className="absolute inset-0 h-full w-full" />
             <PetSprite
               stage={pet.stage}
               mood={pet.mood}
+              look={look}
               eating={eating}
-              className="h-56 w-56 text-[var(--text)] sm:h-64 sm:w-64"
+              className="absolute bottom-[8%] left-1/2 h-52 w-52 -translate-x-1/2 text-black sm:h-60 sm:w-60"
             />
+          </div>
+          <div className="relative flex flex-col items-center">
 
             {!pet.hasName ? (
               <form
@@ -163,6 +177,7 @@ export default function Pet() {
                 <span style={PIXEL} className="mt-2 border-2 border-[var(--primary-ring)] bg-[var(--primary-soft)] px-2 py-1 text-[9px] uppercase text-[var(--text)]">
                   {t(STAGE_KEY[pet.stage])}
                 </span>
+                <span className="mt-2 text-xs text-[var(--text-muted)]">{t(`petBreed${look.breed[0].toUpperCase()}${look.breed.slice(1)}`)}</span>
                 <p className="mt-2 text-center text-sm text-[var(--text-muted)]">{t(MOOD_KEY[pet.mood], { name })}</p>
               </>
             )}
@@ -188,6 +203,36 @@ export default function Pet() {
 
         {pet.hasName && (
           <>
+            {/* Background */}
+            <h3 style={PIXEL} className="mb-3 mt-8 px-1 text-[10px] uppercase leading-relaxed text-[var(--text-muted)]">
+              {t('petSceneTitle')}
+            </h3>
+            <div className="grid grid-cols-5 gap-2">
+              {PET_SCENES.map((sc) => {
+                const active = pet.scene === sc
+                return (
+                  <button
+                    key={sc}
+                    onClick={() => setScene(sc)}
+                    aria-pressed={active}
+                    aria-label={t(`petScene${sc[0].toUpperCase()}${sc.slice(1)}`)}
+                    title={t(`petScene${sc[0].toUpperCase()}${sc.slice(1)}`)}
+                    className={`group min-w-0 border-2 p-0.5 transition-colors ${
+                      active ? 'border-nonsprimary bg-[var(--primary-soft)]' : 'border-[var(--border-strong)] hover:border-[var(--text-muted)]'
+                    }`}
+                  >
+                    <PetScene scene={sc} className="block aspect-[2/1] w-full" />
+                    <span
+                      style={PIXEL}
+                      className={`mt-1 block truncate px-0.5 pb-0.5 text-center text-[7px] uppercase ${active ? 'text-[var(--text)]' : 'text-[var(--text-muted)]'}`}
+                    >
+                      {t(`petScene${sc[0].toUpperCase()}${sc.slice(1)}`)}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+
             {/* Feeding */}
             <h3 style={PIXEL} className="mb-3 mt-8 px-1 text-[10px] uppercase leading-relaxed text-[var(--text-muted)]">
               {t('petFeedTitle', { name })}
@@ -219,6 +264,7 @@ export default function Pet() {
               <MockButton onClick={() => addXp(25)}>{t('petMockAddXp', { count: 25 })}</MockButton>
               <MockButton onClick={() => addXp(100)}>{t('petMockAddXp', { count: 100 })}</MockButton>
               <MockButton onClick={evolve} disabled={!progress}>{t('petMockEvolve')}</MockButton>
+              <MockButton onClick={() => setLookShift((v) => v + 1)}>{t('petMockLook')}</MockButton>
               <MockButton onClick={() => setFullness(0)}>{t('petMockStarve')}</MockButton>
               <MockButton onClick={() => setFullness(100)}>{t('petMockFill')}</MockButton>
             </div>
@@ -252,6 +298,7 @@ export default function Pet() {
             setDraft('')
             setEditing(false)
             setMessage(null)
+            setLookShift(0)
             setConfirmReset(false)
           }}
         />
