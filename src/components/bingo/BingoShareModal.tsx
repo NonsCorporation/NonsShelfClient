@@ -37,7 +37,7 @@ const CARD_PAD_Y = 14
 const AREA_W = CARD_W - CARD_PAD_X * 2
 const AREA_H = 556
 // Cover shape (height / width) and caption height on prompt boards.
-const COVER_RATIO = 1.25
+const COVER_RATIO = 1.15
 const GAP = 6
 // Above this many squares the board is drawn as a pixel mosaic instead of DOM nodes.
 const MOSAIC_OVER = 400
