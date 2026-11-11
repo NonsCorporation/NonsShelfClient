@@ -8,12 +8,10 @@ import {
   IoCheckmarkDoneOutline,
   IoCopyOutline,
   IoCreateOutline,
-  IoImageOutline,
-  IoLinkOutline,
   IoLockOpenOutline,
   IoPeopleOutline,
-  IoPersonOutline,
   IoRefresh,
+  IoShareSocialOutline,
   IoTrashOutline,
   IoTrophyOutline,
 } from 'react-icons/io5'
@@ -22,8 +20,10 @@ import BingoGrid from '../components/bingo/BingoGrid'
 import BingoEditor from '../components/bingo/BingoEditor'
 import BingoAnswerModal from '../components/bingo/BingoAnswerModal'
 import BingoShareModal from '../components/bingo/BingoShareModal'
-import { ActionButton, KindTag } from '../components/bingo/BingoParts'
+import BingoShareSheet from '../components/bingo/BingoShareSheet'
+import { KindTag, ProgressBar } from '../components/bingo/BingoParts'
 import ConfirmModal from '../components/ui/ConfirmModal'
+import DropdownMenu, { type MenuItem } from '../components/ui/DropdownMenu'
 import { Link, useLocation, useNavigate, useSearchParams } from '../lib/router'
 import {
   COMMUNITY_BINGOS,
@@ -66,6 +66,7 @@ export default function BingoPage() {
   const [confirm, setConfirm] = useState<'board' | 'run' | 'update' | null>(null)
   const [answering, setAnswering] = useState<number | null>(null)
   const [showCard, setShowCard] = useState(false)
+  const [sheet, setSheet] = useState(false)
   const [copied, setCopied] = useState<Copied>(null)
 
   // /bingo on its own has nothing to show.
@@ -191,116 +192,160 @@ export default function BingoPage() {
         else store.toggle(board, activeRun?.id, i)
       }
 
+  const shareable = hasProgress && (theirs || !!activeRun)
+
+  // Everything that isn't the main thing to do lives in two small menus.
+  const boardMenu: MenuItem[] =
+    source === 'mine'
+      ? [
+          { label: t('bingoEdit'), icon: <IoCreateOutline className="h-4 w-4" />, onClick: () => setEditor(true) },
+          { label: t('bingoDelete'), icon: <IoTrashOutline className="h-4 w-4" />, onClick: () => setConfirm('board'), danger: true, divider: true },
+        ]
+      : [{ label: t('bingoCopy'), icon: <IoCopyOutline className="h-4 w-4" />, onClick: saveCopy }]
+
+  const runMenu: MenuItem[] = activeRun
+    ? [
+        ...(activeRun.finishedAt
+          ? [{ label: t('bingoReopen'), icon: <IoLockOpenOutline className="h-4 w-4" />, onClick: () => store.reopenRun(board.id, activeRun.id) }]
+          : hasProgress
+            ? [
+                { label: t('bingoFinishRun'), icon: <IoCheckmarkDoneOutline className="h-4 w-4" />, onClick: () => store.finishRun(board.id, activeRun.id) },
+                { label: t('bingoStartOver'), icon: <IoRefresh className="h-4 w-4" />, onClick: () => store.resetRun(board.id, activeRun.id) },
+              ]
+            : []),
+        { label: t('bingoDeleteRun'), icon: <IoTrashOutline className="h-4 w-4" />, onClick: () => setConfirm('run'), danger: true, divider: true },
+      ]
+    : []
+
+  const linesLabel = lines.length === 1 ? t('bingoLineOne') : t('bingoLinesMany', { count: lines.length })
+
   return (
     <Layout>
       <div className="mx-auto max-w-2xl animate-fade-up">
         {back}
 
-        <div className="mb-4">
-          <div className="flex flex-wrap items-center gap-1.5">
-            <KindTag kind={board.kind} />
-            <span className="rounded-full bg-[var(--surface)] px-2 py-0.5 text-[11px] font-medium text-[var(--text-muted)]">
-              {board.rows}×{board.cols}
-            </span>
+        {/* Header: what this is, and the one thing most people want to do with it */}
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <KindTag kind={board.kind} />
+              <span className="rounded-full bg-[var(--surface)] px-2 py-0.5 text-[11px] font-medium text-[var(--text-muted)]">
+                {board.rows}×{board.cols}
+              </span>
+            </div>
+            <h1 className="mt-2 text-2xl font-bold tracking-tight text-[var(--text)]">{latest.title}</h1>
+            {byline && <p className="mt-0.5 text-xs text-[var(--text-muted)]">{byline}</p>}
           </div>
-          <h1 className="mt-2 text-xl font-bold tracking-tight text-[var(--text)]">{latest.title}</h1>
-          {byline && <p className="mt-0.5 text-xs text-[var(--text-muted)]">{byline}</p>}
-          {latest.description && <p className="mt-2 text-sm text-[var(--text-muted)]">{latest.description}</p>}
+          <div className="flex flex-shrink-0 items-center gap-1">
+            <button
+              onClick={() => setSheet(true)}
+              className="flex items-center gap-1.5 rounded-full bg-nonsprimary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-nonsprimaryfocus"
+            >
+              <IoShareSocialOutline className="h-4 w-4" />
+              {t('share')}
+            </button>
+            <DropdownMenu items={boardMenu} buttonClassName="flex h-9 w-9 items-center justify-center" />
+          </div>
         </div>
+        {latest.description && <p className="mt-3 text-sm leading-relaxed text-[var(--text-muted)]">{latest.description}</p>}
 
-        {theirs && (
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--primary-ring)] bg-[var(--primary-soft)] px-4 py-3">
-            <div className="flex min-w-0 items-start gap-2.5">
-              <IoPeopleOutline className="mt-0.5 h-5 w-5 flex-shrink-0 text-nonsprimary" />
-              <div className="min-w-0">
-                <p className="text-sm font-semibold text-[var(--text)]">{t('bingoTheirResult', { name: decoded?.by || board.author || '?' })}</p>
-                <p className="text-xs text-[var(--text-muted)]">{t('bingoTheirResultHint')}</p>
+        <div className="mt-5 flex flex-col gap-3">
+          {theirs && (
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[var(--primary-ring)] bg-[var(--primary-soft)] px-4 py-3">
+              <div className="flex min-w-0 items-start gap-2.5">
+                <IoPeopleOutline className="mt-0.5 h-5 w-5 flex-shrink-0 text-nonsprimary" />
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-[var(--text)]">{t('bingoTheirResult', { name: decoded?.by || board.author || '?' })}</p>
+                  <p className="text-xs text-[var(--text-muted)]">{t('bingoTheirResultHint')}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => navigate(bingoPath(board.id))}
+                className="flex-shrink-0 rounded-full bg-nonsprimary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-nonsprimaryfocus"
+              >
+                {t('bingoPlayMine')}
+              </button>
+            </div>
+          )}
+          {outdated && activeRun && (
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-nonspremium/40 bg-nonspremium/10 px-4 py-3">
+              <p className="min-w-0 text-sm text-[var(--text)]">{activeRun.finishedAt ? t('bingoOutdatedFinished') : t('bingoOutdatedRun')}</p>
+              {!activeRun.finishedAt && (
+                <button
+                  onClick={() => setConfirm('update')}
+                  className="flex-shrink-0 rounded-full bg-nonsprimary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-nonsprimaryfocus"
+                >
+                  {t('bingoUpdateRun')}
+                </button>
+              )}
+            </div>
+          )}
+          {editedSince && <p className="rounded-2xl bg-[var(--surface)] px-4 py-3 text-sm text-[var(--text-muted)]">{t('bingoEditedSince')}</p>}
+          {unavailable && <p className="rounded-2xl bg-[var(--surface)] px-4 py-3 text-sm text-[var(--text-muted)]">{t('bingoResultUnavailable')}</p>}
+
+          {/* Runs: tabs for each play-through, a "+" for another one, and a small menu for the current one */}
+          {!theirs && ownRuns.length > 0 && (
+            <div className="flex items-center justify-between gap-2">
+              <div className="no-scrollbar flex min-w-0 items-center gap-1 overflow-x-auto rounded-full bg-[var(--surface)] p-1">
+                {ownRuns.map((r, i) => {
+                  const active = activeRun?.id === r.id
+                  return (
+                    <button
+                      key={r.id}
+                      onClick={() => goRun(r.id)}
+                      aria-pressed={active}
+                      className={`flex flex-shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-3.5 py-1.5 text-xs font-medium transition-colors ${
+                        active ? 'bg-[var(--container)] text-[var(--text)] shadow-sm' : 'text-[var(--text-muted)] hover:text-[var(--text)]'
+                      }`}
+                    >
+                      {r.finishedAt && <IoCheckmark className="h-3.5 w-3.5 text-nonsprimary" />}
+                      {t('bingoRunN', { n: i + 1 })}
+                    </button>
+                  )
+                })}
+                <button
+                  onClick={newRun}
+                  aria-label={t('bingoNewRun')}
+                  title={t('bingoNewRun')}
+                  className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
+                >
+                  <IoAdd className="h-4 w-4" />
+                </button>
+              </div>
+              {runMenu.length > 0 && <DropdownMenu items={runMenu} buttonClassName="flex h-9 w-9 items-center justify-center" />}
+            </div>
+          )}
+
+          {/* Progress */}
+          <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--container)] p-4">
+            <div className="mb-3 flex items-end justify-between gap-3">
+              <div>
+                <p className="leading-none">
+                  <span className="text-3xl font-bold tracking-tight text-[var(--text)]">{done}</span>
+                  <span className="ml-1 text-sm text-[var(--text-muted)]">/ {total}</span>
+                </p>
+                <p className="mt-1 text-xs text-[var(--text-muted)]">{prompt ? t('bingoFilledLabel') : t('bingoTickedLabel')}</p>
+              </div>
+              <div className="flex flex-wrap items-center justify-end gap-1.5">
+                {!theirs && activeRun?.finishedAt && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-[var(--primary-soft)] px-2.5 py-1 text-xs font-medium text-nonsprimary">
+                    <IoCheckmark className="h-3.5 w-3.5" />
+                    {t('bingoFinishedBanner')}
+                  </span>
+                )}
+                {lines.length > 0 && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-nonspremium/15 px-2.5 py-1 text-xs font-semibold text-nonspremium">
+                    <IoTrophyOutline className="h-3.5 w-3.5" />
+                    {everything ? t('bingoAllDone') : linesLabel}
+                  </span>
+                )}
               </div>
             </div>
-            <button
-              onClick={() => navigate(bingoPath(board.id))}
-              className="flex-shrink-0 rounded-xl bg-nonsprimary px-3.5 py-2 text-sm font-medium text-white transition-colors hover:bg-nonsprimaryfocus"
-            >
-              {t('bingoPlayMine')}
-            </button>
+            <ProgressBar value={done} total={total} label={prompt ? t('bingoFilledLabel') : t('bingoTickedLabel')} />
           </div>
-        )}
-        {outdated && activeRun && (
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-nonspremium/40 bg-nonspremium/10 px-4 py-3">
-            <p className="min-w-0 text-sm text-[var(--text)]">{activeRun.finishedAt ? t('bingoOutdatedFinished') : t('bingoOutdatedRun')}</p>
-            {!activeRun.finishedAt && (
-              <button
-                onClick={() => setConfirm('update')}
-                className="flex-shrink-0 rounded-xl bg-nonsprimary px-3.5 py-2 text-sm font-medium text-white transition-colors hover:bg-nonsprimaryfocus"
-              >
-                {t('bingoUpdateRun')}
-              </button>
-            )}
-          </div>
-        )}
-        {editedSince && (
-          <p className="mb-4 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--text-muted)]">{t('bingoEditedSince')}</p>
-        )}
-        {unavailable && (
-          <p className="mb-4 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--text-muted)]">{t('bingoResultUnavailable')}</p>
-        )}
-
-        {/* Runs: every play-through of this board, each with its own link */}
-        {!theirs && (
-          <div className="mb-4 flex flex-wrap items-center gap-2">
-            {ownRuns.map((r, i) => (
-              <button
-                key={r.id}
-                onClick={() => goRun(r.id)}
-                aria-pressed={activeRun?.id === r.id}
-                className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
-                  activeRun?.id === r.id ? 'bg-nonsprimary text-white' : 'bg-[var(--surface)] text-[var(--text-muted)] hover:text-[var(--text)]'
-                }`}
-              >
-                {r.finishedAt && <IoCheckmark className="h-3.5 w-3.5" />}
-                {t('bingoRunN', { n: i + 1 })}
-              </button>
-            ))}
-            <button
-              onClick={newRun}
-              className="flex items-center gap-1 rounded-full border border-dashed border-[var(--border-strong)] px-3 py-1.5 text-xs font-medium text-[var(--text-muted)] transition-colors hover:text-[var(--text)]"
-            >
-              <IoAdd className="h-3.5 w-3.5" />
-              {t('bingoNewRun')}
-            </button>
-          </div>
-        )}
-
-        <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2">
-          <span className="text-sm font-medium text-[var(--text)]">
-            {prompt ? t('bingoFilledCount', { count: done, total }) : t('bingoProgress', { count: done, total })}
-          </span>
-          <span className="text-sm text-[var(--text-muted)]">{t('bingoLines', { count: lines.length })}</span>
         </div>
 
-        {lines.length > 0 && (
-          <div className="mb-4 flex items-center gap-2.5 rounded-xl border border-nonspremium/40 bg-nonspremium/10 px-4 py-3 text-sm font-medium text-[var(--text)]">
-            <IoTrophyOutline className="h-5 w-5 flex-shrink-0 text-nonspremium" />
-            {everything ? (prompt ? t('bingoAllAnswered') : t('bingoAllTicked')) : `${t('bingoWin')} ${t('bingoLines', { count: lines.length })}`}
-          </div>
-        )}
-
-        {!theirs && activeRun?.finishedAt && (
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] px-4 py-3">
-            <p className="text-sm text-[var(--text-muted)]">
-              <span className="font-semibold text-[var(--text)]">{t('bingoFinishedBanner')}</span> · {new Date(activeRun.finishedAt).toLocaleDateString()} · {t('bingoRunLocked')}
-            </p>
-            <button
-              onClick={() => store.reopenRun(board.id, activeRun.id)}
-              className="flex flex-shrink-0 items-center gap-1.5 rounded-xl bg-[var(--container)] px-3 py-1.5 text-xs font-medium text-[var(--text)] hover:bg-[var(--surface-hover)]"
-            >
-              <IoLockOpenOutline className="h-3.5 w-3.5" />
-              {t('bingoReopen')}
-            </button>
-          </div>
-        )}
-
-        <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--container)] p-3 sm:p-4">
+        <div className="mt-3 rounded-2xl border border-[var(--border-subtle)] bg-[var(--container)] p-3 sm:p-4">
           <BingoGrid
             rows={board.rows}
             cols={board.cols}
@@ -313,57 +358,47 @@ export default function BingoPage() {
             onCell={onCell}
           />
         </div>
-        {!locked && <p className="mt-2 px-1 text-xs text-[var(--text-muted)]">{prompt ? t('bingoTapFillHint') : t('bingoTapHint')}</p>}
 
-        <div className="mt-5 flex flex-wrap gap-2">
-          <ActionButton primary onClick={() => copy(boardLink().url, 'board')} icon={copied === 'board' ? IoCheckmark : IoLinkOutline}>
-            {copied === 'board' ? t('bingoCopied') : t('bingoShareBoard')}
-          </ActionButton>
-          {hasProgress && (theirs || activeRun) && (
-            <ActionButton onClick={() => copy(resultLink().url, 'result')} icon={copied === 'result' ? IoCheckmark : IoPersonOutline}>
-              {copied === 'result' ? t('bingoCopied') : t('bingoShareResult')}
-            </ActionButton>
+        {/* One hint and, when it fits the moment, one button */}
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-3 px-1">
+          <p className="min-w-0 flex-1 text-xs text-[var(--text-muted)]">
+            {locked ? (theirs ? '' : t('bingoRunLocked')) : prompt ? t('bingoTapFillHint') : t('bingoTapHint')}
+          </p>
+          {!theirs && activeRun && !activeRun.finishedAt && hasProgress && (
+            <button
+              onClick={() => store.finishRun(board.id, activeRun.id)}
+              className="flex flex-shrink-0 items-center gap-1.5 rounded-full border border-[var(--border-strong)] px-4 py-2 text-sm font-medium text-[var(--text)] transition-colors hover:bg-[var(--surface)]"
+            >
+              <IoCheckmarkDoneOutline className="h-4 w-4" />
+              {t('bingoFinishRun')}
+            </button>
           )}
-          <ActionButton onClick={() => setShowCard(true)} icon={IoImageOutline}>
-            {t('bingoCard')}
-          </ActionButton>
-          {source === 'mine' ? (
-            <>
-              <ActionButton onClick={() => setEditor(true)} icon={IoCreateOutline}>
-                {t('bingoEdit')}
-              </ActionButton>
-              <ActionButton danger onClick={() => setConfirm('board')} icon={IoTrashOutline}>
-                {t('bingoDelete')}
-              </ActionButton>
-            </>
-          ) : (
-            <ActionButton onClick={saveCopy} icon={copied === 'saved' ? IoCheckmark : IoCopyOutline}>
-              {copied === 'saved' ? t('bingoCopySaved') : t('bingoCopy')}
-            </ActionButton>
+          {!theirs && activeRun?.finishedAt && (
+            <button
+              onClick={newRun}
+              className="flex flex-shrink-0 items-center gap-1.5 rounded-full bg-nonsprimary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-nonsprimaryfocus"
+            >
+              <IoAdd className="h-4 w-4" />
+              {t('bingoNewRun')}
+            </button>
           )}
         </div>
 
-        {/* Run actions */}
-        {!theirs && activeRun && (
-          <div className="mt-2 flex flex-wrap gap-2">
-            {!activeRun.finishedAt && hasProgress && (
-              <ActionButton onClick={() => store.finishRun(board.id, activeRun.id)} icon={IoCheckmarkDoneOutline}>
-                {t('bingoFinishRun')}
-              </ActionButton>
-            )}
-            {!activeRun.finishedAt && hasProgress && (
-              <ActionButton onClick={() => store.resetRun(board.id, activeRun.id)} icon={IoRefresh}>
-                {prompt ? t('bingoResetAnswers') : t('bingoResetTicks')}
-              </ActionButton>
-            )}
-            <ActionButton danger onClick={() => setConfirm('run')} icon={IoTrashOutline}>
-              {t('bingoDeleteRun')}
-            </ActionButton>
-          </div>
+        <p className="mt-8 text-xs text-[var(--text-muted)]">{t('bingoMockNote')}</p>
+
+        {sheet && (
+          <BingoShareSheet
+            hasResult={shareable}
+            copied={copied === 'board' || copied === 'result' ? copied : null}
+            onImage={() => {
+              setSheet(false)
+              setShowCard(true)
+            }}
+            onCopyBoard={() => copy(boardLink().url, 'board')}
+            onCopyResult={() => copy(resultLink().url, 'result')}
+            onClose={() => setSheet(false)}
+          />
         )}
-
-        <p className="mt-6 text-xs text-[var(--text-muted)]">{t('bingoMockNote')}</p>
-
         {answering !== null && board.cells[answering] && (
           <BingoAnswerModal
             prompt={board.cells[answering]!.title}

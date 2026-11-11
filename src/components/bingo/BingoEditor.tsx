@@ -2,9 +2,22 @@
 
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { IoChatbubbleEllipsesOutline, IoCheckboxOutline, IoClose, IoShuffleOutline, IoStar, IoTrashOutline } from 'react-icons/io5'
+import {
+  IoChatbubbleEllipsesOutline,
+  IoCheckboxOutline,
+  IoChevronBack,
+  IoChevronForward,
+  IoClipboardOutline,
+  IoClose,
+  IoPencilOutline,
+  IoSearch,
+  IoShuffleOutline,
+  IoStar,
+  IoTrashOutline,
+} from 'react-icons/io5'
 import MediaPicker from '@/components/media/MediaPicker'
 import BingoGrid from './BingoGrid'
+import { ProgressBar, Segmented, Stepper, SwitchRow } from './BingoParts'
 import {
   BINGO_CELL_MAX,
   BINGO_DEFAULT,
@@ -40,9 +53,15 @@ type Props = {
 }
 
 const inputCls =
-  'h-10 w-full rounded-lg border border-[var(--border-subtle)] bg-[var(--input)] px-3 text-sm text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-ring)]'
+  'h-11 w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--input)] px-3.5 text-sm text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-ring)]'
 
 const PRESETS: [number, number][] = [[3, 3], [4, 4], [5, 5], [7, 7], [10, 10]]
+
+type Tab = 'catalog' | 'text' | 'paste'
+
+function Label({ children }: { children: React.ReactNode }) {
+  return <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">{children}</p>
+}
 
 // Create / edit a bingo. Mounted only while open, so the draft state simply
 // initialises from `initial` — no syncing effects.
@@ -52,10 +71,9 @@ export default function BingoEditor({ initial, isEdit = false, author, runsCount
   const [kind, setKind] = useState<BingoKind>(initial?.kind ?? 'list')
   const [title, setTitle] = useState(initial?.title ?? '')
   const [description, setDescription] = useState(initial?.description ?? '')
+  const [showDesc, setShowDesc] = useState(!!initial?.description)
   const [rows, setRows] = useState(initial?.rows ?? BINGO_DEFAULT)
   const [cols, setCols] = useState(initial?.cols ?? BINGO_DEFAULT)
-  const [rowsStr, setRowsStr] = useState(String(initial?.rows ?? BINGO_DEFAULT))
-  const [colsStr, setColsStr] = useState(String(initial?.cols ?? BINGO_DEFAULT))
   const [freeCenter, setFreeCenter] = useState((initial?.freeCenter ?? true) && canFreeCenter(rows, cols))
   const [cells, setCells] = useState<(BingoCell | null)[]>(initial?.cells ?? emptyCells(rows, cols))
   const [selected, setSelected] = useState<number | null>(() => {
@@ -64,10 +82,10 @@ export default function BingoEditor({ initial, isEdit = false, author, runsCount
     const first = cs.findIndex((c, i) => !c && i !== centre)
     return first === -1 ? null : first
   })
-  const [mode, setMode] = useState<'catalog' | 'text'>(initial?.kind === 'prompt' ? 'text' : 'catalog')
+  const [tab, setTab] = useState<Tab>(initial?.kind === 'prompt' ? 'text' : 'catalog')
   const [text, setText] = useState('')
-  const [bulkOpen, setBulkOpen] = useState(false)
   const [bulk, setBulk] = useState('')
+  const [confirmClear, setConfirmClear] = useState(false)
   const [jumpRow, setJumpRow] = useState('')
   const [jumpCol, setJumpCol] = useState('')
 
@@ -89,11 +107,13 @@ export default function BingoEditor({ initial, isEdit = false, author, runsCount
   const complete = filled === total
   const canSave = title.trim().length > 0 && complete
   const freeAllowed = canFreeCenter(rows, cols)
+  const big = rows > 10 || cols > 10
+  const current = selected !== null ? cells[selected] : null
 
   const switchKind = (next: BingoKind) => {
     if (next === kind) return
     setKind(next)
-    setMode(next === 'prompt' ? 'text' : 'catalog')
+    setTab(next === 'prompt' ? 'text' : 'catalog')
     // Prompt squares are plain descriptions, so drop any catalog details.
     if (next === 'prompt') setCells((cs) => cs.map((c) => (c ? { kind: 'text', title: c.title } : c)))
   }
@@ -101,8 +121,6 @@ export default function BingoEditor({ initial, isEdit = false, author, runsCount
   const applySize = (r: number, c: number) => {
     const nr = clampSize(r)
     const nc = clampSize(c)
-    setRowsStr(String(nr))
-    setColsStr(String(nc))
     if (nr === rows && nc === cols) return
     setCells(resizeCells(cells, rows, cols, nr, nc))
     setRows(nr)
@@ -119,6 +137,18 @@ export default function BingoEditor({ initial, isEdit = false, author, runsCount
       if (!next[i] && i !== centre) return i
     }
     return null
+  }
+
+  // Step to the previous / next square, skipping the free centre.
+  const stepSelected = (dir: 1 | -1) => {
+    let i = selected ?? (dir === 1 ? -1 : total)
+    for (let n = 0; n < total; n++) {
+      i = (i + dir + total) % total
+      if (i !== centre) {
+        setSelected(i)
+        return
+      }
+    }
   }
 
   const place = (cell: BingoCell | null) => {
@@ -146,6 +176,7 @@ export default function BingoEditor({ initial, isEdit = false, author, runsCount
     .split('\n')
     .map((l) => l.trim().slice(0, BINGO_CELL_MAX))
     .filter(Boolean)
+  const emptySquares = total - filled
   const addBulk = () => {
     const next = [...cells]
     let k = 0
@@ -187,23 +218,16 @@ export default function BingoEditor({ initial, isEdit = false, author, runsCount
     })
   }
 
-  const current = selected !== null ? cells[selected] : null
-  const sizeInput = (value: string, set: (v: string) => void, commit: () => void, label: string) => (
-    <label className="flex flex-1 flex-col gap-1 text-xs font-medium text-[var(--text-muted)]">
-      {label}
-      <input
-        type="number"
-        inputMode="numeric"
-        min={BINGO_MIN}
-        max={BINGO_MAX}
-        value={value}
-        onChange={(e) => set(e.target.value)}
-        onBlur={commit}
-        onKeyDown={(e) => e.key === 'Enter' && commit()}
-        className={inputCls}
-      />
-    </label>
-  )
+  const tabs: { key: Tab; label: string; icon: React.ComponentType<{ className?: string }> }[] = prompt
+    ? [
+        { key: 'text', label: t('bingoTabPrompt'), icon: IoPencilOutline },
+        { key: 'paste', label: t('bingoTabPastePrompts'), icon: IoClipboardOutline },
+      ]
+    : [
+        { key: 'catalog', label: t('bingoTabSearch'), icon: IoSearch },
+        { key: 'text', label: t('bingoTabType'), icon: IoPencilOutline },
+        { key: 'paste', label: t('bingoTabPaste'), icon: IoClipboardOutline },
+      ]
 
   return createPortal(
     <div onClick={onClose} className="fixed inset-0 z-[70] flex items-end justify-center bg-[var(--overlay)] sm:items-center sm:p-4">
@@ -211,77 +235,90 @@ export default function BingoEditor({ initial, isEdit = false, author, runsCount
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
-        className="flex max-h-[94vh] w-full max-w-3xl flex-col overflow-hidden rounded-t-2xl border border-[var(--border)] bg-[var(--container)] sm:rounded-2xl"
+        className="flex max-h-[94vh] w-full max-w-4xl flex-col overflow-hidden rounded-t-3xl border border-[var(--border)] bg-[var(--container)] sm:rounded-3xl"
       >
-        <div className="flex items-center justify-between gap-3 border-b border-[var(--border-subtle)] px-5 py-4">
+        <div className="flex items-center justify-between gap-3 px-6 py-4">
           <h3 className="text-lg font-semibold text-[var(--text)]">{editingExisting ? t('bingoEdit') : t('bingoNew')}</h3>
           <button
             onClick={onClose}
             aria-label={t('cancel')}
-            className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[var(--surface)] text-[var(--text-muted)] hover:bg-[var(--surface-hover)]"
+            className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-[var(--surface)] text-[var(--text-muted)] hover:bg-[var(--surface-hover)]"
           >
             <IoClose className="h-5 w-5" />
           </button>
         </div>
 
         {editingExisting && runsCount > 0 && (
-          <p className="border-b border-nonspremium/30 bg-nonspremium/10 px-5 py-3 text-xs leading-snug text-[var(--text)]">
+          <p className="mx-6 mb-3 rounded-xl border border-nonspremium/30 bg-nonspremium/10 px-4 py-3 text-xs leading-snug text-[var(--text)]">
             {t('bingoEditWarn', { n: runsCount })}
           </p>
         )}
 
-        <div className="grid min-h-0 flex-1 gap-5 overflow-y-auto p-5 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-          {/* Left: details + the board */}
-          <div className="flex flex-col gap-4">
-            <div className="grid grid-cols-2 gap-2">
-              {(
-                [
-                  { key: 'list', icon: IoCheckboxOutline, label: t('bingoKindList'), hint: t('bingoKindListHint') },
-                  { key: 'prompt', icon: IoChatbubbleEllipsesOutline, label: t('bingoKindPrompt'), hint: t('bingoKindPromptHint') },
-                ] as const
-              ).map((k) => (
-                <button
-                  key={k.key}
-                  type="button"
-                  disabled={editingExisting && kind !== k.key}
-                  onClick={() => switchKind(k.key)}
-                  aria-pressed={kind === k.key}
-                  className={`flex flex-col gap-1 rounded-xl border p-3 text-left transition-colors disabled:opacity-40 ${
-                    kind === k.key ? 'border-nonsprimary bg-[var(--primary-soft)]' : 'border-[var(--border-subtle)] bg-[var(--surface)] hover:bg-[var(--surface-hover)]'
-                  }`}
-                >
-                  <span className="flex items-center gap-1.5 text-sm font-semibold text-[var(--text)]">
-                    <k.icon className="h-4 w-4 text-nonsprimary" />
-                    {k.label}
-                  </span>
-                  <span className="text-[11px] leading-snug text-[var(--text-muted)]">{k.hint}</span>
-                </button>
-              ))}
-            </div>
+        <div className="grid min-h-0 flex-1 gap-8 overflow-y-auto px-6 pb-6 md:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
+          {/* ───────── Left: the board ───────── */}
+          <div className="flex flex-col gap-6">
+            <section>
+              <Label>{t('bingoSectionType')}</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {(
+                  [
+                    { key: 'list', icon: IoCheckboxOutline, label: t('bingoKindList'), hint: t('bingoKindListHint') },
+                    { key: 'prompt', icon: IoChatbubbleEllipsesOutline, label: t('bingoKindPrompt'), hint: t('bingoKindPromptHint') },
+                  ] as const
+                ).map((k) => (
+                  <button
+                    key={k.key}
+                    type="button"
+                    disabled={editingExisting && kind !== k.key}
+                    onClick={() => switchKind(k.key)}
+                    aria-pressed={kind === k.key}
+                    className={`flex flex-col gap-1 rounded-2xl border p-3.5 text-left transition-colors disabled:opacity-40 ${
+                      kind === k.key ? 'border-nonsprimary bg-[var(--primary-soft)]' : 'border-[var(--border-subtle)] bg-[var(--surface)] hover:bg-[var(--surface-hover)]'
+                    }`}
+                  >
+                    <span className="flex items-center gap-1.5 text-sm font-semibold text-[var(--text)]">
+                      <k.icon className="h-4 w-4 text-nonsprimary" />
+                      {k.label}
+                    </span>
+                    <span className="text-[11px] leading-snug text-[var(--text-muted)]">{k.hint}</span>
+                  </button>
+                ))}
+              </div>
+            </section>
 
-            <label className="flex flex-col gap-1.5 text-sm font-medium text-[var(--text)]">
-              {t('title')}
-              <input value={title} maxLength={BINGO_TITLE_MAX} onChange={(e) => setTitle(e.target.value)} placeholder={t('bingoTitlePlaceholder')} className={inputCls} />
-            </label>
-            <label className="flex flex-col gap-1.5 text-sm font-medium text-[var(--text)]">
-              {t('description')}
-              <textarea
-                rows={2}
-                value={description}
-                maxLength={BINGO_DESC_MAX}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder={t('bingoDescPlaceholder')}
-                className="resize-none rounded-lg border border-[var(--border-subtle)] bg-[var(--input)] p-3 text-sm text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-ring)]"
+            <section className="flex flex-col gap-3">
+              <Label>{t('bingoSectionBasics')}</Label>
+              <input
+                value={title}
+                maxLength={BINGO_TITLE_MAX}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder={t('bingoTitlePlaceholder')}
+                aria-label={t('title')}
+                className={`${inputCls} text-base font-medium`}
               />
-            </label>
+              {showDesc ? (
+                <textarea
+                  rows={2}
+                  value={description}
+                  maxLength={BINGO_DESC_MAX}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder={t('bingoDescPlaceholder')}
+                  aria-label={t('description')}
+                  className="resize-none rounded-xl border border-[var(--border-subtle)] bg-[var(--input)] p-3.5 text-sm text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-ring)]"
+                />
+              ) : (
+                <button type="button" onClick={() => setShowDesc(true)} className="self-start text-sm font-medium text-nonsprimary hover:underline">
+                  + {t('bingoAddDescription')}
+                </button>
+              )}
+            </section>
 
-            {/* Size */}
-            <div className="flex flex-col gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] p-3">
-              <p className="text-sm font-medium text-[var(--text)]">{t('bingoSize')}</p>
-              <div className="flex items-end gap-2">
-                {sizeInput(rowsStr, setRowsStr, () => applySize(Number(rowsStr), cols), t('bingoRows'))}
-                <span className="pb-2.5 text-sm text-[var(--text-muted)]">×</span>
-                {sizeInput(colsStr, setColsStr, () => applySize(rows, Number(colsStr)), t('bingoCols'))}
+            <section className="flex flex-col gap-3">
+              <Label>{t('bingoSize')}</Label>
+              <div className="flex items-end gap-3">
+                <Stepper label={t('bingoRows')} value={rows} min={BINGO_MIN} max={BINGO_MAX} onChange={(n) => applySize(n, cols)} />
+                <span className="pb-3 text-[var(--text-muted)]">×</span>
+                <Stepper label={t('bingoCols')} value={cols} min={BINGO_MIN} max={BINGO_MAX} onChange={(n) => applySize(rows, n)} />
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {PRESETS.map(([r, c]) => (
@@ -290,210 +327,204 @@ export default function BingoEditor({ initial, isEdit = false, author, runsCount
                     type="button"
                     onClick={() => applySize(r, c)}
                     aria-pressed={rows === r && cols === c}
-                    className={`rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${
-                      rows === r && cols === c ? 'bg-nonsprimary text-white' : 'bg-[var(--container)] text-[var(--text-muted)] hover:text-[var(--text)]'
+                    className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+                      rows === r && cols === c ? 'bg-nonsprimary text-white' : 'bg-[var(--surface)] text-[var(--text-muted)] hover:text-[var(--text)]'
                     }`}
                   >
                     {r}×{c}
                   </button>
                 ))}
               </div>
-              <p className="text-[11px] text-[var(--text-muted)]">{t('bingoSizeHint', { min: BINGO_MIN, max: BINGO_MAX })}</p>
-            </div>
+              <SwitchRow
+                checked={freeCenter && freeAllowed}
+                disabled={!freeAllowed}
+                onChange={(v) => {
+                  setFreeCenter(v)
+                  setSelected(null)
+                }}
+                icon={IoStar}
+                title={t('bingoFreeCenter')}
+                hint={freeAllowed ? t('bingoFreeCenterHint') : t('bingoFreeCenterOdd')}
+              />
+            </section>
 
-            <button
-              type="button"
-              role="switch"
-              aria-checked={freeCenter}
-              disabled={!freeAllowed}
-              onClick={() => {
-                setFreeCenter((v) => !v)
-                setSelected(null)
-              }}
-              className="flex items-center justify-between gap-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] px-3.5 py-3 text-left disabled:opacity-50"
-            >
-              <span className="flex items-center gap-2.5">
-                <IoStar className="h-4 w-4 text-nonsprimary" />
-                <span>
-                  <span className="block text-sm font-medium text-[var(--text)]">{t('bingoFreeCenter')}</span>
-                  <span className="block text-xs text-[var(--text-muted)]">{freeAllowed ? t('bingoFreeCenterHint') : t('bingoFreeCenterOdd')}</span>
-                </span>
-              </span>
-              <span className={`relative h-6 w-10 flex-shrink-0 rounded-full transition-colors ${freeCenter ? 'bg-nonsprimary' : 'bg-[var(--surface-active)]'}`}>
-                <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${freeCenter ? 'left-[18px]' : 'left-0.5'}`} />
-              </span>
-            </button>
-
-            <BingoGrid
-              rows={rows}
-              cols={cols}
-              cells={cells}
-              freeCenter={freeCenter}
-              selected={selected}
-              editing
-              onCell={(i) => i !== centre && setSelected(i)}
-            />
-
-            <div className="flex items-center justify-between gap-2 text-xs text-[var(--text-muted)]">
-              <span>{t('bingoFilled', { count: filled, total })}</span>
-              <span className="flex gap-1.5">
-                <button
-                  type="button"
-                  onClick={shuffle}
-                  className="flex items-center gap-1 rounded-lg px-2.5 py-1.5 transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
-                >
-                  <IoShuffleOutline className="h-4 w-4" />
-                  {t('bingoShuffle')}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setCells(emptyCells(rows, cols))
-                    setSelected(0)
-                  }}
-                  className="flex items-center gap-1 rounded-lg px-2.5 py-1.5 transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
-                >
-                  <IoTrashOutline className="h-4 w-4" />
-                  {t('bingoClearAll')}
-                </button>
-              </span>
-            </div>
-
-            {/* Jump to a square (handy on big boards) */}
-            <div className="flex items-end gap-2">
-              <label className="flex flex-1 flex-col gap-1 text-xs font-medium text-[var(--text-muted)]">
-                {t('bingoRow')}
-                <input type="number" min={1} max={rows} value={jumpRow} onChange={(e) => jump(e.target.value, jumpCol)} className={inputCls} />
-              </label>
-              <label className="flex flex-1 flex-col gap-1 text-xs font-medium text-[var(--text-muted)]">
-                {t('bingoCol')}
-                <input type="number" min={1} max={cols} value={jumpCol} onChange={(e) => jump(jumpRow, e.target.value)} className={inputCls} />
-              </label>
-              <button
-                type="button"
-                onClick={() => setSelected(nextEmpty(-1, cells))}
-                className="h-10 flex-shrink-0 rounded-lg bg-[var(--surface)] px-3 text-xs font-medium text-[var(--text)] transition-colors hover:bg-[var(--surface-hover)]"
-              >
-                {t('bingoNextEmpty')}
-              </button>
-            </div>
+            <section>
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <Label>{t('bingoSectionSquares')}</Label>
+                <div className="-mt-2 flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={shuffle}
+                    title={t('bingoShuffle')}
+                    className="flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-medium text-[var(--text-muted)] transition-colors hover:bg-[var(--surface)] hover:text-[var(--text)]"
+                  >
+                    <IoShuffleOutline className="h-4 w-4" />
+                    {t('bingoShuffle')}
+                  </button>
+                  {confirmClear ? (
+                    <span className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCells(emptyCells(rows, cols))
+                          setSelected(nextEmpty(-1, emptyCells(rows, cols)))
+                          setConfirmClear(false)
+                        }}
+                        className="rounded-full bg-nonslightred/15 px-3 py-1.5 text-xs font-semibold text-nonslightred"
+                      >
+                        {t('bingoClearYes')}
+                      </button>
+                      <button type="button" onClick={() => setConfirmClear(false)} className="rounded-full px-2.5 py-1.5 text-xs text-[var(--text-muted)] hover:text-[var(--text)]">
+                        {t('cancel')}
+                      </button>
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setConfirmClear(true)}
+                      disabled={filled <= (centre !== null ? 1 : 0)}
+                      className="flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-medium text-[var(--text-muted)] transition-colors hover:bg-[var(--surface)] hover:text-[var(--text)] disabled:opacity-40"
+                    >
+                      <IoTrashOutline className="h-4 w-4" />
+                      {t('bingoClearAll')}
+                    </button>
+                  )}
+                </div>
+              </div>
+              <BingoGrid rows={rows} cols={cols} cells={cells} freeCenter={freeCenter} selected={selected} editing onCell={(i) => i !== centre && setSelected(i)} />
+              {big && (
+                <div className="mt-3 flex items-center gap-2 text-xs text-[var(--text-muted)]">
+                  <span className="flex-shrink-0 font-medium">{t('bingoGoTo')}</span>
+                  <input type="number" min={1} max={rows} value={jumpRow} onChange={(e) => jump(e.target.value, jumpCol)} placeholder={t('bingoRow')} aria-label={t('bingoRow')} className={`${inputCls} h-9 w-24`} />
+                  <input type="number" min={1} max={cols} value={jumpCol} onChange={(e) => jump(jumpRow, e.target.value)} placeholder={t('bingoCol')} aria-label={t('bingoCol')} className={`${inputCls} h-9 w-24`} />
+                </div>
+              )}
+            </section>
           </div>
 
-          {/* Right: fill the selected square, or many at once */}
-          <div className="flex flex-col gap-3 md:border-l md:border-[var(--border-subtle)] md:pl-5">
-            {selected === null ? (
-              <p className="rounded-xl border border-dashed border-[var(--border)] p-4 text-sm text-[var(--text-muted)]">
-                {complete ? t('bingoAllFilled') : t('bingoPickSquare')}
-              </p>
-            ) : (
-              <>
-                <p className="text-sm font-medium text-[var(--text)]">{t('bingoSquareRC', { r: Math.floor(selected / cols) + 1, c: (selected % cols) + 1 })}</p>
-                {current && (
-                  <div className="flex items-center justify-between gap-2 rounded-xl bg-[var(--surface)] px-3 py-2">
-                    <span className="min-w-0 truncate text-sm text-[var(--text)]">{current.title}</span>
-                    <button type="button" onClick={() => place(null)} className="flex-shrink-0 text-xs font-medium text-nonslightred hover:underline">
-                      {t('bingoClearSquare')}
-                    </button>
-                  </div>
-                )}
-
-                {prompt && <p className="text-xs text-[var(--text-muted)]">{t('bingoPromptHelp')}</p>}
-
-                {!prompt && (
-                  <div className="flex rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] p-1">
-                    {(['catalog', 'text'] as const).map((m) => (
-                      <button
-                        key={m}
-                        type="button"
-                        onClick={() => setMode(m)}
-                        className={`flex-1 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
-                          mode === m ? 'bg-[var(--surface-active)] text-[var(--text)]' : 'text-[var(--text-muted)] hover:text-[var(--text)]'
-                        }`}
-                      >
-                        {m === 'catalog' ? t('bingoFromCatalog') : t('bingoCustomText')}
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {mode === 'catalog' && !prompt ? (
-                  <MediaPicker onPick={(item) => place(cellFromCatalog(item))} />
-                ) : (
-                  <form
-                    onSubmit={(e) => {
-                      e.preventDefault()
-                      const v = text.trim()
-                      if (v) place({ kind: 'text', title: v.slice(0, BINGO_CELL_MAX) })
-                    }}
-                    className="flex flex-col gap-2"
+          {/* ───────── Right: fill in the squares ───────── */}
+          <div className="md:sticky md:top-0 md:self-start">
+            <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface)] p-4">
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-[var(--text)]">
+                    {selected === null ? t('bingoPickSquareShort') : t('bingoSquareRC', { r: Math.floor(selected / cols) + 1, c: (selected % cols) + 1 })}
+                  </p>
+                  <p className="text-xs text-[var(--text-muted)]">{t('bingoFilled', { count: filled, total })}</p>
+                </div>
+                <div className="flex flex-shrink-0 items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => stepSelected(-1)}
+                    aria-label={t('bingoPrevSquare')}
+                    className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--container)] text-[var(--text-muted)] transition-colors hover:text-[var(--text)]"
                   >
-                    <input
-                      value={text}
-                      maxLength={BINGO_CELL_MAX}
-                      onChange={(e) => setText(e.target.value)}
-                      placeholder={prompt ? t('bingoPromptPlaceholder') : t('bingoTextPlaceholder')}
-                      className={inputCls}
-                    />
-                    <button
-                      type="submit"
-                      disabled={!text.trim()}
-                      className="rounded-lg bg-nonsprimary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-nonsprimaryfocus disabled:opacity-40"
-                    >
-                      {prompt ? t('bingoUsePrompt') : t('bingoUseText')}
-                    </button>
-                  </form>
-                )}
-              </>
-            )}
+                    <IoChevronBack className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => stepSelected(1)}
+                    aria-label={t('bingoNextSquare')}
+                    className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--container)] text-[var(--text-muted)] transition-colors hover:text-[var(--text)]"
+                  >
+                    <IoChevronForward className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
 
-            {/* Bulk add: the practical way to fill a big board */}
-            <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)]">
-              <button
-                type="button"
-                onClick={() => setBulkOpen((v) => !v)}
-                aria-expanded={bulkOpen}
-                className="flex w-full items-center justify-between px-3 py-2.5 text-left text-sm font-medium text-[var(--text)]"
-              >
-                {t('bingoBulk')}
-                <span className="text-xs text-[var(--text-muted)]">{bulkOpen ? '−' : '+'}</span>
-              </button>
-              {bulkOpen && (
-                <div className="flex flex-col gap-2 border-t border-[var(--border-subtle)] p-3">
+              {selected === null && complete && (
+                <p className="mb-3 rounded-xl bg-[var(--primary-soft)] px-3.5 py-3 text-sm text-[var(--text)]">{t('bingoAllFilled')}</p>
+              )}
+
+              {current && (
+                <div className="mb-3 flex items-center justify-between gap-2 rounded-xl bg-[var(--container)] px-3.5 py-2.5">
+                  <span className="min-w-0 truncate text-sm text-[var(--text)]">{current.title}</span>
+                  <button type="button" onClick={() => place(null)} className="flex-shrink-0 text-xs font-medium text-nonslightred hover:underline">
+                    {t('bingoClearSquare')}
+                  </button>
+                </div>
+              )}
+
+              <Segmented options={tabs} value={tab} onChange={setTab} className="mb-3" />
+
+              {tab === 'catalog' && !prompt && (
+                <div className={selected === null ? 'pointer-events-none opacity-50' : ''}>
+                  <MediaPicker onPick={(item) => place(cellFromCatalog(item))} />
+                </div>
+              )}
+
+              {tab === 'text' && (
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault()
+                    const v = text.trim()
+                    if (v) place({ kind: 'text', title: v.slice(0, BINGO_CELL_MAX) })
+                  }}
+                  className="flex flex-col gap-2"
+                >
+                  {prompt && <p className="text-xs text-[var(--text-muted)]">{t('bingoPromptHelp')}</p>}
+                  <input
+                    value={text}
+                    maxLength={BINGO_CELL_MAX}
+                    disabled={selected === null}
+                    onChange={(e) => setText(e.target.value)}
+                    placeholder={prompt ? t('bingoPromptPlaceholder') : t('bingoTextPlaceholder')}
+                    className={inputCls}
+                  />
+                  <button
+                    type="submit"
+                    disabled={!text.trim() || selected === null}
+                    className="h-11 rounded-xl bg-nonsprimary px-4 text-sm font-medium text-white transition-colors hover:bg-nonsprimaryfocus disabled:opacity-40"
+                  >
+                    {prompt ? t('bingoUsePrompt') : t('bingoUseText')}
+                  </button>
+                </form>
+              )}
+
+              {tab === 'paste' && (
+                <div className="flex flex-col gap-2">
                   <p className="text-xs text-[var(--text-muted)]">{t('bingoBulkHint')}</p>
                   <textarea
-                    rows={6}
+                    rows={7}
                     value={bulk}
                     onChange={(e) => setBulk(e.target.value)}
                     placeholder={t('bingoBulkPlaceholder')}
-                    className="resize-y rounded-lg border border-[var(--border-subtle)] bg-[var(--input)] p-3 text-sm text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-ring)]"
+                    className="resize-y rounded-xl border border-[var(--border-subtle)] bg-[var(--input)] p-3.5 text-sm text-[var(--text)] placeholder:text-[var(--placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-ring)]"
                   />
                   <button
                     type="button"
                     onClick={addBulk}
-                    disabled={bulkLines.length === 0}
-                    className="rounded-lg bg-nonsprimary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-nonsprimaryfocus disabled:opacity-40"
+                    disabled={bulkLines.length === 0 || emptySquares === 0}
+                    className="h-11 rounded-xl bg-nonsprimary px-4 text-sm font-medium text-white transition-colors hover:bg-nonsprimaryfocus disabled:opacity-40"
                   >
-                    {t('bingoBulkAdd', { count: bulkLines.length })}
+                    {t('bingoBulkAdd', { count: Math.min(bulkLines.length, emptySquares) })}
                   </button>
+                  {bulkLines.length > emptySquares && emptySquares > 0 && (
+                    <p className="text-xs text-[var(--text-muted)]">{t('bingoBulkExtra', { n: bulkLines.length - emptySquares })}</p>
+                  )}
                 </div>
               )}
             </div>
           </div>
         </div>
 
-        <div className="flex items-center justify-between gap-3 border-t border-[var(--border-subtle)] px-5 py-3.5">
-          <p className="min-w-0 truncate text-xs text-[var(--text-muted)]">{canSave ? '' : t('bingoNeedAll')}</p>
+        {/* ───────── Footer ───────── */}
+        <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 border-t border-[var(--border-subtle)] px-6 py-4">
+          <div className="min-w-[10rem] flex-1">
+            <ProgressBar value={filled} total={total} label={t('bingoFilled', { count: filled, total })} />
+            <p className="mt-1.5 text-xs text-[var(--text-muted)]">{canSave ? t('bingoReadyToSave') : title.trim() ? t('bingoFilledProgress', { count: filled, total }) : t('bingoNeedAll')}</p>
+          </div>
           <div className="flex flex-shrink-0 gap-2">
             <button
               onClick={onClose}
-              className="rounded-xl px-4 py-2 text-sm font-medium text-[var(--text-muted)] transition-colors hover:bg-[var(--surface)] hover:text-[var(--text)]"
+              className="rounded-full px-5 py-2.5 text-sm font-medium text-[var(--text-muted)] transition-colors hover:bg-[var(--surface)] hover:text-[var(--text)]"
             >
               {t('cancel')}
             </button>
             <button
               onClick={submit}
               disabled={!canSave}
-              className="rounded-xl bg-nonsprimary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-nonsprimaryfocus disabled:opacity-40"
+              className="rounded-full bg-nonsprimary px-6 py-2.5 text-sm font-medium text-white transition-colors hover:bg-nonsprimaryfocus disabled:opacity-40"
             >
               {t('save')}
             </button>
