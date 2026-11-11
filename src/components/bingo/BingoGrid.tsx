@@ -56,12 +56,16 @@ type CellProps = {
   emptyLabel: string
 }
 
+/** Prompts longer than this don't fit a two-line caption, so they go onto the cover instead. */
+const LONG_PROMPT = 24
+
 /**
  * Prompt boards: the player's answer as a book cover, with the prompt as a quiet
- * caption underneath. Nothing is laid over the cover.
+ * caption underneath. A long prompt moves onto the cover (darkened so it reads).
  */
 const PromptCell = memo(function PromptCell({ i, cell, art, free, won, interactive, freeLabel, emptyLabel }: CellProps) {
-  const caption = free ? freeLabel : cell?.title ?? ''
+  const promptText = free ? freeLabel : cell?.title ?? ''
+  const long = !free && promptText.length > LONG_PROMPT
   const label = free ? freeLabel : `${cell?.title ?? ''}${art ? ` — ${art.title}` : ''}` || emptyLabel
   const ring = won ? 'ring-2 ring-nonspremium' : ''
   return (
@@ -86,23 +90,36 @@ const PromptCell = memo(function PromptCell({ i, cell, art, free, won, interacti
           </span>
         ) : art ? (
           art.coverUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={art.coverUrl} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover" />
+            <>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={art.coverUrl} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover" />
+              {long && (
+                <span className="absolute inset-0 flex items-center justify-center bg-black/65 p-1.5 pt-6 text-center">
+                  <span className="line-clamp-6 text-[9px] font-medium leading-tight text-white sm:text-[11px]">{promptText}</span>
+                </span>
+              )}
+              {/* The book's title sits along the top, on a soft dark fade so the cover stays visible. */}
+              <span className="absolute inset-x-0 top-0 line-clamp-2 bg-gradient-to-b from-black/80 to-transparent px-1.5 pb-3 pt-1 text-[8px] font-semibold leading-tight text-white sm:text-[10px]">
+                {art.title}
+              </span>
+            </>
           ) : (
             // No cover (a typed answer): the answer itself stands in for it.
-            <span className="absolute inset-0 flex items-center justify-center p-1.5 text-center" style={{ background: tileBackground(art.title) }}>
-              <span className="line-clamp-5 text-[9px] font-semibold leading-tight text-white sm:text-[11px]" style={{ textShadow: '0 1px 2px rgba(0,0,0,.5)' }}>
+            <span className="absolute inset-0 flex flex-col items-center justify-center gap-1 p-1.5 text-center" style={{ background: tileBackground(art.title) }}>
+              {long && <span className="line-clamp-3 text-[8px] leading-tight text-white/75 sm:text-[10px]">{promptText}</span>}
+              <span className={`text-[9px] font-semibold leading-tight text-white sm:text-[11px] ${long ? 'line-clamp-3' : 'line-clamp-5'}`} style={{ textShadow: '0 1px 2px rgba(0,0,0,.5)' }}>
                 {art.title}
               </span>
             </span>
           )
         ) : (
-          <span className="flex h-full w-full items-center justify-center rounded-md border border-dashed border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] opacity-70">
-            <IoAdd className="h-4 w-4" />
+          <span className="flex h-full w-full flex-col items-center justify-center gap-1 rounded-md border border-dashed border-[var(--border)] bg-[var(--surface)] p-1.5 text-center text-[var(--text-muted)]">
+            {long && <span className="line-clamp-6 text-[9px] leading-tight text-[var(--text)] sm:text-[11px]">{promptText}</span>}
+            <IoAdd className="h-4 w-4 flex-shrink-0 opacity-60" />
           </span>
         )}
       </div>
-      <span className="line-clamp-2 px-0.5 text-[9px] leading-tight text-[var(--text-muted)] sm:text-[10px]">{caption}</span>
+      {!long && <span className="line-clamp-2 px-0.5 text-[9px] leading-tight text-[var(--text-muted)] sm:text-[10px]">{promptText}</span>}
     </div>
   )
 })
@@ -133,20 +150,16 @@ const Cell = memo(function Cell({ i, cell, art, free, done, won, selected, promp
         )}
         {!small && (
           <>
-            {art.coverUrl && <span className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-black/30" />}
-            {Icon && !art.coverUrl && !prompt && <Icon className="absolute left-1 top-1 h-3 w-3 text-white/60 sm:left-1.5 sm:top-1.5 sm:h-3.5 sm:w-3.5" />}
-            {prompt && cell && (
-              <span className="absolute inset-x-0 top-0 line-clamp-2 bg-black/45 px-1 py-0.5 text-[8px] font-medium leading-tight text-white/85 sm:px-1.5 sm:text-[9px]">
-                {cell.title}
+            {art.coverUrl && <span className="absolute inset-0 bg-black/55" />}
+            {Icon && !art.coverUrl && <Icon className="absolute left-1 top-1 h-3 w-3 text-white/60 sm:left-1.5 sm:top-1.5 sm:h-3.5 sm:w-3.5" />}
+            {/* Text on a cover sits in the middle, over the darkened cover, so it never gets cut off at the edge. */}
+            <span className="absolute inset-0 flex items-center justify-center p-1.5 text-center">
+              <span
+                className="line-clamp-5 text-[9px] font-semibold leading-tight text-white sm:text-[11px]"
+                style={{ textShadow: '0 1px 2px rgba(0,0,0,.6)' }}
+              >
+                {art.title}
               </span>
-            )}
-            <span
-              className={`absolute inset-x-0 bottom-0 p-1 text-[9px] font-semibold leading-tight text-white sm:p-1.5 sm:text-[11px] ${
-                art.coverUrl || prompt ? 'line-clamp-2' : 'top-0 flex items-center justify-center text-center line-clamp-5'
-              }`}
-              style={{ textShadow: '0 1px 2px rgba(0,0,0,.6)' }}
-            >
-              {art.title}
             </span>
           </>
         )}

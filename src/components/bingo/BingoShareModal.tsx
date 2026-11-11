@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { toPng } from 'html-to-image'
-import QRCode from 'qrcode'
 import {
   IoCheckmark,
   IoClose,
@@ -26,7 +25,6 @@ import { useLanguage } from '@/contexts/LanguageContext'
 const BG = '#000000'
 const INK = '#ffffff'
 const MUTED = '#9ca3af'
-const LINE = '#27272a'
 const PRIMARY = '#6768ab'
 const GOLD = '#f5a623'
 
@@ -34,13 +32,12 @@ const GOLD = '#f5a623'
 const CARD_W = 360
 const CARD_H = 640
 // The board gets a box this big, whatever its shape.
-const AREA_W = 316
-const AREA_H = 330
-// Prompt boards show a caption under every cover, so they get a taller box.
-const AREA_H_PROMPT = 372
+const CARD_PAD = 16
+const AREA_W = CARD_W - CARD_PAD * 2
+const AREA_H = 500
 // Cover shape (height / width) and caption height on prompt boards.
-const COVER_RATIO = 1.35
-const CAPTION_H = 15
+const COVER_RATIO = 1.3
+const CAPTION_H = 22
 // Above this many squares the board is drawn as a pixel mosaic instead of DOM nodes.
 const MOSAIC_OVER = 400
 
@@ -116,18 +113,14 @@ export default function BingoShareModal({ board, mask, answers, link, embedded, 
 
   // Board geometry: square cells sized to fit the box, with tighter gaps on bigger boards.
   const mosaic = total > MOSAIC_OVER
-  const gap = Math.max(rows, cols) <= 10 ? 4 : Math.max(rows, cols) <= 25 ? 2 : Math.max(rows, cols) <= 50 ? 1 : 0
-  // Prompt boards (up to 10 a side) show each answer as a cover with its prompt as a caption below.
-  const portrait = prompt && Math.max(rows, cols) <= 10
-  const areaH = portrait ? AREA_H_PROMPT : AREA_H
-  const cell = Math.max(
-    1,
-    Math.floor(
-      portrait
-        ? Math.min((AREA_W - (cols - 1) * gap) / cols, (areaH - rows * CAPTION_H - (rows - 1) * gap) / (rows * COVER_RATIO))
-        : Math.min((AREA_W - (cols - 1) * gap) / cols, (areaH - (rows - 1) * gap) / rows),
-    ),
-  )
+  const gap = Math.max(rows, cols) <= 10 ? 5 : Math.max(rows, cols) <= 25 ? 2 : Math.max(rows, cols) <= 50 ? 1 : 0
+  // Prompt boards show each answer as a cover with its prompt as a caption below, as long as that
+  // still leaves covers wide enough to read; bigger boards fall back to plain squares.
+  const areaH = AREA_H
+  const widthFit = (AREA_W - (cols - 1) * gap) / cols
+  const portraitCell = Math.floor(Math.min(widthFit, (areaH - rows * CAPTION_H - (rows - 1) * gap) / (rows * COVER_RATIO)))
+  const portrait = prompt && !mosaic && portraitCell >= 24
+  const cell = Math.max(1, portrait ? portraitCell : Math.floor(Math.min(widthFit, (areaH - (rows - 1) * gap) / rows)))
   const coverH = portrait ? Math.round(cell * COVER_RATIO) : cell
   const roomy = !mosaic && cell >= (portrait ? 24 : 30) // enough room for titles and covers
 
@@ -150,7 +143,6 @@ export default function BingoShareModal({ board, mask, answers, link, embedded, 
 
   const [covers, setCovers] = useState<Record<string, string | null>>({})
   const [coversReady, setCoversReady] = useState(coverUrls.length === 0)
-  const [qr, setQr] = useState<string | null>(null)
   const [imgUrl, setImgUrl] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -185,16 +177,8 @@ export default function BingoShareModal({ board, mask, answers, link, embedded, 
     }
   }, [coverKey])
 
-  // A QR can only hold so much: a long link falls back to the plain "make your own" page.
   useEffect(() => {
-    const target = link.length <= 700 ? link : `${window.location.origin}/discover?tab=bingo`
-    QRCode.toDataURL(target, { margin: 1, width: 480, color: { dark: '#000000', light: '#ffffff' } })
-      .then(setQr)
-      .catch(() => setQr(null))
-  }, [link])
-
-  useEffect(() => {
-    if (!coversReady || !qr || imgUrl || !cardRef.current) return
+    if (!coversReady || imgUrl || !cardRef.current) return
     const node = cardRef.current
     let cancelled = false
     ;(async () => {
@@ -212,7 +196,7 @@ export default function BingoShareModal({ board, mask, answers, link, embedded, 
     return () => {
       cancelled = true
     }
-  }, [coversReady, qr, imgUrl])
+  }, [coversReady, imgUrl])
 
   const done = mask.reduce((n, x) => n + (x ? 1 : 0), 0)
   const fileName = `${slug(board.title)}-bingo.png`
@@ -285,15 +269,23 @@ export default function BingoShareModal({ board, mask, answers, link, embedded, 
     const h = hashHue(art.title)
     return <div style={{ position: 'absolute', inset: 0, background: `linear-gradient(135deg, hsl(${h} 52% 40%), hsl(${(h + 32) % 360} 55% 27%))` }} />
   }
-  const font = Math.min(9, Math.max(5.5, cell * 0.125))
+  const font = Math.min(11, Math.max(5.5, cell * 0.13))
 
-  // Prompt boards: the answer's cover, with the prompt as a muted caption underneath.
+  // Prompt boards: the answer's cover, with the prompt as a muted caption underneath. A prompt too
+  // long for the caption moves onto the cover instead, over a dark overlay so it stays readable.
+  const capFont = Math.max(6.5, Math.min(9, cell * 0.17))
+  const overFont = Math.max(6, Math.min(9.5, cell * 0.16))
+  const titleFont = Math.max(6, Math.min(8.5, cell * 0.14))
+  const overLines = Math.max(3, Math.floor((coverH - 8) / (overFont * 1.15)))
+  const perLine = Math.max(4, Math.floor(cell / (capFont * 0.56)))
   const renderPortraitCell = (i: number) => {
     const cellData = board.cells[i]
     const art = answers?.[i] ?? null
     const free = i === centre
-    const caption = free ? t('bingoFree') : cellData?.title ?? ''
+    const text = free ? t('bingoFree') : cellData?.title ?? ''
+    const long = !free && text.length > perLine * 2
     const data = art?.coverUrl ? covers[art.coverUrl] : null
+    const centred: React.CSSProperties = { position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3, padding: 3, textAlign: 'center' }
     return (
       <div key={i} style={{ width: cell, display: 'flex', flexDirection: 'column', gap: 3 }}>
         <div
@@ -308,24 +300,47 @@ export default function BingoShareModal({ board, mask, answers, link, embedded, 
           }}
         >
           {free && <span style={{ fontSize: Math.max(8, cell * 0.3), lineHeight: 1, color: '#c9caf0' }}>★</span>}
-          {art && (data ? artBackground(art) : (
-            <div
-              style={{
-                position: 'absolute',
-                inset: 0,
-                background: `linear-gradient(135deg, hsl(${hashHue(art.title)} 52% 40%), hsl(${(hashHue(art.title) + 32) % 360} 55% 27%))`,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: 3,
-                textAlign: 'center',
-              }}
-            >
-              <span style={{ fontSize: font, lineHeight: 1.15, fontWeight: 600, color: '#fff', ...clamp(5) }}>{art.title}</span>
+          {art &&
+            (data ? (
+              <>
+                {artBackground(art)}
+                {long && (
+                  <div style={{ ...centred, paddingTop: titleFont * 2.6, background: 'rgba(0,0,0,0.66)' }}>
+                    <span style={{ fontSize: overFont, lineHeight: 1.15, fontWeight: 600, color: '#fff', ...clamp(Math.max(2, overLines - 2)) }}>{text}</span>
+                  </div>
+                )}
+                {/* The book's title along the top, on a soft dark fade. */}
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    padding: `3px 3px ${Math.round(titleFont * 1.2)}px`,
+                    background: 'linear-gradient(to bottom, rgba(0,0,0,0.82), rgba(0,0,0,0))',
+                    fontSize: titleFont,
+                    lineHeight: 1.15,
+                    fontWeight: 600,
+                    color: '#fff',
+                    ...clamp(2),
+                  }}
+                >
+                  {art.title}
+                </div>
+              </>
+            ) : (
+              <div style={{ ...centred, background: `linear-gradient(135deg, hsl(${hashHue(art.title)} 52% 40%), hsl(${(hashHue(art.title) + 32) % 360} 55% 27%))` }}>
+                {long && <span style={{ fontSize: overFont * 0.85, lineHeight: 1.15, color: 'rgba(255,255,255,0.75)', ...clamp(Math.max(2, Math.floor(overLines / 2))) }}>{text}</span>}
+                <span style={{ fontSize: font, lineHeight: 1.15, fontWeight: 600, color: '#fff', ...clamp(long ? Math.max(2, Math.floor(overLines / 2)) : 5) }}>{art.title}</span>
+              </div>
+            ))}
+          {!art && !free && long && (
+            <div style={centred}>
+              <span style={{ fontSize: overFont, lineHeight: 1.15, color: '#d4d4d8', ...clamp(overLines) }}>{text}</span>
             </div>
-          ))}
+          )}
         </div>
-        <div style={{ height: CAPTION_H - 3, fontSize: Math.max(6, Math.min(7.5, cell * 0.17)), lineHeight: 1.15, color: MUTED, ...clamp(2) }}>{caption}</div>
+        <div style={{ height: CAPTION_H - 3, fontSize: capFont, lineHeight: 1.15, color: MUTED, ...clamp(2) }}>{long ? '' : text}</div>
       </div>
     )
   }
@@ -354,24 +369,12 @@ export default function BingoShareModal({ board, mask, answers, link, embedded, 
     return (
       <div key={i} style={cellBox(i)}>
         {artBackground(art)}
-        {roomy && hasCover && <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.85), rgba(0,0,0,0.1) 60%, rgba(0,0,0,0.25))' }} />}
+        {roomy && hasCover && <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.58)' }} />}
         {roomy && (
-          <div
-            style={{
-              position: 'absolute',
-              left: 0,
-              right: 0,
-              bottom: 0,
-              padding: 3,
-              fontSize: font,
-              lineHeight: 1.15,
-              fontWeight: 600,
-              color: '#fff',
-              textShadow: '0 1px 2px rgba(0,0,0,0.7)',
-              ...(hasCover || prompt ? {} : { top: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center' }),
-            }}
-          >
-            <span style={clamp(prompt ? 2 : 4)}>{art.title}</span>
+          <div style={{ position: 'absolute', inset: 0, padding: 3, display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}>
+            <span style={{ fontSize: font, lineHeight: 1.15, fontWeight: 600, color: '#fff', textShadow: '0 1px 2px rgba(0,0,0,0.7)', ...clamp(Math.max(3, Math.floor((cell - 6) / (font * 1.15)))) }}>
+              {art.title}
+            </span>
           </div>
         )}
         {ticked && (
@@ -391,51 +394,40 @@ export default function BingoShareModal({ board, mask, answers, link, embedded, 
       style={{
         width: CARD_W,
         height: CARD_H,
-        background: `radial-gradient(circle at 50% 0%, rgba(103,104,171,0.38), transparent 58%), ${BG}`,
+        background: `radial-gradient(circle at 50% 0%, rgba(103,104,171,0.34), transparent 55%), ${BG}`,
         color: INK,
-        padding: '24px 22px',
+        padding: `${CARD_PAD}px`,
         display: 'flex',
         flexDirection: 'column',
-        justifyContent: 'space-between',
         boxSizing: 'border-box',
         fontFamily: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
       }}
     >
-      {/* attribution, top */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ color: INK, display: 'inline-flex' }}>
-          <ShelfLogo className="h-5 w-5" />
-        </span>
-        <span style={{ fontWeight: 300, fontSize: 11, letterSpacing: '0.18em', textTransform: 'uppercase' }}>someshelf.com</span>
-      </div>
-
-      {/* title */}
-      <div>
-        <span
-          style={{
-            display: 'inline-block',
-            padding: '2px 8px',
-            borderRadius: 99,
-            background: 'rgba(103,104,171,0.25)',
-            fontSize: 9,
-            fontWeight: 600,
-            letterSpacing: '0.1em',
-            textTransform: 'uppercase',
-            color: '#c9caf0',
-          }}
-        >
+      {/* attribution + kind, one slim row */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+          <span style={{ color: INK, display: 'inline-flex' }}>
+            <ShelfLogo className="h-4 w-4" />
+          </span>
+          <span style={{ fontWeight: 300, fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase' }}>someshelf.com</span>
+        </div>
+        <span style={{ fontSize: 9, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#c9caf0' }}>
           Bingo {rows}×{cols} · {prompt ? t('bingoTagPrompt') : t('bingoTagList')}
         </span>
-        <p style={{ margin: '8px 0 0', fontSize: 21, fontWeight: 700, lineHeight: 1.15, ...clamp(2) }}>{board.title}</p>
-        <p style={{ margin: '5px 0 0', fontSize: 11, color: MUTED }}>
+      </div>
+
+      {/* title + author, compact */}
+      <div style={{ marginTop: 10 }}>
+        <p style={{ margin: 0, fontSize: 17, fontWeight: 700, lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{board.title}</p>
+        <p style={{ margin: '2px 0 0', fontSize: 10, color: MUTED, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {board.author ? `${t('bingoBy', { name: board.author })} · ` : ''}
           {prompt ? t('bingoFilledCount', { count: done, total }) : t('bingoProgress', { count: done, total })}
           {winning.size > 0 ? ' · ' + t('bingoWin') : ''}
         </p>
       </div>
 
-      {/* board */}
-      <div style={{ height: areaH, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      {/* board: takes all the room that is left */}
+      <div style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         {mosaic ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -450,20 +442,9 @@ export default function BingoShareModal({ board, mask, answers, link, embedded, 
         )}
       </div>
 
-      {/* QR + attribution, bottom */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 14, paddingTop: 14, borderTop: `1px solid ${LINE}` }}>
-        {qr && (
-          <div style={{ background: '#ffffff', padding: 6, borderRadius: 10, flexShrink: 0 }}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={qr} alt="QR code" style={{ width: 78, height: 78, display: 'block' }} />
-          </div>
-        )}
-        <div style={{ minWidth: 0 }}>
-          <p style={{ margin: 0, fontSize: 13, fontWeight: 700 }}>{t('bingoCardScan')}</p>
-          <p style={{ margin: '4px 0 0', fontSize: 10.5, color: MUTED, lineHeight: 1.35 }}>{t('bingoCardMade')}</p>
-          <p style={{ margin: '2px 0 0', fontSize: 11, color: '#c9caf0', fontWeight: 600 }}>someshelf.com</p>
-        </div>
-      </div>
+      <p style={{ margin: 0, textAlign: 'center', fontSize: 9.5, color: MUTED, letterSpacing: '0.04em' }}>
+        {t('bingoCardMade')} · <span style={{ color: '#c9caf0', fontWeight: 600 }}>someshelf.com</span>
+      </p>
     </div>
   )
 
