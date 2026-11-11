@@ -32,12 +32,13 @@ const GOLD = '#f5a623'
 const CARD_W = 360
 const CARD_H = 640
 // The board gets a box this big, whatever its shape.
-const CARD_PAD = 16
-const AREA_W = CARD_W - CARD_PAD * 2
-const AREA_H = 500
+const CARD_PAD_X = 10
+const CARD_PAD_Y = 14
+const AREA_W = CARD_W - CARD_PAD_X * 2
+const AREA_H = 540
 // Cover shape (height / width) and caption height on prompt boards.
-const COVER_RATIO = 1.3
-const CAPTION_H = 32
+const COVER_RATIO = 1.25
+const CAPTION_H = 30
 // Above this many squares the board is drawn as a pixel mosaic instead of DOM nodes.
 const MOSAIC_OVER = 400
 
@@ -103,6 +104,33 @@ const slug = (s: string) =>
     .replace(/^-+|-+$/g, '')
     .slice(0, 40) || 'bingo'
 
+/** Largest font size at which `text` wraps to fit a w×h box (estimated from average glyph width). */
+function fitText(text: string, w: number, h: number, max = 20, min = 6.5): { font: number; lines: number } {
+  const words = text.split(/\s+/).filter(Boolean)
+  for (let f = max; f >= min; f -= 0.5) {
+    const perLine = Math.max(1, Math.floor(w / (f * 0.6)))
+    // shrink before splitting a word across lines (only the smallest size may)
+    if (f > min && words.some((word) => word.length > perLine)) continue
+    let lines = 1
+    let used = 0
+    for (const word of words) {
+      if (word.length > perLine) {
+        // a word wider than the box breaks across lines
+        if (used > 0) lines++
+        lines += Math.ceil(word.length / perLine) - 1
+        used = word.length % perLine || perLine
+      } else if (used === 0) used = word.length
+      else if (used + 1 + word.length <= perLine) used += 1 + word.length
+      else {
+        lines++
+        used = word.length
+      }
+    }
+    if (lines * f * 1.15 <= h) return { font: f, lines }
+  }
+  return { font: min, lines: Math.max(1, Math.floor(h / (min * 1.15))) }
+}
+
 export default function BingoShareModal({ board, mask, answers, link, embedded, winning, onClose }: Props) {
   const { t } = useLanguage()
   const cardRef = useRef<HTMLDivElement>(null)
@@ -113,7 +141,7 @@ export default function BingoShareModal({ board, mask, answers, link, embedded, 
 
   // Board geometry: square cells sized to fit the box, with tighter gaps on bigger boards.
   const mosaic = total > MOSAIC_OVER
-  const gap = Math.max(rows, cols) <= 10 ? 5 : Math.max(rows, cols) <= 25 ? 2 : Math.max(rows, cols) <= 50 ? 1 : 0
+  const gap = Math.max(rows, cols) <= 10 ? 4 : Math.max(rows, cols) <= 25 ? 2 : Math.max(rows, cols) <= 50 ? 1 : 0
   // Prompt boards show each answer as a cover with its prompt as a caption below, as long as that
   // still leaves covers wide enough to read; bigger boards fall back to plain squares.
   const areaH = AREA_H
@@ -123,6 +151,8 @@ export default function BingoShareModal({ board, mask, answers, link, embedded, 
   const cell = Math.max(1, portrait ? portraitCell : Math.floor(Math.min(widthFit, (areaH - (rows - 1) * gap) / rows)))
   const coverH = portrait ? Math.round(cell * COVER_RATIO) : cell
   const roomy = !mosaic && cell >= (portrait ? 24 : 30) // enough room for titles and covers
+  // The free centre square carries the board's title (sized to fit); boards without one show it in the header.
+  const titleInCentre = centre !== null && !mosaic && cell >= 24
 
   const mosaicSrc = useMemo(
     () =>
@@ -271,6 +301,17 @@ export default function BingoShareModal({ board, mask, answers, link, embedded, 
   }
   const font = Math.min(11, Math.max(5.5, cell * 0.13))
 
+  // What goes in the free centre square: the board's title, sized to fill it.
+  const centreLabel = (w: number, h: number) => {
+    if (!titleInCentre) return <span style={{ fontSize: Math.max(8, w * 0.3), lineHeight: 1, color: '#c9caf0' }}>★</span>
+    const { font: f, lines } = fitText(board.title, w - 10, h - 10)
+    return (
+      <span style={{ padding: 5, fontSize: f, lineHeight: 1.15, fontWeight: 700, color: '#fff', textAlign: 'center', wordBreak: 'break-word', ...clamp(lines) }}>
+        {board.title}
+      </span>
+    )
+  }
+
   // Prompt boards: the prompt in the middle of the (darkened) cover, and under it the book's title and author.
   const promptFont = Math.max(6, Math.min(9.5, cell * 0.16))
   const promptLines = Math.max(3, Math.floor((coverH - 8) / (promptFont * 1.15)))
@@ -295,7 +336,7 @@ export default function BingoShareModal({ board, mask, answers, link, embedded, 
                 : {}),
           }}
         >
-          {free && <span style={{ fontSize: Math.max(8, cell * 0.3), lineHeight: 1, color: '#c9caf0' }}>★</span>}
+          {free && centreLabel(cell, coverH)}
           {art && (
             <>
               {artBackground(art)}
@@ -329,8 +370,8 @@ export default function BingoShareModal({ board, mask, answers, link, embedded, 
     if (i === centre) {
       return (
         <div key={i} style={{ ...cellBox(i), background: 'rgba(103,104,171,0.28)', border: `1px solid rgba(103,104,171,0.7)`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
-          <span style={{ fontSize: Math.max(8, cell * 0.27), lineHeight: 1, color: '#c9caf0' }}>★</span>
-          {roomy && <span style={{ fontSize: 7, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#c9caf0' }}>{t('bingoFree')}</span>}
+          {centreLabel(cell, cell)}
+          {roomy && !titleInCentre && <span style={{ fontSize: 7, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#c9caf0' }}>{t('bingoFree')}</span>}
         </div>
       )
     }
@@ -366,6 +407,14 @@ export default function BingoShareModal({ board, mask, answers, link, embedded, 
     )
   }
 
+  const meta = [
+    board.author ? t('bingoBy', { name: board.author }) : '',
+    prompt ? t('bingoFilledCount', { count: done, total }) : t('bingoProgress', { count: done, total }),
+    winning.size > 0 ? t('bingoWin') : '',
+  ]
+    .filter(Boolean)
+    .join(' · ')
+
   const card = (
     <div
       ref={cardRef}
@@ -374,38 +423,29 @@ export default function BingoShareModal({ board, mask, answers, link, embedded, 
         height: CARD_H,
         background: `radial-gradient(circle at 50% 0%, rgba(103,104,171,0.34), transparent 55%), ${BG}`,
         color: INK,
-        padding: `${CARD_PAD}px`,
+        padding: `${CARD_PAD_Y}px ${CARD_PAD_X}px`,
         display: 'flex',
         flexDirection: 'column',
         boxSizing: 'border-box',
         fontFamily: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
       }}
     >
-      {/* attribution + kind, one slim row */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-          <span style={{ color: INK, display: 'inline-flex' }}>
-            <ShelfLogo className="h-4 w-4" />
-          </span>
-          <span style={{ fontWeight: 300, fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase' }}>someshelf.com</span>
-        </div>
-        <span style={{ fontSize: 9, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#c9caf0' }}>
-          Bingo {rows}×{cols} · {prompt ? t('bingoTagPrompt') : t('bingoTagList')}
+      {/* attribution */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+        <span style={{ color: INK, display: 'inline-flex' }}>
+          <ShelfLogo className="h-4 w-4" />
         </span>
+        <span style={{ fontWeight: 300, fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase' }}>someshelf.com</span>
       </div>
 
-      {/* title + author, compact */}
-      <div style={{ marginTop: 10 }}>
-        <p style={{ margin: 0, fontSize: 17, fontWeight: 700, lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{board.title}</p>
-        <p style={{ margin: '2px 0 0', fontSize: 10, color: MUTED, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {board.author ? `${t('bingoBy', { name: board.author })} · ` : ''}
-          {prompt ? t('bingoFilledCount', { count: done, total }) : t('bingoProgress', { count: done, total })}
-          {winning.size > 0 ? ' · ' + t('bingoWin') : ''}
-        </p>
-      </div>
+      {/* boards without a centre square show their title up here instead */}
+      {!titleInCentre && (
+        <p style={{ margin: '8px 0 0', fontSize: 16, fontWeight: 700, lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{board.title}</p>
+      )}
+      <p style={{ margin: '4px 0 0', fontSize: 10, color: MUTED, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{meta}</p>
 
       {/* board: takes all the room that is left */}
-      <div style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '8px 0' }}>
         {mosaic ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
