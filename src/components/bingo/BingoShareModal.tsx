@@ -1,0 +1,504 @@
+'use client'
+
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
+import { toPng } from 'html-to-image'
+import QRCode from 'qrcode'
+import {
+  IoCheckmark,
+  IoClose,
+  IoCopyOutline,
+  IoDownloadOutline,
+  IoLogoFacebook,
+  IoLogoTwitter,
+  IoLogoWhatsapp,
+  IoShareSocialOutline,
+} from 'react-icons/io5'
+import { FaTelegram } from 'react-icons/fa'
+import ShelfLogo from '@/components/branding/ShelfLogo'
+import { centerIndex, type Bingo, type BingoCell } from '@/lib/bingo'
+import { boardImage } from '@/lib/bingoImage'
+import { hashHue } from '@/lib/hashHue'
+import { useLanguage } from '@/contexts/LanguageContext'
+
+// Fixed dark palette so the exported image looks the same whatever theme the
+// app is in — same convention as ProfileShareModal / ShareModal.
+const BG = '#000000'
+const INK = '#ffffff'
+const MUTED = '#9ca3af'
+const LINE = '#27272a'
+const PRIMARY = '#6768ab'
+const GOLD = '#f5a623'
+
+// 9:16 story card, exported at pixelRatio 3 (1080×1920).
+const CARD_W = 360
+const CARD_H = 640
+// The board gets a box this big, whatever its shape.
+const AREA_W = 316
+const AREA_H = 330
+// Above this many squares the board is drawn as a pixel mosaic instead of DOM nodes.
+const MOSAIC_OVER = 400
+
+type Props = {
+  board: Bingo
+  /** Squares that are done (ticked on a checklist, answered on a prompt board). */
+  mask: boolean[]
+  /** Prompt boards: the picks shown on the card. */
+  answers: (BingoCell | null)[] | null
+  /** The link people open to play. */
+  link: string
+  /** False when the board was too big to put into the link itself. */
+  embedded: boolean
+  /** Squares in a completed line get a gold frame. */
+  winning: Set<number>
+  onClose: () => void
+}
+
+// Several image hosts send no CORS headers, which makes a canvas capture fail,
+// so covers go through a CORS-enabled proxy and are inlined as data URLs.
+function corsCover(url: string): string {
+  if (!/^https?:\/\//i.test(url)) return url
+  return `https://images.weserv.nl/?url=${encodeURIComponent('ssl:' + url.replace(/^https?:\/\//i, ''))}`
+}
+
+function loadCover(url: string): Promise<string | null> {
+  return new Promise((resolve) => {
+    const img = new Image()
+    img.crossOrigin = 'anonymous'
+    img.onload = () => {
+      try {
+        const max = 200
+        const k = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight))
+        const canvas = document.createElement('canvas')
+        canvas.width = Math.max(1, Math.round(img.naturalWidth * k))
+        canvas.height = Math.max(1, Math.round(img.naturalHeight * k))
+        const ctx = canvas.getContext('2d')
+        if (!ctx) return resolve(null)
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+        resolve(canvas.toDataURL('image/jpeg', 0.85))
+      } catch {
+        resolve(null)
+      }
+    }
+    img.onerror = () => resolve(null)
+    img.src = corsCover(url)
+  })
+}
+
+async function waitForImages(node: HTMLElement) {
+  await Promise.all(
+    Array.from(node.querySelectorAll('img')).map((img) =>
+      img.complete ? Promise.resolve() : new Promise((res) => (img.onload = img.onerror = () => res(null))),
+    ),
+  )
+}
+
+const slug = (s: string) =>
+  s
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[^\p{L}\p{N}]+/gu, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 40) || 'bingo'
+
+export default function BingoShareModal({ board, mask, answers, link, embedded, winning, onClose }: Props) {
+  const { t } = useLanguage()
+  const cardRef = useRef<HTMLDivElement>(null)
+  const prompt = board.kind === 'prompt'
+  const { rows, cols } = board
+  const total = rows * cols
+  const centre = board.freeCenter ? centerIndex(rows, cols) : null
+
+  // Board geometry: square cells sized to fit the box, with tighter gaps on bigger boards.
+  const mosaic = total > MOSAIC_OVER
+  const gap = Math.max(rows, cols) <= 10 ? 4 : Math.max(rows, cols) <= 25 ? 2 : Math.max(rows, cols) <= 50 ? 1 : 0
+  const cell = Math.max(1, Math.floor(Math.min((AREA_W - (cols - 1) * gap) / cols, (AREA_H - (rows - 1) * gap) / rows)))
+  const roomy = !mosaic && cell >= 30 // enough room for titles and covers
+
+  const mosaicSrc = useMemo(
+    () =>
+      mosaic
+        ? boardImage({ rows, cols, cells: board.cells, kind: board.kind, freeCenter: board.freeCenter, mask, answers, winning, px: Math.max(3, Math.floor(1000 / Math.max(rows, cols))) })
+        : '',
+    [mosaic, rows, cols, board.cells, board.kind, board.freeCenter, mask, answers, winning],
+  )
+  const mosaicScale = Math.min(AREA_W / cols, AREA_H / rows)
+
+  // Every cover that can appear on the card (only when squares are big enough to show them).
+  const coverUrls = roomy
+    ? Array.from(
+        new Set(Array.from({ length: total }, (_, i) => (prompt ? answers?.[i] : board.cells[i])?.coverUrl).filter((u): u is string => !!u)),
+      )
+    : []
+  const coverKey = coverUrls.join('|')
+
+  const [covers, setCovers] = useState<Record<string, string | null>>({})
+  const [coversReady, setCoversReady] = useState(coverUrls.length === 0)
+  const [qr, setQr] = useState<string | null>(null)
+  const [imgUrl, setImgUrl] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [copied, setCopied] = useState(false)
+  const [scale, setScale] = useState(1)
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
+    document.addEventListener('keydown', onKey)
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    const update = () => setScale(Math.min(1, Math.max(0.45, (window.innerHeight * 0.5) / CARD_H)))
+    update()
+    window.addEventListener('resize', update)
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      document.body.style.overflow = prev
+      window.removeEventListener('resize', update)
+    }
+  }, [onClose])
+
+  useEffect(() => {
+    let cancelled = false
+    const urls = coverKey ? coverKey.split('|') : []
+    if (urls.length === 0) return
+    Promise.all(urls.map(async (u) => [u, await loadCover(u)] as const)).then((pairs) => {
+      if (cancelled) return
+      setCovers(Object.fromEntries(pairs))
+      setCoversReady(true)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [coverKey])
+
+  // A QR can only hold so much: a long link falls back to the plain "make your own" page.
+  useEffect(() => {
+    const target = link.length <= 700 ? link : `${window.location.origin}/discover?tab=bingo`
+    QRCode.toDataURL(target, { margin: 1, width: 480, color: { dark: '#000000', light: '#ffffff' } })
+      .then(setQr)
+      .catch(() => setQr(null))
+  }, [link])
+
+  useEffect(() => {
+    if (!coversReady || !qr || imgUrl || !cardRef.current) return
+    const node = cardRef.current
+    let cancelled = false
+    ;(async () => {
+      setBusy(true)
+      try {
+        await waitForImages(node)
+        const url = await toPng(node, { pixelRatio: 3, cacheBust: true, backgroundColor: BG })
+        if (!cancelled) setImgUrl(url)
+      } catch (e) {
+        console.error('Bingo share image render failed', e)
+      } finally {
+        if (!cancelled) setBusy(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [coversReady, qr, imgUrl])
+
+  const done = mask.reduce((n, x) => n + (x ? 1 : 0), 0)
+  const fileName = `${slug(board.title)}-bingo.png`
+  const shareText = `${board.title} — ${t('bingoCardMade')}`
+
+  const copyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(link)
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 2000)
+    } catch {
+      window.prompt(t('bingoShare'), link)
+    }
+  }
+
+  const saveImage = () => {
+    if (!imgUrl) return
+    const a = document.createElement('a')
+    a.download = fileName
+    a.href = imgUrl
+    a.click()
+  }
+
+  // Link-only intents can't carry an image, so try the OS share sheet first
+  // (mobile), and fall back to the web intent (desktop) — same as the profile card.
+  const shareWith = async (webHref?: string) => {
+    if (imgUrl && navigator.canShare) {
+      try {
+        const blob = await (await fetch(imgUrl)).blob()
+        const file = new File([blob], fileName, { type: 'image/png' })
+        if (navigator.canShare({ files: [file] })) {
+          await navigator.share({ files: [file], title: board.title, url: link })
+          return
+        }
+      } catch {
+        return
+      }
+    }
+    if (webHref) window.open(webHref, '_blank', 'noopener,noreferrer')
+    else if (navigator.share) navigator.share({ title: board.title, url: link }).catch(() => {})
+  }
+
+  const apps = [
+    { key: 'whatsapp', icon: IoLogoWhatsapp, href: `https://wa.me/?text=${encodeURIComponent(`${shareText} ${link}`)}` },
+    { key: 'telegram', icon: FaTelegram, href: `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(shareText)}` },
+    { key: 'x', icon: IoLogoTwitter, href: `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(link)}` },
+    { key: 'facebook', icon: IoLogoFacebook, href: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(link)}` },
+  ]
+
+  // ── the card (inline styles only, so the capture is theme-proof) ──
+  const radius = cell >= 30 ? 7 : cell >= 16 ? 3 : 1
+  const cellBox = (i: number): React.CSSProperties => ({
+    position: 'relative',
+    width: cell,
+    height: cell,
+    borderRadius: radius,
+    overflow: 'hidden',
+    boxSizing: 'border-box',
+    boxShadow: winning.has(i) ? `inset 0 0 0 ${cell >= 30 ? 2 : 1}px ${GOLD}` : undefined,
+  })
+  const clamp = (lines: number): React.CSSProperties => ({
+    overflow: 'hidden',
+    display: '-webkit-box',
+    WebkitLineClamp: lines,
+    WebkitBoxOrient: 'vertical' as const,
+  })
+  const artBackground = (art: BingoCell) => {
+    const data = art.coverUrl ? covers[art.coverUrl] : null
+    if (data) return <img src={data} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+    const h = hashHue(art.title)
+    return <div style={{ position: 'absolute', inset: 0, background: `linear-gradient(135deg, hsl(${h} 52% 40%), hsl(${(h + 32) % 360} 55% 27%))` }} />
+  }
+  const font = Math.min(9, Math.max(5.5, cell * 0.125))
+
+  const renderCell = (i: number) => {
+    const cellData = board.cells[i]
+    if (i === centre) {
+      return (
+        <div key={i} style={{ ...cellBox(i), background: 'rgba(103,104,171,0.28)', border: `1px solid rgba(103,104,171,0.7)`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
+          <span style={{ fontSize: Math.max(8, cell * 0.27), lineHeight: 1, color: '#c9caf0' }}>★</span>
+          {roomy && <span style={{ fontSize: 7, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#c9caf0' }}>{t('bingoFree')}</span>}
+        </div>
+      )
+    }
+    const art = prompt ? answers?.[i] ?? null : cellData
+    if (!art) {
+      return (
+        <div key={i} style={{ ...cellBox(i), background: prompt && cellData ? '#202024' : '#18181b', border: roomy ? `1px dashed #3f3f46` : undefined, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 3, textAlign: 'center' }}>
+          {roomy && prompt && cellData && <span style={{ fontSize: font, lineHeight: 1.2, color: '#d4d4d8', fontWeight: 500, ...clamp(5) }}>{cellData.title}</span>}
+        </div>
+      )
+    }
+    const ticked = !prompt && mask[i]
+    const hasCover = !!(art.coverUrl && covers[art.coverUrl])
+    return (
+      <div key={i} style={cellBox(i)}>
+        {artBackground(art)}
+        {roomy && hasCover && <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.85), rgba(0,0,0,0.1) 60%, rgba(0,0,0,0.25))' }} />}
+        {roomy && prompt && cellData && (
+          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, background: 'rgba(0,0,0,0.55)', padding: '2px 3px', fontSize: font * 0.8, lineHeight: 1.15, color: 'rgba(255,255,255,0.85)', ...clamp(2) }}>{cellData.title}</div>
+        )}
+        {roomy && (
+          <div
+            style={{
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              bottom: 0,
+              padding: 3,
+              fontSize: font,
+              lineHeight: 1.15,
+              fontWeight: 600,
+              color: '#fff',
+              textShadow: '0 1px 2px rgba(0,0,0,0.7)',
+              ...(hasCover || prompt ? {} : { top: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center' }),
+            }}
+          >
+            <span style={clamp(prompt ? 2 : 4)}>{art.title}</span>
+          </div>
+        )}
+        {ticked && (
+          <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            {cell >= 14 && (
+              <span style={{ width: cell * 0.4, height: cell * 0.4, borderRadius: cell, background: PRIMARY, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: cell * 0.25, fontWeight: 700, lineHeight: 1 }}>✓</span>
+            )}
+          </div>
+        )}
+        {prompt && mask[i] && cell >= 20 && (
+          <span style={{ position: 'absolute', right: 3, bottom: 3, width: 13, height: 13, borderRadius: 7, background: PRIMARY, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 700, lineHeight: 1 }}>✓</span>
+        )}
+      </div>
+    )
+  }
+
+  const card = (
+    <div
+      ref={cardRef}
+      style={{
+        width: CARD_W,
+        height: CARD_H,
+        background: `radial-gradient(circle at 50% 0%, rgba(103,104,171,0.38), transparent 58%), ${BG}`,
+        color: INK,
+        padding: '24px 22px',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'space-between',
+        boxSizing: 'border-box',
+        fontFamily: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
+      }}
+    >
+      {/* attribution, top */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ color: INK, display: 'inline-flex' }}>
+          <ShelfLogo className="h-5 w-5" />
+        </span>
+        <span style={{ fontWeight: 300, fontSize: 11, letterSpacing: '0.18em', textTransform: 'uppercase' }}>someshelf.com</span>
+      </div>
+
+      {/* title */}
+      <div>
+        <span
+          style={{
+            display: 'inline-block',
+            padding: '2px 8px',
+            borderRadius: 99,
+            background: 'rgba(103,104,171,0.25)',
+            fontSize: 9,
+            fontWeight: 600,
+            letterSpacing: '0.1em',
+            textTransform: 'uppercase',
+            color: '#c9caf0',
+          }}
+        >
+          Bingo {rows}×{cols} · {prompt ? t('bingoTagPrompt') : t('bingoTagList')}
+        </span>
+        <p style={{ margin: '8px 0 0', fontSize: 21, fontWeight: 700, lineHeight: 1.15, ...clamp(2) }}>{board.title}</p>
+        <p style={{ margin: '5px 0 0', fontSize: 11, color: MUTED }}>
+          {board.author ? `${t('bingoBy', { name: board.author })} · ` : ''}
+          {prompt ? t('bingoFilledCount', { count: done, total }) : t('bingoProgress', { count: done, total })}
+          {winning.size > 0 ? ' · ' + t('bingoWin') : ''}
+        </p>
+      </div>
+
+      {/* board */}
+      <div style={{ height: AREA_H, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        {mosaic ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={mosaicSrc}
+            alt=""
+            style={{ width: cols * mosaicScale, height: rows * mosaicScale, imageRendering: 'pixelated', display: 'block', borderRadius: 4 }}
+          />
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, ${cell}px)`, gap }}>
+            {Array.from({ length: total }, (_, i) => renderCell(i))}
+          </div>
+        )}
+      </div>
+
+      {/* QR + attribution, bottom */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14, paddingTop: 14, borderTop: `1px solid ${LINE}` }}>
+        {qr && (
+          <div style={{ background: '#ffffff', padding: 6, borderRadius: 10, flexShrink: 0 }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={qr} alt="QR code" style={{ width: 78, height: 78, display: 'block' }} />
+          </div>
+        )}
+        <div style={{ minWidth: 0 }}>
+          <p style={{ margin: 0, fontSize: 13, fontWeight: 700 }}>{t('bingoCardScan')}</p>
+          <p style={{ margin: '4px 0 0', fontSize: 10.5, color: MUTED, lineHeight: 1.35 }}>{t('bingoCardMade')}</p>
+          <p style={{ margin: '2px 0 0', fontSize: 11, color: '#c9caf0', fontWeight: 600 }}>someshelf.com</p>
+        </div>
+      </div>
+    </div>
+  )
+
+  return createPortal(
+    <div onClick={onClose} className="fixed inset-0 z-[70] flex items-center justify-center bg-[var(--overlay)] p-4">
+      <div
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        className="flex max-h-[92vh] w-full max-w-md flex-col gap-4 overflow-y-auto rounded-2xl border border-[var(--border)] bg-[var(--container)] p-5"
+      >
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-semibold tracking-wide text-[var(--text)]">{t('bingoShareTitle')}</h3>
+          <button
+            onClick={onClose}
+            aria-label={t('cancel')}
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--surface)] text-[var(--text-muted)] hover:bg-[var(--surface-hover)]"
+          >
+            <IoClose className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div
+          className="relative mx-auto flex items-center justify-center overflow-hidden rounded-2xl border border-[var(--border-subtle)] bg-black"
+          style={{ width: CARD_W * scale, height: CARD_H * scale }}
+        >
+          {imgUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={imgUrl} alt="" style={{ width: CARD_W * scale, height: CARD_H * scale, display: 'block' }} />
+          ) : (
+            <div style={{ width: CARD_W, height: CARD_H, transform: `scale(${scale})`, transformOrigin: 'top left' }}>{card}</div>
+          )}
+          {busy && (
+            <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/40">
+              <div className="h-6 w-6 animate-spin rounded-full border-2 border-white/30 border-t-transparent" />
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2 overflow-hidden rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] py-1.5 pl-3 pr-1.5">
+          <span className="min-w-0 flex-1 select-all overflow-hidden whitespace-nowrap text-sm text-[var(--text-muted)]">{link}</span>
+          <button
+            onClick={copyLink}
+            className={`flex flex-shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+              copied ? 'bg-nonsprimary text-white' : 'bg-[var(--container)] text-[var(--text-muted)] hover:text-[var(--text)]'
+            }`}
+          >
+            {copied ? <IoCheckmark className="h-3.5 w-3.5" /> : <IoCopyOutline className="h-3.5 w-3.5" />}
+            {copied ? t('copied') : t('copy')}
+          </button>
+        </div>
+        {!embedded && <p className="-mt-2 text-[11px] leading-snug text-[var(--text-muted)]">{t('bingoLinkTooBig')}</p>}
+
+        <div className="flex items-center gap-2">
+          {typeof navigator !== 'undefined' && 'share' in navigator && (
+            <button
+              onClick={() => shareWith()}
+              disabled={!imgUrl}
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[var(--primary-soft)] py-2.5 text-sm font-medium text-nonsprimary transition-colors hover:bg-[var(--primary-ring)] disabled:opacity-50"
+            >
+              <IoShareSocialOutline className="h-4 w-4" />
+              {t('share')}
+            </button>
+          )}
+          {apps.map(({ key, icon: Icon, href }) => (
+            <button
+              key={key}
+              onClick={() => shareWith(href)}
+              disabled={!imgUrl}
+              aria-label={key}
+              title={t('shareAppHint')}
+              className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] text-[var(--text-muted)] transition-colors hover:text-[var(--text)] disabled:opacity-50"
+            >
+              <Icon className="h-4 w-4" />
+            </button>
+          ))}
+        </div>
+        <p className="-mt-1 text-[11px] leading-snug text-[var(--text-muted)]">{t('shareAppHint')}</p>
+
+        <button
+          onClick={saveImage}
+          disabled={!imgUrl}
+          className="flex items-center justify-center gap-2 rounded-xl bg-[var(--primary-soft)] py-2.5 text-sm font-medium text-nonsprimary transition-colors hover:bg-[var(--primary-ring)] disabled:opacity-50"
+        >
+          <IoDownloadOutline className="h-4 w-4" />
+          {t('saveAsImage')}
+        </button>
+      </div>
+    </div>,
+    document.body,
+  )
+}

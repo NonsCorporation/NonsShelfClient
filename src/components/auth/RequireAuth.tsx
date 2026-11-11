@@ -17,8 +17,12 @@ const PUBLIC_PATHS = new Set(['/', '/discover'])
 // for anyone. Their full library and the edit page stay signed-in only.
 // A group invite link (/messages/invite/<token>) opens too, so the screen can
 // show which group it is and offer sign-in instead of bouncing to home.
+// A shared bingo (/bingo/<board>/<user>/<run>) opens for anyone too.
 const isPublicPath = (pathname: string) =>
-  PUBLIC_PATHS.has(pathname) || /^\/u\/[^/]+\/?$/.test(pathname) || /^\/messages\/invite\/[^/]+\/?$/.test(pathname)
+  PUBLIC_PATHS.has(pathname) ||
+  /^\/u\/[^/]+\/?$/.test(pathname) ||
+  /^\/messages\/invite\/[^/]+\/?$/.test(pathname) ||
+  /^\/bingo(\/|$)/.test(pathname)
 
 // Which login-modal copy names the thing a blocked route was actually for
 // ("view this profile", "see your notifications", …) instead of the generic
