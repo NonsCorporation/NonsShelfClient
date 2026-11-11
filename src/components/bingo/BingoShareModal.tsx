@@ -152,8 +152,9 @@ export default function BingoShareModal({ board, mask, answers, link, embedded, 
 
   // Board geometry: square cells sized to fit the box, with tighter gaps on bigger boards.
   const mosaic = total > MOSAIC_OVER
-  const gap = Math.max(rows, cols) <= 10 ? 7 : Math.max(rows, cols) <= 25 ? 2 : Math.max(rows, cols) <= 50 ? 1 : 0
-  const gapY = Math.max(rows, cols) <= 10 ? (prompt ? 8 : 7) : gap
+  // One constant gap, the same across and down.
+  const gap = Math.max(rows, cols) <= 10 ? 8 : Math.max(rows, cols) <= 25 ? 2 : Math.max(rows, cols) <= 50 ? 1 : 0
+  const gapY = gap
   // Prompt boards show each answer as a cover with its prompt as a caption below, as long as that
   // still leaves covers wide enough to read; bigger boards fall back to plain squares.
   const areaH = AREA_H
@@ -186,8 +187,6 @@ export default function BingoShareModal({ board, mask, answers, link, embedded, 
   const rowCap = portraitFit?.caps ?? []
   const cell = Math.max(1, portraitFit ? portraitFit.cell : Math.floor(Math.min(widthFit, (areaH - (rows - 1) * gapY) / rows)))
   const coverH = portrait ? Math.round(cell * COVER_RATIO) : cell
-  // Prompt boards are limited by height, so spend the width that is left on air between columns.
-  const colGap = portrait && cols > 1 ? Math.max(gap, Math.min(16, Math.floor((AREA_W - cols * cell) / (cols - 1)))) : gap
   const roomy = !mosaic && cell >= (portrait ? 24 : 30) // enough room for titles and covers
   // The free centre square carries the board's title (sized to fit); boards without one show it in the header.
   const titleInCentre = centre !== null && !mosaic && cell >= 24
@@ -492,7 +491,7 @@ export default function BingoShareModal({ board, mask, answers, link, embedded, 
             style={{ width: cols * mosaicScale, height: rows * mosaicScale, imageRendering: 'pixelated', display: 'block', borderRadius: 4 }}
           />
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, ${cell}px)`, columnGap: colGap, rowGap: gapY, ...(portrait ? { gridTemplateRows: rowCap.map((cap) => `${coverH + cap}px`).join(' ') } : {}) }}>
+          <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, ${cell}px)`, columnGap: gap, rowGap: gapY, ...(portrait ? { gridTemplateRows: rowCap.map((cap) => `${coverH + cap}px`).join(' ') } : {}) }}>
             {Array.from({ length: total }, (_, i) => renderCell(i))}
           </div>
         )}
