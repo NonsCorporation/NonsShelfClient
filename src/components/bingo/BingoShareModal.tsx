@@ -175,6 +175,19 @@ function rgbToHsl([r, g, b]: [number, number, number]): [number, number, number]
   return [h, sat, l]
 }
 
+/** Deterministic pseudo-random numbers (mulberry32) from a string seed. */
+function seededRandom(seed: string): () => number {
+  let h = 1779033703
+  for (let i = 0; i < seed.length; i++) h = Math.imul(h ^ seed.charCodeAt(i), 3432918353) << 13 | h >>> 19
+  let a = h >>> 0
+  return () => {
+    a = (a + 0x6d2b79f5) | 0
+    let t = Math.imul(a ^ (a >>> 15), 1 | a)
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+}
+
 function hslToRgb(h: number, s: number, l: number): [number, number, number] {
   const k = (n: number) => (n + h / 30) % 12
   const a = s * Math.min(l, 1 - l)
@@ -521,7 +534,7 @@ export default function BingoShareModal({ board, mask, answers, link, embedded, 
 
   // Fire-like glows rising from the top and bottom edges, in one accent colour taken from the covers.
   const flame = (c: [number, number, number], x: number, edge: 0 | 100, w: number, h: number, a: number) =>
-    `radial-gradient(ellipse ${w}% ${h}% at ${x}% ${edge}%, rgba(${c[0]},${c[1]},${c[2]},${a}) 0%, rgba(${c[0]},${c[1]},${c[2]},${(a * 0.45).toFixed(2)}) 42%, rgba(${c[0]},${c[1]},${c[2]},0) 76%)`
+    `radial-gradient(ellipse ${w}% ${h}% at ${x}% ${edge}%, rgba(${c[0]},${c[1]},${c[2]},${a}) 0%, rgba(${c[0]},${c[1]},${c[2]},${(a * 0.55).toFixed(3)}) 28%, rgba(${c[0]},${c[1]},${c[2]},${(a * 0.2).toFixed(3)}) 58%, rgba(${c[0]},${c[1]},${c[2]},0) 92%)`
   // The board's accent: the most common vivid hue among its covers (weighted by how saturated they are).
   const accent = ((): [number, number, number] => {
     const bins = Array.from({ length: 12 }, () => ({ w: 0, r: 0, g: 0, b: 0 }))
@@ -545,19 +558,22 @@ export default function BingoShareModal({ board, mask, answers, link, embedded, 
     const [h, sat, l] = rgbToHsl(accent)
     return hslToRgb((h + dh + 360) % 360, sat, Math.min(0.85, Math.max(0.3, l + dl)))
   }
-  // Flame tongues along an edge: shades of the accent, slightly shifted in hue and height so the edge looks
-  // lit rather than striped, with a lighter, hotter core along the very edge.
-  const tongues = Math.max(4, Math.min(cols + 1, 6))
-  const hues = [-16, 0, 12, -8, 16, 4]
-  const heights = [26, 34, 24, 36, 28, 32]
+  // Flames along an edge, random like a real fire: uneven positions, widths, heights, strengths and a little
+  // hue and lightness drift, from a seed made of the board, so the same board always burns the same way.
+  const rand = seededRandom(`${board.id}:${board.title}:${rows}x${cols}`)
+  const between = (lo: number, hi: number) => lo + rand() * (hi - lo)
   const edgeFlames = (edge: 0 | 100) => {
     const out: string[] = []
-    for (let k = 0; k < tongues; k++) {
-      const x = ((k + 0.5) / tongues) * 100
-      const idx = (k + (edge === 0 ? 0 : 3)) % hues.length
-      out.push(flame(shade(hues[idx]), x, edge, 100 / tongues + 20, heights[idx], 0.8))
+    const n = 9 + Math.floor(rand() * 4)
+    for (let k = 0; k < n; k++) {
+      out.push(flame(shade(between(-24, 24), between(-0.08, 0.1)), between(-4, 104), edge, between(14, 40), between(14, 44), between(0.2, 0.46)))
     }
-    out.push(flame(shade(0, 0.22), 50, edge, 72, 8, 0.55))
+    // a few tall, thin licks of flame
+    for (let k = 0; k < 3; k++) {
+      out.push(flame(shade(between(-14, 18), between(0, 0.14)), between(6, 94), edge, between(7, 13), between(38, 56), between(0.18, 0.32)))
+    }
+    // and a faint, even glow along the edge itself
+    out.push(flame(shade(0, 0.1), 50, edge, 96, 9, 0.14))
     return out
   }
   const glow = [...edgeFlames(0), ...edgeFlames(100)].join(', ')
