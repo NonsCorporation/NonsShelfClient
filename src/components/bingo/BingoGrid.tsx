@@ -56,18 +56,15 @@ type CellProps = {
   emptyLabel: string
 }
 
-/** Prompts longer than this don't fit a two-line caption, so they go onto the cover instead. */
-const LONG_PROMPT = 24
-
 /**
- * Prompt boards: the player's answer as a book cover, with the prompt as a quiet
- * caption underneath. A long prompt moves onto the cover (darkened so it reads).
+ * Prompt boards: the prompt sits in the middle of the cover (darkened so it reads),
+ * and under the cover go the title of the book the player picked and its author.
  */
 const PromptCell = memo(function PromptCell({ i, cell, art, free, won, interactive, freeLabel, emptyLabel }: CellProps) {
   const promptText = free ? freeLabel : cell?.title ?? ''
-  const long = !free && promptText.length > LONG_PROMPT
   const label = free ? freeLabel : `${cell?.title ?? ''}${art ? ` — ${art.title}` : ''}` || emptyLabel
   const ring = won ? 'ring-2 ring-nonspremium' : ''
+  const promptClass = 'line-clamp-6 text-[9px] font-semibold leading-tight text-white sm:text-[11px]'
   return (
     <div
       data-i={i}
@@ -75,7 +72,7 @@ const PromptCell = memo(function PromptCell({ i, cell, art, free, won, interacti
       tabIndex={interactive ? 0 : undefined}
       aria-label={interactive ? label : undefined}
       title={label}
-      className={`group flex min-w-0 flex-col gap-1 text-left ${
+      className={`group flex min-w-0 flex-col gap-1.5 text-left ${
         interactive ? 'cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-nonsprimary' : ''
       }`}
     >
@@ -89,37 +86,32 @@ const PromptCell = memo(function PromptCell({ i, cell, art, free, won, interacti
             <IoStar className="h-4 w-4 opacity-80" />
           </span>
         ) : art ? (
-          art.coverUrl ? (
-            <>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
+          <>
+            {art.coverUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
               <img src={art.coverUrl} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover" />
-              {long && (
-                <span className="absolute inset-0 flex items-center justify-center bg-black/65 p-1.5 pt-6 text-center">
-                  <span className="line-clamp-6 text-[9px] font-medium leading-tight text-white sm:text-[11px]">{promptText}</span>
-                </span>
-              )}
-              {/* The book's title sits along the top, on a soft dark fade so the cover stays visible. */}
-              <span className="absolute inset-x-0 top-0 line-clamp-2 bg-gradient-to-b from-black/80 to-transparent px-1.5 pb-3 pt-1 text-[8px] font-semibold leading-tight text-white sm:text-[10px]">
-                {art.title}
-              </span>
-            </>
-          ) : (
-            // No cover (a typed answer): the answer itself stands in for it.
-            <span className="absolute inset-0 flex flex-col items-center justify-center gap-1 p-1.5 text-center" style={{ background: tileBackground(art.title) }}>
-              {long && <span className="line-clamp-3 text-[8px] leading-tight text-white/75 sm:text-[10px]">{promptText}</span>}
-              <span className={`text-[9px] font-semibold leading-tight text-white sm:text-[11px] ${long ? 'line-clamp-3' : 'line-clamp-5'}`} style={{ textShadow: '0 1px 2px rgba(0,0,0,.5)' }}>
-                {art.title}
+            ) : (
+              <span className="absolute inset-0" style={{ background: tileBackground(art.title) }} />
+            )}
+            <span className={`absolute inset-0 flex items-center justify-center p-1.5 text-center ${art.coverUrl ? 'bg-black/60' : ''}`}>
+              <span className={promptClass} style={{ textShadow: '0 1px 2px rgba(0,0,0,.6)' }}>
+                {promptText}
               </span>
             </span>
-          )
+          </>
         ) : (
-          <span className="flex h-full w-full flex-col items-center justify-center gap-1 rounded-md border border-dashed border-[var(--border)] bg-[var(--surface)] p-1.5 text-center text-[var(--text-muted)]">
-            {long && <span className="line-clamp-6 text-[9px] leading-tight text-[var(--text)] sm:text-[11px]">{promptText}</span>}
-            <IoAdd className="h-4 w-4 flex-shrink-0 opacity-60" />
+          <span className="flex h-full w-full flex-col items-center justify-center gap-1 rounded-md border border-dashed border-[var(--border)] bg-[var(--surface)] p-1.5 text-center">
+            <span className="line-clamp-6 text-[9px] font-medium leading-tight text-[var(--text)] sm:text-[11px]">{promptText}</span>
+            <IoAdd className="h-3.5 w-3.5 flex-shrink-0 text-[var(--text-muted)] opacity-60" />
           </span>
         )}
       </div>
-      {!long && <span className="line-clamp-2 px-0.5 text-[9px] leading-tight text-[var(--text-muted)] sm:text-[10px]">{promptText}</span>}
+      {art && !free && (
+        <div className="min-w-0 px-0.5">
+          <p className="line-clamp-2 text-[9px] font-semibold leading-tight text-[var(--text)] sm:text-[11px]">{art.title}</p>
+          {art.credit && <p className="mt-0.5 line-clamp-1 text-[8px] leading-tight text-[var(--text-muted)] sm:text-[10px]">{art.credit}</p>}
+        </div>
+      )}
     </div>
   )
 })

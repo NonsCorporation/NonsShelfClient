@@ -37,7 +37,7 @@ const AREA_W = CARD_W - CARD_PAD * 2
 const AREA_H = 500
 // Cover shape (height / width) and caption height on prompt boards.
 const COVER_RATIO = 1.3
-const CAPTION_H = 22
+const CAPTION_H = 32
 // Above this many squares the board is drawn as a pixel mosaic instead of DOM nodes.
 const MOSAIC_OVER = 400
 
@@ -271,23 +271,19 @@ export default function BingoShareModal({ board, mask, answers, link, embedded, 
   }
   const font = Math.min(11, Math.max(5.5, cell * 0.13))
 
-  // Prompt boards: the answer's cover, with the prompt as a muted caption underneath. A prompt too
-  // long for the caption moves onto the cover instead, over a dark overlay so it stays readable.
-  const capFont = Math.max(6.5, Math.min(9, cell * 0.17))
-  const overFont = Math.max(6, Math.min(9.5, cell * 0.16))
-  const titleFont = Math.max(6, Math.min(8.5, cell * 0.14))
-  const overLines = Math.max(3, Math.floor((coverH - 8) / (overFont * 1.15)))
-  const perLine = Math.max(4, Math.floor(cell / (capFont * 0.56)))
+  // Prompt boards: the prompt in the middle of the (darkened) cover, and under it the book's title and author.
+  const promptFont = Math.max(6, Math.min(9.5, cell * 0.16))
+  const promptLines = Math.max(3, Math.floor((coverH - 8) / (promptFont * 1.15)))
+  const nameFont = Math.max(6.5, Math.min(8.5, cell * 0.15))
   const renderPortraitCell = (i: number) => {
     const cellData = board.cells[i]
     const art = answers?.[i] ?? null
     const free = i === centre
     const text = free ? t('bingoFree') : cellData?.title ?? ''
-    const long = !free && text.length > perLine * 2
     const data = art?.coverUrl ? covers[art.coverUrl] : null
-    const centred: React.CSSProperties = { position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3, padding: 3, textAlign: 'center' }
+    const centred: React.CSSProperties = { position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 4, textAlign: 'center' }
     return (
-      <div key={i} style={{ width: cell, display: 'flex', flexDirection: 'column', gap: 3 }}>
+      <div key={i} style={{ width: cell, display: 'flex', flexDirection: 'column', gap: 4 }}>
         <div
           style={{
             ...cellBox(i, coverH),
@@ -300,47 +296,29 @@ export default function BingoShareModal({ board, mask, answers, link, embedded, 
           }}
         >
           {free && <span style={{ fontSize: Math.max(8, cell * 0.3), lineHeight: 1, color: '#c9caf0' }}>★</span>}
-          {art &&
-            (data ? (
-              <>
-                {artBackground(art)}
-                {long && (
-                  <div style={{ ...centred, paddingTop: titleFont * 2.6, background: 'rgba(0,0,0,0.66)' }}>
-                    <span style={{ fontSize: overFont, lineHeight: 1.15, fontWeight: 600, color: '#fff', ...clamp(Math.max(2, overLines - 2)) }}>{text}</span>
-                  </div>
-                )}
-                {/* The book's title along the top, on a soft dark fade. */}
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    padding: `3px 3px ${Math.round(titleFont * 1.2)}px`,
-                    background: 'linear-gradient(to bottom, rgba(0,0,0,0.82), rgba(0,0,0,0))',
-                    fontSize: titleFont,
-                    lineHeight: 1.15,
-                    fontWeight: 600,
-                    color: '#fff',
-                    ...clamp(2),
-                  }}
-                >
-                  {art.title}
-                </div>
-              </>
-            ) : (
-              <div style={{ ...centred, background: `linear-gradient(135deg, hsl(${hashHue(art.title)} 52% 40%), hsl(${(hashHue(art.title) + 32) % 360} 55% 27%))` }}>
-                {long && <span style={{ fontSize: overFont * 0.85, lineHeight: 1.15, color: 'rgba(255,255,255,0.75)', ...clamp(Math.max(2, Math.floor(overLines / 2))) }}>{text}</span>}
-                <span style={{ fontSize: font, lineHeight: 1.15, fontWeight: 600, color: '#fff', ...clamp(long ? Math.max(2, Math.floor(overLines / 2)) : 5) }}>{art.title}</span>
+          {art && (
+            <>
+              {artBackground(art)}
+              {data && <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.62)' }} />}
+              <div style={centred}>
+                <span style={{ fontSize: promptFont, lineHeight: 1.15, fontWeight: 600, color: '#fff', textShadow: '0 1px 2px rgba(0,0,0,0.7)', ...clamp(promptLines) }}>{text}</span>
               </div>
-            ))}
-          {!art && !free && long && (
+            </>
+          )}
+          {!art && !free && (
             <div style={centred}>
-              <span style={{ fontSize: overFont, lineHeight: 1.15, color: '#d4d4d8', ...clamp(overLines) }}>{text}</span>
+              <span style={{ fontSize: promptFont, lineHeight: 1.15, color: '#d4d4d8', ...clamp(promptLines) }}>{text}</span>
             </div>
           )}
         </div>
-        <div style={{ height: CAPTION_H - 3, fontSize: capFont, lineHeight: 1.15, color: MUTED, ...clamp(2) }}>{long ? '' : text}</div>
+        <div style={{ height: CAPTION_H - 4, overflow: 'hidden' }}>
+          {art && !free && (
+            <>
+              <div style={{ fontSize: nameFont, lineHeight: 1.15, fontWeight: 600, color: '#f4f4f5', ...clamp(2) }}>{art.title}</div>
+              {art.credit && <div style={{ marginTop: 1, fontSize: nameFont * 0.88, lineHeight: 1.15, color: MUTED, ...clamp(1) }}>{art.credit}</div>}
+            </>
+          )}
+        </div>
       </div>
     )
   }
