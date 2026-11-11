@@ -17,6 +17,7 @@ import {
   IoInformationCircleOutline,
   IoPencilOutline,
   IoChatbubblesOutline,
+  IoPawOutline,
 } from 'react-icons/io5'
 import type { IconType } from 'react-icons'
 import { HiOutlineLibrary } from 'react-icons/hi'
@@ -161,6 +162,16 @@ export default function Header() {
 
           {/* Right cluster */}
           <div className="ml-auto flex items-center gap-2">
+            {isAuthenticated && (
+              <Link
+                to="/pet"
+                aria-label={t('pet')}
+                title={t('pet')}
+                className={`hidden h-9 w-9 items-center justify-center rounded-full transition-colors hover:bg-[var(--surface)] hover:text-[var(--text)] lg:flex ${path === '/pet' ? 'bg-[var(--surface-active)] text-[var(--text)]' : 'text-[var(--text-muted)]'}`}
+              >
+                <IoPawOutline className="h-[19px] w-[19px]" />
+              </Link>
+            )}
             {isAuthenticated && (
               <Link
                 to="/messages"
@@ -373,6 +384,14 @@ export default function Header() {
                         {t('editProfile')}
                       </Link>
                     )}
+                    <Link
+                      to="/pet"
+                      onClick={() => setProfileOpen(false)}
+                      className={`flex w-full items-center gap-3 px-4 py-3 text-sm transition-colors hover:bg-[var(--surface)] hover:text-[var(--text)] ${path === '/pet' ? 'text-[var(--text)]' : 'text-[var(--text-muted)]'}`}
+                    >
+                      <IoPawOutline className="h-[18px] w-[18px]" />
+                      {t('pet')}
+                    </Link>
                     <Link
                       to="/messages"
                       onClick={() => setProfileOpen(false)}
