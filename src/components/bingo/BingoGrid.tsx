@@ -72,7 +72,7 @@ const PromptCell = memo(function PromptCell({ i, cell, art, free, won, interacti
       tabIndex={interactive ? 0 : undefined}
       aria-label={interactive ? label : undefined}
       title={label}
-      className={`group flex min-w-0 flex-col gap-1.5 text-left ${
+      className={`group flex min-w-0 flex-col gap-2 text-left ${
         interactive ? 'cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-nonsprimary' : ''
       }`}
     >
@@ -234,7 +234,7 @@ export default function BingoGrid({
   const prompt = kind === 'prompt' && !editing
   // Past ~12 squares a side there is no room for text, and past 40 even gaps go.
   const dense = !mini && (cols > 12 || rows > 12)
-  const gap = cols > 40 ? 'gap-0' : cols > 12 || mini ? 'gap-px' : prompt ? 'gap-x-2 gap-y-2.5 sm:gap-x-3' : 'gap-1.5 sm:gap-2'
+  const gap = cols > 40 ? 'gap-0' : cols > 12 || mini ? 'gap-px' : prompt ? 'gap-2' : 'gap-1.5 sm:gap-2'
   const centre = freeCenter ? centerIndex(rows, cols) : null
   const freeLabel = t('bingoFree')
   const emptyLabel = t('bingoEmptySquare')

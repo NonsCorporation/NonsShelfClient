@@ -38,6 +38,7 @@ const AREA_W = CARD_W - CARD_PAD_X * 2
 const AREA_H = 556
 // Cover shape (height / width) and caption height on prompt boards.
 const COVER_RATIO = 1.25
+const GAP = 6
 // Above this many squares the board is drawn as a pixel mosaic instead of DOM nodes.
 const MOSAIC_OVER = 400
 
@@ -63,7 +64,9 @@ function corsCover(url: string): string {
   return `https://images.weserv.nl/?url=${encodeURIComponent('ssl:' + url.replace(/^https?:\/\//i, ''))}`
 }
 
-function loadCover(url: string): Promise<string | null> {
+type CoverInfo = { data: string; color: [number, number, number] }
+
+function loadCover(url: string): Promise<CoverInfo | null> {
   return new Promise((resolve) => {
     const img = new Image()
     img.crossOrigin = 'anonymous'
@@ -77,7 +80,23 @@ function loadCover(url: string): Promise<string | null> {
         const ctx = canvas.getContext('2d')
         if (!ctx) return resolve(null)
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
-        resolve(canvas.toDataURL('image/jpeg', 0.85))
+        // The cover's vibrant colour: every pixel weighted by how saturated and bright it is.
+        const px = ctx.getImageData(0, 0, canvas.width, canvas.height).data
+        let r = 0
+        let g = 0
+        let b = 0
+        let sum = 0
+        for (let i = 0; i < px.length; i += 4) {
+          if (px[i + 3] < 128) continue
+          const max = Math.max(px[i], px[i + 1], px[i + 2])
+          const min = Math.min(px[i], px[i + 1], px[i + 2])
+          const w = ((max === 0 ? 0 : (max - min) / max) * (max / 255)) ** 2 + 0.002
+          r += px[i] * w
+          g += px[i + 1] * w
+          b += px[i + 2] * w
+          sum += w
+        }
+        resolve({ data: canvas.toDataURL('image/jpeg', 0.85), color: [Math.round(r / sum), Math.round(g / sum), Math.round(b / sum)] })
       } catch {
         resolve(null)
       }
@@ -142,6 +161,13 @@ function fitText(text: string, w: number, h: number, max = 20, min = 9, maxLines
   return { font: min, lines: maxLines }
 }
 
+function hslToRgb(h: number, s: number, l: number): [number, number, number] {
+  const k = (n: number) => (n + h / 30) % 12
+  const a = s * Math.min(l, 1 - l)
+  const f = (n: number) => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)))
+  return [Math.round(f(0) * 255), Math.round(f(8) * 255), Math.round(f(4) * 255)]
+}
+
 export default function BingoShareModal({ board, mask, answers, link, embedded, winning, onClose }: Props) {
   const { t } = useLanguage()
   const cardRef = useRef<HTMLDivElement>(null)
@@ -152,8 +178,8 @@ export default function BingoShareModal({ board, mask, answers, link, embedded, 
 
   // Board geometry: square cells sized to fit the box, with tighter gaps on bigger boards.
   const mosaic = total > MOSAIC_OVER
-  // One constant gap, the same across and down.
-  const gap = Math.max(rows, cols) <= 10 ? 8 : Math.max(rows, cols) <= 25 ? 2 : Math.max(rows, cols) <= 50 ? 1 : 0
+  // One constant gap, used everywhere: between columns, between rows, and between a cover and its caption.
+  const gap = Math.max(rows, cols) <= 10 ? GAP : Math.max(rows, cols) <= 25 ? 2 : Math.max(rows, cols) <= 50 ? 1 : 0
   const gapY = gap
   // Prompt boards show each answer as a cover with its prompt as a caption below, as long as that
   // still leaves covers wide enough to read; bigger boards fall back to plain squares.
@@ -172,7 +198,7 @@ export default function BingoShareModal({ board, mask, answers, link, embedded, 
       const titleLines = Math.min(3, countLines(a.title.split(/\s+/).filter(Boolean), perLine))
       need = Math.max(need, titleLines * f * 1.15 + (a.credit ? 1 + f * 0.9 * 1.15 : 0))
     }
-    return need > 0 ? Math.ceil(need) + 4 : 0 // + the gap between cover and caption
+    return need > 0 ? Math.ceil(need) + gap : 0 // + the gap between cover and caption
   }
   const portraitFit = (() => {
     if (!prompt || mosaic) return null
@@ -209,6 +235,7 @@ export default function BingoShareModal({ board, mask, answers, link, embedded, 
   const coverKey = coverUrls.join('|')
 
   const [covers, setCovers] = useState<Record<string, string | null>>({})
+  const [coverColors, setCoverColors] = useState<Record<string, [number, number, number] | null>>({})
   const [coversReady, setCoversReady] = useState(coverUrls.length === 0)
   const [imgUrl, setImgUrl] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -236,7 +263,8 @@ export default function BingoShareModal({ board, mask, answers, link, embedded, 
     if (urls.length === 0) return
     Promise.all(urls.map(async (u) => [u, await loadCover(u)] as const)).then((pairs) => {
       if (cancelled) return
-      setCovers(Object.fromEntries(pairs))
+      setCovers(Object.fromEntries(pairs.map(([u, r]) => [u, r?.data ?? null])))
+      setCoverColors(Object.fromEntries(pairs.map(([u, r]) => [u, r?.color ?? null])))
       setCoversReady(true)
     })
     return () => {
@@ -361,7 +389,7 @@ export default function BingoShareModal({ board, mask, answers, link, embedded, 
     const data = art?.coverUrl ? covers[art.coverUrl] : null
     const centred: React.CSSProperties = { position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 4, textAlign: 'center' }
     return (
-      <div key={i} style={{ width: cell, display: 'flex', flexDirection: 'column', gap: 4 }}>
+      <div key={i} style={{ width: cell, display: 'flex', flexDirection: 'column', gap }}>
         <div
           style={{
             ...cellBox(i, coverH),
@@ -389,7 +417,7 @@ export default function BingoShareModal({ board, mask, answers, link, embedded, 
             </div>
           )}
         </div>
-        <div style={{ height: Math.max(0, (rowCap[Math.floor(i / cols)] ?? 4) - 4), overflow: 'hidden' }}>
+        <div style={{ height: Math.max(0, (rowCap[Math.floor(i / cols)] ?? gap) - gap), overflow: 'hidden' }}>
           {art && !free && (
             <>
               <div style={{ fontSize: nameFont, lineHeight: 1.15, fontWeight: 600, color: '#f4f4f5', ...clamp(3) }}>{art.title}</div>
@@ -444,6 +472,37 @@ export default function BingoShareModal({ board, mask, answers, link, embedded, 
     )
   }
 
+  // The card's background: one colour per row of the board (its covers' colours, or the tile colours
+  // when there is no cover), blended top row to bottom row. Big boards are grouped into a few bands.
+  const rgbAt = (i: number): [number, number, number] | null => {
+    const art = prompt ? answers?.[i] : board.cells[i]
+    if (!art) return null
+    return (art.coverUrl && coverColors[art.coverUrl]) || hslToRgb(hashHue(art.title), 0.52, 0.4)
+  }
+  const bands = Math.min(rows, 8)
+  const bandColours = Array.from({ length: bands }, (_, b) => {
+    const from = Math.floor((b * rows) / bands)
+    const to = Math.floor(((b + 1) * rows) / bands)
+    let r = 0
+    let g = 0
+    let bl = 0
+    let n = 0
+    for (let row = from; row < to; row++)
+      for (let col = 0; col < cols; col++) {
+        const c = rgbAt(row * cols + col)
+        if (c) {
+          r += c[0]
+          g += c[1]
+          bl += c[2]
+          n++
+        }
+      }
+    return n ? [Math.round(r / n), Math.round(g / n), Math.round(bl / n)] : [103, 104, 171]
+  })
+  const backdrop = `linear-gradient(to bottom, ${bandColours
+    .map((c, b) => `rgba(${c[0]},${c[1]},${c[2]},0.36) ${bands === 1 ? 50 : Math.round(8 + (b * 84) / (bands - 1))}%`)
+    .join(', ')})`
+
   const meta = [
     board.author ? t('bingoBy', { name: board.author }) : '',
     prompt ? t('bingoFilledCount', { count: done, total }) : t('bingoProgress', { count: done, total }),
@@ -458,7 +517,7 @@ export default function BingoShareModal({ board, mask, answers, link, embedded, 
       style={{
         width: CARD_W,
         height: CARD_H,
-        background: `radial-gradient(circle at 50% 0%, rgba(103,104,171,0.34), transparent 55%), ${BG}`,
+        background: `${backdrop}, ${BG}`,
         color: INK,
         padding: `${CARD_PAD_Y}px ${CARD_PAD_X}px`,
         display: 'flex',
