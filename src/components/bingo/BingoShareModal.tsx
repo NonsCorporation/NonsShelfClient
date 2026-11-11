@@ -22,9 +22,8 @@ import { useLanguage } from '@/contexts/LanguageContext'
 
 // Fixed dark palette so the exported image looks the same whatever theme the
 // app is in — same convention as ProfileShareModal / ShareModal.
-const BG = '#000000'
+const BG = '#050507'
 const INK = '#ffffff'
-const MUTED = '#9ca3af'
 const PRIMARY = '#6768ab'
 const GOLD = '#f5a623'
 
@@ -159,6 +158,21 @@ function fitText(text: string, w: number, h: number, max = 20, min = 9, maxLines
     if (lines <= maxLines) return { font: f, lines }
   }
   return { font: min, lines: maxLines }
+}
+
+function rgbToHsl([r, g, b]: [number, number, number]): [number, number, number] {
+  const mx = Math.max(r, g, b) / 255
+  const mn = Math.min(r, g, b) / 255
+  const l = (mx + mn) / 2
+  const d = mx - mn
+  let h = 0
+  if (d > 0) {
+    if (mx === r / 255) h = ((g - b) / 255 / d + (g < b ? 6 : 0)) * 60
+    else if (mx === g / 255) h = ((b - r) / 255 / d + 2) * 60
+    else h = ((r - g) / 255 / d + 4) * 60
+  }
+  const sat = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1))
+  return [h, sat, l]
 }
 
 function hslToRgb(h: number, s: number, l: number): [number, number, number] {
@@ -419,11 +433,11 @@ export default function BingoShareModal({ board, mask, answers, link, embedded, 
             </div>
           )}
         </div>
-        <div style={{ height: Math.max(0, (rowCap[Math.floor(i / cols)] ?? gap) - gap), overflow: 'hidden' }}>
+        <div style={{ height: Math.max(0, (rowCap[Math.floor(i / cols)] ?? gap) - gap), overflow: 'hidden', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
           {art && !free && (
             <>
-              <div style={{ fontSize: nameFont, lineHeight: 1.15, fontWeight: 600, color: '#f4f4f5', ...clamp(3) }}>{art.title}</div>
-              {art.credit && <div style={{ marginTop: 1, fontSize: nameFont * 0.9, lineHeight: 1.15, color: MUTED, ...clamp(1) }}>{art.credit}</div>}
+              <div style={{ fontSize: nameFont, lineHeight: 1.15, fontWeight: 600, color: '#f4f4f5', textShadow: '0 1px 3px rgba(0,0,0,0.85)', ...clamp(3) }}>{art.title}</div>
+              {art.credit && <div style={{ marginTop: 1, fontSize: nameFont * 0.9, lineHeight: 1.15, color: '#cfd2d8', textShadow: '0 1px 3px rgba(0,0,0,0.85)', ...clamp(1) }}>{art.credit}</div>}
             </>
           )}
         </div>
@@ -502,8 +516,51 @@ export default function BingoShareModal({ board, mask, answers, link, embedded, 
     return n ? [Math.round(r / n), Math.round(g / n), Math.round(bl / n)] : [103, 104, 171]
   })
   const backdrop = `linear-gradient(to bottom, ${bandColours
-    .map((c, b) => `rgba(${c[0]},${c[1]},${c[2]},0.36) ${bands === 1 ? 50 : Math.round(8 + (b * 84) / (bands - 1))}%`)
+    .map((c, b) => `rgba(${c[0]},${c[1]},${c[2]},0.12) ${bands === 1 ? 50 : Math.round(8 + (b * 84) / (bands - 1))}%`)
     .join(', ')})`
+
+  // Fire-like glows rising from the top and bottom edges, in one accent colour taken from the covers.
+  const flame = (c: [number, number, number], x: number, edge: 0 | 100, w: number, h: number, a: number) =>
+    `radial-gradient(ellipse ${w}% ${h}% at ${x}% ${edge}%, rgba(${c[0]},${c[1]},${c[2]},${a}) 0%, rgba(${c[0]},${c[1]},${c[2]},${(a * 0.45).toFixed(2)}) 42%, rgba(${c[0]},${c[1]},${c[2]},0) 76%)`
+  // The board's accent: the most common vivid hue among its covers (weighted by how saturated they are).
+  const accent = ((): [number, number, number] => {
+    const bins = Array.from({ length: 12 }, () => ({ w: 0, r: 0, g: 0, b: 0 }))
+    for (let i = 0; i < total; i++) {
+      const c = rgbAt(i)
+      if (!c) continue
+      const [h, sat, l] = rgbToHsl(c)
+      const w = sat * (1 - Math.abs(2 * l - 1)) + 0.02
+      const bin = bins[Math.floor(h / 30) % 12]
+      bin.w += w
+      bin.r += c[0] * w
+      bin.g += c[1] * w
+      bin.b += c[2] * w
+    }
+    const best = bins.reduce((a, b) => (b.w > a.w ? b : a))
+    if (best.w <= 0.03) return [103, 104, 171]
+    const [h, sat] = rgbToHsl([best.r / best.w, best.g / best.w, best.b / best.w])
+    return hslToRgb(h, Math.min(1, Math.max(0.8, sat)), 0.55)
+  })()
+  const shade = (dh: number, dl = 0) => {
+    const [h, sat, l] = rgbToHsl(accent)
+    return hslToRgb((h + dh + 360) % 360, sat, Math.min(0.85, Math.max(0.3, l + dl)))
+  }
+  // Flame tongues along an edge: shades of the accent, slightly shifted in hue and height so the edge looks
+  // lit rather than striped, with a lighter, hotter core along the very edge.
+  const tongues = Math.max(4, Math.min(cols + 1, 6))
+  const hues = [-16, 0, 12, -8, 16, 4]
+  const heights = [26, 34, 24, 36, 28, 32]
+  const edgeFlames = (edge: 0 | 100) => {
+    const out: string[] = []
+    for (let k = 0; k < tongues; k++) {
+      const x = ((k + 0.5) / tongues) * 100
+      const idx = (k + (edge === 0 ? 0 : 3)) % hues.length
+      out.push(flame(shade(hues[idx]), x, edge, 100 / tongues + 20, heights[idx], 0.8))
+    }
+    out.push(flame(shade(0, 0.22), 50, edge, 72, 8, 0.55))
+    return out
+  }
+  const glow = [...edgeFlames(0), ...edgeFlames(100)].join(', ')
 
   const meta = [
     board.author ? t('bingoBy', { name: board.author }) : '',
@@ -519,7 +576,7 @@ export default function BingoShareModal({ board, mask, answers, link, embedded, 
       style={{
         width: CARD_W,
         height: CARD_H,
-        background: `${backdrop}, ${BG}`,
+        background: `${glow}, ${backdrop}, ${BG}`,
         color: INK,
         padding: `${CARD_PAD_Y}px ${CARD_PAD_X}px`,
         display: 'flex',
@@ -540,7 +597,7 @@ export default function BingoShareModal({ board, mask, answers, link, embedded, 
       {!titleInCentre && (
         <p style={{ margin: '8px 0 0', fontSize: 16, fontWeight: 700, lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{board.title}</p>
       )}
-      <p style={{ margin: '4px 0 0', fontSize: 10, color: MUTED, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{meta}</p>
+      <p style={{ margin: '4px 0 0', fontSize: 10, color: '#d4d4d8', textShadow: '0 1px 3px rgba(0,0,0,0.85)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{meta}</p>
 
       {/* board: takes all the room that is left */}
       <div style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4px 0' }}>
@@ -558,7 +615,7 @@ export default function BingoShareModal({ board, mask, answers, link, embedded, 
         )}
       </div>
 
-      <p style={{ margin: 0, textAlign: 'center', fontSize: 9.5, color: MUTED, letterSpacing: '0.04em' }}>
+      <p style={{ margin: 0, textAlign: 'center', fontSize: 9.5, color: '#e5e7eb', letterSpacing: '0.04em', textShadow: '0 1px 3px rgba(0,0,0,0.9)' }}>
         {t('bingoCardMade')} · <span style={{ color: '#c9caf0', fontWeight: 600 }}>someshelf.com</span>
       </p>
     </div>
