@@ -56,6 +56,57 @@ type CellProps = {
   emptyLabel: string
 }
 
+/**
+ * Prompt boards: the player's answer as a book cover, with the prompt as a quiet
+ * caption underneath. Nothing is laid over the cover.
+ */
+const PromptCell = memo(function PromptCell({ i, cell, art, free, won, interactive, freeLabel, emptyLabel }: CellProps) {
+  const caption = free ? freeLabel : cell?.title ?? ''
+  const label = free ? freeLabel : `${cell?.title ?? ''}${art ? ` — ${art.title}` : ''}` || emptyLabel
+  const ring = won ? 'ring-2 ring-nonspremium' : ''
+  return (
+    <div
+      data-i={i}
+      role={interactive ? 'button' : undefined}
+      tabIndex={interactive ? 0 : undefined}
+      aria-label={interactive ? label : undefined}
+      title={label}
+      className={`group flex min-w-0 flex-col gap-1 text-left ${
+        interactive ? 'cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-nonsprimary' : ''
+      }`}
+    >
+      <div
+        className={`relative aspect-[2/3] overflow-hidden rounded-md ${ring} ${
+          interactive ? 'transition-transform group-hover:scale-[1.03] group-active:scale-95' : ''
+        }`}
+      >
+        {free ? (
+          <span className="flex h-full w-full items-center justify-center bg-[var(--primary-soft)] text-nonsprimary">
+            <IoStar className="h-4 w-4 opacity-80" />
+          </span>
+        ) : art ? (
+          art.coverUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={art.coverUrl} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover" />
+          ) : (
+            // No cover (a typed answer): the answer itself stands in for it.
+            <span className="absolute inset-0 flex items-center justify-center p-1.5 text-center" style={{ background: tileBackground(art.title) }}>
+              <span className="line-clamp-5 text-[9px] font-semibold leading-tight text-white sm:text-[11px]" style={{ textShadow: '0 1px 2px rgba(0,0,0,.5)' }}>
+                {art.title}
+              </span>
+            </span>
+          )
+        ) : (
+          <span className="flex h-full w-full items-center justify-center rounded-md border border-dashed border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] opacity-70">
+            <IoAdd className="h-4 w-4" />
+          </span>
+        )}
+      </div>
+      <span className="line-clamp-2 px-0.5 text-[9px] leading-tight text-[var(--text-muted)] sm:text-[10px]">{caption}</span>
+    </div>
+  )
+})
+
 const Cell = memo(function Cell({ i, cell, art, free, done, won, selected, prompt, mini, dense, editing, interactive, freeLabel, emptyLabel }: CellProps) {
   const small = mini || dense
   const radius = dense ? 'rounded-[2px]' : mini ? 'rounded-[3px]' : 'rounded-lg sm:rounded-xl'
@@ -155,6 +206,10 @@ const Cell = memo(function Cell({ i, cell, art, free, done, won, selected, promp
   )
 })
 
+function CellView(props: CellProps) {
+  return props.prompt && !props.mini && !props.dense ? <PromptCell {...props} /> : <Cell {...props} />
+}
+
 export default function BingoGrid({
   rows,
   cols,
@@ -174,7 +229,7 @@ export default function BingoGrid({
   const prompt = kind === 'prompt' && !editing
   // Past ~12 squares a side there is no room for text, and past 40 even gaps go.
   const dense = !mini && (cols > 12 || rows > 12)
-  const gap = cols > 40 ? 'gap-0' : cols > 12 || mini ? 'gap-px' : 'gap-1.5 sm:gap-2'
+  const gap = cols > 40 ? 'gap-0' : cols > 12 || mini ? 'gap-px' : prompt ? 'gap-x-2 gap-y-2.5 sm:gap-x-3' : 'gap-1.5 sm:gap-2'
   const centre = freeCenter ? centerIndex(rows, cols) : null
   const freeLabel = t('bingoFree')
   const emptyLabel = t('bingoEmptySquare')
@@ -204,7 +259,7 @@ export default function BingoGrid({
       {Array.from({ length: rows * cols }, (_, i) => {
         const cell = cells[i] ?? null
         return (
-          <Cell
+          <CellView
             key={i}
             i={i}
             cell={cell}

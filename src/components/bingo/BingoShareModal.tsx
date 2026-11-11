@@ -36,6 +36,11 @@ const CARD_H = 640
 // The board gets a box this big, whatever its shape.
 const AREA_W = 316
 const AREA_H = 330
+// Prompt boards show a caption under every cover, so they get a taller box.
+const AREA_H_PROMPT = 372
+// Cover shape (height / width) and caption height on prompt boards.
+const COVER_RATIO = 1.35
+const CAPTION_H = 15
 // Above this many squares the board is drawn as a pixel mosaic instead of DOM nodes.
 const MOSAIC_OVER = 400
 
@@ -112,8 +117,19 @@ export default function BingoShareModal({ board, mask, answers, link, embedded, 
   // Board geometry: square cells sized to fit the box, with tighter gaps on bigger boards.
   const mosaic = total > MOSAIC_OVER
   const gap = Math.max(rows, cols) <= 10 ? 4 : Math.max(rows, cols) <= 25 ? 2 : Math.max(rows, cols) <= 50 ? 1 : 0
-  const cell = Math.max(1, Math.floor(Math.min((AREA_W - (cols - 1) * gap) / cols, (AREA_H - (rows - 1) * gap) / rows)))
-  const roomy = !mosaic && cell >= 30 // enough room for titles and covers
+  // Prompt boards (up to 10 a side) show each answer as a cover with its prompt as a caption below.
+  const portrait = prompt && Math.max(rows, cols) <= 10
+  const areaH = portrait ? AREA_H_PROMPT : AREA_H
+  const cell = Math.max(
+    1,
+    Math.floor(
+      portrait
+        ? Math.min((AREA_W - (cols - 1) * gap) / cols, (areaH - rows * CAPTION_H - (rows - 1) * gap) / (rows * COVER_RATIO))
+        : Math.min((AREA_W - (cols - 1) * gap) / cols, (areaH - (rows - 1) * gap) / rows),
+    ),
+  )
+  const coverH = portrait ? Math.round(cell * COVER_RATIO) : cell
+  const roomy = !mosaic && cell >= (portrait ? 24 : 30) // enough room for titles and covers
 
   const mosaicSrc = useMemo(
     () =>
@@ -122,7 +138,7 @@ export default function BingoShareModal({ board, mask, answers, link, embedded, 
         : '',
     [mosaic, rows, cols, board.cells, board.kind, board.freeCenter, mask, answers, winning],
   )
-  const mosaicScale = Math.min(AREA_W / cols, AREA_H / rows)
+  const mosaicScale = Math.min(AREA_W / cols, areaH / rows)
 
   // Every cover that can appear on the card (only when squares are big enough to show them).
   const coverUrls = roomy
@@ -248,10 +264,10 @@ export default function BingoShareModal({ board, mask, answers, link, embedded, 
 
   // ── the card (inline styles only, so the capture is theme-proof) ──
   const radius = cell >= 30 ? 7 : cell >= 16 ? 3 : 1
-  const cellBox = (i: number): React.CSSProperties => ({
+  const cellBox = (i: number, height = cell): React.CSSProperties => ({
     position: 'relative',
     width: cell,
-    height: cell,
+    height,
     borderRadius: radius,
     overflow: 'hidden',
     boxSizing: 'border-box',
@@ -271,7 +287,51 @@ export default function BingoShareModal({ board, mask, answers, link, embedded, 
   }
   const font = Math.min(9, Math.max(5.5, cell * 0.125))
 
+  // Prompt boards: the answer's cover, with the prompt as a muted caption underneath.
+  const renderPortraitCell = (i: number) => {
+    const cellData = board.cells[i]
+    const art = answers?.[i] ?? null
+    const free = i === centre
+    const caption = free ? t('bingoFree') : cellData?.title ?? ''
+    const data = art?.coverUrl ? covers[art.coverUrl] : null
+    return (
+      <div key={i} style={{ width: cell, display: 'flex', flexDirection: 'column', gap: 3 }}>
+        <div
+          style={{
+            ...cellBox(i, coverH),
+            borderRadius: Math.max(2, radius - 2),
+            ...(free
+              ? { background: 'rgba(103,104,171,0.22)', display: 'flex', alignItems: 'center', justifyContent: 'center' }
+              : !art
+                ? { background: '#18181b', border: '1px dashed #3f3f46' }
+                : {}),
+          }}
+        >
+          {free && <span style={{ fontSize: Math.max(8, cell * 0.3), lineHeight: 1, color: '#c9caf0' }}>★</span>}
+          {art && (data ? artBackground(art) : (
+            <div
+              style={{
+                position: 'absolute',
+                inset: 0,
+                background: `linear-gradient(135deg, hsl(${hashHue(art.title)} 52% 40%), hsl(${(hashHue(art.title) + 32) % 360} 55% 27%))`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: 3,
+                textAlign: 'center',
+              }}
+            >
+              <span style={{ fontSize: font, lineHeight: 1.15, fontWeight: 600, color: '#fff', ...clamp(5) }}>{art.title}</span>
+            </div>
+          ))}
+        </div>
+        <div style={{ height: CAPTION_H - 3, fontSize: Math.max(6, Math.min(7.5, cell * 0.17)), lineHeight: 1.15, color: MUTED, ...clamp(2) }}>{caption}</div>
+      </div>
+    )
+  }
+
   const renderCell = (i: number) => {
+    if (portrait) return renderPortraitCell(i)
     const cellData = board.cells[i]
     if (i === centre) {
       return (
@@ -295,9 +355,6 @@ export default function BingoShareModal({ board, mask, answers, link, embedded, 
       <div key={i} style={cellBox(i)}>
         {artBackground(art)}
         {roomy && hasCover && <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.85), rgba(0,0,0,0.1) 60%, rgba(0,0,0,0.25))' }} />}
-        {roomy && prompt && cellData && (
-          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, background: 'rgba(0,0,0,0.55)', padding: '2px 3px', fontSize: font * 0.8, lineHeight: 1.15, color: 'rgba(255,255,255,0.85)', ...clamp(2) }}>{cellData.title}</div>
-        )}
         {roomy && (
           <div
             style={{
@@ -323,9 +380,6 @@ export default function BingoShareModal({ board, mask, answers, link, embedded, 
               <span style={{ width: cell * 0.4, height: cell * 0.4, borderRadius: cell, background: PRIMARY, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: cell * 0.25, fontWeight: 700, lineHeight: 1 }}>✓</span>
             )}
           </div>
-        )}
-        {prompt && mask[i] && cell >= 20 && (
-          <span style={{ position: 'absolute', right: 3, bottom: 3, width: 13, height: 13, borderRadius: 7, background: PRIMARY, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 700, lineHeight: 1 }}>✓</span>
         )}
       </div>
     )
@@ -381,7 +435,7 @@ export default function BingoShareModal({ board, mask, answers, link, embedded, 
       </div>
 
       {/* board */}
-      <div style={{ height: AREA_H, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ height: areaH, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         {mosaic ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
