@@ -35,11 +35,9 @@ const CARD_H = 640
 const CARD_PAD_X = 10
 const CARD_PAD_Y = 14
 const AREA_W = CARD_W - CARD_PAD_X * 2
-const AREA_H = 548
+const AREA_H = 556
 // Cover shape (height / width) and caption height on prompt boards.
-const COVER_RATIO = 1.2
-// Room under each cover for a title of up to three lines plus the author.
-const CAPTION_H = 42
+const COVER_RATIO = 1.25
 // Above this many squares the board is drawn as a pixel mosaic instead of DOM nodes.
 const MOSAIC_OVER = 400
 
@@ -105,6 +103,28 @@ const slug = (s: string) =>
     .replace(/^-+|-+$/g, '')
     .slice(0, 40) || 'bingo'
 
+/** How many lines the words take at `perLine` characters per line (greedy wrap; a long word breaks). */
+function countLines(words: string[], perLine: number): number {
+  let lines = 1
+  let used = 0
+  for (const word of words) {
+    if (word.length > perLine) {
+      if (used > 0) lines++
+      lines += Math.ceil(word.length / perLine) - 1
+      used = word.length % perLine || perLine
+    } else if (used === 0) used = word.length
+    else if (used + 1 + word.length <= perLine) used += 1 + word.length
+    else {
+      lines++
+      used = word.length
+    }
+  }
+  return lines
+}
+
+/** Font size for the book title / author under a cover of this width. */
+const nameFontFor = (cell: number) => Math.max(6.5, Math.min(7.5, cell * 0.14))
+
 /**
  * Largest font size at which `text` wraps into at most `maxLines` lines inside a w×h box
  * (estimated from average glyph width). A title that still doesn't fit at the smallest
@@ -116,20 +136,7 @@ function fitText(text: string, w: number, h: number, max = 20, min = 9, maxLines
     const perLine = Math.max(1, Math.floor(w / (f * 0.6)))
     // shrink before splitting a word across lines (only the smallest size may)
     if (f - 0.5 >= min && words.some((word) => word.length > perLine)) continue
-    let lines = 1
-    let used = 0
-    for (const word of words) {
-      if (word.length > perLine) {
-        if (used > 0) lines++
-        lines += Math.ceil(word.length / perLine) - 1
-        used = word.length % perLine || perLine
-      } else if (used === 0) used = word.length
-      else if (used + 1 + word.length <= perLine) used += 1 + word.length
-      else {
-        lines++
-        used = word.length
-      }
-    }
+    const lines = countLines(words, perLine)
     if (lines <= maxLines) return { font: f, lines }
   }
   return { font: min, lines: maxLines }
@@ -146,14 +153,38 @@ export default function BingoShareModal({ board, mask, answers, link, embedded, 
   // Board geometry: square cells sized to fit the box, with tighter gaps on bigger boards.
   const mosaic = total > MOSAIC_OVER
   const gap = Math.max(rows, cols) <= 10 ? 7 : Math.max(rows, cols) <= 25 ? 2 : Math.max(rows, cols) <= 50 ? 1 : 0
-  const gapY = Math.max(rows, cols) <= 10 ? (prompt ? 10 : 7) : gap
+  const gapY = Math.max(rows, cols) <= 10 ? (prompt ? 8 : 7) : gap
   // Prompt boards show each answer as a cover with its prompt as a caption below, as long as that
   // still leaves covers wide enough to read; bigger boards fall back to plain squares.
   const areaH = AREA_H
   const widthFit = (AREA_W - (cols - 1) * gap) / cols
-  const portraitCell = Math.floor(Math.min(widthFit, (areaH - rows * CAPTION_H - (rows - 1) * gapY) / (rows * COVER_RATIO)))
-  const portrait = prompt && !mosaic && portraitCell >= 24
-  const cell = Math.max(1, portrait ? portraitCell : Math.floor(Math.min(widthFit, (areaH - (rows - 1) * gapY) / rows)))
+  // Under each cover sits the book's title (up to three lines) and its author. Rather than reserving the
+  // worst case for every row, each row only gets the height its own titles need, which leaves more for covers.
+  const captionFor = (c: number, r: number) => {
+    const f = nameFontFor(c)
+    const perLine = Math.max(1, Math.floor(c / (f * 0.6)))
+    let need = 0
+    for (let col = 0; col < cols; col++) {
+      const i = r * cols + col
+      const a = answers?.[i]
+      if (!a || i === centre) continue
+      const titleLines = Math.min(3, countLines(a.title.split(/\s+/).filter(Boolean), perLine))
+      need = Math.max(need, titleLines * f * 1.15 + (a.credit ? 1 + f * 0.9 * 1.15 : 0))
+    }
+    return need > 0 ? Math.ceil(need) + 4 : 0 // + the gap between cover and caption
+  }
+  const portraitFit = (() => {
+    if (!prompt || mosaic) return null
+    for (let c = Math.floor(widthFit); c >= 24; c--) {
+      const caps = Array.from({ length: rows }, (_, r) => captionFor(c, r))
+      const height = caps.reduce((x, y) => x + y, 0) + rows * Math.round(c * COVER_RATIO) + (rows - 1) * gapY
+      if (height <= areaH) return { cell: c, caps }
+    }
+    return null
+  })()
+  const portrait = !!portraitFit
+  const rowCap = portraitFit?.caps ?? []
+  const cell = Math.max(1, portraitFit ? portraitFit.cell : Math.floor(Math.min(widthFit, (areaH - (rows - 1) * gapY) / rows)))
   const coverH = portrait ? Math.round(cell * COVER_RATIO) : cell
   // Prompt boards are limited by height, so spend the width that is left on air between columns.
   const colGap = portrait && cols > 1 ? Math.max(gap, Math.min(16, Math.floor((AREA_W - cols * cell) / (cols - 1)))) : gap
@@ -322,7 +353,7 @@ export default function BingoShareModal({ board, mask, answers, link, embedded, 
   // Prompt boards: the prompt in the middle of the (darkened) cover, and under it the book's title and author.
   const promptFont = Math.max(6, Math.min(9.5, cell * 0.16))
   const promptLines = Math.max(3, Math.floor((coverH - 8) / (promptFont * 1.15)))
-  const nameFont = Math.max(6.5, Math.min(7.5, cell * 0.14))
+  const nameFont = nameFontFor(cell)
   const renderPortraitCell = (i: number) => {
     const cellData = board.cells[i]
     const art = answers?.[i] ?? null
@@ -359,7 +390,7 @@ export default function BingoShareModal({ board, mask, answers, link, embedded, 
             </div>
           )}
         </div>
-        <div style={{ height: CAPTION_H - 4, overflow: 'hidden' }}>
+        <div style={{ height: Math.max(0, (rowCap[Math.floor(i / cols)] ?? 4) - 4), overflow: 'hidden' }}>
           {art && !free && (
             <>
               <div style={{ fontSize: nameFont, lineHeight: 1.15, fontWeight: 600, color: '#f4f4f5', ...clamp(3) }}>{art.title}</div>
@@ -452,7 +483,7 @@ export default function BingoShareModal({ board, mask, answers, link, embedded, 
       <p style={{ margin: '4px 0 0', fontSize: 10, color: MUTED, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{meta}</p>
 
       {/* board: takes all the room that is left */}
-      <div style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '8px 0' }}>
+      <div style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4px 0' }}>
         {mosaic ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -461,7 +492,7 @@ export default function BingoShareModal({ board, mask, answers, link, embedded, 
             style={{ width: cols * mosaicScale, height: rows * mosaicScale, imageRendering: 'pixelated', display: 'block', borderRadius: 4 }}
           />
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, ${cell}px)`, columnGap: colGap, rowGap: gapY }}>
+          <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, ${cell}px)`, columnGap: colGap, rowGap: gapY, ...(portrait ? { gridTemplateRows: rowCap.map((cap) => `${coverH + cap}px`).join(' ') } : {}) }}>
             {Array.from({ length: total }, (_, i) => renderCell(i))}
           </div>
         )}
