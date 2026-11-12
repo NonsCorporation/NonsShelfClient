@@ -30,13 +30,15 @@ function pathFor(kind: SitemapKind, e: SitemapEntry): string {
   return `/list/${e.id}`
 }
 
-/** /sitemap.xml: points at the static file and every page of every kind. */
-export async function buildIndex(): Promise<string> {
+/** /sitemap.xml: points at the static file and every page of every kind. Null
+ *  when the API can't be reached for any kind — an index missing a whole kind
+ *  would tell Google those pages are gone, so the route answers 503 instead. */
+export async function buildIndex(): Promise<string | null> {
   const now = new Date().toISOString()
   const files = ['static.xml']
   for (const kind of KINDS) {
     const first = await getSitemapPage(kind, 1)
-    if (!first) continue // API down: leave this kind out of this render
+    if (!first) return null
     const pages = Math.max(1, Math.ceil(first.total / first.page_size))
     for (let p = 1; p <= pages; p++) files.push(`${kind}-${p}.xml`)
   }
