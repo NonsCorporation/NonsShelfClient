@@ -388,9 +388,9 @@ export default function FeedPage() {
     <Layout>
       <MobileHeaderRow t={t} />
 
-      <div className="mb-6 hidden items-start justify-between gap-3 lg:flex">
+      <div className="mb-5 hidden items-center justify-between gap-3 lg:flex">
         <div>
-          <h1 className="text-xl font-bold tracking-tight text-[var(--text)]">
+          <h1 className="text-2xl font-bold tracking-tight text-[var(--text)]">
             {t(greetingKey)}{me?.name ? `, ${me.name}` : ''}
           </h1>
           <p className="mt-1 text-sm text-[var(--text-muted)]">{statLine || t('feedSubtitle')}</p>
@@ -398,7 +398,7 @@ export default function FeedPage() {
         <button
           onClick={() => setSettingsOpen(true)}
           aria-label={t('settingsTitle')}
-          className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl border border-[var(--border-subtle)] text-[var(--text-muted)] transition-colors hover:bg-[var(--surface)] hover:text-[var(--text)]"
+          className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-[var(--surface)] text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
         >
           <IoSettingsOutline className="h-5 w-5" />
         </button>
@@ -473,10 +473,10 @@ export default function FeedPage() {
                   <button
                     key={f.key}
                     onClick={() => setTypeFilter(f.key)}
-                    className={`shrink-0 rounded-full border px-3 py-1 text-xs capitalize transition-colors ${
+                    className={`shrink-0 rounded-full px-3.5 py-1.5 text-xs capitalize transition-colors ${
                       active
-                        ? 'border-[var(--border)] bg-[var(--container-2)] font-medium text-[var(--text)]'
-                        : 'border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--text)]'
+                        ? 'bg-nonsprimary font-medium text-white'
+                        : 'bg-[var(--surface)] text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]'
                     }`}
                   >
                     {t(f.labelKey)}
@@ -489,20 +489,23 @@ export default function FeedPage() {
 
         {/* Pulse — friends active recently; tap to open their profile. */}
         {!loading && activityTotal > 0 && recentFriends.length > 0 && (
-          <div className="no-scrollbar -mx-1 mb-4 flex gap-3 overflow-x-auto px-1 pb-1">
+          <div className="no-scrollbar -mx-1 mb-5 flex gap-4 overflow-x-auto px-1.5 py-1.5">
             {recentFriends.map((f) => (
               <Link
                 key={f.handle}
                 to={`/u/${f.handle}`}
-                className="group/friend flex flex-shrink-0 flex-col items-center gap-1"
+                className="group/friend flex flex-shrink-0 flex-col items-center gap-1.5"
                 title={f.name}
               >
-                <span className="overflow-hidden rounded-full ring-2 ring-transparent transition-colors group-hover/friend:ring-nonsprimary" style={{ width: 40, height: 40 }}>
+                <span
+                  className="overflow-hidden rounded-full ring-2 ring-[var(--primary-ring)] ring-offset-2 ring-offset-[var(--bg)] transition-shadow group-hover/friend:ring-nonsprimary"
+                  style={{ width: 44, height: 44 }}
+                >
                   {f.avatarUrl
                     ? <img src={f.avatarUrl} alt={f.name} className="h-full w-full object-cover" />
-                    : <BoringAvatar size={40} name={f.handle} />}
+                    : <BoringAvatar size={44} name={f.handle} />}
                 </span>
-                <span className="max-w-[52px] truncate text-[10px] text-[var(--text-muted)] group-hover/friend:text-[var(--text)]">{f.name}</span>
+                <span className="max-w-[60px] truncate text-[11px] text-[var(--text-muted)] group-hover/friend:text-[var(--text)]">{f.name}</span>
               </Link>
             ))}
           </div>
@@ -667,9 +670,9 @@ function InProgressSection({
   const visibleItems = showAll ? items : items.slice(0, VISIBLE_COUNT)
 
   return (
-    <section className="no-scrollbar mb-10 flex snap-x snap-mandatory gap-4 overflow-x-auto pb-1 lg:grid lg:grid-cols-3 lg:items-start lg:overflow-visible lg:pb-0 lg:snap-none">
+    <section className="no-scrollbar mb-8 flex snap-x snap-mandatory gap-3 overflow-x-auto pb-1 lg:grid lg:grid-cols-3 lg:items-start lg:overflow-visible lg:pb-0 lg:snap-none">
       {visibleBlocks.progress && (
-        <div className="w-[85%] flex-shrink-0 snap-center rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface)] p-4 lg:w-auto lg:flex-shrink lg:snap-align-none">
+        <div className="w-[85%] flex-shrink-0 snap-center rounded-2xl bg-[var(--surface)] p-4 lg:w-auto lg:flex-shrink lg:snap-align-none">
           <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-[var(--text)]">
             <span className="h-2 w-2 rounded-full" style={{ backgroundColor: STATUS_COLOR.active }} />
             {t('shelfActive')}
@@ -705,7 +708,7 @@ function InProgressSection({
       )}
 
       {(visibleBlocks.challenge || visibleBlocks.stats) && (
-        <div className="flex w-[85%] flex-shrink-0 snap-center flex-col gap-4 lg:w-auto lg:flex-shrink lg:snap-align-none">
+        <div className="flex w-[85%] flex-shrink-0 snap-center flex-col gap-3 lg:w-auto lg:flex-shrink lg:snap-align-none">
           {visibleBlocks.challenge && <ChallengeBlock challenge={readingChallenge} t={t} />}
           {visibleBlocks.stats && (
             <div className="hidden lg:block">
@@ -768,13 +771,13 @@ function ChallengeBlock({ challenge, t }: { challenge: Challenge | null; t: Tran
   return (
     <Link
       to={`/challenge/${challenge.uuid}`}
-      className={`group block rounded-2xl border p-5 transition-colors hover:border-nonsprimary ${
-        hasGoal ? 'border-[var(--border-subtle)] bg-[var(--surface)]' : 'border-dashed border-[var(--border)]'
+      className={`group block rounded-2xl border p-4 transition-colors hover:border-nonsprimary ${
+        hasGoal ? 'border-transparent bg-[var(--surface)]' : 'border-dashed border-[var(--border)]'
       }`}
     >
       <div className="flex items-center gap-4">
         <div
-          className="relative flex aspect-[2/3] w-16 flex-shrink-0 flex-col items-center justify-center gap-1 overflow-hidden rounded-lg text-white shadow-sm"
+          className="relative flex aspect-[2/3] w-14 flex-shrink-0 flex-col items-center justify-center gap-0.5 overflow-hidden rounded-lg text-white shadow-sm"
           style={{ backgroundImage: `linear-gradient(to bottom right, ${coverFrom}, ${coverTo})` }}
         >
           <IoBookOutline className="h-5 w-5 opacity-80" />
@@ -790,7 +793,7 @@ function ChallengeBlock({ challenge, t }: { challenge: Challenge | null; t: Tran
         </div>
         <div className="min-w-0 flex-1">
           <span className="text-[11px] font-semibold uppercase tracking-wider text-nonsprimary">{t('readingChallenge')}</span>
-          <h3 className="truncate text-lg font-bold text-[var(--text)]">{title}</h3>
+          <h3 className="truncate text-base font-bold text-[var(--text)]">{title}</h3>
           {!hasGoal && <p className="mt-0.5 truncate text-sm text-[var(--text-muted)]">{t('joinReadingChallenge')}</p>}
           {hasGoal && (
             <div className="mt-2">
@@ -798,7 +801,7 @@ function ChallengeBlock({ challenge, t }: { challenge: Challenge | null; t: Tran
                 <span>{t('readingGoalProgress', { progress, target })}</span>
                 {pct > 0 && <span className="font-semibold text-nonsprimary">{pct}%</span>}
               </div>
-              <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-[var(--container-2)]">
+              <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-[var(--surface-active)]">
                 <div className="h-full rounded-full bg-nonsprimary transition-all" style={{ width: `${pct}%` }} />
               </div>
             </div>
@@ -827,16 +830,15 @@ function StatsBlock({
     { icon: IoPeopleOutline, label: t('sidebarFriendsActive'), value: stats.activeFriends },
   ]
   return (
-    <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface)] p-4">
-      <h2 className="mb-3 text-sm font-semibold text-[var(--text)]">{t('sidebarYourStats')}</h2>
-      <div className="flex flex-col gap-2.5">
+    <div className="rounded-2xl bg-[var(--surface)] p-4" aria-label={t('sidebarYourStats')}>
+      <div className="grid grid-cols-3 gap-2">
         {rows.map((r) => (
-          <div key={r.label} className="flex items-center gap-2.5">
-            <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-[var(--primary-soft)] text-nonsprimary">
-              <r.icon className="h-3.5 w-3.5" />
-            </span>
-            <span className="flex-1 truncate text-xs text-[var(--text-muted)]">{r.label}</span>
-            <span className="text-sm font-semibold text-[var(--text)]">{r.value}</span>
+          <div key={r.label} className="min-w-0">
+            <p className="flex items-center gap-1.5 text-xl font-bold leading-none text-[var(--text)]">
+              <r.icon className="h-3.5 w-3.5 flex-shrink-0 text-nonsprimary" />
+              {r.value}
+            </p>
+            <p className="mt-1.5 text-[11px] leading-tight text-[var(--text-muted)]">{r.label}</p>
           </div>
         ))}
       </div>
@@ -850,7 +852,7 @@ function StatsBlock({
 function TalkedAboutBlock({ items, t }: { items: CatalogItem[]; t: Translate }) {
   const [featured, ...rest] = items
   return (
-    <div className="w-[85%] flex-shrink-0 snap-center rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface)] p-4 lg:w-auto lg:flex-shrink lg:snap-align-none">
+    <div className="w-[85%] flex-shrink-0 snap-center rounded-2xl bg-[var(--surface)] p-4 lg:w-auto lg:flex-shrink lg:snap-align-none">
       <h2 className="mb-3 text-sm font-semibold text-[var(--text)]">{t('talkedAbout')}</h2>
       <div className="flex items-stretch gap-2.5">
         <Link to={mediaPath(featured)} className="group flex w-1/2 flex-shrink-0 flex-col">
@@ -921,8 +923,8 @@ function InProgressCard({
   }
 
   return (
-    <div className="flex items-start gap-3 py-3 first:pt-0 last:pb-0">
-      <Link to={mediaPath(item)} className="relative aspect-[2/3] w-14 flex-shrink-0">
+    <div className="flex items-start gap-3 py-2.5 first:pt-0 last:pb-0">
+      <Link to={mediaPath(item)} className="relative aspect-[2/3] w-12 flex-shrink-0">
         {item.coverUrl ? (
           <img src={item.coverUrl} alt={item.title} loading="lazy" className="h-full w-full rounded-md object-cover" />
         ) : (
@@ -939,7 +941,7 @@ function InProgressCard({
           </p>
         </Link>
         {pct > 0 && (
-          <div className="mt-1 h-1 w-full overflow-hidden rounded-full bg-[var(--container-2)]">
+          <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-[var(--surface-active)]">
             <div className="h-full rounded-full bg-nonsprimary transition-all" style={{ width: `${pct}%` }} />
           </div>
         )}
