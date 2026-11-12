@@ -27,7 +27,8 @@ export default function robots(): MetadataRoute.Robots {
         ],
       },
     ],
-    sitemap: `${SITE_URL}/sitemap.xml`,
+    // The index lives at /sitemaps/index.xml (/sitemap.xml is a rewrite to it).
+    sitemap: `${SITE_URL}/sitemaps/index.xml`,
     host: SITE_URL,
   }
 }

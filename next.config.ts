@@ -2,6 +2,11 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  // /sitemap.xml is the sitemap index, served by the /sitemaps/[name] route like
+  // every other sitemap file (see lib/sitemap.ts).
+  async rewrites() {
+    return [{ source: '/sitemap.xml', destination: '/sitemaps/index.xml' }]
+  },
   images: {
     unoptimized: true,
     remotePatterns: [
