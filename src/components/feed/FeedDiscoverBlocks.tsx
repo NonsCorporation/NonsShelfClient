@@ -35,7 +35,9 @@ export function RailPanel({
   children: ReactNode
 }) {
   return (
-    <section className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface)] p-4">
+    // Same shell as a feed post: edge to edge with only top/bottom lines on a
+    // phone, a soft rounded block from sm up.
+    <section className="-mx-4 border-y border-[var(--border-subtle)] bg-[var(--container)] px-4 py-4 sm:mx-0 sm:rounded-2xl sm:border-0 sm:p-4">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
         <div className="min-w-0">
           <h2 className="flex items-center gap-2 text-sm font-semibold text-[var(--text)]">
@@ -60,8 +62,15 @@ export function RailPanel({
 }
 
 // Horizontal scroller, bled to the panel edge so posters can run off-screen.
+// scroll-px keeps the panel's gutter when a tile snaps (without it the first
+// tile sits flush against the edge), and the trailing spacer gives the last
+// tile the same room, since browsers drop a scroller's end padding.
 export function Rail({ children }: { children: ReactNode }) {
-  return <div className="no-scrollbar -mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-1">{children}</div>
+  return (
+    <div className="no-scrollbar -mx-4 flex snap-x scroll-px-4 gap-3 overflow-x-auto px-4 pb-1 after:w-1 after:flex-shrink-0 after:content-['']">
+      {children}
+    </div>
+  )
 }
 
 // A poster tile with an optional rank numeral and a one-tap "want to" button.
@@ -347,7 +356,7 @@ export function FriendPicksRail({ picks, t }: { picks: FriendPick[]; t: Translat
 // feed below doesn't jump when it arrives.
 export function RailSkeleton() {
   return (
-    <div className="animate-pulse rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface)] p-4">
+    <div className="animate-pulse -mx-4 border-y border-[var(--border-subtle)] bg-[var(--container)] px-4 py-4 sm:mx-0 sm:rounded-2xl sm:border-0 sm:p-4">
       <div className="mb-4 h-4 w-32 rounded bg-[var(--container-2)]" />
       <div className="flex gap-3 overflow-hidden">
         {Array.from({ length: 6 }).map((_, i) => (

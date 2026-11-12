@@ -393,7 +393,7 @@ export default function FeedPage() {
           <h1 className="text-2xl font-bold tracking-tight text-[var(--text)]">
             {t(greetingKey)}{me?.name ? `, ${me.name}` : ''}
           </h1>
-          <p className="mt-1 text-sm text-[var(--text-muted)]">{statLine || t('feedSubtitle')}</p>
+          <p className="mt-1 text-sm text-[var(--text-muted)]">{(!feedBlocks.stats && statLine) || t('feedSubtitle')}</p>
         </div>
         <button
           onClick={() => setSettingsOpen(true)}
@@ -437,7 +437,7 @@ export default function FeedPage() {
       {!loading && inProgress.length === 0 && newestWishlist && (
         <Link
           to={mediaPath(newestWishlist)}
-          className="group mb-10 flex items-center gap-3 rounded-xl border border-dashed border-[var(--border)] p-3 transition-colors hover:border-nonsprimary"
+          className="group mb-8 flex items-center gap-3 rounded-2xl bg-[var(--surface)] p-3 transition-colors hover:bg-[var(--surface-hover)]"
         >
           <div className="relative aspect-[2/3] w-10 flex-shrink-0">
             {newestWishlist.coverUrl ? (
@@ -519,9 +519,9 @@ export default function FeedPage() {
           </div>
         ) : activityTotal === 0 ? (
           <div className="flex flex-col gap-4">
-          <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-[var(--border)] py-16 text-center">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--surface)]">
-              <IoPeopleOutline className="h-7 w-7 text-[var(--text-muted)]" />
+          <div className="flex flex-col items-center justify-center gap-3 rounded-2xl bg-[var(--surface)] px-4 py-12 text-center">
+            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[var(--primary-soft)]">
+              <IoPeopleOutline className="h-7 w-7 text-nonsprimary" />
             </div>
             <p className="max-w-sm px-6 text-sm leading-6 text-[var(--text-muted)]">{t('inviteFriends')}</p>
             <button
@@ -531,9 +531,9 @@ export default function FeedPage() {
                   setTimeout(() => setInvited(false), 2000)
                 }).catch(() => {})
               }}
-              className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border-subtle)] px-4 py-2 text-sm font-medium text-[var(--text)] transition-colors hover:bg-[var(--surface)]"
+              className="inline-flex items-center gap-1.5 rounded-full bg-nonsprimary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-nonsprimaryfocus"
             >
-              {invited ? <IoCheckmark className="h-4 w-4 text-nonsprimary" /> : <IoLinkOutline className="h-4 w-4" />}
+              {invited ? <IoCheckmark className="h-4 w-4" /> : <IoLinkOutline className="h-4 w-4" />}
               {t(invited ? 'copied' : 'copyInviteLink')}
             </button>
           </div>
@@ -550,7 +550,7 @@ export default function FeedPage() {
                 // Quiet day divider for scannability.
                 return (
                   <div key={`day-${row.bucket}`} className="flex items-center gap-3">
-                    <span className="text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">
+                    <span className="rounded-full bg-[var(--surface)] px-2.5 py-1 text-[11px] font-semibold text-[var(--text-muted)]">
                       {t(BUCKET_LABEL[row.bucket])}
                     </span>
                     <span className="h-px flex-1 bg-[var(--border-subtle)]" />

@@ -121,7 +121,7 @@ export default function BingoActivityCard({
   }
 
   return (
-    <article className="-mx-4 rounded-none border-x-0 border-y border-[var(--border-subtle)] bg-[var(--container)] px-4 py-4 sm:mx-0 sm:rounded-2xl sm:border sm:p-5">
+    <article className="-mx-4 rounded-none border-x-0 border-y border-[var(--border-subtle)] bg-[var(--container)] px-4 py-4 sm:mx-0 sm:rounded-2xl sm:border-0 sm:p-4">
       {showReactionBanner && <ReactionBanner payload={a.userReactionPayload!} />}
 
       <div className="mb-3 flex items-center gap-2.5">

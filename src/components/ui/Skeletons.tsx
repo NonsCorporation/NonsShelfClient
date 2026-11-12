@@ -11,7 +11,7 @@ import { useLanguage } from '@/contexts/LanguageContext'
 // then a cover beside a few detail lines.
 export function ActivityCardSkeleton() {
   return (
-    <article className="-mx-4 animate-pulse rounded-none border-x-0 border-y border-[var(--border-subtle)] bg-[var(--container)] px-4 py-4 sm:mx-0 sm:rounded-2xl sm:border sm:p-5">
+    <article className="-mx-4 animate-pulse rounded-none border-x-0 border-y border-[var(--border-subtle)] bg-[var(--container)] px-4 py-4 sm:mx-0 sm:rounded-2xl sm:border-0 sm:p-4">
       <div className="mb-3 flex items-center gap-2.5">
         <div className="h-9 w-9 flex-shrink-0 rounded-full bg-[var(--surface-active)]" />
         <div className="flex min-w-0 flex-1 flex-col gap-1.5">

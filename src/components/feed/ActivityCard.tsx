@@ -233,7 +233,7 @@ export default function ActivityCard({
   }
 
   return (
-    <article className="-mx-4 rounded-none border-x-0 border-y border-[var(--border-subtle)] bg-[var(--container)] px-4 py-4 sm:mx-0 sm:rounded-2xl sm:border sm:p-5">
+    <article className="-mx-4 rounded-none border-x-0 border-y border-[var(--border-subtle)] bg-[var(--container)] px-4 py-4 sm:mx-0 sm:rounded-2xl sm:border-0 sm:p-4">
       {showReactionBanner && <ReactionBanner payload={a.userReactionPayload!} />}
 
       {/* header: "<Name> <verb> <Title>" + stars, above the media card */}
@@ -301,7 +301,7 @@ export default function ActivityCard({
       {/* review text, above the media card when present */}
       {a.text && (
         <div className="mb-3">
-          <ReviewContent content={a.text} className={`text-sm leading-6 text-[var(--text)] ${reviewOpen ? '' : 'line-clamp-6'}`} />
+          <ReviewContent content={a.text} className={`text-[15px] leading-6 text-[var(--text)] ${reviewOpen ? '' : 'line-clamp-6'}`} />
           {!reviewOpen && a.text.length > 240 && (
             <button
               type="button"
@@ -315,23 +315,23 @@ export default function ActivityCard({
       )}
 
       {/* body: cover + details */}
-      <div className="flex gap-4">
-        <Link to={to} className="relative block aspect-[2/3] w-[88px] flex-shrink-0 self-start">
+      <div className="flex gap-3.5 rounded-xl bg-[var(--surface)] p-3">
+        <Link to={to} className="relative block aspect-[2/3] w-[72px] flex-shrink-0 self-start">
           {a.coverUrl ? (
             <img
               src={a.coverUrl}
               alt={a.mediaTitle}
               loading="lazy"
-              className="h-full w-full rounded-md border border-[var(--border-subtle)] object-cover"
+              className="h-full w-full rounded-lg object-cover shadow-sm"
             />
           ) : (
-            <div className="h-full w-full rounded-md border border-[var(--border-subtle)] bg-[var(--container-2)]" />
+            <div className="h-full w-full rounded-lg bg-[var(--container-2)]" />
           )}
-          <TypeBadge type={a.mediaType} position="top-1.5 right-1.5" size="h-6 w-6" iconSize="h-3 w-3" />
+          <TypeBadge type={a.mediaType} position="top-1 right-1" size="h-5 w-5" iconSize="h-2.5 w-2.5" />
         </Link>
 
         <div className="min-w-0 flex-1">
-          <Link to={to} className="block text-lg font-bold leading-snug text-[var(--text)] hover:text-nonsprimary">
+          <Link to={to} className="block text-base font-bold leading-snug text-[var(--text)] hover:text-nonsprimary">
             {a.mediaTitle}
           </Link>
           {a.mediaAuthor && (
@@ -358,7 +358,7 @@ export default function ActivityCard({
 
           {a.mediaDescription && (
             <p className="mt-2 text-sm leading-6 text-[var(--text-muted)]">
-              <span className={descOpen ? '' : 'line-clamp-3'}>{a.mediaDescription}</span>
+              <span className={descOpen ? '' : 'line-clamp-2'}>{a.mediaDescription}</span>
               {!descOpen && a.mediaDescription.length > 140 && (
                 <button
                   type="button"
@@ -374,7 +374,7 @@ export default function ActivityCard({
       </div>
 
       {/* footer: like · comment */}
-      <div className="mt-4 flex items-center gap-4 border-t border-[var(--divider)] pt-3 text-sm">
+      <div className="mt-3 flex items-center gap-4 text-sm">
         {user ? (
           <LikeButton postId={a.postId} />
         ) : (
