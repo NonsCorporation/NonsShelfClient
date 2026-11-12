@@ -13,7 +13,7 @@ import { libraryService } from '../services/libraryService'
 import { activityService } from '../services/activityService'
 import { challengeService } from '../services/challengeService'
 import { isYearlyReadingGoal, challengeYear } from '../lib/challenge'
-import type { Activity, ActivityPage, ActivityType } from '../services/activityService'
+import type { Activity, ActivityPage } from '../services/activityService'
 import BoringAvatar from '@/components/ui/BoringAvatar'
 import Pagination from '@/components/ui/Pagination'
 import { getCommentCounts } from '../services/commentService'
@@ -66,14 +66,6 @@ type StreamRow =
   | { kind: 'divider'; bucket: DayBucket }
   | { kind: 'card'; a: Activity }
   | { kind: 'block'; id: DiscoverBlockId }
-
-// Lightweight activity filters. Labels reuse existing verb keys (capitalised in CSS).
-const ACTIVITY_FILTERS: { key: 'all' | ActivityType; labelKey: string }[] = [
-  { key: 'all', labelKey: 'filterAll' },
-  { key: 'finished', labelKey: 'verbFinished' },
-  { key: 'rated', labelKey: 'verbRated' },
-  { key: 'reviewed', labelKey: 'verbReviewed' },
-]
 
 export default function FeedPage() {
   const { t } = useLanguage()
@@ -275,7 +267,6 @@ export default function FeedPage() {
     active.sort((a, b) => (b.lastActivityAt ?? '').localeCompare(a.lastActivityAt ?? ''))
     return active
   }, [items])
-  const [typeFilter, setTypeFilter] = useState<'all' | ActivityType>('all')
   const [invited, setInvited] = useState(false)
 
   // The newest wishlist item — used to nudge starting something when nothing's active.
@@ -361,7 +352,7 @@ export default function FeedPage() {
   // after fixed card counts. Rails only ride along on the first page, and any
   // that didn't find a slot (a short or filtered page) trail the last card.
   const stream = useMemo<StreamRow[]>(() => {
-    const visible = typeFilter === 'all' ? activity : activity.filter((a) => a.type === typeFilter)
+    const visible = activity
     const blocks = activityPage === 0 ? discoverBlocks : []
     const rows: StreamRow[] = []
     let bucket: DayBucket | null = null
@@ -381,7 +372,7 @@ export default function FeedPage() {
     }
     while (nextBlock < blocks.length) rows.push({ kind: 'block', id: blocks[nextBlock++] })
     return rows
-  }, [activity, typeFilter, activityPage, discoverBlocks])
+  }, [activity, activityPage, discoverBlocks])
   const hasCards = stream.some((r) => r.kind === 'card')
 
   return (
@@ -462,61 +453,33 @@ export default function FeedPage() {
       </aside>
 
       {/* Friends activity */}
-      <section ref={activityRef} className="min-w-0 scroll-mt-4 lg:order-1">
-        {/* Type filter sits on its own row above the title, so both stay a
-            straight, uncrowded line on mobile. */}
-        {/* Mobile: filter row above the title (its own line). Desktop (sm+):
-            back on the same row as the title, right-aligned. */}
-        <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-          <h2 className="order-2 flex items-center gap-2 text-base font-semibold text-[var(--text)] sm:order-1">
+      <section ref={activityRef} className="mt-1 min-w-0 scroll-mt-4 lg:order-1 lg:mt-0">
+        {/* Title on the left, the friends who were active lately on the same
+            line to the right as small avatars (tap to open a profile). */}
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <h2 className="flex flex-shrink-0 items-center gap-2 text-base font-semibold text-[var(--text)]">
             <IoPeopleOutline className="h-[18px] w-[18px] text-[var(--text-muted)]" />
             {t('friendsActivity')}
           </h2>
-          {!loading && activityTotal > 0 && (
-            <div className="no-scrollbar order-1 flex items-center gap-1.5 overflow-x-auto sm:order-2">
-              {ACTIVITY_FILTERS.map((f) => {
-                const active = typeFilter === f.key
-                return (
-                  <button
-                    key={f.key}
-                    onClick={() => setTypeFilter(f.key)}
-                    className={`shrink-0 rounded-full px-3.5 py-1.5 text-xs capitalize transition-colors ${
-                      active
-                        ? 'bg-nonsprimary font-medium text-white'
-                        : 'bg-[var(--surface)] text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]'
-                    }`}
-                  >
-                    {t(f.labelKey)}
-                  </button>
-                )
-              })}
+          {!loading && activityTotal > 0 && recentFriends.length > 0 && (
+            <div className="no-scrollbar -my-1 flex min-w-0 items-center gap-1.5 overflow-x-auto py-1 pl-1 pr-0.5">
+              {recentFriends.map((f) => (
+                <Link
+                  key={f.handle}
+                  to={`/u/${f.handle}`}
+                  title={f.name}
+                  aria-label={f.name}
+                  className="group/friend flex-shrink-0 overflow-hidden rounded-full ring-2 ring-[var(--primary-ring)] ring-offset-1 ring-offset-[var(--bg)] transition-shadow hover:ring-nonsprimary"
+                  style={{ width: 30, height: 30 }}
+                >
+                  {f.avatarUrl
+                    ? <img src={f.avatarUrl} alt="" className="h-full w-full object-cover" />
+                    : <BoringAvatar size={30} name={f.handle} />}
+                </Link>
+              ))}
             </div>
           )}
         </div>
-
-        {/* Pulse — friends active recently; tap to open their profile. */}
-        {!loading && activityTotal > 0 && recentFriends.length > 0 && (
-          <div className="no-scrollbar -mx-1 mb-5 flex gap-4 overflow-x-auto px-1.5 py-1.5">
-            {recentFriends.map((f) => (
-              <Link
-                key={f.handle}
-                to={`/u/${f.handle}`}
-                className="group/friend flex flex-shrink-0 flex-col items-center gap-1.5"
-                title={f.name}
-              >
-                <span
-                  className="overflow-hidden rounded-full ring-2 ring-[var(--primary-ring)] ring-offset-2 ring-offset-[var(--bg)] transition-shadow group-hover/friend:ring-nonsprimary"
-                  style={{ width: 44, height: 44 }}
-                >
-                  {f.avatarUrl
-                    ? <img src={f.avatarUrl} alt={f.name} className="h-full w-full object-cover" />
-                    : <BoringAvatar size={44} name={f.handle} />}
-                </span>
-                <span className="max-w-[60px] truncate text-[11px] text-[var(--text-muted)] group-hover/friend:text-[var(--text)]">{f.name}</span>
-              </Link>
-            ))}
-          </div>
-        )}
 
         {loading ? (
           <div className="flex flex-col gap-4">
@@ -674,10 +637,41 @@ function InProgressSection({
   const [showAll, setShowAll] = useState(false)
   const visibleItems = showAll ? items : items.slice(0, VISIBLE_COUNT)
 
+  const goal = readingChallenge && readingChallenge.joined && (readingChallenge.target ?? 0) > 0 ? readingChallenge : null
+  const goalPct = goal ? Math.min(100, Math.round(((goal.progress ?? 0) / (goal.target ?? 1)) * 100)) : 0
+
   return (
-    <section className="no-scrollbar mb-6 flex snap-x snap-mandatory gap-3 overflow-x-auto pb-1 lg:mb-0 lg:flex-col lg:overflow-visible lg:pb-0 lg:snap-none">
+    <>
+    {/* Phone: the things in progress as one slim swipe row (tap a chip to log
+        progress) and the yearly goal as a single line, so friends' activity
+        starts within the first screen. */}
+    {((visibleBlocks.progress && items.length > 0) || (visibleBlocks.challenge && goal)) && (
+      <div className="mb-5 flex flex-col gap-2.5 lg:hidden">
+        {visibleBlocks.progress && items.length > 0 && (
+          <div className="no-scrollbar -mx-4 flex snap-x scroll-px-4 gap-2.5 overflow-x-auto px-4 after:w-1 after:flex-shrink-0 after:content-['']">
+            {items.map((it) => (
+              <MobileProgressChip key={it.id} item={it} onEditProgress={() => onEditProgress(it)} />
+            ))}
+          </div>
+        )}
+        {visibleBlocks.challenge && goal && (
+          <Link to={`/challenge/${goal.uuid}`} className="flex items-center gap-3 rounded-2xl bg-[var(--surface)] px-3 py-2.5">
+            <IoBookOutline className="h-4 w-4 flex-shrink-0 text-nonsprimary" />
+            <span className="flex-shrink-0 text-[13px] font-semibold text-[var(--text)]">{t('readingGoalTitle', { year: challengeYear(goal) })}</span>
+            <span className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-[var(--surface-active)]">
+              <span className="block h-full rounded-full bg-nonsprimary" style={{ width: `${goalPct}%` }} />
+            </span>
+            <span className="flex-shrink-0 text-xs font-semibold tabular-nums text-[var(--text-muted)]">
+              {goal.progress ?? 0}/{goal.target}
+            </span>
+          </Link>
+        )}
+      </div>
+    )}
+
+    <section className="hidden lg:flex lg:flex-col lg:gap-3">
       {visibleBlocks.progress && (
-        <div className="w-[85%] flex-shrink-0 snap-center rounded-2xl bg-[var(--surface)] p-4 lg:w-auto lg:flex-shrink lg:snap-align-none">
+        <div className="rounded-2xl bg-[var(--surface)] p-4">
           <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-[var(--text)]">
             <span className="h-2 w-2 rounded-full" style={{ backgroundColor: STATUS_COLOR.active }} />
             {t('shelfActive')}
@@ -713,13 +707,14 @@ function InProgressSection({
       )}
 
       {visibleBlocks.challenge && (
-        <div className="flex w-[85%] flex-shrink-0 snap-center flex-col gap-3 lg:w-auto lg:flex-shrink lg:snap-align-none">
+        <div className="flex flex-col gap-3">
           {visibleBlocks.challenge && <ChallengeBlock challenge={readingChallenge} t={t} />}
         </div>
       )}
 
       {visibleBlocks.trending && trending.length > 0 && <TalkedAboutBlock items={trending} t={t} />}
     </section>
+    </>
   )
 }
 
@@ -821,7 +816,7 @@ function ChallengeBlock({ challenge, t }: { challenge: Challenge | null; t: Tran
 function TalkedAboutBlock({ items, t }: { items: CatalogItem[]; t: Translate }) {
   const [featured, ...rest] = items
   return (
-    <div className="w-[85%] flex-shrink-0 snap-center rounded-2xl bg-[var(--surface)] p-4 lg:w-auto lg:flex-shrink lg:snap-align-none">
+    <div className="rounded-2xl bg-[var(--surface)] p-4">
       <h2 className="mb-3 text-sm font-semibold text-[var(--text)]">{t('talkedAbout')}</h2>
       <div className="flex items-stretch gap-2.5">
         <Link to={mediaPath(featured)} className="group flex w-1/2 flex-shrink-0 flex-col">
@@ -853,6 +848,52 @@ function TalkedAboutBlock({ items, t }: { items: CatalogItem[]; t: Translate }) 
   )
 }
 
+/** How far through an in-progress item the viewer is, 0-100 (0 when unknown). */
+function useItemProgress(item: MediaItem): number {
+  const [latestPage, setLatestPage] = useState<number>(0)
+  const [episodeStats, setEpisodeStats] = useState<{ watched: number; total: number } | null>(null)
+  useEffect(() => {
+    if (item.type === 'book') {
+      libraryService.getProgress(item.id).then((rows) => setLatestPage(rows[0]?.page ?? 0)).catch(() => {})
+    } else if (item.type === 'series') {
+      libraryService.getEpisodeStats(item.id).then(setEpisodeStats).catch(() => {})
+    }
+  }, [item.id, item.type])
+
+  const totalPages = item.pages ?? 0
+  return item.type === 'book' && totalPages > 0 && latestPage > 0
+    ? Math.min(100, Math.round((latestPage / totalPages) * 100))
+    : item.type === 'series' && episodeStats && episodeStats.total > 0
+      ? Math.min(100, Math.round((episodeStats.watched / episodeStats.total) * 100))
+      : 0
+}
+
+// Phone: one in-progress item as a small chip. Tapping it opens the progress
+// editor straight away, so the whole chip is the "update" button.
+function MobileProgressChip({ item, onEditProgress }: { item: MediaItem; onEditProgress: () => void }) {
+  const pct = useItemProgress(item)
+  return (
+    <button
+      type="button"
+      onClick={onEditProgress}
+      className="flex w-[210px] flex-shrink-0 snap-start items-center gap-2.5 rounded-2xl bg-[var(--surface)] p-2 text-left transition-colors active:bg-[var(--surface-hover)]"
+    >
+      <span className="relative block aspect-[2/3] w-9 flex-shrink-0 overflow-hidden rounded-md bg-[var(--container-2)]">
+        {item.coverUrl && <img src={item.coverUrl} alt="" loading="lazy" className="h-full w-full object-cover" />}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-[13px] font-semibold leading-tight text-[var(--text)]">{item.title}</span>
+        <span className="mt-1.5 flex items-center gap-2">
+          <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-[var(--surface-active)]">
+            <span className="block h-full rounded-full bg-nonsprimary" style={{ width: `${pct}%` }} />
+          </span>
+          <span className="flex-shrink-0 text-[11px] font-semibold tabular-nums text-nonsprimary">{pct}%</span>
+        </span>
+      </span>
+    </button>
+  )
+}
+
 function InProgressCard({
   item,
   onFinish,
@@ -866,22 +907,7 @@ function InProgressCard({
   onStatusChanged: (id: string, status: ShelfStatus) => void
   t: Translate
 }) {
-  const [latestPage, setLatestPage] = useState<number>(0)
-  const [episodeStats, setEpisodeStats] = useState<{ watched: number; total: number } | null>(null)
-  useEffect(() => {
-    if (item.type === 'book') {
-      libraryService.getProgress(item.id).then((rows) => setLatestPage(rows[0]?.page ?? 0)).catch(() => {})
-    } else if (item.type === 'series') {
-      libraryService.getEpisodeStats(item.id).then(setEpisodeStats).catch(() => {})
-    }
-  }, [item.id, item.type])
-
-  const totalPages = item.pages ?? 0
-  const pct = item.type === 'book' && totalPages > 0 && latestPage > 0
-    ? Math.min(100, Math.round((latestPage / totalPages) * 100))
-    : item.type === 'series' && episodeStats && episodeStats.total > 0
-      ? Math.min(100, Math.round((episodeStats.watched / episodeStats.total) * 100))
-      : 0
+  const pct = useItemProgress(item)
 
   const handleStatusChange = (key: ShelfStatus) => {
     if (key === 'done') { onFinish(); return }

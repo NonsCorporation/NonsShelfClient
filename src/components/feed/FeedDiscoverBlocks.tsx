@@ -88,20 +88,19 @@ function PosterTile({
 }) {
   const [busy, setBusy] = useState(false)
   return (
-    <div className="w-32 flex-shrink-0 snap-start sm:w-36">
-      <div className="group relative aspect-[2/3] overflow-hidden rounded-xl border border-[var(--border-subtle)] bg-[var(--container-2)] transition-colors hover:border-[var(--border)]">
+    <div className="w-28 flex-shrink-0 snap-start sm:w-32">
+      <div className="group relative aspect-[2/3] overflow-hidden rounded-lg bg-[var(--container-2)] shadow-sm">
         <Link to={mediaPath(item)} title={item.title} className="block h-full w-full">
           {item.coverUrl && (
             <img src={item.coverUrl} alt={item.title} loading="lazy" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
           )}
-          <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/80 to-transparent" />
         </Link>
         {rank != null && (
-          <span className="pointer-events-none absolute bottom-0.5 left-2 text-5xl font-black leading-none text-white/95 [text-shadow:0_2px_8px_rgba(0,0,0,0.6)]">
+          <span className="pointer-events-none absolute bottom-1.5 left-1.5 flex h-5 min-w-5 items-center justify-center rounded-md bg-black/60 px-1 text-[11px] font-bold leading-none text-white backdrop-blur-sm">
             {rank}
           </span>
         )}
-        <TypeBadge type={item.type} position="top-2 right-2" size="h-6 w-6" iconSize="h-3 w-3" className="pointer-events-none" />
+        <TypeBadge type={item.type} position="top-1.5 right-1.5" size="h-5 w-5" iconSize="h-2.5 w-2.5" className="pointer-events-none" />
         <button
           type="button"
           disabled={onShelf || busy}
@@ -111,14 +110,16 @@ function PosterTile({
             setBusy(true)
             try { await onAdd(item) } finally { setBusy(false) }
           }}
-          className={`absolute left-2 top-2 flex h-7 w-7 items-center justify-center rounded-full text-white backdrop-blur-sm transition-colors ${
-            onShelf ? 'bg-nonsprimary' : 'bg-black/55 hover:bg-nonsprimary disabled:opacity-60'
+          className={`absolute left-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full text-white backdrop-blur-sm transition-all ${
+            onShelf
+              ? 'bg-nonsprimary'
+              : 'bg-black/55 hover:bg-nonsprimary focus-visible:opacity-100 disabled:opacity-60 sm:opacity-0 sm:group-hover:opacity-100'
           }`}
         >
-          {onShelf ? <IoCheckmark className="h-4 w-4" /> : <IoAdd className="h-4 w-4" />}
+          {onShelf ? <IoCheckmark className="h-3.5 w-3.5" /> : <IoAdd className="h-3.5 w-3.5" />}
         </button>
       </div>
-      <Link to={mediaPath(item)} className="mt-2 block">
+      <Link to={mediaPath(item)} className="mt-1.5 block">
         <p className="truncate text-xs font-semibold text-[var(--text)] hover:text-nonsprimary">{item.title}</p>
         <p className="mt-0.5 flex items-center gap-1 truncate text-[11px] text-[var(--text-muted)]">{sub}</p>
       </Link>
@@ -160,7 +161,6 @@ export function PopularNowRail({ spotlights, onShelf, onAdd, t }: TileProps & { 
     <RailPanel
       icon={<IoFlameOutline className="h-4 w-4 text-nonsprimaryfocus" />}
       title={t('popularNow')}
-      hint={t('popularNowHint')}
       seeAllTo="/discover"
       t={t}
       aside={
@@ -170,10 +170,10 @@ export function PopularNowRail({ spotlights, onShelf, onAdd, t }: TileProps & { 
               key={tb.key}
               type="button"
               onClick={() => setTab(tb.key)}
-              className={`shrink-0 rounded-full border px-2.5 py-0.5 text-[11px] transition-colors ${
+              className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] transition-colors ${
                 tab === tb.key
-                  ? 'border-[var(--border)] bg-[var(--container-2)] font-medium text-[var(--text)]'
-                  : 'border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--text)]'
+                  ? 'bg-[var(--surface-active)] font-medium text-[var(--text)]'
+                  : 'text-[var(--text-muted)] hover:text-[var(--text)]'
               }`}
             >
               {tb.label}
