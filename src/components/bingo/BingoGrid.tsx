@@ -29,6 +29,8 @@ type Props = {
   onCell?: (i: number) => void
   /** Editor: shows a "+" in empty squares. */
   editing?: boolean
+  /** Native title tooltips on squares (off where the caller shows its own). */
+  tooltips?: boolean
 }
 
 const TYPE_ICON = { book: IoBookOutline, movie: IoFilmOutline, series: IoTvOutline } as const
@@ -54,13 +56,14 @@ type CellProps = {
   interactive: boolean
   freeLabel: string
   emptyLabel: string
+  tooltips: boolean
 }
 
 /**
  * Prompt boards: the prompt sits in the middle of the cover (darkened so it reads),
  * and under the cover go the title of the book the player picked and its author.
  */
-const PromptCell = memo(function PromptCell({ i, cell, art, free, won, interactive, freeLabel, emptyLabel }: CellProps) {
+const PromptCell = memo(function PromptCell({ i, cell, art, free, won, interactive, freeLabel, emptyLabel, tooltips }: CellProps) {
   const promptText = free ? freeLabel : cell?.title ?? ''
   const label = free ? freeLabel : `${cell?.title ?? ''}${art ? ` — ${art.title}` : ''}` || emptyLabel
   const ring = won ? 'ring-2 ring-nonspremium' : ''
@@ -71,7 +74,7 @@ const PromptCell = memo(function PromptCell({ i, cell, art, free, won, interacti
       role={interactive ? 'button' : undefined}
       tabIndex={interactive ? 0 : undefined}
       aria-label={interactive ? label : undefined}
-      title={label}
+      title={tooltips ? label : undefined}
       className={`group flex min-w-0 flex-col gap-2 text-left ${
         interactive ? 'cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-nonsprimary' : ''
       }`}
@@ -116,7 +119,7 @@ const PromptCell = memo(function PromptCell({ i, cell, art, free, won, interacti
   )
 })
 
-const Cell = memo(function Cell({ i, cell, art, free, done, won, selected, prompt, mini, dense, editing, interactive, freeLabel, emptyLabel }: CellProps) {
+const Cell = memo(function Cell({ i, cell, art, free, done, won, selected, prompt, mini, dense, editing, interactive, freeLabel, emptyLabel, tooltips }: CellProps) {
   const small = mini || dense
   const radius = dense ? 'rounded-[2px]' : mini ? 'rounded-[3px]' : 'rounded-lg sm:rounded-xl'
   const Icon = art?.type ? TYPE_ICON[art.type] : null
@@ -200,7 +203,7 @@ const Cell = memo(function Cell({ i, cell, art, free, done, won, selected, promp
       tabIndex={interactive && !dense ? 0 : undefined}
       aria-label={interactive ? label : undefined}
       aria-pressed={interactive && !prompt ? done : undefined}
-      title={small ? undefined : label}
+      title={small || !tooltips ? undefined : label}
       className={`relative aspect-square overflow-hidden text-left ${radius} ${ring} ${
         interactive ? 'cursor-pointer transition-transform hover:scale-[1.03] active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-nonsprimary' : ''
       }`}
@@ -228,6 +231,7 @@ export default function BingoGrid({
   selected,
   onCell,
   editing,
+  tooltips = true,
 }: Props) {
   const { t } = useLanguage()
   const mini = variant === 'mini'
@@ -280,6 +284,7 @@ export default function BingoGrid({
             interactive={!!onCell && !mini}
             freeLabel={freeLabel}
             emptyLabel={emptyLabel}
+            tooltips={tooltips}
           />
         )
       })}

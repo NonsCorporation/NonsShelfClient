@@ -1075,7 +1075,6 @@ export const ro = {
   bingoNew: "Bingo nou",
   bingoEdit: "Editează bingo",
   bingoYours: "Bingo-urile tale",
-  bingoCommunity: "Bingo din comunitate",
   bingoNoneYet: "Nu ai creat încă niciun bingo",
   bingoNoneHint: "Construiește o tablă din cărți, filme sau propriile tale cerințe, de orice dimensiune.",
   bingoMockNote: "Tablele se salvează doar în acest browser. Autentifică-te ca să le păstrezi în cont și să împarți rezultatele cu prietenii.",

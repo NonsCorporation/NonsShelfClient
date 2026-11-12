@@ -26,7 +26,6 @@ import ConfirmModal from '../components/ui/ConfirmModal'
 import DropdownMenu, { type MenuItem } from '../components/ui/DropdownMenu'
 import { Link, useLocation, useNavigate, useSearchParams } from '../lib/router'
 import {
-  COMMUNITY_BINGOS,
   bingoPath,
   boardAtRevision,
   bingoShareUrl,
@@ -81,14 +80,13 @@ export default function BingoPage() {
   const fromLink = payload && boardId ? decodeShare(payload, boardId) : null
 
   const own = store.mine.find((b) => b.id === boardId)
-  const com = COMMUNITY_BINGOS.find((b) => b.id === boardId)
 
   // Ask the server for what this browser doesn't have: the board itself, and
   // someone else's result when the path names another player.
   const othersResult = !!userSeg && userSeg !== me
   const remote = useRemoteBingo(
     boardId,
-    !!boardId && !own && !com && !fromLink,
+    !!boardId && !own && !fromLink,
     othersResult && !fromLink?.run ? userSeg : undefined,
     runSeg,
   )
@@ -96,13 +94,11 @@ export default function BingoPage() {
   const decoded: { board: Bingo; run: SharedRun | null; by: string } | null =
     fromLink ?? (remote.result ? fromServerRun(remote.result) : remote.board ? { board: remote.board, run: null, by: '' } : null)
 
-  const resolved: { board: Bingo; source: 'mine' | 'community' | 'shared' } | null = own
+  const resolved: { board: Bingo; source: 'mine' | 'shared' } | null = own
     ? { board: own, source: 'mine' }
-    : com
-      ? { board: com, source: 'community' }
-      : decoded
-        ? { board: decoded.board, source: 'shared' }
-        : null
+    : decoded
+      ? { board: decoded.board, source: 'shared' }
+      : null
 
   if (!boardId) return null
 

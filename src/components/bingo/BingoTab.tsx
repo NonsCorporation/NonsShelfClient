@@ -7,7 +7,6 @@ import BingoEditor from './BingoEditor'
 import { KindTag, SectionTitle } from './BingoParts'
 import { Link, useNavigate } from '@/lib/router'
 import {
-  COMMUNITY_BINGOS,
   bingoPath,
   boardAtRevision,
   completedLines,
@@ -25,9 +24,9 @@ import { useLoginModal } from '@/contexts/LoginModalContext'
 
 type Filter = 'all' | BingoKind
 
-// Discover → Bingo tab: the list of boards and the "new bingo" flow. A board
-// itself lives at /bingo/<uuid> (screens/BingoPage.tsx). Mock only: boards are
-// kept in this browser's localStorage.
+// Discover → Bingo tab: your boards and the "new bingo" flow. A board itself
+// lives at /bingo/<uuid> (screens/BingoPage.tsx); other people's boards open
+// from their links and feed posts.
 export default function BingoTab() {
   const { t } = useLanguage()
   const { user, isAuthenticated } = useAuth()
@@ -42,7 +41,6 @@ export default function BingoTab() {
   const startNew = () => (isAuthenticated ? setCreating(true) : openLogin())
   const visible = (list: Bingo[]) => list.filter((b) => filter === 'all' || b.kind === filter)
   const myBoards = visible(mine)
-  const communityBoards = visible(COMMUNITY_BINGOS)
 
   return (
     <div>
@@ -80,7 +78,7 @@ export default function BingoTab() {
 
       <SectionTitle>{t('bingoYours')}</SectionTitle>
       {myBoards.length === 0 ? (
-        <div className="mb-8 flex flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-[var(--border)] py-12 text-center">
+        <div className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-[var(--border)] py-12 text-center">
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--surface)]">
             <IoGridOutline className="h-6 w-6 text-[var(--text-muted)]" />
           </div>
@@ -88,19 +86,12 @@ export default function BingoTab() {
           <p className="text-xs text-[var(--text-muted)]">{t('bingoNoneHint')}</p>
         </div>
       ) : (
-        <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
           {myBoards.map((b) => (
             <BingoCard key={b.id} board={b} runs={runs[b.id]} revisions={revisions[b.id]} mine />
           ))}
         </div>
       )}
-
-      <SectionTitle>{t('bingoCommunity')}</SectionTitle>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-        {communityBoards.map((b) => (
-          <BingoCard key={b.id} board={b} runs={runs[b.id]} revisions={revisions[b.id]} />
-        ))}
-      </div>
 
       {!isAuthenticated && <p className="mt-8 text-xs text-[var(--text-muted)]">{t('bingoMockNote')}</p>}
 

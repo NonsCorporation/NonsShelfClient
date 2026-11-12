@@ -1146,7 +1146,6 @@ export const en = {
   bingoNew: "New bingo",
   bingoEdit: "Edit bingo",
   bingoYours: "Your bingos",
-  bingoCommunity: "Community bingos",
   bingoNoneYet: "You haven't made a bingo yet",
   bingoNoneHint: "Build a board of books, films or your own prompts, in any size you like.",
   bingoMockNote: "Boards are saved in this browser only. Sign in to keep them in your account and share results with friends.",

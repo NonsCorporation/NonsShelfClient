@@ -1,5 +1,7 @@
 import { authedFetch, PLATFORM_API_URL } from '../lib/api'
 import type { MediaType } from '../types'
+import type { BingoCell, BingoKind } from '../lib/bingo'
+import { fromWireCell, type WireCell } from './bingoService'
 
 export type ActivityType = 'rated' | 'finished' | 'started' | 'added' | 'reviewed' | 'progress' | 'dnf' | 'challenge_joined' | 'bingo_finished'
 
@@ -77,16 +79,54 @@ export type Activity = {
   bingo?: BingoFeedRun
 }
 
-/** A finished bingo run as the feed serves it (server bingo_service.FeedRun). */
+/** A finished bingo run, ready for the feed card. */
 export type BingoFeedRun = {
-  board: { id: string; kind: 'list' | 'prompt'; title: string; rows: number; cols: number }
+  boardId: string
+  kind: BingoKind
+  title: string
+  rows: number
+  cols: number
+  freeCenter: boolean
+  runId: string
+  done: number
+  total: number
+  lines: number
+  /** Done squares, row-major (free centre included). */
+  mask: boolean[]
+  /** The squares and (prompt boards) the player's picks — only for boards of up
+   *  to 12×12; bigger boards are drawn from `mask` alone. */
+  cells?: (BingoCell | null)[]
+  answers?: (BingoCell | null)[]
+}
+
+// Wire shape of a 'bingo_run' subject (server bingo_service.FeedRun).
+type WireBingoFeedRun = {
+  board: { id: string; kind: BingoKind; title: string; rows: number; cols: number; free_center?: boolean }
   run_id: string
   done: number
   total: number
   lines: number
-  finished_at?: number
-  /** Done squares as '0'/'1', row-major; only for boards of up to 100 squares. */
   mask?: string
+  cells?: (WireCell | null)[]
+  answers?: (WireCell | null)[]
+}
+
+function toBingoFeedRun(w: WireBingoFeedRun): BingoFeedRun {
+  return {
+    boardId: w.board.id,
+    kind: w.board.kind,
+    title: w.board.title,
+    rows: w.board.rows,
+    cols: w.board.cols,
+    freeCenter: !!w.board.free_center,
+    runId: w.run_id,
+    done: w.done,
+    total: w.total,
+    lines: w.lines,
+    mask: Array.from(w.mask ?? '', (ch) => ch === '1'),
+    cells: w.cells?.map(fromWireCell),
+    answers: w.answers?.map(fromWireCell),
+  }
 }
 
 // ── Wire types ──────────────────────────────────────────────────────────────
@@ -235,8 +275,8 @@ function toActivity(e: ActivityEvent, user: Activity['user'], friends?: Map<numb
     userReactionPayload: toReactionPayload(e, friends),
   }
   if (e.subject_type === 'bingo_run' && e.subject) {
-    const run = e.subject as BingoFeedRun
-    return { ...base, mediaId: 0, mediaTitle: run.board.title, mediaType: 'book', bingo: run }
+    const run = toBingoFeedRun(e.subject as WireBingoFeedRun)
+    return { ...base, mediaId: 0, mediaTitle: run.title, mediaType: 'book', bingo: run }
   }
   if (e.type === 'challenge_joined' && e.challenge) {
     return {

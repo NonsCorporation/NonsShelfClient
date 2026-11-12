@@ -341,139 +341,7 @@ export function bingoShareUrl(
   return { url: url.toString(), embedded }
 }
 
-// ── mock community boards ──
-const DAY = 86_400_000
-
-const listBoard = (
-  id: string,
-  title: string,
-  description: string,
-  author: string,
-  type: MediaType,
-  rows: [string, string?][],
-  daysAgo: number,
-): Bingo => ({
-  id,
-  kind: 'list',
-  title,
-  description,
-  author,
-  freeCenter: true,
-  rows: 5,
-  cols: 5,
-  cells: rows.map(([t, credit]) => ({ kind: 'media', title: t, type, credit })),
-  revision: 1,
-  createdAt: Date.now() - daysAgo * DAY,
-})
-
-const textBoard = (id: string, kind: BingoKind, title: string, description: string, author: string, rows: string[], daysAgo: number): Bingo => ({
-  id,
-  kind,
-  title,
-  description,
-  author,
-  freeCenter: true,
-  rows: 5,
-  cols: 5,
-  cells: rows.map((t) => ({ kind: 'text', title: t })),
-  revision: 1,
-  createdAt: Date.now() - daysAgo * DAY,
-})
-
-export const COMMUNITY_BINGOS: Bingo[] = [
-  textBoard(
-    '5eed0001-0000-4000-8000-000000000001',
-    'prompt',
-    'My reading life',
-    'Fill every square with your own pick: a book or a film. Compare boards with friends!',
-    'mira',
-    [
-      'The book I cried on', 'A book that made me laugh out loud', 'My comfort re-read', 'The book I pretend I have read', 'The last book I did not finish',
-      'A film that changed my mind', 'The movie I watch every year', 'My guilty-pleasure series', "The book I'd save from a fire", 'A book I read in one sitting',
-      'The best opening line I know', 'A book that scared me', 'The film I fell asleep during', 'My most-lent book', 'A book that got me into reading',
-      'The worst ending ever', 'A character I would marry', 'A story I wish I could read again for the first time', 'The book I bought for the cover', 'A film adaptation that beat the book',
-      'The book on my nightstand', 'My favourite villain', 'A book everyone loved but me', 'The most beautiful cover I own', 'A book that taught me something',
-    ],
-    2,
-  ),
-  textBoard(
-    '5eed0002-0000-4000-8000-000000000002',
-    'prompt',
-    'Movie night memories',
-    'Your own answers for each square. Films or series only (or just write what you remember).',
-    'cinephile_k',
-    [
-      'My first cinema trip', 'A film I quote constantly', 'The best soundtrack', 'A movie that made me cry', 'A series I binged in a weekend',
-      'The scariest film I saw', 'A film I watch when I am sad', 'The best plot twist', 'A movie better the second time', 'My favourite actor performance',
-      'A film that made me leave the cinema silent', 'The funniest film', 'A sequel better than the original', 'A foreign film I loved', 'A film I love that everyone hates',
-      'The best opening scene', 'A movie I watched with my family', 'An animated film for adults', 'A film that made me read the book', 'A documentary that stuck with me',
-      'My favourite ending', 'The most overrated film', 'A series I wish had not ended', 'A film I rewatch every winter', 'A movie I need to see',
-    ],
-    5,
-  ),
-  textBoard(
-    '5eed0003-0000-4000-8000-000000000003',
-    'list',
-    'Reading bingo 2026',
-    'A year of prompts: tick a square each time a book fits. Go for a full row!',
-    'mira',
-    [
-      'A book with a blue cover', 'Read in one sitting', "Set in a country you've never visited", 'Author under 30', 'A book from your childhood',
-      'A translated novel', 'A one-word title', 'A debut novel', 'Became a movie', 'Published before 1950',
-      'A graphic novel', 'Recommended by a friend', 'A poetry collection', 'Has a map inside', 'A colour in the title',
-      "A book you've been avoiding", 'Non-fiction about science', 'An unreliable narrator', 'A mystery or thriller', 'Over 500 pages',
-      'Under 150 pages', 'A number in the title', 'An award winner', 'Set in winter', 'A twist ending',
-    ],
-    3,
-  ),
-  listBoard(
-    '5eed0004-0000-4000-8000-000000000004',
-    'Sci-fi canon bingo',
-    'The big names of science fiction. How many have you read?',
-    'dan_reads',
-    'book',
-    [
-      ['Dune', 'Frank Herbert'], ['Neuromancer', 'William Gibson'], ['The Left Hand of Darkness', 'Ursula K. Le Guin'], ['Foundation', 'Isaac Asimov'], ['Snow Crash', 'Neal Stephenson'],
-      ['Hyperion', 'Dan Simmons'], ['The Martian', 'Andy Weir'], ["Ender's Game", 'Orson Scott Card'], ['Fahrenheit 451', 'Ray Bradbury'], ['Brave New World', 'Aldous Huxley'],
-      ['Nineteen Eighty-Four', 'George Orwell'], ['The Dispossessed', 'Ursula K. Le Guin'], ['Solaris', 'Stanisław Lem'], ['Do Androids Dream of Electric Sheep?', 'Philip K. Dick'], ['The Three-Body Problem', 'Liu Cixin'],
-      ['Children of Time', 'Adrian Tchaikovsky'], ['Project Hail Mary', 'Andy Weir'], ['A Canticle for Leibowitz', 'Walter M. Miller Jr.'], ['Rendezvous with Rama', 'Arthur C. Clarke'], ["The Handmaid's Tale", 'Margaret Atwood'],
-      ['Station Eleven', 'Emily St. John Mandel'], ['Kindred', 'Octavia E. Butler'], ['Annihilation', 'Jeff VanderMeer'], ['Red Mars', 'Kim Stanley Robinson'], ['The Time Machine', 'H. G. Wells'],
-    ],
-    7,
-  ),
-  listBoard(
-    '5eed0005-0000-4000-8000-000000000005',
-    'Film night classics',
-    'Twenty-four films everyone should see once. Free square in the middle.',
-    'cinephile_k',
-    'movie',
-    [
-      ['The Godfather'], ['Casablanca'], ['Pulp Fiction'], ['Spirited Away'], ['Parasite'],
-      ['Inception'], ['The Matrix'], ['Blade Runner'], ['Alien'], ['Jaws'],
-      ['Psycho'], ['Vertigo'], ['Seven Samurai'], ['Amélie'], ['Whiplash'],
-      ['Interstellar'], ['Mad Max: Fury Road'], ['Moonlight'], ['Get Out'], ['The Shining'],
-      ['Goodfellas'], ['Fargo'], ['Back to the Future'], ['Titanic'], ['The Lion King'],
-    ],
-    12,
-  ),
-  listBoard(
-    '5eed0006-0000-4000-8000-000000000006',
-    'Studio Ghibli marathon',
-    'Cozy, strange and beautiful. Tick them off one rainy evening at a time.',
-    'bookish.lena',
-    'movie',
-    [
-      ['Spirited Away'], ['My Neighbor Totoro'], ['Princess Mononoke'], ["Howl's Moving Castle"], ["Kiki's Delivery Service"],
-      ['Ponyo'], ['Castle in the Sky'], ['Nausicaä of the Valley of the Wind'], ['The Wind Rises'], ['Grave of the Fireflies'],
-      ['Whisper of the Heart'], ['The Cat Returns'], ['Porco Rosso'], ['Arrietty'], ['When Marnie Was There'],
-      ['The Tale of the Princess Kaguya'], ['From Up on Poppy Hill'], ['Tales from Earthsea'], ['Pom Poko'], ['My Neighbors the Yamadas'],
-      ['Only Yesterday'], ['Ocean Waves'], ['The Boy and the Heron'], ['Earwig and the Witch'], ['The Red Turtle'],
-    ],
-    20,
-  ),
-]
-
-// ── mock persistence ──
+// ── local persistence ──
 type Saved = {
   /** The signed-in user's own boards. */
   mine: Bingo[]
@@ -526,6 +394,9 @@ function normalise(p: Record<string, unknown>): Saved {
     for (const id of new Set([...Object.keys(marks), ...Object.keys(answers)]))
       runs[id] = [{ id: newRunId(), marks: marks[id] ?? [], answers: answers[id] ?? [], createdAt: Date.now(), revision: 1 }]
   }
+  // Runs on the sample boards that used to ship with the client (ids 5eed000N-…)
+  // point at boards that no longer exist anywhere.
+  for (const id of Object.keys(runs)) if (/^5eed000\d-/.test(id)) delete runs[id]
   for (const [from, to] of renamed) {
     if (runs[from]) {
       runs[to] = runs[from]
@@ -595,9 +466,7 @@ const newRun = (revision: number): BingoRun => ({ id: newRunId(), marks: [], ans
 // Local first: every mutation writes localStorage, then (signed in) the changed
 // board/run is pushed. Calls go through one serial queue so a run never reaches
 // the server before its board. Tick/answer pushes are debounced per run.
-// Community boards are client-side mocks, so their runs stay local.
 
-const COMMUNITY_IDS = new Set(COMMUNITY_BINGOS.map((b) => b.id))
 /** Which account this browser's store was last synced to — never upload one user's local boards into another's account. */
 const OWNER_KEY = 'nons-library:bingo:owner'
 const RUN_DEBOUNCE_MS = 700
@@ -623,8 +492,7 @@ export function markServerBoard(id: string) {
   serverBoards.add(id)
 }
 
-const runsSyncFor = (boardId: string) =>
-  !COMMUNITY_IDS.has(boardId) && (serverBoards.has(boardId) || read().mine.some((b) => b.id === boardId))
+const runsSyncFor = (boardId: string) => serverBoards.has(boardId) || read().mine.some((b) => b.id === boardId)
 
 function pushBoard(id: string) {
   if (syncUser === null) return
@@ -635,7 +503,7 @@ function pushBoard(id: string) {
 }
 
 function pushRun(boardId: string, runId: string, delay = 0, share = true) {
-  if (syncUser === null || COMMUNITY_IDS.has(boardId)) return
+  if (syncUser === null) return
   const key = `${boardId}/${runId}`
   clearTimeout(runTimers.get(key))
   runTimers.set(

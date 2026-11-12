@@ -7,7 +7,7 @@ import type { Bingo, BingoCell, BingoKind, BingoRevision, BingoRun } from '../li
 // maps at this boundary. Board ids (uuid) and run ids are the client's own, so
 // nothing is remapped.
 
-type WireCell = { kind: 'media' | 'text'; title: string; type?: MediaType; cover_url?: string; credit?: string; year?: number }
+export type WireCell = { kind: 'media' | 'text'; title: string; type?: MediaType; cover_url?: string; credit?: string; year?: number }
 
 type WirePerson = { uuid: string; username: string; name: string; avatar_url?: string }
 
@@ -40,7 +40,7 @@ type WireRevision = { board_id: string; revision: number; rows: number; cols: nu
 const toWireCell = (c: BingoCell | null | undefined): WireCell | null =>
   c ? { kind: c.kind, title: c.title, type: c.type, cover_url: c.coverUrl, credit: c.credit, year: c.year } : null
 
-const fromWireCell = (c: WireCell | null): BingoCell | null =>
+export const fromWireCell = (c: WireCell | null): BingoCell | null =>
   c ? { kind: c.kind, title: c.title, type: c.type, coverUrl: c.cover_url || undefined, credit: c.credit || undefined, year: c.year || undefined } : null
 
 const personName = (p?: WirePerson) => p?.name || p?.username || ''
