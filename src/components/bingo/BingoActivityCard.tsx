@@ -3,10 +3,20 @@ import { Link } from '@/lib/router'
 import type { Activity, BingoFeedRun } from '@/services/activityService'
 import { deletePost } from '@/services/commentService'
 import { useAuth } from '@/contexts/AuthContext'
+import { useLoginModal } from '@/contexts/LoginModalContext'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { usePreferences } from '@/contexts/PreferencesContext'
 import { userPath } from '@/lib/paths'
-import { bingoPath, centerIndex, completedLines, progressMask, type BingoCell } from '@/lib/bingo'
+import {
+  bingoPath,
+  bingoShareUrl,
+  centerIndex,
+  completedLines,
+  emptyCells,
+  progressMask,
+  type Bingo,
+  type BingoCell,
+} from '@/lib/bingo'
 import { bingoApi } from '@/services/bingoService'
 import { boardImage } from '@/lib/bingoImage'
 import { hashHue } from '@/lib/hashHue'
@@ -19,13 +29,26 @@ import CommentThread from '@/components/feed/CommentThread'
 import CommentPreview from '@/components/feed/CommentPreview'
 import LikeButton from '@/components/feed/LikeButton'
 import ReactionBanner from '@/components/feed/ReactionBanner'
-import BingoGrid from './BingoGrid'
-import { IoArrowForward, IoBookOutline, IoChatbubbleOutline, IoCheckmark, IoFilmOutline, IoTrashOutline, IoTrophyOutline, IoTvOutline } from 'react-icons/io5'
+import BingoShareModal, { BingoShareCard } from './BingoShareModal'
+import {
+  IoBookOutline,
+  IoChatbubbleOutline,
+  IoCheckmark,
+  IoChevronUp,
+  IoFilmOutline,
+  IoShareOutline,
+  IoTrashOutline,
+  IoTvOutline,
+} from 'react-icons/io5'
 
-// A feed card for a finished bingo run: "<Name> finished <Board>", then the
-// board in the style of its share card — a dark card glowing in the colours of
-// the books on it, with the covers and the books the player entered. Hovering a
-// square shows that book. Same like/comment footer as the other feed cards.
+function tileBackground(title: string) {
+  const h = hashHue(title)
+  return `linear-gradient(135deg, hsl(${h} 52% 38%), hsl(${(h + 32) % 360} 55% 24%))`
+}
+
+// A feed card for a finished bingo run: "<Name> finished bingo <Board>", then
+// the same picture as the board's share image. Hovering a square previews that
+// item; same share/like/comment footer as the other feed cards.
 export default function BingoActivityCard({
   a,
   commentCount = 0,
@@ -41,18 +64,50 @@ export default function BingoActivityCard({
 }) {
   const { t } = useLanguage()
   const { user } = useAuth()
+  const { openLogin } = useLoginModal()
   const { showActivityReactions } = usePreferences()
   const showReactionBanner = a.userReactionPayload && (a.userReactionPayload.actorId !== user?.id || showActivityReactions)
   const [showComments, setShowComments] = useState(initialOpenComments ?? false)
+  const [commentsMounted, setCommentsMounted] = useState(initialOpenComments ?? false)
+  const toggleComments = () => {
+    setShowComments((v) => !v)
+    setCommentsMounted(true)
+  }
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [shareOpen, setShareOpen] = useState(false)
 
   const run = a.bingo
+  const player = a.user.uuid || a.user.handle
+  const { squares, loading } = useRunSquares(run, player)
+
   if (!run) return null
 
-  const player = a.user.uuid || a.user.handle
   const to = player ? bingoPath(run.boardId, player, run.runId) : bingoPath(run.boardId)
   const canDelete = !!user && (user.id === a.userId || user.role === 'admin')
+  const mask = squares?.mask ?? run.mask
+  const winning = new Set(completedLines(mask, run.rows, run.cols).flat())
+
+  const shareBoard: Bingo = {
+    id: run.boardId,
+    kind: run.kind,
+    title: run.title,
+    description: '',
+    author: a.user.name,
+    freeCenter: run.freeCenter,
+    rows: run.rows,
+    cols: run.cols,
+    cells: squares?.cells ?? emptyCells(run.rows, run.cols),
+    revision: 1,
+    createdAt: a.at * 1000,
+  }
+  const shareLink = () =>
+    bingoShareUrl(shareBoard, {
+      userId: player,
+      runId: run.runId,
+      run: { marks: run.kind === 'list' ? mask : undefined, answers: squares?.answers ?? undefined },
+      by: a.user.name,
+    })
 
   const confirmDelete = async () => {
     setDeleting(true)
@@ -94,29 +149,45 @@ export default function BingoActivityCard({
           </Link>
         </div>
         <span className="flex-shrink-0 text-xs text-[var(--text-muted)]">{a.timeAgo}</span>
-        {canDelete && (
-          <DropdownMenu
-            className="flex-shrink-0"
-            items={[
-              {
-                label: t('removeFromFeed'),
-                icon: <IoTrashOutline className="h-4 w-4" />,
-                danger: true,
-                onClick: () => setConfirmingDelete(true),
-              },
-            ]}
-          />
-        )}
+        <DropdownMenu
+          className="flex-shrink-0"
+          items={[
+            {
+              label: t('share'),
+              icon: <IoShareOutline className="h-4 w-4" />,
+              onClick: () => setShareOpen(true),
+            },
+            ...(canDelete
+              ? [
+                  {
+                    label: t('removeFromFeed'),
+                    icon: <IoTrashOutline className="h-4 w-4" />,
+                    danger: true,
+                    onClick: () => setConfirmingDelete(true),
+                  },
+                ]
+              : []),
+          ]}
+        />
       </div>
 
       <Link to={to} className="block">
-        <FeedBingoCard run={run} player={player} />
+        <FeedBingoCard run={run} squares={squares} loading={loading} />
       </Link>
 
       <div className="mt-4 flex items-center gap-4 border-t border-[var(--divider)] pt-3 text-sm">
-        <LikeButton postId={a.postId} />
+        {user ? (
+          <LikeButton postId={a.postId} />
+        ) : (
+          <button
+            onClick={() => openLogin()}
+            className="inline-flex items-center gap-1.5 font-medium text-[var(--text-muted)] transition-colors hover:text-[var(--text)]"
+          >
+            <IoChevronUp className="h-4 w-4" />
+          </button>
+        )}
         <button
-          onClick={() => setShowComments((v) => !v)}
+          onClick={user ? toggleComments : () => openLogin()}
           className={`inline-flex items-center gap-1.5 font-medium transition-colors ${
             showComments ? 'text-nonsprimary' : 'text-[var(--text-muted)] hover:text-[var(--text)]'
           }`}
@@ -127,10 +198,14 @@ export default function BingoActivityCard({
       </div>
 
       {!showComments && commentCount > 0 && (
-        <CommentPreview postId={a.postId} commentCount={commentCount} onViewAll={() => setShowComments(true)} />
+        <CommentPreview postId={a.postId} commentCount={commentCount} onViewAll={toggleComments} />
       )}
 
-      {showComments && <CommentThread postId={a.postId} onCountChange={(n) => onCountChange?.(a.postId, n)} />}
+      <div className={`grid transition-[grid-template-rows] duration-300 ease-out ${showComments ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
+        <div className={`overflow-hidden transition-opacity duration-200 ${showComments ? 'opacity-100 delay-100' : 'opacity-0'}`}>
+          {commentsMounted && <CommentThread postId={a.postId} onCountChange={(n) => onCountChange?.(a.postId, n)} />}
+        </div>
+      </div>
 
       {confirmingDelete && (
         <ConfirmModal
@@ -144,31 +219,27 @@ export default function BingoActivityCard({
           onCancel={() => setConfirmingDelete(false)}
         />
       )}
+
+      {shareOpen && (
+        <BingoShareModal
+          board={shareBoard}
+          mask={mask}
+          answers={squares?.answers ?? null}
+          winning={winning}
+          link={shareLink().url}
+          embedded={shareLink().embedded}
+          onClose={() => setShareOpen(false)}
+        />
+      )}
     </article>
   )
 }
 
-/** Widest the board is drawn in the feed card (prompt boards are taller, so narrower). */
-const BOARD_MAX = 300
-const PROMPT_BOARD_MAX = 260
-/** Covers shown in the "done" stack before "+N". */
-const STACK_MAX = 6
-const PEEK_W = 230
+/** The share picture's natural width (BingoShareModal's card). */
+const CARD_W = 360
+const PEEK_W = 240
 /** Largest board whose squares are drawn (and fetched when the post lacks them); bigger ones are a mosaic. */
 const SQUARES_MAX = 144
-
-// The app's dark theme values, set on the card so it reads the same in light mode
-// (the grid's empty squares and captions use these variables).
-const DARK_VARS = {
-  '--text': '#f4f4f5',
-  '--text-muted': '#a1a1aa',
-  '--surface': 'rgba(255, 255, 255, 0.05)',
-  '--border': 'rgba(255, 255, 255, 0.14)',
-  '--border-strong': 'rgba(255, 255, 255, 0.24)',
-  '--container': '#0b0b0e',
-  '--primary-soft': 'rgba(103, 104, 171, 0.22)',
-  '--primary-ring': 'rgba(103, 104, 171, 0.5)',
-} as React.CSSProperties
 
 type Peek = { i: number; left: number; top: number; above: boolean }
 
@@ -179,13 +250,13 @@ type Squares = { cells: (BingoCell | null)[]; answers?: (BingoCell | null)[]; ma
  * loaded from the player's public run (boards up to SQUARES_MAX squares).
  * `loading` is true while that request is in flight.
  */
-function useRunSquares(run: BingoFeedRun, player: string | undefined): { squares: Squares | null; loading: boolean } {
-  const need = !run.cells && !!player && run.rows * run.cols <= SQUARES_MAX
-  const key = `${run.boardId}/${player ?? ''}/${run.runId}`
+function useRunSquares(run: BingoFeedRun | undefined, player: string | undefined): { squares: Squares | null; loading: boolean } {
+  const need = !!run && !run.cells && !!player && run.rows * run.cols <= SQUARES_MAX
+  const key = run ? `${run.boardId}/${player ?? ''}/${run.runId}` : ''
   const [fetched, setFetched] = useState<{ key: string; squares: Squares | null } | null>(null)
 
   useEffect(() => {
-    if (!need || !player) return
+    if (!run || !need || !player) return
     let alive = true
     bingoApi
       .playerRun(run.boardId, player, run.runId)
@@ -206,98 +277,80 @@ function useRunSquares(run: BingoFeedRun, player: string | undefined): { squares
     return () => {
       alive = false
     }
-  }, [need, key, player, run.boardId, run.runId])
+  }, [need, key, player, run])
 
+  if (!run) return { squares: null, loading: false }
   if (run.cells) return { squares: { cells: run.cells, answers: run.answers, mask: run.mask }, loading: false }
   if (!need) return { squares: null, loading: false }
   return { squares: fetched?.key === key ? fetched.squares : null, loading: fetched?.key !== key }
 }
 
-function FeedBingoCard({ run, player }: { run: BingoFeedRun; player?: string }) {
-  const { t } = useLanguage()
+function FeedBingoCard({ run, squares, loading }: { run: BingoFeedRun; squares: Squares | null; loading: boolean }) {
   const { rows, cols, kind, freeCenter } = run
-  const { squares, loading } = useRunSquares(run, player)
   const cells = squares?.cells
   const answers = squares?.answers
   const mask = squares?.mask ?? run.mask
   const prompt = kind === 'prompt'
   const winning = useMemo(() => new Set(completedLines(mask, rows, cols).flat()), [mask, rows, cols])
-  const cardRef = useRef<HTMLDivElement>(null)
+  const wrapRef = useRef<HTMLDivElement>(null)
+  const [scale, setScale] = useState(1)
   const [peek, setPeek] = useState<Peek | null>(null)
+
+  // The picture is drawn at its natural width and shrunk to fit narrow screens.
+  useEffect(() => {
+    const el = wrapRef.current
+    if (!el) return
+    const ro = new ResizeObserver(() => setScale(Math.min(1, el.clientWidth / CARD_W)))
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+
+  const board: Bingo = useMemo(
+    () => ({
+      id: run.boardId,
+      kind,
+      title: run.title,
+      description: '',
+      author: '',
+      freeCenter,
+      rows,
+      cols,
+      cells: cells ?? emptyCells(rows, cols),
+      revision: 1,
+      createdAt: 0,
+    }),
+    [run.boardId, run.title, kind, freeCenter, rows, cols, cells],
+  )
 
   // What each square shows: the item to tick, or the book the player entered.
   const artAt = (i: number): BingoCell | null => (prompt ? answers?.[i] : cells?.[i]) ?? null
   const centre = freeCenter ? centerIndex(rows, cols) : null
 
-  // Glow colours from the books on the board (their title hues), like the share card's backdrop.
-  const glow = useMemo(() => {
-    const hues: number[] = []
-    for (let i = 0; i < rows * cols && hues.length < 24; i++) {
-      const art = (prompt ? answers?.[i] : cells?.[i]) ?? null
-      if (art) hues.push(hashHue(art.title))
-    }
-    const h1 = hues[0] ?? hashHue(run.title)
-    const h2 = hues[Math.floor(hues.length / 2)] ?? (h1 + 50) % 360
-    return [
-      `radial-gradient(ellipse 85% 40% at 12% 0%, hsla(${h1}, 75%, 55%, 0.34), transparent 72%)`,
-      `radial-gradient(ellipse 85% 40% at 88% 100%, hsla(${h2}, 75%, 55%, 0.3), transparent 72%)`,
-      '#050507',
-    ].join(', ')
-  }, [rows, cols, prompt, answers, cells, run.title])
-
+  // Without the squares (very big boards) there is nothing to draw but the done pattern.
   const mosaic = useMemo(
     () =>
-      cells
+      cells || loading
         ? ''
-        : boardImage({
-            rows,
-            cols,
-            cells: [],
-            // Without squares a prompt board's picks are unknown, so draw done squares as checklist ticks.
-            kind: 'list',
-            freeCenter,
-            mask,
-            winning,
-            px: Math.max(2, Math.floor((BOARD_MAX * 2) / Math.max(rows, cols))),
-          }),
-    [cells, rows, cols, freeCenter, mask, winning],
+        : boardImage({ rows, cols, cells: [], kind: 'list', freeCenter, mask, winning, px: Math.max(2, Math.floor((CARD_W * 2) / Math.max(rows, cols))) }),
+    [cells, loading, rows, cols, freeCenter, mask, winning],
   )
-
-  const everything = run.total > 0 && run.done === run.total
-  const score = everything ? t('bingoAllDone') : run.lines > 0 ? (run.lines === 1 ? t('bingoLineOne') : t('bingoLinesMany', { count: run.lines })) : ''
-  const pct = run.total > 0 ? Math.round((run.done / run.total) * 100) : 0
-  // Board column: capped, and narrower for tall boards so the card stays feed-sized.
-  const max = prompt ? PROMPT_BOARD_MAX : BOARD_MAX
-  const boardWidth = rows > cols ? Math.max(180, (cols / rows) * max) : max
-
-  // The books behind the done squares, for the little cover stack.
-  const doneArts = useMemo(() => {
-    const out: BingoCell[] = []
-    for (let i = 0; i < rows * cols; i++) {
-      if (i === centre || !mask[i]) continue
-      const art = (prompt ? answers?.[i] : cells?.[i]) ?? null
-      if (art) out.push(art)
-    }
-    // Real covers first: they make the stack.
-    return out.sort((x, y) => Number(!!y.coverUrl) - Number(!!x.coverUrl))
-  }, [rows, cols, centre, mask, prompt, answers, cells])
 
   // Hover a square → show its book. Only re-render when the hovered square changes.
   const onMove = (e: React.MouseEvent) => {
-    const card = cardRef.current
+    const wrap = wrapRef.current
     const el = (e.target as HTMLElement).closest<HTMLElement>('[data-i]')
     const i = el ? Number(el.dataset.i) : -1
-    if (!card || !el || i === centre || !artAt(i)) {
+    if (!wrap || !el || i === centre || !artAt(i)) {
       if (peek) setPeek(null)
       return
     }
     if (peek?.i === i) return
     const r = el.getBoundingClientRect()
-    const c = card.getBoundingClientRect()
-    const above = r.top - c.top > 120
+    const c = wrap.getBoundingClientRect()
+    const above = r.top - c.top > 130
     setPeek({
       i,
-      left: Math.min(Math.max(4, r.left - c.left + r.width / 2 - PEEK_W / 2), Math.max(4, c.width - PEEK_W - 4)),
+      left: Math.min(Math.max(0, r.left - c.left + r.width / 2 - PEEK_W / 2), Math.max(0, c.width - PEEK_W)),
       top: above ? r.top - c.top - 8 : r.bottom - c.top + 8,
       above,
     })
@@ -306,84 +359,19 @@ function FeedBingoCard({ run, player }: { run: BingoFeedRun; player?: string }) 
   const peekArt = peek ? artAt(peek.i) : null
 
   return (
-    <div
-      ref={cardRef}
-      onMouseLeave={() => setPeek(null)}
-      className="group relative flex w-full flex-col gap-4 rounded-2xl p-3 text-[var(--text)] shadow-lg ring-1 ring-white/10 transition-shadow hover:ring-white/20 sm:flex-row sm:gap-5 sm:p-4"
-      style={{ ...DARK_VARS, background: glow }}
-    >
-      {/* the board */}
-      <div className="w-full flex-shrink-0 self-start sm:w-auto" onMouseMove={cells ? onMove : undefined}>
-        <div className="mx-auto w-full sm:mx-0" style={{ maxWidth: boardWidth, width: '100%' }}>
-          <div className="sm:w-[var(--bw)]" style={{ '--bw': `${boardWidth}px` } as React.CSSProperties}>
-            {cells ? (
-              <BingoGrid rows={rows} cols={cols} cells={cells} freeCenter={freeCenter} kind={kind} mask={mask} answers={answers} winning={winning} tooltips={false} />
-            ) : loading ? (
-              <div className="w-full animate-pulse rounded-md bg-white/5" style={{ aspectRatio: `${cols} / ${rows}` }} />
-            ) : (
-              mosaic && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={mosaic} alt="" className="block w-full rounded-md" style={{ imageRendering: 'pixelated', aspectRatio: `${cols} / ${rows}` }} />
-              )
-            )}
-          </div>
+    <div ref={wrapRef} className="relative w-full" onMouseMove={cells ? onMove : undefined} onMouseLeave={() => setPeek(null)}>
+      {cells ? (
+        <div style={{ zoom: scale, width: CARD_W }}>
+          <BingoShareCard board={board} mask={mask} answers={answers ?? null} winning={winning} compact />
         </div>
-      </div>
-
-      {/* what it is and how it went */}
-      <div className="flex min-w-0 flex-1 flex-col">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/50">
-          {t(prompt ? 'bingoKindPrompt' : 'bingoKindList')} · {rows}×{cols}
-        </p>
-        <p className="mt-1 line-clamp-2 text-lg font-bold leading-snug">{run.title}</p>
-
-        <div className="mt-3 flex items-end justify-between gap-2">
-          <p className="leading-none">
-            <span className="text-3xl font-bold tracking-tight">{run.done}</span>
-            <span className="ml-1 text-sm text-white/50">/ {run.total}</span>
-          </p>
-          {score && (
-            <span className="inline-flex flex-shrink-0 items-center gap-1 rounded-full bg-nonspremium/20 px-2.5 py-1 text-xs font-semibold text-nonspremium">
-              <IoTrophyOutline className="h-3.5 w-3.5" />
-              {score}
-            </span>
-          )}
-        </div>
-        <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
-          <div
-            className={`h-full rounded-full ${everything ? 'bg-nonspremium' : 'bg-nonsprimary'}`}
-            style={{ width: `${pct}%` }}
-          />
-        </div>
-        <p className="mt-1.5 text-[11px] text-white/50">{t(prompt ? 'bingoFilledLabel' : 'bingoTickedLabel')}</p>
-
-        {doneArts.length > 0 && (
-          <div className="mt-4 flex items-center">
-            {doneArts.slice(0, STACK_MAX).map((art, k) => {
-              const h = hashHue(art.title)
-              return (
-                <span
-                  key={k}
-                  title={art.title}
-                  className="relative h-12 w-8 flex-shrink-0 overflow-hidden rounded-[5px] ring-2 ring-[#0b0b0e]"
-                  style={{ marginLeft: k === 0 ? 0 : -10, zIndex: STACK_MAX - k, background: `linear-gradient(135deg, hsl(${h} 52% 40%), hsl(${(h + 32) % 360} 55% 27%))` }}
-                >
-                  {art.coverUrl && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={art.coverUrl} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover" />
-                  )}
-                </span>
-              )
-            })}
-            {doneArts.length > STACK_MAX && <span className="ml-2 text-xs font-medium text-white/60">+{doneArts.length - STACK_MAX}</span>}
-          </div>
-        )}
-
-        <span className="mt-auto inline-flex items-center gap-1 pt-4 text-xs font-medium text-white/60 transition-colors group-hover:text-white">
-          {t('open')}
-          <IoArrowForward className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
-        </span>
-      </div>
+      ) : loading ? (
+        <div className="animate-pulse rounded-2xl bg-[var(--surface-active)]" style={{ width: '100%', maxWidth: CARD_W, aspectRatio: `${cols} / ${rows}` }} />
+      ) : (
+        mosaic && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={mosaic} alt="" className="block w-full rounded-2xl" style={{ maxWidth: CARD_W, imageRendering: 'pixelated', aspectRatio: `${cols} / ${rows}` }} />
+        )
+      )}
 
       {peek && peekArt && (
         <BookPeek
@@ -404,14 +392,13 @@ function BookPeek({ art, prompt, ticked, style }: { art: BingoCell; prompt?: str
   const { t } = useLanguage()
   const Icon = art.type ? TYPE_ICON[art.type] : null
   const typeLabel = art.type === 'book' ? t('book') : art.type === 'series' ? t('series') : art.type === 'movie' ? t('film') : ''
-  const h = hashHue(art.title)
   return (
     <div
-      className="pointer-events-none absolute z-20 flex gap-3 rounded-xl border border-white/10 bg-[#141417]/95 p-2.5 text-left shadow-2xl backdrop-blur"
+      className="pointer-events-none absolute z-20 flex gap-3 rounded-xl border border-white/15 bg-[#141417]/95 p-2.5 text-left shadow-2xl backdrop-blur-md"
       style={{ width: PEEK_W, ...style }}
       role="tooltip"
     >
-      <div className="relative h-[72px] w-12 flex-shrink-0 overflow-hidden rounded-md" style={{ background: `linear-gradient(135deg, hsl(${h} 52% 40%), hsl(${(h + 32) % 360} 55% 27%))` }}>
+      <div className="relative h-[72px] w-12 flex-shrink-0 overflow-hidden rounded-md ring-1 ring-white/10" style={{ background: tileBackground(art.title) }}>
         {art.coverUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={art.coverUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />
@@ -420,8 +407,8 @@ function BookPeek({ art, prompt, ticked, style }: { art: BingoCell; prompt?: str
         )}
       </div>
       <div className="min-w-0 flex-1">
-        {prompt && <p className="mb-0.5 line-clamp-2 text-[10px] font-medium uppercase tracking-wide text-white/50">{prompt}</p>}
-        <p className="line-clamp-3 text-sm font-semibold leading-snug text-white">{art.title}</p>
+        {prompt && <p className="mb-0.5 line-clamp-2 text-[10px] font-medium uppercase tracking-wide text-white/55">{prompt}</p>}
+        <p className="line-clamp-2 text-sm font-semibold leading-snug text-white">{art.title}</p>
         {art.credit && <p className="mt-0.5 truncate text-xs text-white/70">{art.credit}</p>}
         <p className="mt-1 flex items-center gap-1.5 text-[11px] text-white/50">
           {[typeLabel, art.year].filter(Boolean).join(' · ')}
@@ -435,3 +422,4 @@ function BookPeek({ art, prompt, ticked, style }: { art: BingoCell; prompt?: str
     </div>
   )
 }
+

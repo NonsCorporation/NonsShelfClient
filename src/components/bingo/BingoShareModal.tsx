@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { toPng } from 'html-to-image'
 import {
@@ -195,9 +195,8 @@ function hslToRgb(h: number, s: number, l: number): [number, number, number] {
   return [Math.round(f(0) * 255), Math.round(f(8) * 255), Math.round(f(4) * 255)]
 }
 
-export default function BingoShareModal({ board, mask, answers, link, embedded, winning, onClose }: Props) {
-  const { t } = useLanguage()
-  const cardRef = useRef<HTMLDivElement>(null)
+/** Where everything goes on the card for this board: square size, gaps, captions, and whether there is room for covers and titles. */
+function shareGeometry(board: Pick<Bingo, 'kind' | 'rows' | 'cols' | 'freeCenter'>, answers: (BingoCell | null)[] | null, areaH: number) {
   const prompt = board.kind === 'prompt'
   const { rows, cols } = board
   const total = rows * cols
@@ -210,7 +209,6 @@ export default function BingoShareModal({ board, mask, answers, link, embedded, 
   const gapY = gap
   // Prompt boards show each answer as a cover with its prompt as a caption below, as long as that
   // still leaves covers wide enough to read; bigger boards fall back to plain squares.
-  const areaH = AREA_H
   const widthFit = (AREA_W - (cols - 1) * gap) / cols
   // Under each cover sits the book's title (up to three lines) and its author. The caption area is as tall
   // as the longest title on the board needs, and the same for every row.
@@ -245,130 +243,36 @@ export default function BingoShareModal({ board, mask, answers, link, embedded, 
   const roomy = !mosaic && cell >= (portrait ? 24 : 30) // enough room for titles and covers
   // The free centre square carries the board's title (sized to fit); boards without one show it in the header.
   const titleInCentre = centre !== null && !mosaic && cell >= 24
+  return { prompt, rows, cols, total, centre, mosaic, gap, gapY, rowCap, portrait, cell, coverH, roomy, titleInCentre }
+}
 
-  const mosaicSrc = useMemo(
-    () =>
-      mosaic
-        ? boardImage({ rows, cols, cells: board.cells, kind: board.kind, freeCenter: board.freeCenter, mask, answers, winning, px: Math.max(3, Math.floor(1000 / Math.max(rows, cols))) })
-        : '',
-    [mosaic, rows, cols, board.cells, board.kind, board.freeCenter, mask, answers, winning],
-  )
-  const mosaicScale = Math.min(AREA_W / cols, areaH / rows)
+type CardProps = {
+  board: Bingo
+  mask: boolean[]
+  answers: (BingoCell | null)[] | null
+  winning: Set<number>
+  /** Cover URL → an inlined copy of it (the export needs CORS-safe data URLs). Omit to load covers straight from their URLs. */
+  covers?: Record<string, string | null>
+  /** Cover URL → its vibrant colour, for the backdrop. Squares without one use their title's colour. */
+  coverColors?: Record<string, [number, number, number] | null>
+  cardRef?: React.Ref<HTMLDivElement>
+  /** In-app use (a feed post): as tall as the board needs instead of the 9:16 story, and without the site lines. */
+  compact?: boolean
+}
 
-  // Every cover that can appear on the card (only when squares are big enough to show them).
-  const coverUrls = roomy
-    ? Array.from(
-        new Set(Array.from({ length: total }, (_, i) => (prompt ? answers?.[i] : board.cells[i])?.coverUrl).filter((u): u is string => !!u)),
-      )
-    : []
-  const coverKey = coverUrls.join('|')
-
-  const [covers, setCovers] = useState<Record<string, string | null>>({})
-  const [coverColors, setCoverColors] = useState<Record<string, [number, number, number] | null>>({})
-  const [coversReady, setCoversReady] = useState(coverUrls.length === 0)
-  const [imgUrl, setImgUrl] = useState<string | null>(null)
-  const [busy, setBusy] = useState(false)
-  const [copied, setCopied] = useState(false)
-  const [scale, setScale] = useState(1)
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
-    document.addEventListener('keydown', onKey)
-    const prev = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    const update = () => setScale(Math.min(1, Math.max(0.45, (window.innerHeight * 0.5) / CARD_H)))
-    update()
-    window.addEventListener('resize', update)
-    return () => {
-      document.removeEventListener('keydown', onKey)
-      document.body.style.overflow = prev
-      window.removeEventListener('resize', update)
-    }
-  }, [onClose])
-
-  useEffect(() => {
-    let cancelled = false
-    const urls = coverKey ? coverKey.split('|') : []
-    if (urls.length === 0) return
-    Promise.all(urls.map(async (u) => [u, await loadCover(u)] as const)).then((pairs) => {
-      if (cancelled) return
-      setCovers(Object.fromEntries(pairs.map(([u, r]) => [u, r?.data ?? null])))
-      setCoverColors(Object.fromEntries(pairs.map(([u, r]) => [u, r?.color ?? null])))
-      setCoversReady(true)
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [coverKey])
-
-  useEffect(() => {
-    if (!coversReady || imgUrl || !cardRef.current) return
-    const node = cardRef.current
-    let cancelled = false
-    ;(async () => {
-      setBusy(true)
-      try {
-        await waitForImages(node)
-        const url = await toPng(node, { pixelRatio: 3, cacheBust: true, backgroundColor: BG })
-        if (!cancelled) setImgUrl(url)
-      } catch (e) {
-        console.error('Bingo share image render failed', e)
-      } finally {
-        if (!cancelled) setBusy(false)
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [coversReady, imgUrl])
-
+/** The share picture itself: the board on a dark card glowing in the colours of its covers. */
+export function BingoShareCard({ board, mask, answers, winning, covers, coverColors = {}, cardRef, compact = false }: CardProps) {
+  const { t } = useLanguage()
+  const areaH = compact ? Math.min(AREA_H, Math.round(AREA_W * (board.rows / board.cols) * (board.kind === 'prompt' ? 1.5 : 1))) : AREA_H
+  const { prompt, rows, cols, total, centre, mosaic, gap, gapY, rowCap, portrait, cell, coverH, roomy, titleInCentre } = shareGeometry(board, answers, areaH)
+  const coverSrc = (url?: string): string | null => (url ? (covers ? covers[url] ?? null : url) : null)
   const done = mask.reduce((n, x) => n + (x ? 1 : 0), 0)
-  const fileName = `${slug(board.title)}-bingo.png`
-  const shareText = `${board.title} — ${t('bingoCardMade')}`
 
-  const copyLink = async () => {
-    try {
-      await navigator.clipboard.writeText(link)
-      setCopied(true)
-      window.setTimeout(() => setCopied(false), 2000)
-    } catch {
-      window.prompt(t('bingoShare'), link)
-    }
-  }
-
-  const saveImage = () => {
-    if (!imgUrl) return
-    const a = document.createElement('a')
-    a.download = fileName
-    a.href = imgUrl
-    a.click()
-  }
-
-  // Link-only intents can't carry an image, so try the OS share sheet first
-  // (mobile), and fall back to the web intent (desktop) — same as the profile card.
-  const shareWith = async (webHref?: string) => {
-    if (imgUrl && navigator.canShare) {
-      try {
-        const blob = await (await fetch(imgUrl)).blob()
-        const file = new File([blob], fileName, { type: 'image/png' })
-        if (navigator.canShare({ files: [file] })) {
-          await navigator.share({ files: [file], title: board.title, url: link })
-          return
-        }
-      } catch {
-        return
-      }
-    }
-    if (webHref) window.open(webHref, '_blank', 'noopener,noreferrer')
-    else if (navigator.share) navigator.share({ title: board.title, url: link }).catch(() => {})
-  }
-
-  const apps = [
-    { key: 'whatsapp', icon: IoLogoWhatsapp, href: `https://wa.me/?text=${encodeURIComponent(`${shareText} ${link}`)}` },
-    { key: 'telegram', icon: FaTelegram, href: `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(shareText)}` },
-    { key: 'x', icon: IoLogoTwitter, href: `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(link)}` },
-    { key: 'facebook', icon: IoLogoFacebook, href: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(link)}` },
-  ]
+  // Only boards too big for real squares are drawn as a mosaic.
+  const mosaicSrc = mosaic
+    ? boardImage({ rows, cols, cells: board.cells, kind: board.kind, freeCenter: board.freeCenter, mask, answers, winning, px: Math.max(3, Math.floor(1000 / Math.max(rows, cols))) })
+    : ''
+  const mosaicScale = Math.min(AREA_W / cols, areaH / rows)
 
   // ── the card (inline styles only, so the capture is theme-proof) ──
   const radius = cell >= 30 ? 7 : cell >= 16 ? 3 : 1
@@ -388,7 +292,7 @@ export default function BingoShareModal({ board, mask, answers, link, embedded, 
     WebkitBoxOrient: 'vertical' as const,
   })
   const artBackground = (art: BingoCell) => {
-    const data = art.coverUrl ? covers[art.coverUrl] : null
+    const data = coverSrc(art.coverUrl)
     if (data) return <img src={data} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
     const h = hashHue(art.title)
     return <div style={{ position: 'absolute', inset: 0, background: `linear-gradient(135deg, hsl(${h} 52% 40%), hsl(${(h + 32) % 360} 55% 27%))` }} />
@@ -415,10 +319,10 @@ export default function BingoShareModal({ board, mask, answers, link, embedded, 
     const art = answers?.[i] ?? null
     const free = i === centre
     const text = free ? t('bingoFree') : cellData?.title ?? ''
-    const data = art?.coverUrl ? covers[art.coverUrl] : null
+    const data = coverSrc(art?.coverUrl)
     const centred: React.CSSProperties = { position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 4, textAlign: 'center' }
     return (
-      <div key={i} style={{ width: cell, display: 'flex', flexDirection: 'column', gap }}>
+      <div key={i} data-i={i} style={{ width: cell, display: 'flex', flexDirection: 'column', gap }}>
         <div
           style={{
             ...cellBox(i, coverH),
@@ -463,7 +367,7 @@ export default function BingoShareModal({ board, mask, answers, link, embedded, 
     const cellData = board.cells[i]
     if (i === centre) {
       return (
-        <div key={i} style={{ ...cellBox(i), background: 'rgba(103,104,171,0.28)', border: `1px solid rgba(103,104,171,0.7)`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
+        <div key={i} data-i={i} style={{ ...cellBox(i), background: 'rgba(103,104,171,0.28)', border: `1px solid rgba(103,104,171,0.7)`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
           {centreLabel(cell, cell)}
           {roomy && !titleInCentre && <span style={{ fontSize: 7, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#c9caf0' }}>{t('bingoFree')}</span>}
         </div>
@@ -472,15 +376,15 @@ export default function BingoShareModal({ board, mask, answers, link, embedded, 
     const art = prompt ? answers?.[i] ?? null : cellData
     if (!art) {
       return (
-        <div key={i} style={{ ...cellBox(i), background: prompt && cellData ? '#202024' : '#18181b', border: roomy ? `1px dashed #3f3f46` : undefined, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 3, textAlign: 'center' }}>
+        <div key={i} data-i={i} style={{ ...cellBox(i), background: prompt && cellData ? '#202024' : '#18181b', border: roomy ? `1px dashed #3f3f46` : undefined, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 3, textAlign: 'center' }}>
           {roomy && prompt && cellData && <span style={{ fontSize: font, lineHeight: 1.2, color: '#d4d4d8', fontWeight: 500, ...clamp(5) }}>{cellData.title}</span>}
         </div>
       )
     }
     const ticked = !prompt && mask[i]
-    const hasCover = !!(art.coverUrl && covers[art.coverUrl])
+    const hasCover = !!coverSrc(art.coverUrl)
     return (
-      <div key={i} style={cellBox(i)}>
+      <div key={i} data-i={i} style={cellBox(i)}>
         {artBackground(art)}
         {roomy && hasCover && <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.58)' }} />}
         {roomy && (
@@ -591,7 +495,8 @@ export default function BingoShareModal({ board, mask, answers, link, embedded, 
       ref={cardRef}
       style={{
         width: CARD_W,
-        height: CARD_H,
+        height: compact ? undefined : CARD_H,
+        borderRadius: compact ? 14 : undefined,
         background: `${glow}, ${backdrop}, ${BG}`,
         color: INK,
         padding: `${CARD_PAD_Y}px ${CARD_PAD_X}px`,
@@ -602,7 +507,7 @@ export default function BingoShareModal({ board, mask, answers, link, embedded, 
       }}
     >
       {/* attribution */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+      <div style={{ display: compact ? 'none' : 'flex', alignItems: 'center', gap: 7 }}>
         <span style={{ color: INK, display: 'inline-flex' }}>
           <ShelfLogo className="h-4 w-4" />
         </span>
@@ -611,12 +516,12 @@ export default function BingoShareModal({ board, mask, answers, link, embedded, 
 
       {/* boards without a centre square show their title up here instead */}
       {!titleInCentre && (
-        <p style={{ margin: '8px 0 0', fontSize: 16, fontWeight: 700, lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{board.title}</p>
+        <p style={{ margin: compact ? 0 : '8px 0 0', fontSize: 16, fontWeight: 700, lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{board.title}</p>
       )}
       <p style={{ margin: '4px 0 0', fontSize: 10, color: '#d4d4d8', textShadow: '0 1px 3px rgba(0,0,0,0.85)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{meta}</p>
 
       {/* board: takes all the room that is left */}
-      <div style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4px 0' }}>
+      <div style={{ flex: compact ? undefined : 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: compact ? '8px 0 0' : '4px 0' }}>
         {mosaic ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -631,11 +536,134 @@ export default function BingoShareModal({ board, mask, answers, link, embedded, 
         )}
       </div>
 
-      <p style={{ margin: 0, textAlign: 'center', fontSize: 9.5, color: '#e5e7eb', letterSpacing: '0.04em', textShadow: '0 1px 3px rgba(0,0,0,0.9)' }}>
+      <p style={{ display: compact ? 'none' : undefined, margin: 0, textAlign: 'center', fontSize: 9.5, color: '#e5e7eb', letterSpacing: '0.04em', textShadow: '0 1px 3px rgba(0,0,0,0.9)' }}>
         {t('bingoCardMade')} · <span style={{ color: '#c9caf0', fontWeight: 600 }}>someshelf.com</span>
       </p>
     </div>
   )
+
+  return card
+}
+
+export default function BingoShareModal({ board, mask, answers, link, embedded, winning, onClose }: Props) {
+  const { t } = useLanguage()
+  const cardRef = useRef<HTMLDivElement>(null)
+  // Covers are only loaded when the squares are big enough to show them.
+  const { prompt, total, roomy } = shareGeometry(board, answers, AREA_H)
+
+  // Every cover that can appear on the card (only when squares are big enough to show them).
+  const coverUrls = roomy
+    ? Array.from(
+        new Set(Array.from({ length: total }, (_, i) => (prompt ? answers?.[i] : board.cells[i])?.coverUrl).filter((u): u is string => !!u)),
+      )
+    : []
+  const coverKey = coverUrls.join('|')
+
+  const [covers, setCovers] = useState<Record<string, string | null>>({})
+  const [coverColors, setCoverColors] = useState<Record<string, [number, number, number] | null>>({})
+  const [coversReady, setCoversReady] = useState(coverUrls.length === 0)
+  const [imgUrl, setImgUrl] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [copied, setCopied] = useState(false)
+  const [scale, setScale] = useState(1)
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
+    document.addEventListener('keydown', onKey)
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    const update = () => setScale(Math.min(1, Math.max(0.45, (window.innerHeight * 0.5) / CARD_H)))
+    update()
+    window.addEventListener('resize', update)
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      document.body.style.overflow = prev
+      window.removeEventListener('resize', update)
+    }
+  }, [onClose])
+
+  useEffect(() => {
+    let cancelled = false
+    const urls = coverKey ? coverKey.split('|') : []
+    if (urls.length === 0) return
+    Promise.all(urls.map(async (u) => [u, await loadCover(u)] as const)).then((pairs) => {
+      if (cancelled) return
+      setCovers(Object.fromEntries(pairs.map(([u, r]) => [u, r?.data ?? null])))
+      setCoverColors(Object.fromEntries(pairs.map(([u, r]) => [u, r?.color ?? null])))
+      setCoversReady(true)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [coverKey])
+
+  useEffect(() => {
+    if (!coversReady || imgUrl || !cardRef.current) return
+    const node = cardRef.current
+    let cancelled = false
+    ;(async () => {
+      setBusy(true)
+      try {
+        await waitForImages(node)
+        const url = await toPng(node, { pixelRatio: 3, cacheBust: true, backgroundColor: BG })
+        if (!cancelled) setImgUrl(url)
+      } catch (e) {
+        console.error('Bingo share image render failed', e)
+      } finally {
+        if (!cancelled) setBusy(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [coversReady, imgUrl])
+
+  const fileName = `${slug(board.title)}-bingo.png`
+  const shareText = `${board.title} — ${t('bingoCardMade')}`
+
+  const copyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(link)
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 2000)
+    } catch {
+      window.prompt(t('bingoShare'), link)
+    }
+  }
+
+  const saveImage = () => {
+    if (!imgUrl) return
+    const a = document.createElement('a')
+    a.download = fileName
+    a.href = imgUrl
+    a.click()
+  }
+
+  // Link-only intents can't carry an image, so try the OS share sheet first
+  // (mobile), and fall back to the web intent (desktop) — same as the profile card.
+  const shareWith = async (webHref?: string) => {
+    if (imgUrl && navigator.canShare) {
+      try {
+        const blob = await (await fetch(imgUrl)).blob()
+        const file = new File([blob], fileName, { type: 'image/png' })
+        if (navigator.canShare({ files: [file] })) {
+          await navigator.share({ files: [file], title: board.title, url: link })
+          return
+        }
+      } catch {
+        return
+      }
+    }
+    if (webHref) window.open(webHref, '_blank', 'noopener,noreferrer')
+    else if (navigator.share) navigator.share({ title: board.title, url: link }).catch(() => {})
+  }
+
+  const apps = [
+    { key: 'whatsapp', icon: IoLogoWhatsapp, href: `https://wa.me/?text=${encodeURIComponent(`${shareText} ${link}`)}` },
+    { key: 'telegram', icon: FaTelegram, href: `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(shareText)}` },
+    { key: 'x', icon: IoLogoTwitter, href: `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(link)}` },
+    { key: 'facebook', icon: IoLogoFacebook, href: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(link)}` },
+  ]
 
   return createPortal(
     <div onClick={onClose} className="fixed inset-0 z-[70] flex items-center justify-center bg-[var(--overlay)] p-4">
@@ -664,7 +692,9 @@ export default function BingoShareModal({ board, mask, answers, link, embedded, 
             // eslint-disable-next-line @next/next/no-img-element
             <img src={imgUrl} alt="" style={{ width: CARD_W * scale, height: CARD_H * scale, display: 'block' }} />
           ) : (
-            <div style={{ width: CARD_W, height: CARD_H, transform: `scale(${scale})`, transformOrigin: 'top left' }}>{card}</div>
+            <div style={{ width: CARD_W, height: CARD_H, transform: `scale(${scale})`, transformOrigin: 'top left' }}>
+              <BingoShareCard board={board} mask={mask} answers={answers} winning={winning} covers={covers} coverColors={coverColors} cardRef={cardRef} />
+            </div>
           )}
           {busy && (
             <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/40">
