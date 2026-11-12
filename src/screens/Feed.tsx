@@ -402,18 +402,6 @@ export default function FeedPage() {
       <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_300px] lg:items-start lg:gap-6">
       <aside className="min-w-0 lg:sticky lg:top-6 lg:order-2 lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto no-scrollbar">
       {/* Currently watching / reading */}
-      {!loading && (feedBlocks.progress || feedBlocks.challenge || feedBlocks.stats || feedBlocks.trending || feedBlocks.discover) && (
-        <div className="mb-2 flex justify-start lg:hidden">
-          <button
-            onClick={() => setSettingsOpen(true)}
-            aria-label={t('settingsTitle')}
-            className="flex items-center gap-1.5 text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text)]"
-          >
-            <IoSettingsOutline className="h-3.5 w-3.5" />
-            {t('settingsFeedLayout')}
-          </button>
-        </div>
-      )}
       {!loading && (feedBlocks.progress || feedBlocks.challenge || feedBlocks.stats || feedBlocks.trending) && (
         <InProgressSection
           items={inProgress}

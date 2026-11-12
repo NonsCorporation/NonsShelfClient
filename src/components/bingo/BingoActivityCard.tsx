@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link } from '@/lib/router'
+import { Link, useNavigate } from '@/lib/router'
+import { searchParamsFor } from '@/lib/searchParams'
 import type { Activity, BingoFeedRun } from '@/services/activityService'
 import { deletePost } from '@/services/commentService'
 import { useAuth } from '@/contexts/AuthContext'
@@ -292,6 +293,7 @@ function FeedBingoCard({ run, squares, loading }: { run: BingoFeedRun; squares: 
   const mask = squares?.mask ?? run.mask
   const prompt = kind === 'prompt'
   const winning = useMemo(() => new Set(completedLines(mask, rows, cols).flat()), [mask, rows, cols])
+  const navigate = useNavigate()
   const wrapRef = useRef<HTMLDivElement>(null)
   const [scale, setScale] = useState(1)
   const [peek, setPeek] = useState<Peek | null>(null)
@@ -336,14 +338,27 @@ function FeedBingoCard({ run, squares, loading }: { run: BingoFeedRun; squares: 
   )
 
   // Hover a square → show its book. Only re-render when the hovered square changes.
+  // The popover is clickable, so closing waits a beat: the pointer can travel
+  // from the square onto it without it vanishing.
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const keepOpen = () => {
+    if (closeTimer.current) clearTimeout(closeTimer.current)
+    closeTimer.current = null
+  }
+  const closeSoon = () => {
+    keepOpen()
+    closeTimer.current = setTimeout(() => setPeek(null), 160)
+  }
+  useEffect(() => () => keepOpen(), [])
+
   const onMove = (e: React.MouseEvent) => {
     const wrap = wrapRef.current
-    const el = (e.target as HTMLElement).closest<HTMLElement>('[data-i]')
+    const target = e.target as HTMLElement
+    if (target.closest('[data-peek]')) return keepOpen() // over the popover itself
+    const el = target.closest<HTMLElement>('[data-i]')
     const i = el ? Number(el.dataset.i) : -1
-    if (!wrap || !el || i === centre || !artAt(i)) {
-      if (peek) setPeek(null)
-      return
-    }
+    if (!wrap || !el || i === centre || !artAt(i)) return closeSoon()
+    keepOpen()
     if (peek?.i === i) return
     const r = el.getBoundingClientRect()
     const c = wrap.getBoundingClientRect()
@@ -351,15 +366,23 @@ function FeedBingoCard({ run, squares, loading }: { run: BingoFeedRun; squares: 
     setPeek({
       i,
       left: Math.min(Math.max(0, r.left - c.left + r.width / 2 - PEEK_W / 2), Math.max(0, c.width - PEEK_W)),
-      top: above ? r.top - c.top - 8 : r.bottom - c.top + 8,
+      // flush with the square (the popover carries its own gap as padding)
+      top: above ? r.top - c.top : r.bottom - c.top,
       above,
     })
+  }
+
+  // Opens the picked book in the catalog search (cells don't carry a catalog id yet).
+  const openBook = (art: BingoCell) => {
+    const params = searchParamsFor(art.title)
+    if (art.type) params.set('tab', art.type)
+    navigate({ pathname: '/search', search: `?${params.toString()}` })
   }
 
   const peekArt = peek ? artAt(peek.i) : null
 
   return (
-    <div ref={wrapRef} className="relative w-full" onMouseMove={cells ? onMove : undefined} onMouseLeave={() => setPeek(null)}>
+    <div ref={wrapRef} className="relative w-full" onMouseMove={cells ? onMove : undefined} onMouseLeave={closeSoon}>
       {cells ? (
         <div style={{ zoom: scale, width: CARD_W }}>
           <BingoShareCard board={board} mask={mask} answers={answers ?? null} winning={winning} compact />
@@ -378,6 +401,8 @@ function FeedBingoCard({ run, squares, loading }: { run: BingoFeedRun; squares: 
           art={peekArt}
           prompt={prompt ? cells?.[peek.i]?.title : undefined}
           ticked={!prompt && !!mask[peek.i]}
+          above={peek.above}
+          onOpen={() => openBook(peekArt)}
           style={{ left: peek.left, top: peek.top, transform: peek.above ? 'translateY(-100%)' : undefined }}
         />
       )}
@@ -387,39 +412,62 @@ function FeedBingoCard({ run, squares, loading }: { run: BingoFeedRun; squares: 
 
 const TYPE_ICON = { book: IoBookOutline, movie: IoFilmOutline, series: IoTvOutline } as const
 
-/** The hovered square's book: cover, title, author, year and type (plus the prompt it answers). */
-function BookPeek({ art, prompt, ticked, style }: { art: BingoCell; prompt?: string; ticked: boolean; style: React.CSSProperties }) {
+/**
+ * The hovered square's book: cover, title, author, year and type (plus the prompt
+ * it answers). Clickable: it opens the book. Its outer box carries a transparent
+ * 8px band on the side facing the square, so the pointer never crosses a gap.
+ */
+function BookPeek({
+  art, prompt, ticked, above, onOpen, style,
+}: {
+  art: BingoCell
+  prompt?: string
+  ticked: boolean
+  above: boolean
+  onOpen: () => void
+  style: React.CSSProperties
+}) {
   const { t } = useLanguage()
   const Icon = art.type ? TYPE_ICON[art.type] : null
   const typeLabel = art.type === 'book' ? t('book') : art.type === 'series' ? t('series') : art.type === 'movie' ? t('film') : ''
+  // The feed card sits inside a link to the result, so this must not be an <a>.
+  const open = (e: React.SyntheticEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    onOpen()
+  }
   return (
-    <div
-      className="pointer-events-none absolute z-20 flex gap-3 rounded-xl border border-white/15 bg-[#141417]/95 p-2.5 text-left shadow-2xl backdrop-blur-md"
-      style={{ width: PEEK_W, ...style }}
-      role="tooltip"
-    >
-      <div className="relative h-[72px] w-12 flex-shrink-0 overflow-hidden rounded-md ring-1 ring-white/10" style={{ background: tileBackground(art.title) }}>
-        {art.coverUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={art.coverUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />
-        ) : (
-          Icon && <Icon className="absolute inset-0 m-auto h-5 w-5 text-white/60" />
-        )}
-      </div>
-      <div className="min-w-0 flex-1">
-        {prompt && <p className="mb-0.5 line-clamp-2 text-[10px] font-medium uppercase tracking-wide text-white/55">{prompt}</p>}
-        <p className="line-clamp-2 text-sm font-semibold leading-snug text-white">{art.title}</p>
-        {art.credit && <p className="mt-0.5 truncate text-xs text-white/70">{art.credit}</p>}
-        <p className="mt-1 flex items-center gap-1.5 text-[11px] text-white/50">
-          {[typeLabel, art.year].filter(Boolean).join(' · ')}
-          {ticked && (
-            <span className="inline-flex items-center gap-0.5 text-nonsprimary">
-              <IoCheckmark className="h-3 w-3" />
-            </span>
+    <div data-peek className={`absolute z-20 ${above ? 'pb-2' : 'pt-2'}`} style={{ width: PEEK_W, ...style }}>
+      <div
+        role="link"
+        tabIndex={0}
+        onClick={open}
+        onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && open(e)}
+        aria-label={art.title}
+        className="flex cursor-pointer gap-3 rounded-xl border border-white/15 bg-[#141417]/95 p-2.5 text-left shadow-2xl backdrop-blur-md transition-colors hover:border-nonsprimary/60 hover:bg-[#1b1b20]"
+      >
+        <div className="relative h-[72px] w-12 flex-shrink-0 overflow-hidden rounded-md ring-1 ring-white/10" style={{ background: tileBackground(art.title) }}>
+          {art.coverUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={art.coverUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />
+          ) : (
+            Icon && <Icon className="absolute inset-0 m-auto h-5 w-5 text-white/60" />
           )}
-        </p>
+        </div>
+        <div className="min-w-0 flex-1">
+          {prompt && <p className="mb-0.5 line-clamp-2 text-[10px] font-medium uppercase tracking-wide text-white/55">{prompt}</p>}
+          <p className="line-clamp-2 text-sm font-semibold leading-snug text-white">{art.title}</p>
+          {art.credit && <p className="mt-0.5 truncate text-xs text-white/70">{art.credit}</p>}
+          <p className="mt-1 flex items-center gap-1.5 text-[11px] text-white/50">
+            {[typeLabel, art.year].filter(Boolean).join(' · ')}
+            {ticked && (
+              <span className="inline-flex items-center gap-0.5 text-nonsprimary">
+                <IoCheckmark className="h-3 w-3" />
+              </span>
+            )}
+          </p>
+        </div>
       </div>
     </div>
   )
 }
-
