@@ -1,5 +1,5 @@
 import { Link } from '@/lib/router'
-import { IoStar, IoBookOutline, IoFilmOutline, IoTvOutline, IoAdd, IoCheckmark, IoPeopleOutline } from 'react-icons/io5'
+import { IoStar, IoAdd, IoCheckmark, IoPeopleOutline } from 'react-icons/io5'
 import type { CatalogItem } from '@/services/catalogService'
 import { compactCount } from '@/services/catalogService'
 import { useLanguage } from '@/contexts/LanguageContext'
@@ -7,6 +7,7 @@ import { mediaPath } from '@/lib/paths'
 import TypeBadge from '@/components/badges/TypeBadge'
 import ShelfStatusBar from '@/components/media/ShelfStatusBar'
 import type { MediaItem, ShelfStatus } from '@/types'
+import BookCover from '@/components/media/BookCover'
 
 type CatalogCardProps = {
   item: CatalogItem
@@ -23,20 +24,13 @@ type CatalogCardProps = {
 export default function CatalogCard({ item, inLibrary, onAdd, showReason, shelfStatus }: CatalogCardProps) {
   const { t } = useLanguage()
   const isBook = item.type === 'book'
-  const TypeIcon = isBook ? IoBookOutline : item.type === 'series' ? IoTvOutline : IoFilmOutline
   const credit = isBook ? item.author : item.director || item.author
 
   return (
     <div className="flex w-full flex-col">
       <Link to={mediaPath(item)} className="group block" title={item.title}>
         <div className="relative aspect-[2/3] w-full overflow-hidden rounded-xl border border-[var(--border-subtle)] bg-[var(--container-2)] transition-colors group-hover:border-[var(--border)]">
-          {item.coverUrl ? (
-            <img src={item.coverUrl} alt={item.title} loading="lazy" className="h-full w-full object-cover" />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center">
-              <TypeIcon className="h-8 w-8 text-[var(--placeholder)]" />
-            </div>
-          )}
+          <BookCover url={item.coverUrl} title={item.title} author={credit} alt={item.title} />
           <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/75 to-transparent" />
 
           {item.communityRating > 0 && (

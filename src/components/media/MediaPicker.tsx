@@ -4,6 +4,7 @@ import { catalogService } from '@/services/catalogService'
 import type { CatalogItem } from '@/services/catalogService'
 import type { MediaType } from '@/types'
 import { useLanguage } from '@/contexts/LanguageContext'
+import BookCover from '@/components/media/BookCover'
 
 type Props = {
   /** Restrict results to one media type; omit to search books and movies alike. */
@@ -62,7 +63,7 @@ export default function MediaPicker({ type, excludeId, onPick }: Props) {
               className="flex items-center gap-2.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] px-3 py-2 text-left transition-colors hover:border-nonsprimary"
             >
               <div className="h-10 w-7 flex-shrink-0 overflow-hidden rounded bg-[var(--container-2)]">
-                {m.coverUrl ? <img src={m.coverUrl} alt="" className="h-full w-full object-cover" /> : null}
+                <BookCover url={m.coverUrl} title={m.title} author={m.author} />
               </div>
               <div className="min-w-0">
                 <p className="truncate text-sm text-[var(--text)]">{m.title}</p>

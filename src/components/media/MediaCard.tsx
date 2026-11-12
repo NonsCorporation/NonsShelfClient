@@ -19,6 +19,7 @@ import { mediaPath } from '@/lib/paths'
 import TypeBadge from '@/components/badges/TypeBadge'
 import ShelfStatusBar from '@/components/media/ShelfStatusBar'
 import ReviewContent from '@/components/review/ReviewContent'
+import { GeneratedCover } from '@/components/media/BookCover'
 
 // gets latest dated event
 function latestEvent(item: MediaItem): { key: 'histFinished' | 'histStarted' | 'histAdded'; date: string } | null {
@@ -66,7 +67,6 @@ type MediaCardProps = {
 
 // renders media cover image or placeholder
 function Cover({ item, className, fill }: { item: MediaItem; className?: string; fill?: boolean }) {
-  const Icon = item.type === 'book' ? IoBookOutline : item.type === 'series' ? IoTvOutline : IoFilmOutline
   if (item.coverUrl) {
     return fill ? (
       <Image src={item.coverUrl} alt={item.title} fill className={`object-cover ${className ?? ''}`} sizes="(max-width: 640px) 50vw, 200px" />
@@ -74,11 +74,7 @@ function Cover({ item, className, fill }: { item: MediaItem; className?: string;
       <Image src={item.coverUrl} alt={item.title} width={56} height={80} className={className} />
     )
   }
-  return (
-    <div className={`flex items-center justify-center bg-[var(--container-2)] ${className ?? ''}`}>
-      <Icon className="h-8 w-8 text-[var(--placeholder)]" />
-    </div>
-  )
+  return <GeneratedCover title={item.title} author={item.author} className={fill ? `h-full w-full ${className ?? ''}` : className} />
 }
 
 export default function MediaCard({

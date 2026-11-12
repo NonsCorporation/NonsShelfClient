@@ -67,6 +67,7 @@ import { statusLabel, STATUS_COLOR } from '../lib/shelf'
 import TypeBadge from '@/components/badges/TypeBadge'
 import BoringAvatar from '@/components/ui/BoringAvatar'
 import LanguagePicker from '@/components/ui/LanguagePicker'
+import BookCover from '@/components/media/BookCover'
 
 // Intl.DisplayNames instance for resolving ISO 639-1 codes to English language
 // names ("ru" → "Russian", "bg" → "Bulgarian"). Created once at module level.
@@ -794,13 +795,7 @@ export default function MediaOnePage({
             className="relative flex-shrink-0 overflow-hidden rounded-xl border border-[var(--border-subtle)]"
             style={{ width: 124, height: 186, minWidth: 124, minHeight: 186 }}
           >
-            {coverUrl ? (
-              <img src={coverUrl} alt={displayTitle} className="h-full w-full object-cover" />
-            ) : (
-              <div className="flex h-full w-full items-center justify-center bg-[var(--container-2)]">
-                <Icon className="h-6 w-6 text-[var(--placeholder)]" />
-              </div>
-            )}
+            <BookCover url={coverUrl} title={displayTitle} author={item.author} alt={displayTitle} loading="eager" />
             <TypeBadge type={item.type} position="top-2.5 right-2.5" />
             {canInteract && (
               <button
@@ -883,13 +878,7 @@ export default function MediaOnePage({
         {/* ── Left: cover + actions ── */}
         <div className="flex w-full flex-shrink-0 flex-col gap-3 md:w-64 md:sticky md:top-[88px] md:self-start">
           <div className="relative hidden aspect-[2/3] overflow-hidden rounded-2xl border border-[var(--border-subtle)] md:block">
-            {coverUrl ? (
-              <img src={coverUrl} alt={displayTitle} className="h-full w-full object-cover" />
-            ) : (
-              <div className="flex h-full w-full items-center justify-center bg-[var(--container-2)]">
-                <Icon className="h-10 w-10 text-[var(--placeholder)]" />
-              </div>
-            )}
+            <BookCover url={coverUrl} title={displayTitle} author={item.author} alt={displayTitle} loading="eager" />
             <TypeBadge type={item.type} position="top-2.5 right-2.5" />
           </div>
 
@@ -1388,11 +1377,7 @@ export default function MediaOnePage({
                             <div className="relative flex aspect-[2/3] w-full items-center justify-center overflow-hidden bg-[var(--container-2)]">
                               {/* Fall back to the work cover so an edition without its own
                                   cover still shows one instead of a blank box. */}
-                              {(e.cover_url || item.coverUrl) ? (
-                                <img src={e.cover_url || item.coverUrl} alt="" loading="lazy" className="h-full w-full object-cover" />
-                              ) : (
-                                <Icon className="h-8 w-8 text-[var(--placeholder)]" />
-                              )}
+                              <BookCover url={e.cover_url || item.coverUrl} title={e.title || item.title} author={item.author} />
                               {e.language && (
                                 <span className="absolute bottom-1.5 left-1.5 rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white backdrop-blur-sm">
                                   {e.language}

@@ -33,6 +33,7 @@ import {
 } from 'react-icons/io5'
 import { mediaPath } from '../lib/paths'
 import TypeBadge from '@/components/badges/TypeBadge'
+import BookCover from '@/components/media/BookCover'
 
 type Translate = (k: string, v?: Record<string, string | number>) => string
 
@@ -556,7 +557,7 @@ function HeroCarousel({
           to={mediaPath(item)}
           className="group relative aspect-[2/3] w-28 flex-shrink-0 overflow-hidden rounded-2xl border border-[var(--border-subtle)] bg-[var(--container-2)] shadow-2xl transition-transform hover:scale-[1.02] sm:w-52"
         >
-          {item.coverUrl && <img src={item.coverUrl} alt={item.title} className="h-full w-full object-cover" />}
+          <BookCover url={item.coverUrl} title={item.title} author={item.author} alt={item.title} loading="eager" />
           <TypeBadge type={item.type} />
         </Link>
 
@@ -706,7 +707,7 @@ function TrendingList({
           >
             <div className="flex min-w-0 flex-1 gap-3">
               <Link to={mediaPath(it)} className="relative h-20 w-14 flex-shrink-0 overflow-hidden rounded-md border border-[var(--border-subtle)] bg-[var(--container-2)]">
-                {it.coverUrl && <img src={it.coverUrl} alt={it.title} loading="lazy" className="h-full w-full object-cover" />}
+                <BookCover url={it.coverUrl} title={it.title} author={it.author} alt={it.title} />
                 <TypeBadge type={it.type} position="top-1 right-1" size="h-5 w-5" iconSize="h-2.5 w-2.5" />
               </Link>
               <div className="min-w-0 flex-1">
@@ -1058,7 +1059,7 @@ function GenreCard({
             }}
             className={`absolute overflow-hidden rounded-lg border-2 border-black/10 shadow-xl transition-transform duration-300 group-hover:scale-105 ${big ? 'h-32 w-24 sm:h-40 sm:w-28' : 'h-16 w-11 sm:h-20 sm:w-14'}`}
           >
-            {c.coverUrl && <img src={c.coverUrl} alt="" loading="lazy" className="h-full w-full object-cover" />}
+            <BookCover url={c.coverUrl} title={c.title} author={c.author} />
           </div>
         ))}
       </div>

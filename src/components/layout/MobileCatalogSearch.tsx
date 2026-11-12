@@ -9,6 +9,7 @@ import TypeBadge from '@/components/badges/TypeBadge'
 import InfinityLoader from '@/components/ui/InfinityLoader'
 import { useRotatingPlaceholder } from '@/lib/useRotatingPlaceholder'
 import { searchParamsFor } from '@/lib/searchParams'
+import BookCover from '@/components/media/BookCover'
 
 // The mobile-only catalog search box (desktop gets the header's inline
 // HeaderSearch instead — the bottom nav pill has no room for a search field).
@@ -120,9 +121,7 @@ export default function MobileCatalogSearch({
                     className="flex items-center gap-3 rounded-xl p-2.5 transition-colors hover:bg-[var(--surface)]"
                   >
                     <div className="relative aspect-[2/3] w-8 flex-shrink-0">
-                      {item.coverUrl
-                        ? <img src={item.coverUrl} alt="" className="h-full w-full rounded object-cover" />
-                        : <div className="h-full w-full rounded bg-[var(--surface)]" />}
+                      <BookCover url={item.coverUrl} title={item.title} author={item.author} className="h-full w-full rounded object-cover" />
                       <TypeBadge type={item.type} position="-top-1 -right-1" size="h-5 w-5" iconSize="h-2.5 w-2.5" />
                     </div>
                     <div className="min-w-0 flex-1">

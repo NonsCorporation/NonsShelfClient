@@ -65,6 +65,7 @@ import {
 import { useChat } from '../contexts/ChatContext'
 import type { IconType } from 'react-icons'
 import type { MediaType } from '../types'
+import BookCover from '@/components/media/BookCover'
 
 type ProfileView = {
   id: number
@@ -97,9 +98,6 @@ const TYPE_META: Record<MediaType, { icon: IconType; labelKey: string; color: st
   movie: { icon: IoFilmOutline, labelKey: 'film', color: '#7c8cff' },
   series: { icon: IoTvOutline, labelKey: 'series', color: '#4fd1c5' },
 }
-
-// Tolerate legacy/unknown type values from older records — fall back to film.
-const typeMeta = (type: MediaType) => TYPE_META[type] ?? TYPE_META.movie
 
 export default function ProfilePage() {
   const { t } = useLanguage()
@@ -987,16 +985,7 @@ function ChallengeShield({ challenge, t }: { challenge: Challenge; t: Translate 
 function Cover({ item, children }: { item: MediaItem; children?: ReactNode }) {
   return (
     <div className="relative aspect-[2/3] overflow-hidden rounded-xl border border-[var(--border-subtle)] bg-[var(--container-2)] transition-colors group-hover:border-[var(--border)]">
-      {item.coverUrl ? (
-        <img src={item.coverUrl} alt={item.title} loading="lazy" className="h-full w-full object-cover" />
-      ) : (
-        <span className="flex h-full w-full items-center justify-center text-[var(--placeholder)]">
-          {(() => {
-            const Icon = typeMeta(item.type).icon
-            return <Icon className="h-7 w-7" />
-          })()}
-        </span>
-      )}
+      <BookCover url={item.coverUrl} title={item.title} author={item.author} alt={item.title} />
       <TypeBadge type={item.type} />
       {children}
     </div>

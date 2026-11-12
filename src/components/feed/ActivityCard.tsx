@@ -26,6 +26,7 @@ import LibrarianBadge from '@/components/badges/LibrarianBadge'
 import { isLibrarian } from '@/services/librarianService'
 import ReactionBanner from '@/components/feed/ReactionBanner'
 import { usePreferences } from '@/contexts/PreferencesContext'
+import BookCover from '@/components/media/BookCover'
 
 // The shelf status a post's own event type unambiguously implies — used for
 // the share card's status pill. 'added'/'rated'/'reviewed' don't reliably
@@ -314,16 +315,7 @@ export default function ActivityCard({
       {/* body: cover + details */}
       <div className="flex gap-3.5">
         <Link to={to} className="relative block aspect-[2/3] w-[72px] flex-shrink-0 self-start">
-          {a.coverUrl ? (
-            <img
-              src={a.coverUrl}
-              alt={a.mediaTitle}
-              loading="lazy"
-              className="h-full w-full rounded-lg object-cover shadow-sm"
-            />
-          ) : (
-            <div className="h-full w-full rounded-lg bg-[var(--container-2)]" />
-          )}
+          <BookCover url={a.coverUrl} title={a.mediaTitle} author={a.mediaAuthor} alt={a.mediaTitle} className="h-full w-full rounded-lg object-cover shadow-sm" />
           <TypeBadge type={a.mediaType} position="top-1 right-1" size="h-5 w-5" iconSize="h-2.5 w-2.5" />
         </Link>
 

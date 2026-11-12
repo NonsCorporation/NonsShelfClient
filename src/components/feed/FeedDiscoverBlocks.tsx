@@ -13,6 +13,7 @@ import type { CatalogItem } from '@/services/catalogService'
 import type { Spotlights } from '@/services/discoverService'
 import type { CuratedListDiscoverEntry, MediaType } from '@/types'
 import { mediaPath } from '@/lib/paths'
+import BookCover from '@/components/media/BookCover'
 
 type Translate = (key: string, vars?: Record<string, string | number>) => string
 
@@ -91,9 +92,7 @@ function PosterTile({
     <div className="w-28 flex-shrink-0 snap-start sm:w-32">
       <div className="group relative aspect-[2/3] overflow-hidden rounded-lg bg-[var(--container-2)] shadow-sm">
         <Link to={mediaPath(item)} title={item.title} className="block h-full w-full">
-          {item.coverUrl && (
-            <img src={item.coverUrl} alt={item.title} loading="lazy" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
-          )}
+          <BookCover url={item.coverUrl} title={item.title} author={creditOf(item)} alt={item.title} className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
         </Link>
         {rank != null && (
           <span className="pointer-events-none absolute bottom-1.5 left-1.5 flex h-5 min-w-5 items-center justify-center rounded-md bg-black/60 px-1 text-[11px] font-bold leading-none text-white backdrop-blur-sm">
@@ -322,7 +321,7 @@ export function FriendPicksRail({ picks, t }: { picks: FriendPick[]; t: Translat
               className="flex w-64 flex-shrink-0 snap-start items-center gap-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--container)] p-2.5 transition-colors hover:border-[var(--border)]"
             >
               <div className="relative aspect-[2/3] w-14 flex-shrink-0 overflow-hidden rounded-md bg-[var(--container-2)]">
-                {p.coverUrl && <img src={p.coverUrl} alt="" loading="lazy" className="h-full w-full object-cover" />}
+                <BookCover url={p.coverUrl} title={p.title} author={p.credit} />
               </div>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-semibold text-[var(--text)]">{p.title}</p>

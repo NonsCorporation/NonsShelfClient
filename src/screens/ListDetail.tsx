@@ -14,6 +14,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { useLists } from '../contexts/ListContext'
 import { useLoginModal } from '../contexts/LoginModalContext'
 import type { CuratedListDetail } from '../types'
+import BookCover from '@/components/media/BookCover'
 
 // A single curated list (/list/<uuid>; a legacy numeric id redirects to it): editable title +
 // description, plus each item's per-item note — editable inline, Goodreads
@@ -287,7 +288,7 @@ export default function ListDetailScreen() {
                 <div>
                   <div className="mb-3 flex items-center gap-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] p-3">
                     <div className="h-16 w-11 flex-shrink-0 overflow-hidden rounded-lg bg-[var(--container-2)]">
-                      {pendingAdd.coverUrl && <img src={pendingAdd.coverUrl} alt="" className="h-full w-full object-cover" />}
+                      <BookCover url={pendingAdd.coverUrl} title={pendingAdd.title} author={pendingAdd.author} />
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold text-[var(--text)]">{pendingAdd.title}</p>
@@ -347,7 +348,7 @@ export default function ListDetailScreen() {
                           className="flex items-center gap-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] px-3 py-2 text-left transition-colors hover:border-nonsprimary/50"
                         >
                           <div className="h-11 w-8 flex-shrink-0 overflow-hidden rounded bg-[var(--container-2)]">
-                            {m.coverUrl && <img src={m.coverUrl} alt="" className="h-full w-full object-cover" />}
+                            <BookCover url={m.coverUrl} title={m.title} author={m.author} />
                           </div>
                           <div className="min-w-0">
                             <p className="truncate text-sm text-[var(--text)]">{m.title}</p>

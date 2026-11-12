@@ -40,6 +40,7 @@ import FeedSettingsModal from '@/components/settings/FeedSettingsModal'
 import {
   PopularNowRail, NewReleasesRail, ListsRail, FriendPicksRail, RailSkeleton, friendPicksFrom,
 } from '@/components/feed/FeedDiscoverBlocks'
+import BookCover from '@/components/media/BookCover'
 
 // Friends-activity is paginated server-side; this many cards per page.
 const ACTIVITY_PER_PAGE = 20
@@ -424,11 +425,7 @@ export default function FeedPage() {
           className="group mb-6 flex items-center gap-3 rounded-2xl bg-[var(--surface)] p-3 transition-colors hover:bg-[var(--surface-hover)] lg:mb-0 lg:mt-3"
         >
           <div className="relative aspect-[2/3] w-10 flex-shrink-0">
-            {newestWishlist.coverUrl ? (
-              <img src={newestWishlist.coverUrl} alt="" loading="lazy" className="h-full w-full rounded-md object-cover" />
-            ) : (
-              <div className="h-full w-full rounded-md bg-[var(--container-2)]" />
-            )}
+            <BookCover url={newestWishlist.coverUrl} title={newestWishlist.title} author={newestWishlist.author} className="h-full w-full rounded-md object-cover" />
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-sm font-medium text-[var(--text)]">{t('startFromWishlist')}</p>
@@ -809,14 +806,12 @@ function TalkedAboutBlock({ items, t }: { items: CatalogItem[]; t: Translate }) 
       <div className="flex items-stretch gap-2.5">
         <Link to={mediaPath(featured)} className="group flex w-1/2 flex-shrink-0 flex-col">
           <div className="relative min-h-0 flex-1 overflow-hidden rounded-md bg-[var(--container-2)]">
-            {featured.coverUrl && (
-              <img
-                src={featured.coverUrl}
-                alt=""
-                loading="lazy"
-                className="absolute inset-0 h-full w-full object-cover transition-transform group-hover:scale-105"
-              />
-            )}
+            <BookCover
+              url={featured.coverUrl}
+              title={featured.title}
+              author={featured.author}
+              className="absolute inset-0 h-full w-full object-cover transition-transform group-hover:scale-105"
+            />
           </div>
           <p className="mt-1 truncate text-xs font-medium text-[var(--text)] group-hover:text-nonsprimary">{featured.title}</p>
         </Link>
@@ -825,7 +820,7 @@ function TalkedAboutBlock({ items, t }: { items: CatalogItem[]; t: Translate }) 
           {rest.map((it) => (
             <Link key={it.id} to={mediaPath(it)} className="group min-w-0">
               <div className="relative aspect-[2/3] w-full overflow-hidden rounded-md bg-[var(--container-2)]">
-                {it.coverUrl && <img src={it.coverUrl} alt="" loading="lazy" className="h-full w-full object-cover transition-transform group-hover:scale-105" />}
+                <BookCover url={it.coverUrl} title={it.title} author={it.author} className="h-full w-full object-cover transition-transform group-hover:scale-105" />
               </div>
               <p className="mt-1 truncate text-[11px] font-medium text-[var(--text)] group-hover:text-nonsprimary">{it.title}</p>
             </Link>
@@ -867,7 +862,7 @@ function MobileProgressChip({ item, onEditProgress }: { item: MediaItem; onEditP
       className="flex w-[210px] flex-shrink-0 snap-start items-center gap-2.5 rounded-2xl bg-[var(--surface)] p-2 text-left transition-colors active:bg-[var(--surface-hover)]"
     >
       <span className="relative block aspect-[2/3] w-9 flex-shrink-0 overflow-hidden rounded-md bg-[var(--container-2)]">
-        {item.coverUrl && <img src={item.coverUrl} alt="" loading="lazy" className="h-full w-full object-cover" />}
+        <BookCover url={item.coverUrl} title={item.title} author={item.author} />
       </span>
       <span className="min-w-0 flex-1">
         <span className="block truncate text-[13px] font-semibold leading-tight text-[var(--text)]">{item.title}</span>
@@ -908,11 +903,7 @@ function InProgressCard({
   return (
     <div className="flex items-start gap-3 py-2.5 first:pt-0 last:pb-0">
       <Link to={mediaPath(item)} className="relative aspect-[2/3] w-12 flex-shrink-0">
-        {item.coverUrl ? (
-          <img src={item.coverUrl} alt={item.title} loading="lazy" className="h-full w-full rounded-md object-cover" />
-        ) : (
-          <div className="h-full w-full rounded-md bg-[var(--container-2)]" />
-        )}
+        <BookCover url={item.coverUrl} title={item.title} author={item.author} alt={item.title} className="h-full w-full rounded-md object-cover" />
         <TypeBadge type={item.type} position="top-1 right-1" size="h-6 w-6" iconSize="h-3 w-3" />
       </Link>
       <div className="min-w-0 flex-1">

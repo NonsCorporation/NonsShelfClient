@@ -11,6 +11,7 @@ import { reviewToPlainText } from '@/components/review/reviewText'
 import { discoverService, type PopularReview } from '@/services/discoverService'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { mediaPath } from '@/lib/paths'
+import BookCover from '@/components/media/BookCover'
 
 const COUNT = 8
 
@@ -56,7 +57,7 @@ function ReviewCard({ review: r }: { review: PopularReview }) {
     >
       <div className="flex items-center gap-3">
         <div className="relative aspect-[2/3] w-11 flex-shrink-0 overflow-hidden rounded-md bg-[var(--container-2)]">
-          {r.media.coverUrl && <img src={r.media.coverUrl} alt="" loading="lazy" className="h-full w-full object-cover" />}
+          <BookCover url={r.media.coverUrl} title={r.media.title} author={r.media.author} />
           <TypeBadge type={r.media.type} position="top-1 right-1" size="h-4 w-4" iconSize="h-2.5 w-2.5" className="pointer-events-none" />
         </div>
         <div className="min-w-0 flex-1">
