@@ -102,7 +102,7 @@ export default function BingoTab() {
         ))}
       </div>
 
-      <p className="mt-8 text-xs text-[var(--text-muted)]">{t('bingoMockNote')}</p>
+      {!isAuthenticated && <p className="mt-8 text-xs text-[var(--text-muted)]">{t('bingoMockNote')}</p>}
 
       {creating && (
         <BingoEditor

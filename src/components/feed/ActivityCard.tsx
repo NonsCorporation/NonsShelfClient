@@ -48,6 +48,8 @@ export const VERB_KEY: Record<ActivityType, string> = {
   // Challenge events are rendered by ChallengeActivityCard, not here; this
   // entry only satisfies the exhaustive Record type.
   challenge_joined: 'verbJoinedChallenge',
+  // Rendered by BingoActivityCard; here for the same reason.
+  bingo_finished: 'verbFinishedBingo',
 }
 
 // Five-star display from a 0–10 rating, with half-star steps (matches StarsSelector).

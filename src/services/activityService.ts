@@ -1,7 +1,7 @@
 import { authedFetch, PLATFORM_API_URL } from '../lib/api'
 import type { MediaType } from '../types'
 
-export type ActivityType = 'rated' | 'finished' | 'started' | 'added' | 'reviewed' | 'progress' | 'dnf' | 'challenge_joined'
+export type ActivityType = 'rated' | 'finished' | 'started' | 'added' | 'reviewed' | 'progress' | 'dnf' | 'challenge_joined' | 'bingo_finished'
 
 // Drives the "<Name> liked/reposted/commented on this" banner shown atop a
 // post, above its own author row — surfaced when the actor is one of the
@@ -72,6 +72,21 @@ export type Activity = {
     /** What the goal is counted in ('book' | 'film' | 'series'), for the label. */
     mediaType?: MediaType
   }
+  /** Set for `bingo_finished` events (no media): the finished run, so the feed
+   *  can render a bingo card linking to /bingo/<board>/<user>/<run>. */
+  bingo?: BingoFeedRun
+}
+
+/** A finished bingo run as the feed serves it (server bingo_service.FeedRun). */
+export type BingoFeedRun = {
+  board: { id: string; kind: 'list' | 'prompt'; title: string; rows: number; cols: number }
+  run_id: string
+  done: number
+  total: number
+  lines: number
+  finished_at?: number
+  /** Done squares as '0'/'1', row-major; only for boards of up to 100 squares. */
+  mask?: string
 }
 
 // ── Wire types ──────────────────────────────────────────────────────────────
@@ -115,7 +130,17 @@ type ActivityEvent = {
   // Set when this event is a group member's like/comment on someone else's
   // post rather than that post's own author posting it.
   reaction?: { actor_id: number; type: 'like' | 'comment' }
+  // Set for posts that live in another module (no media): subject_type names the
+  // payload shape. 'bingo_run' → BingoFeedRun.
+  subject_type?: string
+  subject?: unknown
 }
+
+// Which wire events this client can render: media posts, challenge posts and
+// the subject types it knows. Anything else (a post type added server-side
+// after this build) is skipped instead of rendered half-empty.
+const renderable = (e: ActivityEvent) =>
+  !!(e.media || e.challenge || (e.subject_type === 'bingo_run' && e.subject))
 
 // The current user, so their own activity (shelf state changes, ratings) shows
 // in the feed alongside friends'.
@@ -209,6 +234,10 @@ function toActivity(e: ActivityEvent, user: Activity['user'], friends?: Map<numb
     at: e.at,
     userReactionPayload: toReactionPayload(e, friends),
   }
+  if (e.subject_type === 'bingo_run' && e.subject) {
+    const run = e.subject as BingoFeedRun
+    return { ...base, mediaId: 0, mediaTitle: run.board.title, mediaType: 'book', bingo: run }
+  }
   if (e.type === 'challenge_joined' && e.challenge) {
     return {
       ...base,
@@ -267,7 +296,7 @@ class ApiActivityService implements IActivityService {
     const events: ActivityEvent[] = body.items ?? []
 
     const items = events
-      .filter((e) => (e.media || e.challenge) && friends.has(e.user_id))
+      .filter((e) => renderable(e) && friends.has(e.user_id))
       .map((e) => toActivity(e, { ...friends.get(e.user_id)!, ...(e.user_role ? { role: e.user_role } : {}) }, friends))
 
     return { items, total: body.total ?? items.length }
@@ -293,7 +322,7 @@ export async function getUserActivity(
   const events: ActivityEvent[] = body.items ?? []
   return {
     items: events
-      .filter((e) => e.media || e.challenge)
+      .filter(renderable)
       .map((e) => toActivity(e, { ...userInfo, ...(e.user_role ? { role: e.user_role } : {}) })),
     total: body.total ?? 0,
   }

@@ -1,11 +1,15 @@
 'use client'
 
-import { useCallback, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useSyncExternalStore } from 'react'
 import type { MediaType } from '@/types'
 import type { CatalogItem } from '@/services/catalogService'
+import { useAuth } from '@/contexts/AuthContext'
+import { bingoApi } from '@/services/bingoService'
 
-// Mock-only bingo boards. Everything lives in this browser's localStorage —
-// there is no server side yet.
+// Bingo boards. The UI reads everything from this browser's localStorage
+// (instant, works signed out); when signed in, every change is also pushed to
+// nons-library-server (/api/bingo) and, once per page load, what's only on the
+// server is pulled in — see "server sync" below.
 //
 // Two kinds of board:
 //   list   – a fixed set of books/films (or prompts) that players tick off.
@@ -15,8 +19,8 @@ import type { CatalogItem } from '@/services/catalogService'
 // A board is any size from 2×2 up to 100×100. Each player can play a board
 // several times: every play-through is a "run" with its own id, and a finished
 // run can be shared as  /bingo/<board uuid>/<user uuid>/<run id>.
-// Until there is a server, that link also carries the board and the result in
-// a `d` query parameter so it opens in any browser (see bingoShareUrl).
+// The link also carries the board and the result in a `d` query parameter, so it
+// opens even where the server doesn't have the board (see bingoShareUrl).
 //
 // Editing a board never rewrites what people already played. Changing the
 // squares, the size or the free centre starts a new *revision*; every run
@@ -587,8 +591,164 @@ const withoutKey = <T,>(rec: Record<string, T>, id: string) => {
 
 const newRun = (revision: number): BingoRun => ({ id: newRunId(), marks: [], answers: [], createdAt: Date.now(), revision })
 
+// ── server sync ──
+// Local first: every mutation writes localStorage, then (signed in) the changed
+// board/run is pushed. Calls go through one serial queue so a run never reaches
+// the server before its board. Tick/answer pushes are debounced per run.
+// Community boards are client-side mocks, so their runs stay local.
+
+const COMMUNITY_IDS = new Set(COMMUNITY_BINGOS.map((b) => b.id))
+/** Which account this browser's store was last synced to — never upload one user's local boards into another's account. */
+const OWNER_KEY = 'nons-library:bingo:owner'
+const RUN_DEBOUNCE_MS = 700
+
+/** The signed-in user we sync for; null = signed out, or this store belongs to someone else. */
+let syncUser: number | null = null
+/** Whose first sync already ran in this page load. */
+let syncedFor: number | null = null
+let queue: Promise<unknown> = Promise.resolve()
+const runTimers = new Map<string, ReturnType<typeof setTimeout>>()
+/** Boards the server is known to have that aren't ours (played / opened from a link), so our runs on them can sync. */
+const serverBoards = new Set<string>()
+
+function enqueue(label: string, fn: () => Promise<unknown>) {
+  const user = syncUser
+  queue = queue
+    .then(() => (user !== null && syncUser === user ? fn() : undefined))
+    .catch((e) => console.warn(`bingo sync: ${label}:`, e))
+}
+
+/** Lets the runs on a board fetched from the server sync too. */
+export function markServerBoard(id: string) {
+  serverBoards.add(id)
+}
+
+const runsSyncFor = (boardId: string) =>
+  !COMMUNITY_IDS.has(boardId) && (serverBoards.has(boardId) || read().mine.some((b) => b.id === boardId))
+
+function pushBoard(id: string) {
+  if (syncUser === null) return
+  enqueue('save board', async () => {
+    const b = read().mine.find((m) => m.id === id)
+    if (b) await bingoApi.saveBoard(b)
+  })
+}
+
+function pushRun(boardId: string, runId: string, delay = 0, share = true) {
+  if (syncUser === null || COMMUNITY_IDS.has(boardId)) return
+  const key = `${boardId}/${runId}`
+  clearTimeout(runTimers.get(key))
+  runTimers.set(
+    key,
+    setTimeout(() => {
+      runTimers.delete(key)
+      enqueue('save run', async () => {
+        const run = read().runs[boardId]?.find((r) => r.id === runId)
+        if (run && runsSyncFor(boardId)) await bingoApi.saveRun(boardId, run, share)
+      })
+    }, delay),
+  )
+}
+
+function pushDeleteRun(boardId: string, runId: string) {
+  clearTimeout(runTimers.get(`${boardId}/${runId}`))
+  runTimers.delete(`${boardId}/${runId}`)
+  if (syncUser === null || !runsSyncFor(boardId)) return
+  enqueue('delete run', () => bingoApi.deleteRun(boardId, runId))
+}
+
+function pushDeleteBoard(id: string) {
+  for (const [key, timer] of runTimers) {
+    if (key.startsWith(`${id}/`)) {
+      clearTimeout(timer)
+      runTimers.delete(key)
+    }
+  }
+  if (syncUser === null) return
+  enqueue('delete board', () => bingoApi.deleteBoard(id))
+}
+
+function storeOwner(): string | null {
+  try {
+    return window.localStorage.getItem(OWNER_KEY)
+  } catch {
+    return null
+  }
+}
+
+/**
+ * First sync after sign-in: pull boards/runs/revisions only the server has, then
+ * push what only this browser has. Backfilled runs go up with share=false so
+ * results finished long ago don't flood friends' feeds.
+ */
+async function initialSync(userId: number) {
+  const owner = storeOwner()
+  if (owner && owner !== String(userId)) {
+    console.warn("bingo sync: this browser holds another account's boards; not syncing")
+    syncUser = null
+    return
+  }
+  let server
+  try {
+    server = await bingoApi.mine()
+  } catch (e) {
+    console.warn('bingo sync: load:', e)
+    return
+  }
+  if (syncUser !== userId) return
+  try {
+    window.localStorage.setItem(OWNER_KEY, String(userId))
+  } catch {
+    // storage blocked: sync still works for this page load
+  }
+  for (const b of server.played) serverBoards.add(b.id)
+
+  const cur = read()
+  const haveBoard = new Set(cur.mine.map((b) => b.id))
+  const pulled = server.boards.filter((b) => !haveBoard.has(b.id))
+  let changed = pulled.length > 0
+  const runs = { ...cur.runs }
+  for (const [bid, list] of Object.entries(server.runs)) {
+    const local = runs[bid] ?? []
+    const ids = new Set(local.map((r) => r.id))
+    const add = list.filter((r) => !ids.has(r.id))
+    if (add.length) {
+      runs[bid] = [...local, ...add].sort((x, y) => x.createdAt - y.createdAt)
+      changed = true
+    }
+  }
+  const revisions = { ...cur.revisions }
+  for (const [bid, list] of Object.entries(server.revisions)) {
+    const local = revisions[bid] ?? []
+    const revs = new Set(local.map((r) => r.revision))
+    const add = list.filter((r) => !revs.has(r.revision))
+    if (add.length) {
+      revisions[bid] = [...local, ...add]
+      changed = true
+    }
+  }
+  if (changed) write({ mine: [...cur.mine, ...pulled], runs, revisions })
+
+  const boardsOnServer = new Set(server.boards.map((b) => b.id))
+  for (const b of cur.mine) if (!boardsOnServer.has(b.id)) pushBoard(b.id)
+  const runsOnServer = new Set(Object.entries(server.runs).flatMap(([bid, list]) => list.map((r) => `${bid}/${r.id}`)))
+  for (const [bid, list] of Object.entries(cur.runs))
+    for (const r of list) if (!runsOnServer.has(`${bid}/${r.id}`)) pushRun(bid, r.id, 0, false)
+}
+
 export function useBingos() {
   const saved = useSyncExternalStore(subscribe, read, () => EMPTY)
+  const { user } = useAuth()
+  const uid = user?.id ?? null
+
+  // Turn sync on/off with the session; the first sync runs once per user per page load.
+  useEffect(() => {
+    syncUser = uid
+    if (uid !== null && syncedFor !== uid) {
+      syncedFor = uid
+      void initialSync(uid)
+    }
+  }, [uid])
 
   /** Creates or replaces one of the user's boards. */
   const save = useCallback((b: Bingo) => {
@@ -596,11 +756,13 @@ export function useBingos() {
     const prev = cur.mine.find((m) => m.id === b.id)
     if (!prev) {
       write({ ...cur, mine: [{ ...b, revision: 1 }, ...cur.mine] })
+      pushBoard(b.id)
       return
     }
     // Content edits start a new revision, and the old one is kept while a run still uses it.
     if (!structureChanged(prev, b)) {
       write({ ...cur, mine: cur.mine.map((m) => (m.id === b.id ? { ...b, revision: prev.revision } : m)) })
+      pushBoard(b.id)
       return
     }
     const used = (cur.runs[b.id] ?? []).some((r) => r.revision === prev.revision)
@@ -611,11 +773,13 @@ export function useBingos() {
       mine: cur.mine.map((m) => (m.id === b.id ? { ...b, revision: prev.revision + 1 } : m)),
       revisions: { ...cur.revisions, [b.id]: used ? [...kept, snapshot] : kept },
     })
+    pushBoard(b.id)
   }, [])
 
   const remove = useCallback((id: string) => {
     const cur = read()
     write({ mine: cur.mine.filter((m) => m.id !== id), runs: withoutKey(cur.runs, id), revisions: withoutKey(cur.revisions, id) })
+    pushDeleteBoard(id)
   }, [])
 
   /** Applies `fn` to a run (the given one, or the latest open one, or a fresh one) and returns its id. */
@@ -636,6 +800,7 @@ export function useBingos() {
     if (!run.finishedAt && doneCount(progressMask(board, run.marks, run.answers)) === board.rows * board.cols) run = { ...run, finishedAt: Date.now() }
     list[idx] = run
     write({ ...cur, runs: { ...cur.runs, [board.id]: list } })
+    pushRun(board.id, run.id, RUN_DEBOUNCE_MS)
     return run.id
   }, [])
 
@@ -643,6 +808,7 @@ export function useBingos() {
     const cur = read()
     const run = newRun(board.revision)
     write({ ...cur, runs: { ...cur.runs, [board.id]: [...(cur.runs[board.id] ?? []), run] } })
+    pushRun(board.id, run.id)
     return run.id
   }, [])
 
@@ -658,6 +824,7 @@ export function useBingos() {
     const still = new Set(runs.map((r) => r.revision))
     const revisions = (cur.revisions[board.id] ?? []).filter((r) => still.has(r.revision))
     write({ ...cur, runs: { ...cur.runs, [board.id]: runs }, revisions: { ...cur.revisions, [board.id]: revisions } })
+    pushRun(board.id, runId)
     return dropped
   }, [])
 
@@ -684,6 +851,7 @@ export function useBingos() {
   const patchRun = useCallback((boardId: string, runId: string, patch: (r: BingoRun) => BingoRun) => {
     const cur = read()
     write({ ...cur, runs: { ...cur.runs, [boardId]: (cur.runs[boardId] ?? []).map((r) => (r.id === runId ? patch(r) : r)) } })
+    pushRun(boardId, runId)
   }, [])
 
   const finishRun = useCallback((boardId: string, runId: string) => patchRun(boardId, runId, (r) => ({ ...r, finishedAt: Date.now() })), [patchRun])
@@ -705,6 +873,7 @@ export function useBingos() {
   const deleteRun = useCallback((boardId: string, runId: string) => {
     const cur = read()
     write({ ...cur, runs: { ...cur.runs, [boardId]: (cur.runs[boardId] ?? []).filter((r) => r.id !== runId) } })
+    pushDeleteRun(boardId, runId)
   }, [])
 
   return {

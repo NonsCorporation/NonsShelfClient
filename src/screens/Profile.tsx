@@ -24,6 +24,7 @@ import { STATUS_COLOR, statusLabel } from '../lib/shelf'
 import TypeBadge from '@/components/badges/TypeBadge'
 import ActivityCard from '@/components/feed/ActivityCard'
 import ChallengeActivityCard from '@/components/challenges/ChallengeActivityCard'
+import BingoActivityCard from '@/components/bingo/BingoActivityCard'
 import ProfileShareModal from '@/components/profile/ProfileShareModal'
 import { getUserActivity, colorFor, type Activity } from '../services/activityService'
 import { getCommentCounts } from '../services/commentService'
@@ -858,7 +859,15 @@ export default function ProfilePage() {
               }
               const onCountChange = (postId: number, n: number) =>
                 setPostCommentCounts((m) => ({ ...m, [String(postId)]: n }))
-              return a.type === 'challenge_joined' ? (
+              return a.bingo ? (
+                <BingoActivityCard
+                  key={a.id}
+                  a={a}
+                  commentCount={postCommentCounts[String(a.postId)] ?? 0}
+                  onDeleted={onDeleted}
+                  onCountChange={onCountChange}
+                />
+              ) : a.type === 'challenge_joined' ? (
                 <ChallengeActivityCard
                   key={a.id}
                   a={a}

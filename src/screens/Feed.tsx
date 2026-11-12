@@ -6,6 +6,7 @@ import Layout from '../components/layout/Layout'
 import MobileHeaderRow from '../components/layout/MobileHeaderRow'
 import ActivityCard from '@/components/feed/ActivityCard'
 import ChallengeActivityCard from '@/components/challenges/ChallengeActivityCard'
+import BingoActivityCard from '@/components/bingo/BingoActivityCard'
 import ProgressModal from '@/components/reading/ProgressModal'
 import FinishModal from '@/components/reading/FinishModal'
 import { libraryService } from '../services/libraryService'
@@ -570,7 +571,15 @@ export default function FeedPage() {
                   ref={isFocused ? focusCardRef : undefined}
                   className={isFocused ? 'ring-2 ring-nonsprimary/60 rounded-2xl' : undefined}
                 >
-                  {a.type === 'challenge_joined' ? (
+                  {a.bingo ? (
+                    <BingoActivityCard
+                      a={a}
+                      commentCount={commentCounts[String(a.postId)] ?? 0}
+                      openComments={isFocused}
+                      onDeleted={onDeleted}
+                      onCountChange={onCountChange}
+                    />
+                  ) : a.type === 'challenge_joined' ? (
                     <ChallengeActivityCard
                       a={a}
                       commentCount={commentCounts[String(a.postId)] ?? 0}

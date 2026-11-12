@@ -34,10 +34,13 @@ import {
   decodeShare,
   doneCount,
   copyOfBingo,
+  markServerBoard,
   progressMask,
   useBingos,
   type Bingo,
+  type SharedRun,
 } from '../lib/bingo'
+import { bingoApi, type ServerPlayerRun } from '../services/bingoService'
 import { useAuth } from '../contexts/AuthContext'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useLoginModal } from '../contexts/LoginModalContext'
@@ -47,8 +50,8 @@ type Copied = 'board' | 'result' | 'saved' | null
 // /bingo/<board uuid>                    the board, with your own runs
 // /bingo/<board uuid>/<user uuid>        that user's latest run
 // /bingo/<board uuid>/<user uuid>/<run>  one specific run (a finished result worth sharing)
-// Mock only: until there is a server, a link also carries the board and the
-// result in its `d` parameter so it opens in any browser.
+// A board or result this browser doesn't have is loaded from the server; a link
+// may also carry the board and result in its `d` parameter (works without it).
 export default function BingoPage() {
   const { t } = useLanguage()
   const { user, isAuthenticated } = useAuth()
@@ -75,10 +78,24 @@ export default function BingoPage() {
   }, [boardId, navigate])
 
   const payload = params.get('d')
-  const decoded = payload && boardId ? decodeShare(payload, boardId) : null
+  const fromLink = payload && boardId ? decodeShare(payload, boardId) : null
 
   const own = store.mine.find((b) => b.id === boardId)
   const com = COMMUNITY_BINGOS.find((b) => b.id === boardId)
+
+  // Ask the server for what this browser doesn't have: the board itself, and
+  // someone else's result when the path names another player.
+  const othersResult = !!userSeg && userSeg !== me
+  const remote = useRemoteBingo(
+    boardId,
+    !!boardId && !own && !com && !fromLink,
+    othersResult && !fromLink?.run ? userSeg : undefined,
+    runSeg,
+  )
+  // The link payload wins; otherwise the server's copy fills the same role.
+  const decoded: { board: Bingo; run: SharedRun | null; by: string } | null =
+    fromLink ?? (remote.result ? fromServerRun(remote.result) : remote.board ? { board: remote.board, run: null, by: '' } : null)
+
   const resolved: { board: Bingo; source: 'mine' | 'community' | 'shared' } | null = own
     ? { board: own, source: 'mine' }
     : com
@@ -95,6 +112,19 @@ export default function BingoPage() {
       {t('bingoBack')}
     </Link>
   )
+
+  if (!resolved && remote.loading) {
+    return (
+      <Layout>
+        <div className="mx-auto max-w-2xl">
+          {back}
+          <div className="flex justify-center py-16">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-nonsprimary border-t-transparent" />
+          </div>
+        </div>
+      </Layout>
+    )
+  }
 
   if (!resolved) {
     return (
@@ -116,7 +146,7 @@ export default function BingoPage() {
   const viewingSelf = !userSeg || userSeg === me
   const myRun = viewingSelf && runSeg ? ownRuns.find((r) => r.id === runSeg) : undefined
   const theirs = !!decoded?.run && (!viewingSelf || (!!runSeg && !myRun))
-  const unavailable = !theirs && !!userSeg && !viewingSelf
+  const unavailable = !theirs && !!userSeg && !viewingSelf && !remote.loading
   const activeRun = theirs ? undefined : myRun ?? (runSeg && viewingSelf ? undefined : ownRuns[ownRuns.length - 1])
 
   // What is on screen is the board as that run saw it: someone's shared result carries its own copy,
@@ -384,7 +414,7 @@ export default function BingoPage() {
           )}
         </div>
 
-        <p className="mt-8 text-xs text-[var(--text-muted)]">{t('bingoMockNote')}</p>
+        {!isAuthenticated && <p className="mt-8 text-xs text-[var(--text-muted)]">{t('bingoMockNote')}</p>}
 
         {sheet && (
           <BingoShareSheet
@@ -467,4 +497,42 @@ export default function BingoPage() {
       </div>
     </Layout>
   )
+}
+
+/** A server result in the shape the page already handles for `d` links. */
+function fromServerRun(r: ServerPlayerRun): { board: Bingo; run: SharedRun; by: string } {
+  const prompt = r.board.kind === 'prompt'
+  return { board: r.board, run: { marks: prompt ? null : r.run.marks, answers: prompt ? r.run.answers : null }, by: r.by }
+}
+
+type Remote = { key: string; board: Bingo | null; result: ServerPlayerRun | null }
+
+/**
+ * Loads a board (when needBoard) and/or a player's run (when player is set) from
+ * the server. Failures read as "not there", so the page falls back to its
+ * not-found / unavailable messages.
+ */
+function useRemoteBingo(boardId: string | undefined, needBoard: boolean, player: string | undefined, runId: string | undefined) {
+  const key = `${boardId ?? ''}|${needBoard ? 1 : 0}|${player ?? ''}|${runId ?? ''}`
+  const active = !!boardId && (needBoard || !!player)
+  const [state, setState] = useState<Remote | null>(null)
+
+  useEffect(() => {
+    if (!boardId || !active) return
+    let alive = true
+    Promise.all([
+      needBoard ? bingoApi.board(boardId).catch(() => null) : Promise.resolve(null),
+      player ? bingoApi.playerRun(boardId, player, runId).catch(() => null) : Promise.resolve(null),
+    ]).then(([board, result]) => {
+      if (!alive) return
+      if (board || result) markServerBoard(boardId) // our own runs on it can sync now
+      setState({ key, board, result })
+    })
+    return () => {
+      alive = false
+    }
+  }, [key, active, boardId, needBoard, player, runId])
+
+  const fresh = state?.key === key ? state : null
+  return { board: fresh?.board ?? null, result: fresh?.result ?? null, loading: active && !fresh }
 }
