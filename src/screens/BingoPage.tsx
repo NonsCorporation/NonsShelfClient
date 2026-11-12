@@ -380,7 +380,6 @@ export default function BingoPage() {
             kind={board.kind}
             mask={mask}
             answers={answers}
-            winning={winning}
             onCell={onCell}
           />
         </div>

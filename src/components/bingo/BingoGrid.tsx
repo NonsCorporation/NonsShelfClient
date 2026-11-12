@@ -19,8 +19,6 @@ type Props = {
   mask?: boolean[]
   /** `prompt` boards: the player's picks, one per square. */
   answers?: (BingoCell | null)[] | null
-  /** Squares that belong to a completed line. */
-  winning?: Set<number>
   /** `mini` is the card preview: no text, tighter gaps. */
   variant?: 'mini' | 'full'
   /** Editor: the square currently being edited. */
@@ -46,7 +44,6 @@ type CellProps = {
   art: BingoCell | null
   free: boolean
   done: boolean
-  won: boolean
   selected: boolean
   prompt: boolean
   mini: boolean
@@ -63,10 +60,9 @@ type CellProps = {
  * Prompt boards: the prompt sits in the middle of the cover (darkened so it reads),
  * and under the cover go the title of the book the player picked and its author.
  */
-const PromptCell = memo(function PromptCell({ i, cell, art, free, won, interactive, freeLabel, emptyLabel, tooltips }: CellProps) {
+const PromptCell = memo(function PromptCell({ i, cell, art, free, interactive, freeLabel, emptyLabel, tooltips }: CellProps) {
   const promptText = free ? freeLabel : cell?.title ?? ''
   const label = free ? freeLabel : `${cell?.title ?? ''}${art ? ` — ${art.title}` : ''}` || emptyLabel
-  const ring = won ? 'ring-2 ring-nonspremium' : ''
   const promptClass = 'line-clamp-6 text-[9px] font-semibold leading-tight text-white sm:text-[11px]'
   return (
     <div
@@ -80,7 +76,7 @@ const PromptCell = memo(function PromptCell({ i, cell, art, free, won, interacti
       }`}
     >
       <div
-        className={`relative aspect-[2/3] overflow-hidden rounded-md ${ring} ${
+        className={`relative aspect-[2/3] overflow-hidden rounded-md ${
           interactive ? 'transition-transform group-hover:scale-[1.03] group-active:scale-95' : ''
         }`}
       >
@@ -119,12 +115,12 @@ const PromptCell = memo(function PromptCell({ i, cell, art, free, won, interacti
   )
 })
 
-const Cell = memo(function Cell({ i, cell, art, free, done, won, selected, prompt, mini, dense, editing, interactive, freeLabel, emptyLabel, tooltips }: CellProps) {
+const Cell = memo(function Cell({ i, cell, art, free, done, selected, prompt, mini, dense, editing, interactive, freeLabel, emptyLabel, tooltips }: CellProps) {
   const small = mini || dense
   const radius = dense ? 'rounded-[2px]' : mini ? 'rounded-[3px]' : 'rounded-lg sm:rounded-xl'
   const Icon = art?.type ? TYPE_ICON[art.type] : null
   const label = free ? freeLabel : prompt ? `${cell?.title ?? ''}${art ? ` — ${art.title}` : ''}` : cell?.title || emptyLabel
-  const ring = selected ? 'ring-2 ring-nonsprimary ring-offset-1 ring-offset-[var(--container)]' : won ? 'ring-2 ring-nonspremium' : ''
+  const ring = selected ? 'ring-2 ring-nonsprimary ring-offset-1 ring-offset-[var(--container)]' : ''
 
   let content: React.ReactNode
   if (free) {
@@ -183,7 +179,7 @@ const Cell = memo(function Cell({ i, cell, art, free, done, won, selected, promp
   // Checklists darken a ticked square; prompt boards just badge an answered one.
   const tick =
     done && !free && !prompt ? (
-      <span className={`absolute inset-0 flex items-center justify-center bg-black/55 ${won ? 'bg-nonspremium/40' : ''}`}>
+      <span className="absolute inset-0 flex items-center justify-center bg-black/55">
         {!dense && (
           <span className={`flex items-center justify-center rounded-full bg-nonsprimary text-white shadow-lg ${mini ? 'h-2 w-2' : 'h-6 w-6 sm:h-8 sm:w-8'}`}>
             <IoCheckmark className={mini ? 'h-1.5 w-1.5' : 'h-4 w-4 sm:h-5 sm:w-5'} />
@@ -226,7 +222,6 @@ export default function BingoGrid({
   kind = 'list',
   mask,
   answers,
-  winning,
   variant = 'full',
   selected,
   onCell,
@@ -275,7 +270,6 @@ export default function BingoGrid({
             art={prompt ? answers?.[i] ?? null : cell}
             free={i === centre}
             done={!!mask?.[i]}
-            won={!!winning?.has(i)}
             selected={selected === i}
             prompt={prompt}
             mini={mini}
@@ -297,14 +291,14 @@ export default function BingoGrid({
  * pixel mosaic for big boards, always keeping the board's proportions.
  */
 export function BoardPreview(props: Omit<Props, 'variant' | 'onCell' | 'editing' | 'selected'>) {
-  const { rows, cols, cells, kind = 'list', freeCenter, mask, answers, winning } = props
+  const { rows, cols, cells, kind = 'list', freeCenter, mask, answers } = props
   const big = rows * cols > 100
   const src = useMemo(
     () =>
       big
-        ? boardImage({ rows, cols, cells, kind, freeCenter, mask: mask ?? [], answers, winning, px: Math.max(2, Math.floor(240 / Math.max(rows, cols))) })
+        ? boardImage({ rows, cols, cells, kind, freeCenter, mask: mask ?? [], answers, px: Math.max(2, Math.floor(240 / Math.max(rows, cols))) })
         : '',
-    [big, rows, cols, cells, kind, freeCenter, mask, answers, winning],
+    [big, rows, cols, cells, kind, freeCenter, mask, answers],
   )
   const wide = cols >= rows
   return (

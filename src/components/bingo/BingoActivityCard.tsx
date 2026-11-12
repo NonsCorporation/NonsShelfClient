@@ -20,6 +20,7 @@ import {
 } from '@/lib/bingo'
 import { bingoApi } from '@/services/bingoService'
 import { boardImage } from '@/lib/bingoImage'
+import { useCoverInfos } from '@/lib/bingoCovers'
 import { hashHue } from '@/lib/hashHue'
 import BoringAvatar from '@/components/ui/BoringAvatar'
 import DropdownMenu from '@/components/ui/DropdownMenu'
@@ -239,6 +240,8 @@ export default function BingoActivityCard({
 /** The share picture's natural width (BingoShareModal's card). */
 const CARD_W = 360
 const PEEK_W = 240
+/** Covers whose colours tint a feed post's backdrop. */
+const COLOR_SAMPLES = 8
 /** Largest board whose squares are drawn (and fetched when the post lacks them); bigger ones are a mosaic. */
 const SQUARES_MAX = 144
 
@@ -326,6 +329,18 @@ function FeedBingoCard({ run, squares, loading }: { run: BingoFeedRun; squares: 
 
   // What each square shows: the item to tick, or the book the player entered.
   const artAt = (i: number): BingoCell | null => (prompt ? answers?.[i] : cells?.[i]) ?? null
+
+  // The card's backdrop and glow take the colours of its covers, like the share
+  // image does. Sample only a handful, so a feed of bingo posts stays light.
+  const colorUrls = useMemo(() => {
+    const urls = new Set<string>()
+    for (let i = 0; i < rows * cols && urls.size < COLOR_SAMPLES; i++) {
+      const u = (prompt ? answers?.[i] : cells?.[i])?.coverUrl
+      if (u) urls.add(u)
+    }
+    return [...urls]
+  }, [rows, cols, prompt, answers, cells])
+  const { colors: coverColors } = useCoverInfos(colorUrls)
   const centre = freeCenter ? centerIndex(rows, cols) : null
 
   // Without the squares (very big boards) there is nothing to draw but the done pattern.
@@ -333,8 +348,8 @@ function FeedBingoCard({ run, squares, loading }: { run: BingoFeedRun; squares: 
     () =>
       cells || loading
         ? ''
-        : boardImage({ rows, cols, cells: [], kind: 'list', freeCenter, mask, winning, px: Math.max(2, Math.floor((CARD_W * 2) / Math.max(rows, cols))) }),
-    [cells, loading, rows, cols, freeCenter, mask, winning],
+        : boardImage({ rows, cols, cells: [], kind: 'list', freeCenter, mask, px: Math.max(2, Math.floor((CARD_W * 2) / Math.max(rows, cols))) }),
+    [cells, loading, rows, cols, freeCenter, mask],
   )
 
   // Hover a square → show its book. Only re-render when the hovered square changes.
@@ -385,7 +400,7 @@ function FeedBingoCard({ run, squares, loading }: { run: BingoFeedRun; squares: 
     <div ref={wrapRef} className="relative w-full" onMouseMove={cells ? onMove : undefined} onMouseLeave={closeSoon}>
       {cells ? (
         <div style={{ zoom: scale, width: CARD_W }}>
-          <BingoShareCard board={board} mask={mask} answers={answers ?? null} winning={winning} compact />
+          <BingoShareCard board={board} mask={mask} answers={answers ?? null} winning={winning} coverColors={coverColors} compact />
         </div>
       ) : loading ? (
         <div className="animate-pulse rounded-2xl bg-[var(--surface-active)]" style={{ width: '100%', maxWidth: CARD_W, aspectRatio: `${cols} / ${rows}` }} />

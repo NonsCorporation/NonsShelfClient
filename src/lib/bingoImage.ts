@@ -16,13 +16,11 @@ type Opts = {
   mask: boolean[]
   /** Prompt boards: the player's answers. */
   answers?: (BingoCell | null)[] | null
-  /** Squares in a completed line get a gold frame. */
-  winning?: Set<number>
   /** Pixels per square. */
   px: number
 }
 
-export function boardImage({ rows, cols, cells, kind, freeCenter, mask, answers, winning, px }: Opts): string {
+export function boardImage({ rows, cols, cells, kind, freeCenter, mask, answers, px }: Opts): string {
   const canvas = document.createElement('canvas')
   canvas.width = cols * px
   canvas.height = rows * px
@@ -54,11 +52,6 @@ export function boardImage({ rows, cols, cells, kind, freeCenter, mask, answers,
       ctx.fillStyle = '#6768ab'
       const d = Math.max(2, Math.floor(size / 2))
       ctx.fillRect(x + Math.floor((size - d) / 2), y + Math.floor((size - d) / 2), d, d)
-    }
-    if (winning?.has(i) && px >= 3) {
-      ctx.strokeStyle = '#f5a623'
-      ctx.lineWidth = px >= 8 ? 2 : 1
-      ctx.strokeRect(x + 0.5, y + 0.5, size - 1, size - 1)
     }
   }
   return canvas.toDataURL('image/png')

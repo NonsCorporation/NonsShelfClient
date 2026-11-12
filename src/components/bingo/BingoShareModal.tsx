@@ -17,6 +17,7 @@ import { FaTelegram } from 'react-icons/fa'
 import ShelfLogo from '@/components/branding/ShelfLogo'
 import { centerIndex, type Bingo, type BingoCell } from '@/lib/bingo'
 import { boardImage } from '@/lib/bingoImage'
+import { useCoverInfos } from '@/lib/bingoCovers'
 import { hashHue } from '@/lib/hashHue'
 import { useLanguage } from '@/contexts/LanguageContext'
 
@@ -25,7 +26,6 @@ import { useLanguage } from '@/contexts/LanguageContext'
 const BG = '#050507'
 const INK = '#ffffff'
 const PRIMARY = '#6768ab'
-const GOLD = '#f5a623'
 
 // 9:16 story card, exported at pixelRatio 3 (1080×1920).
 const CARD_W = 360
@@ -54,55 +54,6 @@ type Props = {
   /** Squares in a completed line get a gold frame. */
   winning: Set<number>
   onClose: () => void
-}
-
-// Several image hosts send no CORS headers, which makes a canvas capture fail,
-// so covers go through a CORS-enabled proxy and are inlined as data URLs.
-function corsCover(url: string): string {
-  if (!/^https?:\/\//i.test(url)) return url
-  return `https://images.weserv.nl/?url=${encodeURIComponent('ssl:' + url.replace(/^https?:\/\//i, ''))}`
-}
-
-type CoverInfo = { data: string; color: [number, number, number] }
-
-function loadCover(url: string): Promise<CoverInfo | null> {
-  return new Promise((resolve) => {
-    const img = new Image()
-    img.crossOrigin = 'anonymous'
-    img.onload = () => {
-      try {
-        const max = 200
-        const k = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight))
-        const canvas = document.createElement('canvas')
-        canvas.width = Math.max(1, Math.round(img.naturalWidth * k))
-        canvas.height = Math.max(1, Math.round(img.naturalHeight * k))
-        const ctx = canvas.getContext('2d')
-        if (!ctx) return resolve(null)
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
-        // The cover's vibrant colour: every pixel weighted by how saturated and bright it is.
-        const px = ctx.getImageData(0, 0, canvas.width, canvas.height).data
-        let r = 0
-        let g = 0
-        let b = 0
-        let sum = 0
-        for (let i = 0; i < px.length; i += 4) {
-          if (px[i + 3] < 128) continue
-          const max = Math.max(px[i], px[i + 1], px[i + 2])
-          const min = Math.min(px[i], px[i + 1], px[i + 2])
-          const w = ((max === 0 ? 0 : (max - min) / max) * (max / 255)) ** 2 + 0.002
-          r += px[i] * w
-          g += px[i + 1] * w
-          b += px[i + 2] * w
-          sum += w
-        }
-        resolve({ data: canvas.toDataURL('image/jpeg', 0.85), color: [Math.round(r / sum), Math.round(g / sum), Math.round(b / sum)] })
-      } catch {
-        resolve(null)
-      }
-    }
-    img.onerror = () => resolve(null)
-    img.src = corsCover(url)
-  })
 }
 
 async function waitForImages(node: HTMLElement) {
@@ -270,7 +221,7 @@ export function BingoShareCard({ board, mask, answers, winning, covers, coverCol
 
   // Only boards too big for real squares are drawn as a mosaic.
   const mosaicSrc = mosaic
-    ? boardImage({ rows, cols, cells: board.cells, kind: board.kind, freeCenter: board.freeCenter, mask, answers, winning, px: Math.max(3, Math.floor(1000 / Math.max(rows, cols))) })
+    ? boardImage({ rows, cols, cells: board.cells, kind: board.kind, freeCenter: board.freeCenter, mask, answers, px: Math.max(3, Math.floor(1000 / Math.max(rows, cols))) })
     : ''
   const mosaicScale = Math.min(AREA_W / cols, areaH / rows)
 
@@ -283,7 +234,6 @@ export function BingoShareCard({ board, mask, answers, winning, covers, coverCol
     borderRadius: radius,
     overflow: 'hidden',
     boxSizing: 'border-box',
-    boxShadow: winning.has(i) ? `inset 0 0 0 ${cell >= 30 ? 2 : 1}px ${GOLD}` : undefined,
   })
   const clamp = (lines: number): React.CSSProperties => ({
     overflow: 'hidden',
@@ -557,11 +507,7 @@ export default function BingoShareModal({ board, mask, answers, link, embedded, 
         new Set(Array.from({ length: total }, (_, i) => (prompt ? answers?.[i] : board.cells[i])?.coverUrl).filter((u): u is string => !!u)),
       )
     : []
-  const coverKey = coverUrls.join('|')
-
-  const [covers, setCovers] = useState<Record<string, string | null>>({})
-  const [coverColors, setCoverColors] = useState<Record<string, [number, number, number] | null>>({})
-  const [coversReady, setCoversReady] = useState(coverUrls.length === 0)
+  const { covers, colors: coverColors, ready: coversReady } = useCoverInfos(coverUrls)
   const [imgUrl, setImgUrl] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -581,21 +527,6 @@ export default function BingoShareModal({ board, mask, answers, link, embedded, 
       window.removeEventListener('resize', update)
     }
   }, [onClose])
-
-  useEffect(() => {
-    let cancelled = false
-    const urls = coverKey ? coverKey.split('|') : []
-    if (urls.length === 0) return
-    Promise.all(urls.map(async (u) => [u, await loadCover(u)] as const)).then((pairs) => {
-      if (cancelled) return
-      setCovers(Object.fromEntries(pairs.map(([u, r]) => [u, r?.data ?? null])))
-      setCoverColors(Object.fromEntries(pairs.map(([u, r]) => [u, r?.color ?? null])))
-      setCoversReady(true)
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [coverKey])
 
   useEffect(() => {
     if (!coversReady || imgUrl || !cardRef.current) return
