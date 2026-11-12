@@ -31,7 +31,7 @@ import type { ShelfStatus } from '../types'
 import { mediaPath } from '../lib/paths'
 import {
   IoPeopleOutline, IoArrowForward, IoLinkOutline,
-  IoCheckmark, IoBookOutline, IoTimeOutline, IoSettingsOutline,
+  IoCheckmark, IoBookOutline, IoSettingsOutline,
 } from 'react-icons/io5'
 import ShelfStatusBar from '@/components/media/ShelfStatusBar'
 import TypeBadge from '@/components/badges/TypeBadge'
@@ -388,22 +388,28 @@ export default function FeedPage() {
     <Layout>
       <MobileHeaderRow t={t} />
 
-      <div className="mb-5 hidden items-center justify-between gap-3 lg:flex">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-[var(--text)]">
+      {/* One slim line: greeting, your numbers, settings. The page is the feed. */}
+      <div className="mb-4 hidden items-center justify-between gap-3 lg:flex">
+        <div className="flex min-w-0 items-baseline gap-3">
+          <h1 className="flex-shrink-0 text-xl font-bold tracking-tight text-[var(--text)]">
             {t(greetingKey)}{me?.name ? `, ${me.name}` : ''}
           </h1>
-          <p className="mt-1 text-sm text-[var(--text-muted)]">{(!feedBlocks.stats && statLine) || t('feedSubtitle')}</p>
+          <p className="truncate text-sm text-[var(--text-muted)]">{(feedBlocks.stats && statLine) || t('feedSubtitle')}</p>
         </div>
         <button
           onClick={() => setSettingsOpen(true)}
           aria-label={t('settingsTitle')}
-          className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-[var(--surface)] text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
+          className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-[var(--surface)] text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
         >
-          <IoSettingsOutline className="h-5 w-5" />
+          <IoSettingsOutline className="h-[18px] w-[18px]" />
         </button>
       </div>
 
+      {/* Desktop: friends' activity on the left from the very top, your own
+          things (in progress, challenge, talked about) in a sticky column on
+          the right. Phones: your things first as a swipe row, then the feed. */}
+      <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_300px] lg:items-start lg:gap-6">
+      <aside className="min-w-0 lg:sticky lg:top-6 lg:order-2 lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto no-scrollbar">
       {/* Currently watching / reading */}
       {!loading && (feedBlocks.progress || feedBlocks.challenge || feedBlocks.stats || feedBlocks.trending || feedBlocks.discover) && (
         <div className="mb-2 flex justify-start lg:hidden">
@@ -421,7 +427,6 @@ export default function FeedPage() {
         <InProgressSection
           items={inProgress}
           readingChallenge={readingChallenge}
-          stats={stats}
           trending={trending}
           visibleBlocks={feedBlocks}
           onFinish={openFinish}
@@ -437,7 +442,7 @@ export default function FeedPage() {
       {!loading && inProgress.length === 0 && newestWishlist && (
         <Link
           to={mediaPath(newestWishlist)}
-          className="group mb-8 flex items-center gap-3 rounded-2xl bg-[var(--surface)] p-3 transition-colors hover:bg-[var(--surface-hover)]"
+          className="group mb-6 flex items-center gap-3 rounded-2xl bg-[var(--surface)] p-3 transition-colors hover:bg-[var(--surface-hover)] lg:mb-0 lg:mt-3"
         >
           <div className="relative aspect-[2/3] w-10 flex-shrink-0">
             {newestWishlist.coverUrl ? (
@@ -454,8 +459,10 @@ export default function FeedPage() {
         </Link>
       )}
 
+      </aside>
+
       {/* Friends activity */}
-      <section ref={activityRef} className="scroll-mt-4">
+      <section ref={activityRef} className="min-w-0 scroll-mt-4 lg:order-1">
         {/* Type filter sits on its own row above the title, so both stay a
             straight, uncrowded line on mobile. */}
         {/* Mobile: filter row above the title (its own line). Desktop (sm+):
@@ -613,6 +620,7 @@ export default function FeedPage() {
           </div>
         )}
       </section>
+      </div>
 
       <ProgressModal
         isOpen={!!progressItem}
@@ -641,13 +649,11 @@ export default function FeedPage() {
 
 type Translate = (key: string, vars?: Record<string, string | number>) => string
 
-// The feed's top area, split into three side-by-side containers — mirroring
-// the /m/ page's habit of many small bordered blocks rather than one dense
-// one: what's in progress, the reading challenge, and a few quick numbers.
+// The feed's top area under the hero: what's in progress, the reading
+// challenge, and what people are talking about, side by side.
 function InProgressSection({
   items,
   readingChallenge,
-  stats,
   trending,
   visibleBlocks,
   onFinish,
@@ -657,7 +663,6 @@ function InProgressSection({
 }: {
   items: MediaItem[]
   readingChallenge: Challenge | null
-  stats: { inProgress: number; finishedThisMonth: number; activeFriends: number }
   trending: CatalogItem[]
   visibleBlocks: Record<FeedBlock, boolean>
   onFinish: (it: MediaItem) => void
@@ -670,7 +675,7 @@ function InProgressSection({
   const visibleItems = showAll ? items : items.slice(0, VISIBLE_COUNT)
 
   return (
-    <section className="no-scrollbar mb-8 flex snap-x snap-mandatory gap-3 overflow-x-auto pb-1 lg:grid lg:grid-cols-3 lg:items-start lg:overflow-visible lg:pb-0 lg:snap-none">
+    <section className="no-scrollbar mb-6 flex snap-x snap-mandatory gap-3 overflow-x-auto pb-1 lg:mb-0 lg:flex-col lg:overflow-visible lg:pb-0 lg:snap-none">
       {visibleBlocks.progress && (
         <div className="w-[85%] flex-shrink-0 snap-center rounded-2xl bg-[var(--surface)] p-4 lg:w-auto lg:flex-shrink lg:snap-align-none">
           <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-[var(--text)]">
@@ -707,14 +712,9 @@ function InProgressSection({
         </div>
       )}
 
-      {(visibleBlocks.challenge || visibleBlocks.stats) && (
+      {visibleBlocks.challenge && (
         <div className="flex w-[85%] flex-shrink-0 snap-center flex-col gap-3 lg:w-auto lg:flex-shrink lg:snap-align-none">
           {visibleBlocks.challenge && <ChallengeBlock challenge={readingChallenge} t={t} />}
-          {visibleBlocks.stats && (
-            <div className="hidden lg:block">
-              <StatsBlock stats={stats} t={t} />
-            </div>
-          )}
         </div>
       )}
 
@@ -812,37 +812,6 @@ function ChallengeBlock({ challenge, t }: { challenge: Challenge | null; t: Tran
         )}
       </div>
     </Link>
-  )
-}
-
-// Quick numbers — reuses the same counts behind the header's stat line, just
-// broken out as its own small block instead of buried in muted text.
-function StatsBlock({
-  stats,
-  t,
-}: {
-  stats: { inProgress: number; finishedThisMonth: number; activeFriends: number }
-  t: Translate
-}) {
-  const rows = [
-    { icon: IoTimeOutline, label: t('sidebarInProgress'), value: stats.inProgress },
-    { icon: IoCheckmark, label: t('sidebarFinishedMonth'), value: stats.finishedThisMonth },
-    { icon: IoPeopleOutline, label: t('sidebarFriendsActive'), value: stats.activeFriends },
-  ]
-  return (
-    <div className="rounded-2xl bg-[var(--surface)] p-4" aria-label={t('sidebarYourStats')}>
-      <div className="grid grid-cols-3 gap-2">
-        {rows.map((r) => (
-          <div key={r.label} className="min-w-0">
-            <p className="flex items-center gap-1.5 text-xl font-bold leading-none text-[var(--text)]">
-              <r.icon className="h-3.5 w-3.5 flex-shrink-0 text-nonsprimary" />
-              {r.value}
-            </p>
-            <p className="mt-1.5 text-[11px] leading-tight text-[var(--text-muted)]">{r.label}</p>
-          </div>
-        ))}
-      </div>
-    </div>
   )
 }
 

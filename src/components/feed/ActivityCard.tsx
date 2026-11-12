@@ -256,9 +256,6 @@ export default function ActivityCard({
           </Link>
           {isLibrarian(a.user.role) && <LibrarianBadge className="h-4 w-4 flex-shrink-0" />}
           <span className="flex-shrink-0 text-[var(--text-muted)]">{t(VERB_KEY[a.type])}</span>
-          <Link to={to} className="min-w-0 font-semibold hover:text-nonsprimary">
-            {a.mediaTitle}
-          </Link>
           {showStars && (
             <span className="ml-0.5 inline-flex flex-shrink-0">
               <Stars rating={a.rating!} />
@@ -315,7 +312,7 @@ export default function ActivityCard({
       )}
 
       {/* body: cover + details */}
-      <div className="flex gap-3.5 rounded-xl bg-[var(--surface)] p-3">
+      <div className="flex gap-3.5">
         <Link to={to} className="relative block aspect-[2/3] w-[72px] flex-shrink-0 self-start">
           {a.coverUrl ? (
             <img
