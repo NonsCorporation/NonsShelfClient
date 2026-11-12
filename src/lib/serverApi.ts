@@ -126,3 +126,24 @@ export type PublicPerson = {
 export function getPublicPerson(uuid: string): Promise<PublicPerson | null> {
   return getJson<PublicPerson>(`/api/people/${encodeURIComponent(uuid)}`)
 }
+
+// ── Sitemap ──────────────────────────────────────────────────────────────────
+
+export type SitemapKind = 'media' | 'people' | 'lists'
+
+export type SitemapEntry = {
+  /** Public uuid of the page. */
+  id: string
+  /** book | movie | series (media only; decides /b vs /m). */
+  type?: string
+  /** Unix seconds. */
+  updated_at: number
+}
+
+export type SitemapPage = { total: number; page_size: number; entries: SitemapEntry[] }
+
+/** One page of a kind's indexable pages (GET /api/sitemap/:kind?page=N). Null
+ *  when the API is unreachable. Refreshed hourly. */
+export function getSitemapPage(kind: SitemapKind, page = 1): Promise<SitemapPage | null> {
+  return getJson<SitemapPage>(`/api/sitemap/${kind}?page=${page}`)
+}
