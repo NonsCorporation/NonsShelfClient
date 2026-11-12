@@ -3,6 +3,7 @@ import { Link } from '@/lib/router'
 import Layout from '../components/layout/Layout'
 import MediaModal from '@/components/media/MediaModal'
 import ImportSearchModal from '@/components/import-export/ImportSearchModal'
+import ImportLinkModal from '@/components/import-export/ImportLinkModal'
 import { catalogService } from '../services/catalogService'
 import type { CatalogItem } from '../services/catalogService'
 import { libraryService } from '../services/libraryService'
@@ -20,6 +21,7 @@ import {
   IoCreateOutline,
   IoAdd,
   IoCloudDownloadOutline,
+  IoLinkOutline,
   IoFilmOutline,
   IoTvOutline,
   IoPersonOutline,
@@ -96,6 +98,8 @@ function CatalogTab() {
   const [loading, setLoading] = useState(false)
   const [adding, setAdding] = useState(false)
   const [importing, setImporting] = useState(false)
+  const [importingLink, setImportingLink] = useState(false)
+  const [notice, setNotice] = useState('')
   const [editItem, setEditItem] = useState<MediaItem | null>(null)
 
   // Bulk-merge state
@@ -172,6 +176,14 @@ function CatalogTab() {
           {t('importEntry')}
         </button>
         <button
+          onClick={() => setImportingLink(true)}
+          disabled={mergeMode}
+          className="inline-flex h-12 flex-shrink-0 items-center justify-center gap-2 rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface)] px-5 text-sm font-semibold text-[var(--text)] transition-colors hover:bg-[var(--border-subtle)] disabled:opacity-40"
+        >
+          <IoLinkOutline className="h-5 w-5" />
+          {t('importLinkButton')}
+        </button>
+        <button
           onClick={() => (mergeMode ? exitMergeMode() : setMergeMode(true))}
           className={`inline-flex h-12 flex-shrink-0 items-center justify-center gap-2 rounded-2xl border px-5 text-sm font-semibold transition-colors ${
             mergeMode
@@ -191,6 +203,10 @@ function CatalogTab() {
           {t('addEntry')}
         </button>
       </div>
+
+      {notice && (
+        <p className="mb-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-sm text-emerald-500">{notice}</p>
+      )}
 
       {/* Merge mode: instruction banner */}
       {mergeMode && (
@@ -370,6 +386,19 @@ function CatalogTab() {
         onClose={() => setImporting(false)}
         onImported={(newId) => {
           setImporting(false)
+          openEdit(newId)
+        }}
+      />
+
+      <ImportLinkModal
+        isOpen={importingLink}
+        onClose={() => setImportingLink(false)}
+        onImported={(newId, created) => {
+          setImportingLink(false)
+          if (!created) {
+            setNotice(t('importLinkExisting'))
+            setTimeout(() => setNotice(''), 4000)
+          }
           openEdit(newId)
         }}
       />

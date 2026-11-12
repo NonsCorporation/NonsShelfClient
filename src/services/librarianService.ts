@@ -167,6 +167,25 @@ export interface GenreSuggestion {
   created_at: number
 }
 
+// Result of POST /api/media/from-url. `created` is false when the catalog
+// already had the work and the existing entry came back instead.
+export interface UrlImportResult {
+  created: boolean
+  media: { id: number; uuid: string; title: string }
+}
+
+// Thrown by importFromUrl; `code` is the server's machine-readable reason:
+// fetch_failed (offer the paste fallback), bad_url, bad_content, not_media,
+// ai_disabled — or '' for anything else.
+export class UrlImportError extends Error {
+  code: string
+  constructor(message: string, code = '') {
+    super(message)
+    this.name = 'UrlImportError'
+    this.code = code
+  }
+}
+
 async function jsonOrThrow(res: Response): Promise<unknown> {
   if (!res.ok) {
     let msg = `Request failed (${res.status})`
@@ -215,6 +234,29 @@ export const librarianService = {
       }),
     )) as { id: number }
     return data.id
+  },
+
+  // Create (or find) a catalog entry from a link to a book/film/series page. The
+  // server fetches the page and an LLM extracts the fields. If the server can't
+  // read the page, call again with `content` = page text/HTML the librarian
+  // copied from their own browser.
+  async importFromUrl(url: string, content?: string): Promise<UrlImportResult> {
+    const res = await authedFetch('/api/media/from-url', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url, content: content || undefined }),
+    })
+    if (!res.ok) {
+      let msg = `Request failed (${res.status})`
+      let code = ''
+      try {
+        const body = await res.json()
+        if (body?.error) msg = body.error
+        if (body?.code) code = body.code
+      } catch { /* keep status */ }
+      throw new UrlImportError(msg, code)
+    }
+    return (await res.json()) as UrlImportResult
   },
 
   async updateMedia(id: string, item: Partial<MediaItem>): Promise<void> {
