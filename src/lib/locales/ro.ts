@@ -259,6 +259,7 @@ export const ro = {
   greetingMorning: 'Bună dimineața',
   greetingAfternoon: 'Bună ziua',
   greetingEvening: 'Bună seara',
+  feedBubbleBingo: 'Nou: Bingo — creează o tablă din cărți și filme',
   statInProgress: '{count} în curs',
   statFinishedThisMonth: '{count} terminate luna aceasta',
   statFriendsActive: '{count} prieteni activi',

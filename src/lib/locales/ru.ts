@@ -259,6 +259,7 @@ export const ru = {
   greetingMorning: 'Доброе утро',
   greetingAfternoon: 'Добрый день',
   greetingEvening: 'Добрый вечер',
+  feedBubbleBingo: 'Новое: бинго — соберите карточку из книг и фильмов',
   statInProgress: '{count} в процессе',
   statFinishedThisMonth: '{count} завершено в этом месяце',
   statFriendsActive: '{count} друзей активны',

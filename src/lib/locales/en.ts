@@ -259,6 +259,7 @@ export const en = {
   greetingMorning: 'Good morning',
   greetingAfternoon: 'Good afternoon',
   greetingEvening: 'Good evening',
+  feedBubbleBingo: 'New: Bingo — build a board from books and films',
   statInProgress: '{count} in progress',
   statFinishedThisMonth: '{count} finished this month',
   statFriendsActive: '{count} friends active',

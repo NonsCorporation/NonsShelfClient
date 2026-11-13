@@ -7,6 +7,7 @@ import MobileHeaderRow from '../components/layout/MobileHeaderRow'
 import ActivityCard from '@/components/feed/ActivityCard'
 import ChallengeActivityCard from '@/components/challenges/ChallengeActivityCard'
 import BingoActivityCard from '@/components/bingo/BingoActivityCard'
+import GreetingBubble from '@/components/feed/GreetingBubble'
 import ProgressModal from '@/components/reading/ProgressModal'
 import FinishModal from '@/components/reading/FinishModal'
 import { libraryService } from '../services/libraryService'
@@ -31,7 +32,7 @@ import type { ShelfStatus } from '../types'
 import { mediaPath } from '../lib/paths'
 import {
   IoPeopleOutline, IoArrowForward, IoLinkOutline,
-  IoCheckmark, IoBookOutline, IoSettingsOutline,
+  IoCheckmark, IoBookOutline, IoSettingsOutline, IoGridOutline,
 } from 'react-icons/io5'
 import ShelfStatusBar from '@/components/media/ShelfStatusBar'
 import TypeBadge from '@/components/badges/TypeBadge'
@@ -326,28 +327,6 @@ export default function FeedPage() {
     return h < 12 ? 'greetingMorning' : h < 18 ? 'greetingAfternoon' : 'greetingEvening'
   })()
 
-  // Shared counts behind both the header's stat line and the sidebar's stats card.
-  const stats = useMemo(() => {
-    const now = new Date()
-    const finishedThisMonth = items.filter((it) => {
-      if (it.status !== 'done' || !it.finishedAt) return false
-      const d = new Date(it.finishedAt)
-      return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()
-    }).length
-    const activeFriends = new Set(activity.map((a) => a.user.handle)).size
-    return { inProgress: inProgress.length, finishedThisMonth, activeFriends }
-  }, [items, activity, inProgress])
-
-  // A quiet at-a-glance line under the greeting: only the segments that apply.
-  const statLine = useMemo(() => {
-    const segs = [
-      stats.inProgress > 0 && t('statInProgress', { count: stats.inProgress }),
-      stats.finishedThisMonth > 0 && t('statFinishedThisMonth', { count: stats.finishedThisMonth }),
-      stats.activeFriends > 0 && t('statFriendsActive', { count: stats.activeFriends }),
-    ].filter(Boolean) as string[]
-    return segs.join(' · ')
-  }, [stats, t])
-
   // Flatten the (filtered) activity page into rows: a divider per day bucket
   // (newest-first order preserved), the cards, and the discovery rails slotted in
   // after fixed card counts. Rails only ride along on the first page, and any
@@ -386,7 +365,8 @@ export default function FeedPage() {
           <h1 className="flex-shrink-0 text-xl font-bold tracking-tight text-[var(--text)]">
             {t(greetingKey)}{me?.name ? `, ${me.name}` : ''}
           </h1>
-          <p className="truncate text-sm text-[var(--text-muted)]">{(feedBlocks.stats && statLine) || t('feedSubtitle')}</p>
+          {/* Sample message for now; swap in whatever should be said here. */}
+          <GreetingBubble text={t('feedBubbleBingo')} href="/bingo" icon={IoGridOutline} color="#d99a2b" />
         </div>
         <button
           onClick={() => setSettingsOpen(true)}
