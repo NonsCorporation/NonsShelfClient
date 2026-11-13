@@ -361,7 +361,7 @@ export default function FeedPage() {
 
       {/* One slim line: greeting, your numbers, settings. The page is the feed. */}
       <div className="mb-4 hidden items-center justify-between gap-3 lg:flex">
-        <div className="flex min-w-0 items-center gap-4">
+        <div className="flex min-w-0 items-center gap-3">
           <h1 className="flex-shrink-0 text-xl font-bold tracking-tight text-[var(--text)]">
             {t(greetingKey)}{me?.name ? `, ${me.name}` : ''}
           </h1>

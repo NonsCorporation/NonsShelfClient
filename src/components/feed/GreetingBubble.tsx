@@ -13,7 +13,7 @@ export type GreetingBubbleProps = {
   /** Icon in the glossy badge at the left — pass a filled one (IoGrid, IoStar …). */
   icon: IconType
   /** Accent for everything: the badge, the cloud behind the text, the glow
-   *  under the bubble, the floating bubbles. Any CSS colour. */
+   *  under the bubble. Any CSS colour. */
   color?: string
   /** Optional custom background (any CSS `background`, e.g. a gradient) that
    *  replaces the soft cloud. */
@@ -21,18 +21,19 @@ export type GreetingBubbleProps = {
   className?: string
 }
 
-// The floating "bubbles" around the pill: [position, size, delay]. Some sit
-// half outside the pill on purpose.
-const FLOATERS: { pos: string; size: number; delay: string; opacity: number }[] = [
-  { pos: '-left-1.5 -top-2.5', size: 14, delay: '0s', opacity: 0.95 },
-  { pos: 'left-9 -bottom-2', size: 8, delay: '-1.2s', opacity: 0.75 },
-  { pos: '-right-1 -top-1.5', size: 9, delay: '-2.1s', opacity: 0.85 },
-  { pos: 'right-7 -bottom-1.5', size: 6, delay: '-0.6s', opacity: 0.6 },
+// Light glints inside the pill: [position, size px, opacity, blur px].
+const GLINTS: { pos: string; size: number; opacity: number; blur: number }[] = [
+  { pos: 'left-11 top-1', size: 7, opacity: 0.35, blur: 0 },
+  { pos: 'left-[38%] bottom-1.5', size: 4, opacity: 0.3, blur: 0 },
+  { pos: 'left-[62%] top-1.5', size: 13, opacity: 0.12, blur: 2 },
+  { pos: 'right-10 bottom-1', size: 9, opacity: 0.16, blur: 1 },
+  { pos: 'right-3 top-1.5', size: 4, opacity: 0.3, blur: 0 },
 ]
 
 // A tappable message bubble — the line under the feed's greeting. A colour, a
 // text, a link, an icon and (optionally) a background; the cloud, glow and
-// floating bubbles are all derived from the colour. Fully controlled by props:
+// glints are all derived from the colour. Deliberately quiet — it sits beside
+// the greeting, not above it. Fully controlled by props:
 // it knows nothing about where the message comes from.
 export default function GreetingBubble({
   text,
@@ -48,38 +49,54 @@ export default function GreetingBubble({
   const pillStyle: CSSProperties = {
     background:
       background ??
-      'linear-gradient(135deg, color-mix(in srgb, var(--bubble) 30%, transparent), color-mix(in srgb, var(--bubble) 12%, transparent))',
+      'linear-gradient(135deg, color-mix(in srgb, var(--bubble) 15%, transparent), color-mix(in srgb, var(--bubble) 6%, transparent))',
     boxShadow:
-      '0 10px 26px -10px color-mix(in srgb, var(--bubble) 70%, transparent), 0 3px 8px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.18)',
-    border: '1px solid color-mix(in srgb, var(--bubble) 38%, transparent)',
+      '0 4px 14px -6px color-mix(in srgb, var(--bubble) 45%, transparent), 0 1px 3px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.1)',
+    border: '1px solid color-mix(in srgb, var(--bubble) 20%, transparent)',
   }
 
   const pillCls =
-    'group relative inline-flex max-w-full items-center gap-2.5 overflow-hidden rounded-full py-1.5 pl-1.5 pr-4 text-sm backdrop-blur-sm transition-all duration-200 hover:-translate-y-0.5 hover:brightness-110 '
+    'group relative inline-flex max-w-full items-center gap-2.5 overflow-hidden rounded-full py-1 pl-1 pr-3.5 text-sm transition-all duration-200 hover:brightness-110 '
 
   const content = (
     <>
       {/* Cloud: soft blurred blobs of the colour behind the text. */}
       <span aria-hidden className="pointer-events-none absolute inset-0">
-        <span className="absolute -left-4 -top-6 h-14 w-24 rounded-full opacity-60 blur-xl" style={{ background: 'var(--bubble)' }} />
-        <span className="absolute left-1/3 -bottom-7 h-12 w-28 rounded-full opacity-40 blur-xl" style={{ background: 'var(--bubble)' }} />
-        <span className="absolute -right-3 -top-4 h-12 w-20 rounded-full opacity-45 blur-xl" style={{ background: 'var(--bubble)' }} />
+        <span className="absolute -left-4 -top-6 h-14 w-24 rounded-full opacity-25 blur-xl" style={{ background: 'var(--bubble)' }} />
+        <span className="absolute left-1/3 -bottom-7 h-12 w-28 rounded-full opacity-15 blur-xl" style={{ background: 'var(--bubble)' }} />
+        <span className="absolute -right-3 -top-4 h-12 w-20 rounded-full opacity-20 blur-xl" style={{ background: 'var(--bubble)' }} />
+        {/* Sheen along the top edge. */}
+        <span className="absolute inset-x-2 top-0 h-1/2 rounded-full bg-gradient-to-b from-white/10 to-transparent" />
+        {/* Glints: small light spots inside the glass. */}
+        {GLINTS.map((g, i) => (
+          <span
+            key={i}
+            className={`absolute rounded-full ${g.pos}`}
+            style={{
+              width: g.size,
+              height: g.size,
+              opacity: g.opacity,
+              filter: g.blur ? `blur(${g.blur}px)` : undefined,
+              background: 'radial-gradient(circle at 35% 30%, #fff, rgba(255,255,255,0.15) 70%)',
+            }}
+          />
+        ))}
       </span>
 
       {/* Glossy filled badge. */}
       <span
-        className="relative flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-white"
+        className="relative flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-white"
         style={{
-          background: 'linear-gradient(145deg, color-mix(in srgb, var(--bubble) 70%, white), var(--bubble))',
-          boxShadow: '0 4px 10px -2px color-mix(in srgb, var(--bubble) 80%, transparent), inset 0 1px 0 rgba(255,255,255,0.5), inset 0 -2px 3px rgba(0,0,0,0.2)',
+          background: 'linear-gradient(145deg, color-mix(in srgb, var(--bubble) 80%, white), var(--bubble))',
+          boxShadow: '0 2px 6px -1px color-mix(in srgb, var(--bubble) 55%, transparent), inset 0 1px 0 rgba(255,255,255,0.4), inset 0 -1px 2px rgba(0,0,0,0.15)',
         }}
       >
-        <Icon className="h-4 w-4 drop-shadow-[0_1px_1px_rgba(0,0,0,0.3)]" />
+        <Icon className="h-3.5 w-3.5" />
       </span>
 
-      <span className="relative min-w-0 truncate font-semibold text-[var(--text)]">{text}</span>
+      <span className="relative min-w-0 truncate font-medium text-[var(--text)]">{text}</span>
       <IoArrowForward
-        className="relative h-4 w-4 flex-shrink-0 transition-transform group-hover:translate-x-0.5"
+        className="relative h-3.5 w-3.5 flex-shrink-0 opacity-80 transition-transform group-hover:translate-x-0.5"
         style={{ color: 'var(--bubble)' }}
       />
     </>
@@ -87,23 +104,6 @@ export default function GreetingBubble({
 
   return (
     <div className={`relative inline-flex max-w-full ${className}`} style={vars}>
-      {/* Floating bubbles — outside the pill's clipped area so they poke out. */}
-      {FLOATERS.map((f, i) => (
-        <span
-          key={i}
-          aria-hidden
-          className={`bubble-float pointer-events-none absolute z-10 rounded-full ${f.pos}`}
-          style={{
-            width: f.size,
-            height: f.size,
-            opacity: f.opacity,
-            animationDelay: f.delay,
-            background: 'radial-gradient(circle at 30% 28%, rgba(255,255,255,0.85), color-mix(in srgb, var(--bubble) 85%, white) 38%, var(--bubble))',
-            boxShadow: '0 2px 6px color-mix(in srgb, var(--bubble) 60%, transparent), inset 0 -1px 2px rgba(0,0,0,0.2)',
-          }}
-        />
-      ))}
-
       {/^https?:\/\//i.test(href) ? (
         <a href={href} target="_blank" rel="noopener noreferrer" className={pillCls} style={pillStyle}>
           {content}
