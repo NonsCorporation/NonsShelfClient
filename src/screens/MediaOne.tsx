@@ -1808,6 +1808,7 @@ export default function MediaOnePage({
         onCustomPagesChange={setCustomPages}
         onClose={() => { setProgressOpen(false); setProgressRefresh((n) => n + 1) }}
         onFinish={() => { setProgressOpen(false); setFinishOpen(true) }}
+        onDnf={() => { setProgressOpen(false); setDnfOpen(true) }}
       />
       <FinishModal
         isOpen={finishOpen}

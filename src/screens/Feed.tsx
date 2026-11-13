@@ -10,6 +10,7 @@ import BingoActivityCard from '@/components/bingo/BingoActivityCard'
 import GreetingBubble from '@/components/feed/GreetingBubble'
 import ProgressModal from '@/components/reading/ProgressModal'
 import FinishModal from '@/components/reading/FinishModal'
+import DnfModal from '@/components/reading/DnfModal'
 import { libraryService } from '../services/libraryService'
 import { activityService } from '../services/activityService'
 import { challengeService } from '../services/challengeService'
@@ -91,6 +92,7 @@ export default function FeedPage() {
   const [activityRefreshKey, setActivityRefreshKey] = useState(0)
   const [activityLoading, setActivityLoading] = useState(false)
   const [finishItem, setFinishItem] = useState<MediaItem | null>(null)
+  const [dnfItem, setDnfItem] = useState<MediaItem | null>(null)
   // The viewer's yearly reading challenge, shown as the last card in the
   // in-progress row once they've set a goal for the current year.
   const [readingChallenge, setReadingChallenge] = useState<Challenge | null>(null)
@@ -565,6 +567,16 @@ export default function FeedPage() {
         }
         onClose={() => setProgressItem(null)}
         onFinish={() => { setFinishItem(progressItem); setProgressItem(null) }}
+        onDnf={() => { setDnfItem(progressItem); setProgressItem(null) }}
+      />
+      <DnfModal
+        isOpen={!!dnfItem}
+        item={dnfItem}
+        onClose={() => setDnfItem(null)}
+        onDone={() => {
+          setDnfItem(null)
+          load()
+        }}
       />
       <FinishModal
         isOpen={!!finishItem}

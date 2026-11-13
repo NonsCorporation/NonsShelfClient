@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { IoClose, IoChevronDown, IoCheckmarkDoneOutline, IoInformationCircle, IoTvOutline, IoPencilOutline } from 'react-icons/io5'
+import { IoClose, IoChevronDown, IoCheckmarkDoneOutline, IoInformationCircle, IoTvOutline, IoPencilOutline, IoCloseCircleOutline } from 'react-icons/io5'
 import { authedFetch } from '@/lib/api'
 import { useScrollLock } from '@/lib/useScrollLock'
 import { libraryService } from '@/services/libraryService'
@@ -26,6 +26,9 @@ type Props = {
   onClose: () => void
   // Called when the user hits "Finished" — the parent swaps in the ending modal.
   onFinish: () => void
+  // Called when the user hits "Did not finish" — the parent swaps in the DNF modal.
+  // The button is hidden when not provided.
+  onDnf?: () => void
 }
 
 // Series episodes from GET /api/media/:id/episodes (grouped by season).
@@ -48,7 +51,7 @@ interface EpisodesResponse {
 // "Update progress" modal: where am I in this book/series? Books track the
 // current page; series tick off watched episodes. The "Finished" button hands
 // off to the ending (rate/review/dates) modal.
-export default function ProgressModal({ isOpen, item, total: totalProp, customPages, onCustomPagesChange, onClose, onFinish }: Props) {
+export default function ProgressModal({ isOpen, item, total: totalProp, customPages, onCustomPagesChange, onClose, onFinish, onDnf }: Props) {
   const { t } = useLanguage()
   const isBook = item?.type === 'book'
 
@@ -453,6 +456,15 @@ export default function ProgressModal({ isOpen, item, total: totalProp, customPa
             <IoCheckmarkDoneOutline className="h-5 w-5" />
             {t('imFinished')}
           </button>
+          {onDnf && (
+            <button
+              onClick={onDnf}
+              className="flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] text-sm font-medium text-[var(--text-muted)] transition-colors hover:border-[#647da3] hover:text-[#647da3]"
+            >
+              <IoCloseCircleOutline className="h-5 w-5" />
+              {t('didNotFinish')}
+            </button>
+          )}
         </div>
       </div>
 
