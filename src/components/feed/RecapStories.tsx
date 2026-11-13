@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import { useScrollLock } from '@/lib/useScrollLock'
 import { createPortal } from 'react-dom'
 import { toPng } from 'html-to-image'
 import { IoClose, IoDownloadOutline, IoChevronBack, IoChevronForward, IoBookOutline, IoFilmOutline, IoTvOutline, IoStar, IoStarHalf, IoStarOutline, IoTimeOutline, IoLibraryOutline, IoPersonOutline } from 'react-icons/io5'
@@ -510,6 +511,7 @@ export default function RecapStories({ open, onClose, recap, label, locale, t, a
     return () => window.removeEventListener('keydown', onKey)
   }, [open, onClose, go])
 
+  useScrollLock(open)
   if (!open || typeof document === 'undefined') return null
 
   const slug = label.replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '-').toLowerCase() || 'recap'

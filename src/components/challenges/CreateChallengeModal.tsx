@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useScrollLock } from '@/lib/useScrollLock'
 import { createPortal } from 'react-dom'
 import { IoClose, IoLockClosedOutline, IoPersonOutline, IoSearch } from 'react-icons/io5'
 import DatePicker from '@/components/ui/DatePicker'
@@ -114,6 +115,7 @@ export default function CreateChallengeModal({ isOpen, onClose, onSaved, challen
     }
   }, [personQuery])
 
+  useScrollLock(isOpen)
   if (!isOpen) return null
 
   const handleSave = async () => {

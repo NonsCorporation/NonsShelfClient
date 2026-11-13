@@ -1,4 +1,5 @@
 import { useRef, useState, type ReactNode } from 'react'
+import { useScrollLock } from '@/lib/useScrollLock'
 import {
   IoClose, IoBookOutline, IoFilmOutline, IoCloudUploadOutline, IoArrowBack, IoCheckmarkCircle, IoChevronForward,
 } from 'react-icons/io5'
@@ -96,6 +97,7 @@ export default function ImportModal({ isOpen, onClose, onImported }: Props) {
   const [error, setError] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
+  useScrollLock(isOpen)
   if (!isOpen) return null
 
   const reset = () => { setStep('choose'); setFile(null); setResult(null); setError(null); setBusy(false); setProgress(null) }

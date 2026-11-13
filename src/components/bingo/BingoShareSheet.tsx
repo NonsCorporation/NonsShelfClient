@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
+import { useScrollLock } from '@/lib/useScrollLock'
 import { createPortal } from 'react-dom'
 import { IoCheckmark, IoChevronForward, IoClose, IoImageOutline, IoLinkOutline, IoPersonOutline } from 'react-icons/io5'
 import { useLanguage } from '@/contexts/LanguageContext'
@@ -19,6 +20,7 @@ type Props = {
 // "Share" as a friendly sheet of plain choices (a picture, the board, my result)
 // instead of a row of technical buttons.
 export default function BingoShareSheet({ hasResult, copied, onImage, onCopyBoard, onCopyResult, onClose }: Props) {
+  useScrollLock(true)
   const { t } = useLanguage()
 
   useEffect(() => {

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useScrollLock } from '@/lib/useScrollLock'
 import LanguagePicker from '@/components/ui/LanguagePicker'
 import { createPortal } from 'react-dom'
 import { IoClose, IoPersonOutline, IoCloudDownloadOutline, IoCheckmark, IoSearch, IoAdd, IoTrashOutline, IoChevronUp, IoChevronDown } from 'react-icons/io5'
@@ -95,6 +96,7 @@ export default function PersonModal({ isOpen, person, initialName, onClose, onSa
     }
   }, [isOpen, person, initialName])
 
+  useScrollLock(isOpen)
   if (!isOpen) return null
 
   // Name list edits. Index 0 is always the canonical name (cannot be removed).
@@ -503,6 +505,7 @@ function MergePersonModal({
     onConfirm(picked.uuid, hasBothBios && bioPick === 'dup' ? dupBio! : undefined)
   }
 
+  useScrollLock(true)
   if (typeof document === 'undefined') return null
 
   return createPortal(
@@ -653,6 +656,7 @@ function TmdbSuggestionModal({
   onDecline: () => void
 }) {
   const { t } = useLanguage()
+  useScrollLock(true)
   if (typeof document === 'undefined') return null
 
   return createPortal(

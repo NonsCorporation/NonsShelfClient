@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useScrollLock } from '@/lib/useScrollLock'
 import { createPortal } from 'react-dom'
 import { IoClose, IoCloudDownloadOutline } from 'react-icons/io5'
 import { awardService } from '@/services/awardService'
@@ -48,6 +49,7 @@ export default function WikidataImportModal({ isOpen, subject, subjectId, onClos
       .finally(() => setLoading(false))
   }, [isOpen, subject, subjectId])
 
+  useScrollLock(isOpen)
   if (!isOpen) return null
 
   const toggle = (i: number) => setChecked((prev) => prev.map((v, idx) => (idx === i ? !v : v)))

@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useScrollLock } from '@/lib/useScrollLock'
 import { createPortal } from 'react-dom'
 import { IoClose, IoChevronDown, IoCheckmark } from 'react-icons/io5'
 import StarsSelector from '@/StarsSelector'
@@ -96,6 +97,7 @@ export default function FinishModal({ isOpen, item, onClose, onFinished }: Props
     })
   }
 
+  useScrollLock(isOpen && !!item)
   if (!isOpen || !item) return null
 
   // Flattened (group/facet dropped) for the collapsed one-row preview strip —

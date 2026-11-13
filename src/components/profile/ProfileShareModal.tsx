@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { useScrollLock } from '@/lib/useScrollLock'
 import { createPortal } from 'react-dom'
 import { toPng } from 'html-to-image'
 import QRCode from 'qrcode'
@@ -190,6 +191,7 @@ export default function ProfileShareModal({ isOpen, stats, shelfUrl, onClose }: 
     return () => { cancelled = true }
   }, [isOpen, avatarReady, qrDataUrl, imgUrl])
 
+  useScrollLock(isOpen)
   if (!isOpen || typeof document === 'undefined') return null
 
   const totalAdded = stats.typeCounts.book + stats.typeCounts.movie + stats.typeCounts.series

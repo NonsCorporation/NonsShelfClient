@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useScrollLock } from '@/lib/useScrollLock'
 import { IoClose, IoLinkOutline, IoCloudDownloadOutline } from 'react-icons/io5'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { librarianService, UrlImportError } from '@/services/librarianService'
@@ -21,6 +22,7 @@ export default function ImportLinkModal({ isOpen, ...rest }: Props) {
 
 function ImportLinkBody({ onClose, onImported }: Omit<Props, 'isOpen'>) {
   const { t } = useLanguage()
+  useScrollLock(true)
   const [url, setUrl] = useState('')
   const [content, setContent] = useState('')
   const [needsPaste, setNeedsPaste] = useState(false)

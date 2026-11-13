@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useScrollLock } from '@/lib/useScrollLock'
 import { IoClose, IoBookOutline, IoFilmOutline, IoTvOutline, IoCloudDownloadOutline } from 'react-icons/io5'
 import { TbSpy } from 'react-icons/tb'
 import ConfirmModal from '@/components/ui/ConfirmModal'
@@ -93,6 +94,7 @@ export default function MediaModal({ isOpen, initialData, initialType, catalogOn
   // rapid clicks would each POST a fresh media row — creating duplicate entries.
   const [saving, setSaving] = useState(false)
 
+  useScrollLock(isOpen)
   if (!isOpen) return null
 
   const targetRef = mediaUuid ?? initialData?.id ?? ''

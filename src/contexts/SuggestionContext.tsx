@@ -7,6 +7,7 @@ import {
   useState,
   type ReactNode,
 } from 'react'
+import { useScrollLock } from '@/lib/useScrollLock'
 import { createPortal } from 'react-dom'
 import { suggestionService, type ActionType } from '../services/suggestionService'
 import { IoInformationCircleOutline } from 'react-icons/io5'
@@ -73,6 +74,7 @@ export function SuggestionProvider({
     }
   }
 
+  useScrollLock(!!pending)
   const handleCancel = () => {
     pending?.reject(new Error('cancelled'))
     setPending(null)

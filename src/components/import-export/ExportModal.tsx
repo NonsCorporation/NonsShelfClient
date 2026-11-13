@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useScrollLock } from '@/lib/useScrollLock'
 import { IoDownloadOutline, IoClose, IoChevronDown, IoChevronUp } from 'react-icons/io5'
 import { authedFetch } from '@/lib/api'
 import { useLanguage } from '@/contexts/LanguageContext'
@@ -73,6 +74,7 @@ const ALL_COL_KEYS   = [...CORE_FIELDS.map((f) => f.key), ...ALL_FIELD_KEYS]
 
 export default function ExportModal({ collections, onClose }: Props) {
   const { t } = useLanguage()
+  useScrollLock(true)
   const [format, setFormat]         = useState<Format>('csv')
   const [mediaType, setMediaType]   = useState<MediaType>('all')
   const [statuses, setStatuses]     = useState<Set<StatusKey>>(new Set(ALL_STATUSES))

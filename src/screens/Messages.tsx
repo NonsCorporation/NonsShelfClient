@@ -88,9 +88,9 @@ export default function Messages() {
   // Lock page scroll behind the mobile overlay.
   useEffect(() => {
     if (!overlay) return
-    const prev = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => { document.body.style.overflow = prev }
+    const prev = document.documentElement.style.overflow
+    document.documentElement.style.overflow = 'hidden'
+    return () => { document.documentElement.style.overflow = prev }
   }, [overlay])
 
   if (!user) return null

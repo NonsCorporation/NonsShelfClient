@@ -1,3 +1,4 @@
+import { useScrollLock } from '@/lib/useScrollLock'
 import { IoClose } from 'react-icons/io5'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { usePreferences, FEED_BLOCKS, type FeedBlock } from '@/contexts/PreferencesContext'
@@ -24,6 +25,7 @@ export default function FeedSettingsModal({ isOpen, onClose }: Props) {
   const { t } = useLanguage()
   const { feedBlocks, setFeedBlockVisible } = usePreferences()
 
+  useScrollLock(isOpen)
   if (!isOpen) return null
 
   return (

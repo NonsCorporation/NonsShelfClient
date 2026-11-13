@@ -2,6 +2,7 @@
 
 import { createPortal } from 'react-dom'
 import { useState } from 'react'
+import { useScrollLock } from '@/lib/useScrollLock'
 import { Link } from '@/lib/router'
 import { IoClose, IoPencilOutline, IoLockClosedOutline } from 'react-icons/io5'
 import { FiClipboard } from 'react-icons/fi'
@@ -24,6 +25,7 @@ export default function MediaDetailModal({ item, onClose }: { item: MediaItem | 
   const [optimisticNote, setOptimisticNote] = useState<string | undefined>(undefined)
   const [saving, setSaving] = useState(false)
 
+  useScrollLock(!!item)
   if (!item || typeof document === 'undefined') return null
   const rated = typeof item.rating === 'number' && item.rating > 0
   const hasReview = !!item.review?.trim()

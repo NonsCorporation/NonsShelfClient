@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useScrollLock } from '@/lib/useScrollLock'
 import { IoClose, IoBarcodeOutline, IoCloudDownloadOutline, IoCheckmark } from 'react-icons/io5'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { catalogService } from '@/services/catalogService'
@@ -38,6 +39,7 @@ export default function ScanIsbnModal({ isOpen, onClose, onAdded }: Props) {
     if (isOpen) reset()
   }, [isOpen])
 
+  useScrollLock(isOpen)
   if (!isOpen) return null
 
   const handleClose = () => {

@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useScrollLock } from '@/lib/useScrollLock'
 import { createPortal } from 'react-dom'
 import { IoClose } from 'react-icons/io5'
 import { libraryService } from '@/services/libraryService'
@@ -35,6 +36,7 @@ export default function DnfModal({ isOpen, item, onClose, onDone }: Props) {
     setShare(true)
   }, [isOpen])
 
+  useScrollLock(isOpen && !!item)
   if (!isOpen || !item) return null
 
   const isBook = item.type === 'book'

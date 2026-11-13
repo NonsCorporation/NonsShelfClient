@@ -1,6 +1,7 @@
 'use client'
 
 import type { ReactNode } from 'react'
+import { useScrollLock } from '@/lib/useScrollLock'
 import { createPortal } from 'react-dom'
 
 // Confirmation popup (ported from nons-client, adapted to the library's CSS-var
@@ -33,6 +34,7 @@ export default function ConfirmModal({
   busy?: boolean
 }) {
   const isDanger = variant === 'danger'
+  useScrollLock(true)
   if (typeof document === 'undefined') return null
 
   return createPortal(

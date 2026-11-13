@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, type FormEvent } from 'react'
+import { useScrollLock } from '@/lib/useScrollLock'
 import { createPortal } from 'react-dom'
 import { IoClose } from 'react-icons/io5'
 import { FcGoogle } from 'react-icons/fc'
@@ -77,6 +78,7 @@ export default function LoginModal({
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
 
+  useScrollLock(true)
   if (typeof document === 'undefined') return null
 
   const go = (m: Mode, msg = '') => {

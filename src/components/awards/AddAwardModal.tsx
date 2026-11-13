@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useScrollLock } from '@/lib/useScrollLock'
 import { createPortal } from 'react-dom'
 import { IoClose, IoChevronDown } from 'react-icons/io5'
 import { awardService } from '@/services/awardService'
@@ -64,6 +65,7 @@ export default function AddAwardModal({ isOpen, subject, onClose, onAdd }: Props
   const offerPersonLink = activeCategory?.subject_type === subject && subject === 'media'
   const offerMediaLink = activeCategory?.subject_type === subject && subject === 'person'
 
+  useScrollLock(isOpen)
   if (!isOpen) return null
 
   const submit = async () => {

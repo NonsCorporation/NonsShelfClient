@@ -1,6 +1,7 @@
 'use client'
 
 import { useRef, useState, useEffect } from 'react'
+import { useScrollLock } from '@/lib/useScrollLock'
 import { createPortal } from 'react-dom'
 import { IoClose, IoCheckmark, IoFolderOutline } from 'react-icons/io5'
 import { useCollections, subtreeIds } from '@/contexts/CollectionContext'
@@ -183,6 +184,7 @@ export default function CollectionSettingsModal({
     }
   }
 
+  useScrollLock(true)
   if (typeof document === 'undefined') return null
 
   const canMove =

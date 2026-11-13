@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useScrollLock } from '@/lib/useScrollLock'
 import { IoClose, IoSearch, IoBookOutline, IoFilmOutline, IoTvOutline, IoCloudDownloadOutline, IoOpenOutline, IoBarcodeOutline } from 'react-icons/io5'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { librarianService } from '@/services/librarianService'
@@ -89,6 +90,7 @@ export default function ImportSearchModal({ isOpen, onClose, onImported }: Props
     return () => { clearTimeout(timer); setPending(false) }
   }, [q, kind, isOpen, instant])
 
+  useScrollLock(isOpen)
   if (!isOpen) return null
 
   const doImport = async (row: Row) => {

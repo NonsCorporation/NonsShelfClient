@@ -92,11 +92,11 @@ export default function BingoEditor({ initial, isEdit = false, author, runsCount
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
     document.addEventListener('keydown', onKey)
-    const prev = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
+    const prev = document.documentElement.style.overflow
+    document.documentElement.style.overflow = 'hidden'
     return () => {
       document.removeEventListener('keydown', onKey)
-      document.body.style.overflow = prev
+      document.documentElement.style.overflow = prev
     }
   }, [onClose])
 

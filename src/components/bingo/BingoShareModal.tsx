@@ -516,14 +516,14 @@ export default function BingoShareModal({ board, mask, answers, link, embedded, 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
     document.addEventListener('keydown', onKey)
-    const prev = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
+    const prev = document.documentElement.style.overflow
+    document.documentElement.style.overflow = 'hidden'
     const update = () => setScale(Math.min(1, Math.max(0.45, (window.innerHeight * 0.5) / CARD_H)))
     update()
     window.addEventListener('resize', update)
     return () => {
       document.removeEventListener('keydown', onKey)
-      document.body.style.overflow = prev
+      document.documentElement.style.overflow = prev
       window.removeEventListener('resize', update)
     }
   }, [onClose])

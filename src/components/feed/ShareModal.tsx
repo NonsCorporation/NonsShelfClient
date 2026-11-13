@@ -1,6 +1,7 @@
 'use client'
 
 import { useRef, useState, useEffect } from 'react'
+import { useScrollLock } from '@/lib/useScrollLock'
 import { createPortal } from 'react-dom'
 import { toPng } from 'html-to-image'
 import { IoClose, IoCopyOutline, IoCheckmark, IoDownloadOutline, IoTimeOutline } from 'react-icons/io5'
@@ -273,6 +274,7 @@ export default function ShareModal({ isOpen, item, coverUrl, title, author, tota
     return () => { cancelled = true }
   }, [isOpen, accentReady, progressReady, imgUrl])
 
+  useScrollLock(isOpen)
   if (!isOpen || typeof document === 'undefined') return null
 
   const url = `${window.location.origin}${mediaPath({ type: item.type, uuid: item.uuid, id: String(item.id) })}`

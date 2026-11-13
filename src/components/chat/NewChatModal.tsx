@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useScrollLock } from '@/lib/useScrollLock'
 import { createPortal } from 'react-dom'
 import { IoClose } from 'react-icons/io5'
 import { useLanguage } from '@/contexts/LanguageContext'
@@ -27,6 +28,7 @@ export default function NewChatModal({ meId, onClose, onOpen }: Props) {
   const [members, setMembers] = useState<UserHit[]>([])
   const [creating, setCreating] = useState(false)
 
+  useScrollLock(true)
   if (typeof document === 'undefined') return null
 
   const pickDirect = async (u: UserHit) => {

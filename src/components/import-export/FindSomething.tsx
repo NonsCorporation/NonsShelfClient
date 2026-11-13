@@ -235,9 +235,9 @@ export default function FindSomething({ t }: { t: Translate }) {
 
   useEffect(() => {
     if (!open) return
-    const prev = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => { document.body.style.overflow = prev }
+    const prev = document.documentElement.style.overflow
+    document.documentElement.style.overflow = 'hidden'
+    return () => { document.documentElement.style.overflow = prev }
   }, [open])
 
   // gets top genres and assigns up to three covers for the spread

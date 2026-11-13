@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useScrollLock } from '@/lib/useScrollLock'
 import { IoClose, IoWarningOutline } from 'react-icons/io5'
 import { useLanguage } from '@/contexts/LanguageContext'
 
@@ -47,6 +48,7 @@ export default function BarcodeScannerModal({ isOpen, onClose, onDetected }: Pro
     }
   }, [isOpen, onDetected])
 
+  useScrollLock(isOpen)
   if (!isOpen) return null
 
   return (
