@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate, Link } from '@/lib/router'
-import { IoTrash, IoClose, IoAdd, IoSearch, IoLink, IoCheckmark, IoLayersOutline } from 'react-icons/io5'
+import { IoTrash, IoClose, IoAdd, IoSearch, IoLink, IoCheckmark, IoLayersOutline, IoRibbonOutline } from 'react-icons/io5'
 import Layout from '../components/layout/Layout'
 import BoringAvatar from '@/components/ui/BoringAvatar'
 import ConfirmModal from '@/components/ui/ConfirmModal'
@@ -218,6 +218,18 @@ export default function ListDetailScreen() {
 
             {/* Meta line — Goodreads-style: byline + item count on one row. */}
             <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-[var(--text-muted)]">
+              {/* Official lists are by the site itself, not a person: SomeShelf, linking to the official page. */}
+              {data.official && (
+                <>
+                  <Link to="/official" className="flex items-center gap-1.5 hover:text-[var(--text)]">
+                    <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-[var(--primary-soft)] text-nonsprimary">
+                      <IoRibbonOutline className="h-3 w-3" />
+                    </span>
+                    <span className="font-medium text-[var(--text)]">SomeShelf</span>
+                  </Link>
+                  <span>·</span>
+                </>
+              )}
               {data.owner_username && (
                 <>
                   <Link to={`/u/${data.owner_username}`} className="flex items-center gap-1.5 hover:text-[var(--text)]">
