@@ -23,6 +23,7 @@ type WireBoard = {
   revision: number
   created_at: number
   owner?: WirePerson
+  official?: boolean
 }
 
 type WireRun = {
@@ -51,7 +52,8 @@ function fromWireBoard(b: WireBoard): Bingo {
     kind: b.kind,
     title: b.title,
     description: b.description,
-    author: personName(b.owner),
+    author: b.official ? '' : personName(b.owner),
+    ...(b.official ? { official: true } : {}),
     freeCenter: b.free_center,
     rows: b.rows,
     cols: b.cols,
@@ -142,6 +144,8 @@ export const bingoApi = {
           cols: b.cols,
           cells: b.cells.map(toWireCell),
           revision: b.revision,
+          // Only admins' flag counts server-side; undefined (omitted) leaves it as it is.
+          official: b.official,
         }),
       ),
     )
@@ -177,6 +181,14 @@ export const bingoApi = {
     const res = await authedFetch(path('boards', id))
     if (res.status === 404) return null
     return fromWireBoard((await (await ok(res)).json()) as WireBoard)
+  },
+
+  /** The boards flagged official, newest first. */
+  async official(): Promise<Bingo[]> {
+    const res = await authedFetch('/api/bingo/official')
+    if (!res.ok) return []
+    const body = (await res.json()) as { boards?: WireBoard[] }
+    return (body.boards ?? []).map(fromWireBoard)
   },
 
   /** A player's run (their latest when runId is omitted), or null. `user` is a uuid or username. */

@@ -32,6 +32,14 @@ async function discoverLists(limit = 12): Promise<CuratedListDiscoverEntry[]> {
   return (data.lists ?? []) as CuratedListDiscoverEntry[]
 }
 
+/** The official lists (non-empty), as cards with covers. */
+async function officialLists(): Promise<CuratedListDiscoverEntry[]> {
+  const res = await authedFetch('/api/lists/official')
+  if (!res.ok) return []
+  const data = await res.json()
+  return (data.lists ?? []) as CuratedListDiscoverEntry[]
+}
+
 /** Another user's public (non-empty) lists, as cards with covers. `user` is
  *  their username or public uuid. */
 async function userLists(user: string): Promise<CuratedListDiscoverEntry[]> {
@@ -50,23 +58,24 @@ async function getList(idOrUuid: string): Promise<CuratedListDetail | null> {
   return data.list as CuratedListDetail
 }
 
-async function createList(title: string, description?: string): Promise<CuratedList> {
+async function createList(title: string, description?: string, official?: boolean): Promise<CuratedList> {
   const data = (await jsonOrThrow(
     await authedFetch('/api/lists', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title, description }),
+      body: JSON.stringify({ title, description, official }),
     }),
   )) as { list: CuratedList }
   return data.list
 }
 
-async function updateList(id: number, title: string, description?: string): Promise<void> {
+/** `official` is only honoured for admins; omit it to leave the flag as it is. */
+async function updateList(id: number, title: string, description?: string, official?: boolean): Promise<void> {
   await jsonOrThrow(
     await authedFetch(`/api/lists/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title, description }),
+      body: JSON.stringify({ title, description, official }),
     }),
   )
 }
@@ -112,6 +121,7 @@ export const listService = {
   listLists,
   discoverLists,
   userLists,
+  officialLists,
   getList,
   createList,
   updateList,

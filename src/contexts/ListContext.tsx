@@ -11,7 +11,7 @@ interface ListContextValue {
   loading: boolean
   refresh: () => Promise<void>
   createList: (title: string, description?: string) => Promise<CuratedList>
-  updateList: (id: number, title: string, description?: string) => Promise<void>
+  updateList: (id: number, title: string, description?: string, official?: boolean) => Promise<void>
   deleteList: (id: number) => Promise<void>
 }
 
@@ -42,9 +42,9 @@ export function ListProvider({ children }: { children: ReactNode }) {
     return l
   }, [])
 
-  const updateList = useCallback(async (id: number, title: string, description?: string) => {
-    await listService.updateList(id, title, description)
-    setLists((prev) => prev.map((l) => (l.id === id ? { ...l, title, description } : l)))
+  const updateList = useCallback(async (id: number, title: string, description?: string, official?: boolean) => {
+    await listService.updateList(id, title, description, official)
+    setLists((prev) => prev.map((l) => (l.id === id ? { ...l, title, description, ...(official === undefined ? {} : { official }) } : l)))
   }, [])
 
   const deleteList = useCallback(async (id: number) => {

@@ -54,6 +54,8 @@ export type Bingo = {
   title: string
   description: string
   author: string
+  /** Curated by the site (set by admins). Official boards never show an author name. */
+  official?: boolean
   /** Free centre square; only possible when both dimensions are odd. */
   freeCenter: boolean
   rows: number
@@ -222,7 +224,7 @@ export function newUuid(): string {
 }
 export const newBingoId = newUuid
 /** A fresh board of your own (new id, new author) that starts from someone else's. */
-export const copyOfBingo = (b: Bingo, author: string): Bingo => ({ ...b, id: newUuid(), author, revision: 1, createdAt: Date.now() })
+export const copyOfBingo = (b: Bingo, author: string): Bingo => ({ ...b, id: newUuid(), author, official: undefined, revision: 1, createdAt: Date.now() })
 export const newRunId = (): string => Math.random().toString(36).slice(2, 10).padEnd(8, '0')
 
 /** /bingo/<board>  ·  /bingo/<board>/<user>  ·  /bingo/<board>/<user>/<run> */
@@ -277,7 +279,7 @@ export function encodeShare(b: Bingo, run?: { marks?: boolean[]; answers?: (Bing
     n: [b.rows, b.cols],
     t: b.title,
     d: b.description,
-    a: b.author,
+    a: b.official ? '' : b.author,
     f: b.freeCenter ? 1 : 0,
     c: b.cells.map(packCell),
   }
@@ -374,7 +376,8 @@ function normalise(p: Record<string, unknown>): Saved {
       kind: b.kind === 'prompt' ? 'prompt' : 'list',
       title: b.title ?? 'Bingo',
       description: b.description ?? '',
-      author: b.author ?? '',
+      author: b.official ? '' : b.author ?? '',
+      ...(b.official === undefined ? {} : { official: !!b.official }),
       freeCenter: !!b.freeCenter && canFreeCenter(rows, cols),
       rows,
       cols,

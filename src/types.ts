@@ -23,6 +23,8 @@ export type CuratedList = {
   count: number
   created_at: number
   updated_at: number
+  /** Curated by the site (admins only). Official lists show no owner byline. */
+  official?: boolean
   /** Owner byline — only populated on a single-list fetch, not the listing. */
   owner_username?: string
   owner_name?: string
