@@ -15,6 +15,8 @@ import { useLists } from '../contexts/ListContext'
 import { useLoginModal } from '../contexts/LoginModalContext'
 import type { CuratedListDetail } from '../types'
 import BookCover from '@/components/media/BookCover'
+import OfficialBadge from '@/components/official/OfficialBadge'
+import OfficialToggle from '@/components/official/OfficialToggle'
 
 // A single curated list (/list/<uuid>; a legacy numeric id redirects to it): editable title +
 // description, plus each item's per-item note — editable inline, Goodreads
@@ -65,6 +67,13 @@ export default function ListDetailScreen() {
     if (trimmed === data.title) return
     await updateListInContext(data.id, trimmed, data.description)
     setData((d) => (d ? { ...d, title: trimmed } : d))
+  }
+
+  // Admins only (the toggle isn't rendered for anyone else): publish/unpublish as official.
+  async function setOfficial(next: boolean) {
+    if (!data) return
+    await updateListInContext(data.id, data.title, data.description, next)
+    await load() // the owner byline appears/disappears with the flag
   }
 
   async function commitDescription() {
@@ -191,6 +200,7 @@ export default function ListDetailScreen() {
               <IoLayersOutline className="h-3 w-3" />
               Curated list
             </span>
+            {data.official && <OfficialBadge className="ml-1.5 !px-2.5 !py-1 !uppercase !tracking-wider" />}
 
             {isOwner ? (
               <input
@@ -240,6 +250,8 @@ export default function ListDetailScreen() {
             ) : data.description ? (
               <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--text-muted)]">{data.description}</p>
             ) : null}
+
+            {isOwner && <OfficialToggle checked={!!data.official} onChange={setOfficial} className="mt-3 max-w-md" />}
           </div>
 
           <button

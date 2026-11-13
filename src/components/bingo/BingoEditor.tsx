@@ -16,6 +16,8 @@ import {
   IoTrashOutline,
 } from 'react-icons/io5'
 import MediaPicker from '@/components/media/MediaPicker'
+import OfficialToggle from '@/components/official/OfficialToggle'
+import { useIsAdmin } from '@/lib/useIsAdmin'
 import BingoGrid from './BingoGrid'
 import { ProgressBar, Segmented, Stepper, SwitchRow } from './BingoParts'
 import {
@@ -72,6 +74,9 @@ export default function BingoEditor({ initial, isEdit = false, author, runsCount
   const [title, setTitle] = useState(initial?.title ?? '')
   const [description, setDescription] = useState(initial?.description ?? '')
   const [showDesc, setShowDesc] = useState(!!initial?.description)
+  const isAdmin = useIsAdmin()
+  // A template (someone else's board, or the starting point of a copy) is never official by itself.
+  const [official, setOfficial] = useState(editingExisting && !!initial?.official)
   const [rows, setRows] = useState(initial?.rows ?? BINGO_DEFAULT)
   const [cols, setCols] = useState(initial?.cols ?? BINGO_DEFAULT)
   const [freeCenter, setFreeCenter] = useState((initial?.freeCenter ?? true) && canFreeCenter(rows, cols))
@@ -207,7 +212,10 @@ export default function BingoEditor({ initial, isEdit = false, author, runsCount
       kind,
       title: title.trim().slice(0, BINGO_TITLE_MAX),
       description: description.trim().slice(0, BINGO_DESC_MAX),
-      author,
+      // Official boards carry no author name.
+      author: official ? '' : author,
+      // Admins decide; for everyone else the flag just rides along unchanged (the server ignores it).
+      official: isAdmin ? official : editingExisting ? initial?.official : undefined,
       freeCenter,
       rows,
       cols,
@@ -311,6 +319,7 @@ export default function BingoEditor({ initial, isEdit = false, author, runsCount
                   + {t('bingoAddDescription')}
                 </button>
               )}
+              <OfficialToggle checked={official} onChange={setOfficial} />
             </section>
 
             <section className="flex flex-col gap-3">

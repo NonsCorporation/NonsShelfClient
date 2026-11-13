@@ -1,6 +1,7 @@
 import { Link } from '@/lib/router'
 import BoringAvatar from '@/components/ui/BoringAvatar'
 import type { CuratedListDiscoverEntry } from '@/types'
+import OfficialBadge from '@/components/official/OfficialBadge'
 
 // A curated list as a fanned, floating stack of its covers over a tinted
 // gradient — shared by Discover's lists rail / genre sublists and the feed.
@@ -44,6 +45,7 @@ export default function ListCard({ list, big }: { list: CuratedListDiscoverEntry
               <span>·</span>
             </>
           )}
+          {list.official && <OfficialBadge />}
           <span className="flex-shrink-0">{list.count} item{list.count !== 1 ? 's' : ''}</span>
         </div>
       </div>

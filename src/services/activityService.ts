@@ -87,6 +87,8 @@ export type BingoFeedRun = {
   rows: number
   cols: number
   freeCenter: boolean
+  /** Curated by the site: its share image carries no name. */
+  official?: boolean
   runId: string
   done: number
   total: number
@@ -101,7 +103,7 @@ export type BingoFeedRun = {
 
 // Wire shape of a 'bingo_run' subject (server bingo_service.FeedRun).
 type WireBingoFeedRun = {
-  board: { id: string; kind: BingoKind; title: string; rows: number; cols: number; free_center?: boolean }
+  board: { id: string; kind: BingoKind; title: string; rows: number; cols: number; free_center?: boolean; official?: boolean }
   run_id: string
   done: number
   total: number
@@ -119,6 +121,7 @@ function toBingoFeedRun(w: WireBingoFeedRun): BingoFeedRun {
     rows: w.board.rows,
     cols: w.board.cols,
     freeCenter: !!w.board.free_center,
+    ...(w.board.official ? { official: true } : {}),
     runId: w.run_id,
     done: w.done,
     total: w.total,

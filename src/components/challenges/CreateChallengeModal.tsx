@@ -10,6 +10,8 @@ import { catalogService, type PersonHit } from '@/services/catalogService'
 import type { Challenge, ChallengeCondition, MediaType } from '@/types'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { useLists } from '@/contexts/ListContext'
+import OfficialToggle from '@/components/official/OfficialToggle'
+import { useIsAdmin } from '@/lib/useIsAdmin'
 
 type Props = {
   isOpen: boolean
@@ -38,6 +40,8 @@ export default function CreateChallengeModal({ isOpen, onClose, onSaved, challen
   const [description, setDescription] = useState('')
   const [mediaType, setMediaType] = useState<'' | MediaType>('')
   const [isPrivate, setIsPrivate] = useState(false)
+  const [isOfficial, setIsOfficial] = useState(false)
+  const isAdmin = useIsAdmin()
   const [goalMode, setGoalMode] = useState<'number' | 'all'>('number')
   const [targetCount, setTargetCount] = useState('')
   const [startDate, setStartDate] = useState('')
@@ -66,6 +70,7 @@ export default function CreateChallengeModal({ isOpen, onClose, onSaved, challen
       setDescription(challenge.description)
       setMediaType(challenge.media_type)
       setIsPrivate(challenge.private)
+      setIsOfficial(challenge.official)
       setGoalMode(challenge.target_count == null ? 'all' : 'number')
       setTargetCount(challenge.target_count != null ? String(challenge.target_count) : '')
       setStartDate(fromUnix(challenge.start_date))
@@ -85,6 +90,7 @@ export default function CreateChallengeModal({ isOpen, onClose, onSaved, challen
       setDescription('')
       setMediaType('')
       setIsPrivate(false)
+      setIsOfficial(false)
       setGoalMode('number')
       setTargetCount('')
       setStartDate('')
@@ -137,7 +143,9 @@ export default function CreateChallengeModal({ isOpen, onClose, onSaved, challen
         title: title.trim(),
         description: description.trim(),
         mediaType,
-        private: isPrivate,
+        private: isPrivate && !isOfficial,
+        // Only admins can set it; omitted otherwise so an edit never clears it.
+        official: isAdmin ? isOfficial : undefined,
         targetCount: goalMode === 'all' ? null : (Number(targetCount) || null),
         startDate: toUnix(startDate),
         endDate: toUnix(endDate),
@@ -201,10 +209,20 @@ export default function CreateChallengeModal({ isOpen, onClose, onSaved, challen
           />
         </label>
 
+        {/* Admins only: publish as an official challenge (no author name). */}
+        <OfficialToggle
+          checked={isOfficial}
+          onChange={(v) => {
+            setIsOfficial(v)
+            if (v) setIsPrivate(false)
+          }}
+        />
+
         {/* Personal only: the challenge still lists publicly, but nobody but
             the creator can join it. */}
         <button
           type="button"
+          disabled={isOfficial}
           onClick={() => setIsPrivate((v) => !v)}
           className="flex items-center justify-between gap-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] p-3 text-left"
         >

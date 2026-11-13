@@ -22,6 +22,7 @@ import BingoAnswerModal from '../components/bingo/BingoAnswerModal'
 import BingoShareModal from '../components/bingo/BingoShareModal'
 import BingoShareSheet from '../components/bingo/BingoShareSheet'
 import { KindTag, ProgressBar } from '../components/bingo/BingoParts'
+import OfficialBadge from '@/components/official/OfficialBadge'
 import ConfirmModal from '../components/ui/ConfirmModal'
 import DropdownMenu, { type MenuItem } from '../components/ui/DropdownMenu'
 import { Link, useLocation, useNavigate, useSearchParams } from '../lib/router'
@@ -166,7 +167,7 @@ export default function BingoPage() {
 
   // Title, description and author always come from the latest board: editing those never needs a new revision.
   const byline =
-    source === 'shared' && latest.author ? t('bingoSharedBy', { name: latest.author }) : latest.author ? t('bingoBy', { name: latest.author }) : ''
+    latest.official ? '' : source === 'shared' && latest.author ? t('bingoSharedBy', { name: latest.author }) : latest.author ? t('bingoBy', { name: latest.author }) : ''
 
   // ── links ──
   const boardLink = () => bingoShareUrl(latest)
@@ -255,6 +256,7 @@ export default function BingoPage() {
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-1.5">
               <KindTag kind={board.kind} />
+              {latest.official && <OfficialBadge />}
               <span className="rounded-full bg-[var(--surface)] px-2 py-0.5 text-[11px] font-medium text-[var(--text-muted)]">
                 {board.rows}×{board.cols}
               </span>

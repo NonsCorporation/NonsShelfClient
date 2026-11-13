@@ -433,7 +433,7 @@ export function BingoShareCard({ board, mask, answers, winning, covers, coverCol
   const glow = [...edgeFlames(0), ...edgeFlames(100)].join(', ')
 
   const meta = [
-    board.author ? t('bingoBy', { name: board.author }) : '',
+    board.author && !board.official ? t('bingoBy', { name: board.author }) : '',
     prompt ? t('bingoFilledCount', { count: done, total }) : t('bingoProgress', { count: done, total }),
     winning.size > 0 ? t('bingoWin') : '',
   ]

@@ -5,6 +5,7 @@ import { IoAdd, IoGridOutline } from 'react-icons/io5'
 import { BoardPreview } from './BingoGrid'
 import BingoEditor from './BingoEditor'
 import { KindTag, SectionTitle } from './BingoParts'
+import OfficialBadge from '@/components/official/OfficialBadge'
 import { Link, useNavigate } from '@/lib/router'
 import {
   bingoPath,
@@ -141,10 +142,11 @@ function BingoCard({ board: latest, runs, revisions, mine }: { board: Bingo; run
           <span className="rounded-full bg-[var(--surface)] px-1.5 py-px text-[10px] font-medium text-[var(--text-muted)]">
             {board.rows}×{board.cols}
           </span>
+          {latest.official && <OfficialBadge />}
           {mine && <span className="rounded-full bg-[var(--primary-soft)] px-1.5 py-px text-[10px] font-semibold text-nonsprimary">{t('bingoYoursTag')}</span>}
         </div>
         <p className="truncate text-sm font-semibold text-[var(--text)] group-hover:text-nonsprimary">{latest.title}</p>
-        {!mine && <p className="mt-0.5 truncate text-xs text-[var(--text-muted)]">{t('bingoBy', { name: board.author })}</p>}
+        {!mine && board.author && !latest.official && <p className="mt-0.5 truncate text-xs text-[var(--text-muted)]">{t('bingoBy', { name: board.author })}</p>}
         <p className="mt-1 text-[11px] text-[var(--text-muted)]">
           {prompt ? t('bingoFilledCount', { count: done, total }) : t('bingoProgress', { count: done, total })}
           {lines > 0 && <span className="ml-1.5 font-semibold text-nonspremium">· {t('bingoLines', { count: lines })}</span>}
