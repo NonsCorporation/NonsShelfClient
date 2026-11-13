@@ -415,6 +415,12 @@ export default function FeedPage() {
         </Link>
       )}
 
+      {/* Phones: the same prompt as the desktop header, right under "currently
+          reading" (the header row it sits in on desktop is hidden here). */}
+      <div className="mb-5 lg:hidden">
+        <GreetingBubble className="w-full" text={t('feedBubbleSuggest')} href="/suggestions" icon={IoBulb} color="#8b7bd8" />
+      </div>
+
       </aside>
 
       {/* Friends activity */}
