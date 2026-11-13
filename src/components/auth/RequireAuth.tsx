@@ -11,7 +11,7 @@ import AppLoadingSkeleton from '@/components/ui/Skeletons'
 // shared catalog and route every gated control through the login modal. The
 // rest of the app (your library, shelf, stats, notifications) is personal and
 // has nothing to show without a session.
-const PUBLIC_PATHS = new Set(['/', '/discover'])
+const PUBLIC_PATHS = new Set(['/', '/discover', '/official'])
 
 // A user's profile (/u/<handle>) is public too — a shared profile link must open
 // for anyone. Their full library and the edit page stay signed-in only.
