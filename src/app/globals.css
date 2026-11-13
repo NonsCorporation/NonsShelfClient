@@ -527,3 +527,13 @@ html[data-theme="light"] .review-content .spoiler-text.revealed {
 }
 .chat-html blockquote::after { color: currentColor; }
 .chat-html a { text-decoration: underline; text-underline-offset: 2px; }
+
+/* GreetingBubble: the little bubbles around it bob gently. */
+@keyframes bubbleFloat {
+  from { transform: translateY(0); }
+  to { transform: translateY(-3px); }
+}
+.bubble-float { animation: bubbleFloat 3.2s ease-in-out infinite alternate; }
+@media (prefers-reduced-motion: reduce) {
+  .bubble-float { animation: none; }
+}

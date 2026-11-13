@@ -32,7 +32,7 @@ import type { ShelfStatus } from '../types'
 import { mediaPath } from '../lib/paths'
 import {
   IoPeopleOutline, IoArrowForward, IoLinkOutline,
-  IoCheckmark, IoBookOutline, IoSettingsOutline, IoGridOutline,
+  IoCheckmark, IoBookOutline, IoSettingsOutline, IoGrid,
 } from 'react-icons/io5'
 import ShelfStatusBar from '@/components/media/ShelfStatusBar'
 import TypeBadge from '@/components/badges/TypeBadge'
@@ -361,12 +361,12 @@ export default function FeedPage() {
 
       {/* One slim line: greeting, your numbers, settings. The page is the feed. */}
       <div className="mb-4 hidden items-center justify-between gap-3 lg:flex">
-        <div className="flex min-w-0 items-baseline gap-3">
+        <div className="flex min-w-0 items-center gap-4">
           <h1 className="flex-shrink-0 text-xl font-bold tracking-tight text-[var(--text)]">
             {t(greetingKey)}{me?.name ? `, ${me.name}` : ''}
           </h1>
           {/* Sample message for now; swap in whatever should be said here. */}
-          <GreetingBubble text={t('feedBubbleBingo')} href="/bingo" icon={IoGridOutline} color="#d99a2b" />
+          <GreetingBubble text={t('feedBubbleBingo')} href="/bingo" icon={IoGrid} color="#d99a2b" />
         </div>
         <button
           onClick={() => setSettingsOpen(true)}
