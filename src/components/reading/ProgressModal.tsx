@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { IoClose, IoChevronDown, IoCheckmarkDoneOutline, IoInformationCircle, IoTvOutline, IoPencilOutline } from 'react-icons/io5'
 import { authedFetch } from '@/lib/api'
+import { useScrollLock } from '@/lib/useScrollLock'
 import { libraryService } from '@/services/libraryService'
 import type { MediaItem } from '@/types'
 import { useLanguage } from '@/contexts/LanguageContext'
@@ -108,6 +109,8 @@ export default function ProgressModal({ isOpen, item, total: totalProp, customPa
     }
   }, [isOpen, item])
 
+  useScrollLock(isOpen && !!item)
+
   if (!isOpen || !item) return null
 
   const total = customTotal ?? (totalProp || item.pages || 0)
@@ -205,7 +208,7 @@ export default function ProgressModal({ isOpen, item, total: totalProp, customPa
   }
 
   return (
-    <div onClick={onClose} className="fixed inset-0 z-[70] flex items-center justify-center bg-[var(--overlay)] px-4 pb-28 pt-4 sm:p-4">
+    <div onClick={onClose} className="fixed inset-0 z-[70] flex items-center justify-center overscroll-contain bg-[var(--overlay)] px-4 pb-28 pt-4 sm:p-4">
       <div
         onClick={(e) => e.stopPropagation()}
         className="flex max-h-[85vh] w-full max-w-2xl flex-col gap-4 rounded-2xl border border-[var(--border)] bg-[var(--container)] p-5"
@@ -326,7 +329,7 @@ export default function ProgressModal({ isOpen, item, total: totalProp, customPa
                 <p className="text-xs text-[var(--text-muted)]">
                   {t('watchedOfTotal', { watched: episodes.watched_count, total: episodes.total })}
                 </p>
-                <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto pr-1">
+                <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto overscroll-contain pr-1">
                   {episodes.seasons.map((s) => {
                     const seen = s.episodes.filter((ep) => episodes.watched[ep.id]).length
                     const full = s.episodes.length > 0 && seen === s.episodes.length
