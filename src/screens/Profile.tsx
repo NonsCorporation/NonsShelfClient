@@ -634,6 +634,7 @@ export default function ProfilePage() {
 
   // The banner is a Horizon perk, shown on that member's profile for every viewer.
   const hasBanner = isHorizon(profile.role)
+  const hasTypeCounts = (['book', 'movie', 'series'] as const).some((tp) => typeCounts[tp] > 0)
 
   // Share (any profile) and settings (own profile) buttons; `size` sets their width/height classes.
   const profileActions = (size: string) => (
@@ -794,37 +795,6 @@ export default function ProfilePage() {
             {!isSelf && msgError && <p role="alert" className="mt-2 text-xs text-red-400">{msgError}</p>}
           </div>
         </div>
-
-        {/* Stats — type composition + avg rating; tab bar below carries status counts */}
-        <div className="mt-5 flex flex-col gap-3 border-t border-[var(--border-subtle)] pt-4 sm:flex-row sm:flex-wrap sm:items-stretch sm:gap-x-8">
-          {/* Phones: the media types on one centred row, the rating centred on its own below. From sm up it is one row. */}
-          <div className="flex items-stretch justify-center gap-x-6 sm:contents">
-          {(['book', 'movie', 'series'] as const)
-            .filter((tp) => typeCounts[tp] > 0)
-            .map((tp, i) => {
-              const meta = TYPE_META[tp]
-              const Icon = meta.icon
-              return (
-                <div key={tp} className={`flex flex-col ${i > 0 ? 'border-l border-[var(--border-subtle)] pl-6 sm:pl-8' : ''}`}>
-                  <span className="flex items-center gap-1.5 text-xl font-bold leading-none text-[var(--text)]">
-                    <Icon className="h-[17px] w-[17px]" style={{ color: meta.color }} />
-                    {typeCounts[tp]}
-                  </span>
-                  <span className="mt-1 text-[11px] uppercase tracking-wide text-[var(--text-muted)]">{t(meta.labelKey)}</span>
-                </div>
-              )
-            })}
-          </div>
-          {ratedAvg > 0 && (
-            <div className={`flex flex-col items-center sm:items-stretch ${(['book', 'movie', 'series'] as const).some((tp) => typeCounts[tp] > 0) ? 'sm:border-l sm:border-[var(--border-subtle)] sm:pl-8' : ''}`}>
-              <span className="flex items-center gap-1.5 text-xl font-bold leading-none text-[var(--text)]">
-                <IoStar className="h-[17px] w-[17px] text-nonsprimaryfocus" />
-                {ratedAvg.toFixed(1)}
-              </span>
-              <span className="mt-1 text-[11px] uppercase tracking-wide text-[var(--text-muted)]">{t('statAvg')}</span>
-            </div>
-          )}
-        </div>
       </div>
 
       {friendsBlock('mobile')}
@@ -908,8 +878,37 @@ export default function ProfilePage() {
         )}
       </div>
 
-      {/* Open the full Goodreads-style library (shelves, filters, sort) for this user. */}
-      <div className="mt-4">
+      {/* Library counts (books / films / series + average rating) with the button that opens the full
+          Goodreads-style library (shelves, filters, sort) for this user — counts first, button after. */}
+      <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-3">
+        {(hasTypeCounts || ratedAvg > 0) && (
+          <div className="flex items-stretch gap-x-4">
+            {(['book', 'movie', 'series'] as const)
+              .filter((tp) => typeCounts[tp] > 0)
+              .map((tp, i) => {
+                const meta = TYPE_META[tp]
+                const Icon = meta.icon
+                return (
+                  <div key={tp} className={`flex flex-col ${i > 0 ? 'border-l border-[var(--border-subtle)] pl-4' : ''}`}>
+                    <span className="flex items-center gap-1.5 text-lg font-bold leading-none text-[var(--text)]">
+                      <Icon className="h-4 w-4" style={{ color: meta.color }} />
+                      {typeCounts[tp]}
+                    </span>
+                    <span className="mt-1 text-[10px] uppercase tracking-wide text-[var(--text-muted)]">{t(meta.labelKey)}</span>
+                  </div>
+                )
+              })}
+            {ratedAvg > 0 && (
+              <div className={`flex flex-col ${hasTypeCounts ? 'border-l border-[var(--border-subtle)] pl-4' : ''}`}>
+                <span className="flex items-center gap-1.5 text-lg font-bold leading-none text-[var(--text)]">
+                  <IoStar className="h-4 w-4 text-nonsprimaryfocus" />
+                  {ratedAvg.toFixed(1)}
+                </span>
+                <span className="mt-1 text-[10px] uppercase tracking-wide text-[var(--text-muted)]">{t('statAvg')}</span>
+              </div>
+            )}
+          </div>
+        )}
         <Link
           to={`/u/${encodeURIComponent(profile.handle)}/library`}
           className="inline-flex items-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] px-4 py-2.5 text-sm font-medium text-[var(--text)] transition-colors hover:border-nonsprimary hover:text-nonsprimary"
