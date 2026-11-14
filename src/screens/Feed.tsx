@@ -7,7 +7,7 @@ import MobileHeaderRow from '../components/layout/MobileHeaderRow'
 import ActivityCard from '@/components/feed/ActivityCard'
 import ChallengeActivityCard from '@/components/challenges/ChallengeActivityCard'
 import BingoActivityCard from '@/components/bingo/BingoActivityCard'
-import GreetingBubble from '@/components/feed/GreetingBubble'
+import HomeBubble from '@/components/feed/HomeBubble'
 import ProgressModal from '@/components/reading/ProgressModal'
 import FinishModal from '@/components/reading/FinishModal'
 import DnfModal from '@/components/reading/DnfModal'
@@ -368,7 +368,7 @@ export default function FeedPage() {
             {t(greetingKey)}{me?.name ? `, ${me.name}` : ''}
           </h1>
           {/* Invites people to send their wishes for the site. */}
-          <GreetingBubble text={t('feedBubbleSuggest')} href="/suggestions" icon={IoBulb} color="#8b7bd8" />
+          <HomeBubble />
         </div>
         <button
           onClick={() => setSettingsOpen(true)}
@@ -420,7 +420,7 @@ export default function FeedPage() {
       {/* Phones: the same prompt as the desktop header, right under "currently
           reading" (the header row it sits in on desktop is hidden here). */}
       <div className="mb-5 lg:hidden">
-        <GreetingBubble className="w-full" text={t('feedBubbleSuggest')} href="/suggestions" icon={IoBulb} color="#8b7bd8" />
+        <HomeBubble full />
       </div>
 
       </aside>
