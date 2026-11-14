@@ -5,6 +5,8 @@ import GlowingHorizon from '../components/badges/GlowingHorizon'
 import { useAuth } from '../contexts/AuthContext'
 import { useLanguage } from '../contexts/LanguageContext'
 import { notFound } from 'next/navigation'
+import BannerShowcase from '../components/horizon/BannerShowcase'
+import NameShowcase from '../components/horizon/NameShowcase'
 import { HORIZON_ON, isHorizon } from '../lib/horizon'
 
 // /horizon — what Horizon is, and whether the viewer is a member. Joining is not
@@ -18,7 +20,7 @@ export default function Horizon() {
 
   return (
     <Layout>
-      <div className="mx-auto max-w-xl">
+      <div className="mx-auto max-w-2xl">
         <div className="mb-6 flex items-center gap-3">
           <GlowingHorizon className="h-8 w-8" />
           <h1 className="text-xl font-bold text-[var(--text)]">Horizon</h1>
@@ -29,6 +31,14 @@ export default function Horizon() {
             {member ? t('horizonYou') : t('horizonSoon')}
           </p>
         </div>
+
+        <NameShowcase />
+        <BannerShowcase />
+
+        {/* The last word */}
+        <p className="mb-4 mt-14 text-center text-lg font-medium leading-snug text-[var(--text)] sm:text-xl">
+          {t('horizonFinally')} <em className="font-semibold italic text-[#f5a623]">{t('horizonFinallyGrow')}</em>.
+        </p>
       </div>
     </Layout>
   )
