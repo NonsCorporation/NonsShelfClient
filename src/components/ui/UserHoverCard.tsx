@@ -7,7 +7,6 @@ import { Link } from '@/lib/router'
 import { mediaPath, userPath } from '@/lib/paths'
 import { fetchPublicProfile, type PublicProfile } from '@/services/userService'
 import { libraryService } from '@/services/libraryService'
-import { authedFetch } from '@/lib/api'
 import { isHorizon } from '@/lib/horizon'
 import { BANNER_SIZE } from '@/lib/bannerSize'
 import { TYPE_META } from '@/lib/typeMeta'
@@ -35,7 +34,7 @@ export type CardData = {
 const PROGRESS_SHOWN = 3
 
 // Cache per username for the session — the same author shows up on many posts and
-// in many replies, and shouldn't re-fetch (profile, role, counts and shelf) each time.
+// in many replies, and shouldn't re-fetch (profile, counts and shelf) each time.
 const cardCache = new Map<string, Promise<CardData | null>>()
 function loadCard(username: string): Promise<CardData | null> {
   let p = cardCache.get(username)
@@ -50,11 +49,7 @@ async function fetchCard(username: string): Promise<CardData | null> {
   const profile = await fetchPublicProfile(username)
   if (!profile) return null
   // Everything past the profile is best-effort: a failed lookup just leaves that part out.
-  const [role, book, movie, series, avg, progress] = await Promise.all([
-    authedFetch(`/api/users/${profile.id}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => d?.role as string | undefined)
-      .catch(() => undefined),    libraryService.countLibrary({ type: 'book' }, profile.id).catch(() => 0),
+  const [book, movie, series, avg, progress] = await Promise.all([    libraryService.countLibrary({ type: 'book' }, profile.id).catch(() => 0),
     libraryService.countLibrary({ type: 'movie' }, profile.id).catch(() => 0),
     libraryService.countLibrary({ type: 'series' }, profile.id).catch(() => 0),
     libraryService.getRatingAverage(profile.id).catch(() => ({ average: 0, count: 0 })),
@@ -62,7 +57,7 @@ async function fetchCard(username: string): Promise<CardData | null> {
       .searchLibrary({ status: 'active', sort: 'added', dir: 'desc', page: 0, perPage: PROGRESS_SHOWN }, profile.id)
       .catch(() => ({ items: [] as MediaItem[], total: 0 })),
   ])
-  return { profile, horizon: isHorizon(role), counts: { book, movie, series }, avg: avg.count > 0 ? avg.average / 2 : 0, progress }
+  return { profile, horizon: isHorizon(profile.horizon), counts: { book, movie, series }, avg: avg.count > 0 ? avg.average / 2 : 0, progress }
 }
 
 // Wraps a user's name or avatar so hovering it after a short delay shows a small

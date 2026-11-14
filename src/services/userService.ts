@@ -12,6 +12,8 @@ export type PublicProfile = {
   bannerColor?: string
   /** Reserved for an uploaded banner image (a Horizon feature). */
   bannerUrl?: string
+  /** A Horizon member (the icon next to their name). */
+  horizon?: boolean
   bio?: string
   /** "City, Country" when the owner lets this viewer see it. */
   location?: string
@@ -27,6 +29,7 @@ type ProfileResponse = {
   avatar_url?: string
   banner_color?: string
   banner_url?: string
+  horizon?: boolean
   bio?: string
   location_country?: string
   location_city?: string
@@ -46,6 +49,7 @@ export async function fetchPublicProfile(username: string): Promise<PublicProfil
       avatarUrl: p.avatar_url || p.profile_picture || undefined,
       bannerColor: p.banner_color || undefined,
       bannerUrl: p.banner_url || undefined,
+      horizon: !!p.horizon,
       bio: p.bio || undefined,
       location: [p.location_city, p.location_country].filter(Boolean).join(', ') || undefined,
     }

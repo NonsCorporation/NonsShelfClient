@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState, useCallback } from 'react'
+import type { HorizonStatus } from '../services/billingService'
 import type { ReactNode } from 'react'
 import { authedFetch, setOnSessionExpired } from '../lib/api'
 import { logoutRequest } from '../services/authService'
@@ -21,6 +22,8 @@ export interface LibraryUser {
   /** Banner colour ("F12312"), empty = automatic; and a reserved banner image URL. */
   banner_color?: string
   banner_url?: string
+  /** Horizon state (absent on a server without billing). */
+  horizon?: HorizonStatus
   location_country?: string
   location_city?: string
   bio_visibility?: Visibility

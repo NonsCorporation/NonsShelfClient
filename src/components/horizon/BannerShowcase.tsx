@@ -66,7 +66,7 @@ function Frame({ children, label }: { children: React.ReactNode; label: string }
 export default function BannerShowcase() {
   const { t } = useLanguage()
   const { user } = useAuth()
-  const member = isHorizon(user?.role)
+  const member = isHorizon(user?.horizon)
 
   return (
     <section className="mt-8">

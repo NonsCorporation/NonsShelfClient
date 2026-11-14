@@ -26,6 +26,8 @@ import ActivityCard from '@/components/feed/ActivityCard'
 import ChallengeActivityCard from '@/components/challenges/ChallengeActivityCard'
 import BingoActivityCard from '@/components/bingo/BingoActivityCard'
 import ProfileBanner from '@/components/profile/ProfileBanner'
+import HorizonBadge from '@/components/badges/HorizonBadge'
+import { isHorizon } from '@/lib/horizon'
 import { TYPE_META } from '@/lib/typeMeta'
 import FinishedBingoRow from '@/components/bingo/FinishedBingoRow'
 import ChallengeShield from '@/components/challenges/ChallengeShield'
@@ -75,6 +77,8 @@ type ProfileView = {
   avatar: string
   /** Banner colour as stored ("F12312"); empty = automatic. */
   bannerColor?: string
+  /** A Horizon member: the icon next to the name. */
+  horizon?: boolean
   role?: string
   bio?: string
   /** "City, Country", only what the owner lets this viewer see. */
@@ -182,6 +186,7 @@ export default function ProfilePage() {
           handle: authUser?.username ?? currentUser.handle,
           avatar: authUser?.avatar_url || '',
           bannerColor: authUser?.banner_color || undefined,
+          horizon: isHorizon(authUser?.horizon),
           role: authUser?.role,
           bio: authUser?.bio || undefined,
           location: [authUser?.location_city, authUser?.location_country].filter(Boolean).join(', ') || undefined,
@@ -221,7 +226,7 @@ export default function ProfilePage() {
             userRole = data.role
           }
         } catch { /* library server unreachable — no badge */ }
-        setProfile({ id: p.id, name: p.name, handle: p.username, avatar: p.avatarUrl || '', bannerColor: p.bannerColor, role: userRole, bio: p.bio, location: p.location })
+        setProfile({ id: p.id, name: p.name, handle: p.username, avatar: p.avatarUrl || '', bannerColor: p.bannerColor, horizon: isHorizon(p.horizon), role: userRole, bio: p.bio, location: p.location })
         const theirCollections = await collectionService.getUserCollections(p.id)
         if (cancelled) return
         setOtherCollections(theirCollections)
@@ -674,6 +679,7 @@ export default function ProfilePage() {
               <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
                 <h1 className="min-w-0 break-words text-2xl font-bold leading-8 tracking-tight text-[var(--text)]">{profile.name}</h1>
                 {isLibrarian(profile.role) && <LibrarianBadge />}
+                {profile.horizon && <HorizonBadge className="h-5 w-5" />}
               </div>
               {/* Share / settings — beside the name from sm up; on phones they sit under the avatar */}
               <div className="-my-1 hidden flex-shrink-0 items-center gap-2 sm:flex">{profileActions('h-10 w-10')}</div>

@@ -266,7 +266,7 @@ export default function Header() {
                           className="flex w-full items-center gap-3 px-4 py-3 text-sm text-[var(--text-muted)] transition-colors hover:bg-[var(--surface)] hover:text-[var(--text)]"
                         >
                           <GlowingHorizon />
-                          {isHorizon(user?.role) ? t('horizonYou') : t('horizonJoin')}
+                          {isHorizon(user?.horizon) ? t('horizonYou') : t('horizonJoin')}
                         </Link>
 
                         <div className="h-px bg-[var(--border-subtle)]" />
@@ -476,7 +476,7 @@ export default function Header() {
                       className={`flex w-full items-center gap-3 px-4 py-3 text-sm transition-colors hover:bg-[var(--surface)] hover:text-[var(--text)] ${path === '/horizon' ? 'text-[var(--text)]' : 'text-[var(--text-muted)]'}`}
                     >
                       <GlowingHorizon />
-                      {isHorizon(user?.role) ? t('horizonYou') : t('horizonJoin')}
+                      {isHorizon(user?.horizon) ? t('horizonYou') : t('horizonJoin')}
                     </Link>
 
                     <div className="h-px bg-[var(--border-subtle)]" />

@@ -224,7 +224,7 @@ export default function ProfileEditor({ mode, onDone, cancelHref = '/' }: Props)
             onChange={(bannerColor) => patch({ bannerColor })}
             avatarUrl={shownAvatar}
             avatarSeed={`user-${user.id}`}
-            horizon={isHorizon(user.role)}
+            horizon={isHorizon(user.horizon)}
           />
         </BannerArt>
       )}
