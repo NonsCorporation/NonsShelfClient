@@ -63,6 +63,8 @@ export default function BingoPage() {
 
   const [, boardId, userSeg, runSeg] = pathname.split('/').filter(Boolean).map((s) => decodeURIComponent(s))
   const me = user?.uuid || user?.username || 'guest'
+  // A link may name the player by uuid or by username (the profile uses the latter) — both are me.
+  const isMe = (seg: string | undefined) => !!seg && (seg === me || (!!user && (seg === user.uuid || seg === user.username)))
   const meName = user?.name || user?.username || t('bingoYou')
 
   const [editor, setEditor] = useState(false)
@@ -84,7 +86,7 @@ export default function BingoPage() {
 
   // Ask the server for what this browser doesn't have: the board itself, and
   // someone else's result when the path names another player.
-  const othersResult = !!userSeg && userSeg !== me
+  const othersResult = !!userSeg && !isMe(userSeg)
   const remote = useRemoteBingo(
     boardId,
     !!boardId && !own && !fromLink,
@@ -140,7 +142,7 @@ export default function BingoPage() {
   const ownRuns = store.runs[latest.id] ?? []
 
   // Whose result is on screen: somebody else's (read-only, from the link), or one of my runs.
-  const viewingSelf = !userSeg || userSeg === me
+  const viewingSelf = !userSeg || isMe(userSeg)
   const myRun = viewingSelf && runSeg ? ownRuns.find((r) => r.id === runSeg) : undefined
   const theirs = !!decoded?.run && (!viewingSelf || (!!runSeg && !myRun))
   const unavailable = !theirs && !!userSeg && !viewingSelf && !remote.loading
