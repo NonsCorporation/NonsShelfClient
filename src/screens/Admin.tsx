@@ -5,6 +5,8 @@ import { notFound } from 'next/navigation'
 import { IoSearch } from 'react-icons/io5'
 import Layout from '../components/layout/Layout'
 import GlowingHorizon from '../components/badges/GlowingHorizon'
+import BubblesAdmin from '../components/admin/BubblesAdmin'
+import UsersAdmin from '../components/admin/UsersAdmin'
 import { useAuth } from '../contexts/AuthContext'
 import {
   getBillingTimeline,
@@ -50,6 +52,7 @@ function Empty({ children }: { children: React.ReactNode }) {
 
 export default function Admin() {
   const { user, loading } = useAuth()
+  const [tab, setTab] = useState<'horizon' | 'users' | 'bubbles'>('horizon')
   const [query, setQuery] = useState('')
   const [who, setWho] = useState('') // the user currently shown
   const [timeline, setTimeline] = useState<BillingTimeline | null>(null)
@@ -130,8 +133,31 @@ export default function Admin() {
     <Layout>
       <div className="mx-auto max-w-3xl">
         <h1 className="text-2xl font-bold tracking-tight text-[var(--text)]">Admin panel</h1>
-        <p className="mt-1 text-sm text-[var(--text-muted)]">Horizon: look a user up, see their billing, give or take back Horizon.</p>
+        <p className="mt-1 text-sm text-[var(--text-muted)]">Horizon billing, users and the home-page bubbles.</p>
 
+        {/* Sections */}
+        <div role="tablist" className="mt-5 flex gap-1 rounded-xl bg-[var(--surface)] p-1">
+          {(['horizon', 'users', 'bubbles'] as const).map((k) => (
+            <button
+              key={k}
+              type="button"
+              role="tab"
+              aria-selected={tab === k}
+              onClick={() => setTab(k)}
+              className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                tab === k ? 'bg-[var(--container)] text-[var(--text)] shadow-sm' : 'text-[var(--text-muted)] hover:text-[var(--text)]'
+              }`}
+            >
+              {k === 'horizon' ? 'Horizon' : k === 'users' ? 'Users' : 'Bubbles'}
+            </button>
+          ))}
+        </div>
+
+        {tab === 'users' && <UsersAdmin />}
+        {tab === 'bubbles' && <BubblesAdmin />}
+
+        {tab === 'horizon' && (
+          <>
         <form onSubmit={search} className="mt-6 flex gap-2">
           <div className="relative flex-1">
             <IoSearch className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" />
@@ -301,6 +327,8 @@ export default function Admin() {
               )}
             </Card>
           </div>
+        )}
+          </>
         )}
       </div>
     </Layout>

@@ -120,3 +120,45 @@ export async function revokeEntitlement(id: number): Promise<{ ok: true } | Fail
     return { ok: false, status: 0, error: 'Network error' }
   }
 }
+
+// ── users (admin panel → Users) ──
+
+export type AdminPanelUser = {
+  id: number
+  uuid: string
+  username: string
+  name: string
+  email: string
+  /** librarian | admin | super_admin ("user" is implicit and not listed). */
+  roles: string[]
+  horizon: boolean
+  banned: boolean
+  deleted: boolean
+  created_at: number
+}
+
+/** Finds users by id, username, email or name; an empty query lists the newest. */
+export async function searchPanelUsers(q: string): Promise<{ ok: true; users: AdminPanelUser[] } | Failure> {
+  try {
+    const res = await authedFetch(`/api/admin/users?q=${encodeURIComponent(q.trim())}`)
+    if (!res.ok) return failure(res)
+    return { ok: true, users: ((await res.json()) as { users: AdminPanelUser[] }).users ?? [] }
+  } catch {
+    return { ok: false, status: 0, error: 'Network error' }
+  }
+}
+
+/** Replaces a user's roles (librarian / admin / super_admin). */
+export async function setPanelUserRoles(id: number, roles: string[]): Promise<{ ok: true; user: AdminPanelUser } | Failure> {
+  try {
+    const res = await authedFetch(`/api/admin/users/${id}/roles`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ roles }),
+    })
+    if (!res.ok) return failure(res)
+    return { ok: true, user: (await res.json()) as AdminPanelUser }
+  } catch {
+    return { ok: false, status: 0, error: 'Network error' }
+  }
+}
