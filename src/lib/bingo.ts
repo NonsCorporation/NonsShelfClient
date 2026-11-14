@@ -37,6 +37,8 @@ export const BINGO_CELL_MAX = 80
 
 export type BingoKind = 'list' | 'prompt'
 
+export const isMediaType = (v: unknown): v is MediaType => v === 'book' || v === 'movie' || v === 'series'
+
 export type BingoCell = {
   /** `media` comes from the catalog; `text` is free text (a list item, a prompt, or a typed answer). */
   kind: 'media' | 'text'
@@ -62,6 +64,8 @@ export type Bingo = {
   cols: number
   /** For `list` boards the items to tick; for `prompt` boards the prompts to answer. Row-major, rows × cols long. */
   cells: (BingoCell | null)[]
+  /** Limits the catalog search while filling the board to one media type; undefined = any. Only a search filter: never starts a new revision. */
+  mediaType?: MediaType
   /** Starts at 1; goes up whenever the squares, size or free centre change. */
   revision: number
   createdAt: number
@@ -283,6 +287,7 @@ export function encodeShare(b: Bingo, run?: { marks?: boolean[]; answers?: (Bing
     f: b.freeCenter ? 1 : 0,
     c: b.cells.map(packCell),
   }
+  if (b.mediaType) payload.mt = b.mediaType
   const total = b.rows * b.cols
   if (run) {
     if (b.kind === 'list' && run.marks?.some(Boolean)) payload.m = Array.from({ length: total }, (_, i) => (run.marks?.[i] ? 1 : 0)).join('')
@@ -313,6 +318,7 @@ export function decodeShare(raw: string, id: string): { board: Bingo; run: Share
       rows,
       cols,
       cells: (p.c as unknown[]).map(unpackCell),
+      ...(isMediaType(p.mt) ? { mediaType: p.mt } : {}),
       revision: 1,
       createdAt: Date.now(),
     }
@@ -382,6 +388,7 @@ function normalise(p: Record<string, unknown>): Saved {
       rows,
       cols,
       cells,
+      ...(isMediaType(b.mediaType) ? { mediaType: b.mediaType } : {}),
       revision: b.revision ?? 1,
       createdAt: b.createdAt ?? Date.now(),
     }

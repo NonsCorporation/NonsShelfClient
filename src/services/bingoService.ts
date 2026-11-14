@@ -1,6 +1,6 @@
 import { authedFetch } from '../lib/api'
 import type { MediaType } from '../types'
-import type { Bingo, BingoCell, BingoKind, BingoRevision, BingoRun } from '../lib/bingo'
+import { isMediaType, type Bingo, type BingoCell, type BingoKind, type BingoRevision, type BingoRun } from '../lib/bingo'
 
 // nons-library-server /api/bingo. Wire shapes are snake_case and timestamps are
 // Unix seconds; the client store keeps camelCase and milliseconds, so every call
@@ -20,6 +20,7 @@ type WireBoard = {
   rows: number
   cols: number
   cells: (WireCell | null)[]
+  media_type?: string
   revision: number
   created_at: number
   owner?: WirePerson
@@ -58,6 +59,7 @@ function fromWireBoard(b: WireBoard): Bingo {
     rows: b.rows,
     cols: b.cols,
     cells: b.cells.map(fromWireCell),
+    ...(isMediaType(b.media_type) ? { mediaType: b.media_type } : {}),
     revision: b.revision,
     createdAt: b.created_at * 1000,
   }
@@ -143,6 +145,7 @@ export const bingoApi = {
           rows: b.rows,
           cols: b.cols,
           cells: b.cells.map(toWireCell),
+          media_type: b.mediaType ?? '',
           revision: b.revision,
           // Only admins' flag counts server-side; undefined (omitted) leaves it as it is.
           official: b.official,

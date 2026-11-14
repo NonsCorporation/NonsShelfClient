@@ -1227,6 +1227,8 @@ export const ro = {
   bingoFewer: "Mai puține",
   bingoMore: "Mai multe",
   bingoSectionType: "Tip",
+  bingoSectionMedia: "Media",
+  bingoMediaHint: "Limitează căutarea la un singur tip când completezi pătrățelele. Lasă pe Toate ca să cauți peste tot și să filtrezi în timpul căutării.",
   bingoSectionBasics: "Dă-i un nume",
   bingoSectionSquares: "Pătrățele",
   bingoAddDescription: "Adaugă o descriere",

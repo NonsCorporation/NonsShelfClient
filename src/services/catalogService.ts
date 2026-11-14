@@ -96,7 +96,7 @@ export function mapMedia(m: BackendMedia): CatalogItem {
 
 export interface ICatalogService {
   /** Fetch the catalog; `q` searches the whole DB by title/author server-side. */
-  getCatalog(q?: string): Promise<CatalogItem[]>
+  getCatalog(q?: string, type?: MediaType): Promise<CatalogItem[]>
   /** Most-shelved items (optionally one media type), for Discover's popular rows. */
   popular(type: MediaType | undefined, limit: number): Promise<CatalogItem[]>
   /** Most recently added catalog items (optionally one media type). */
@@ -120,10 +120,11 @@ class ApiCatalogService implements ICatalogService {
   // The backend caps a page at 100 rows, so browsing fetches books and films
   // as two parallel pages (Discover sections split by type anyway). A search
   // stays a single mixed query.
-  async getCatalog(q?: string): Promise<CatalogItem[]> {
+  async getCatalog(q?: string, type?: MediaType): Promise<CatalogItem[]> {
     if (q?.trim()) {
-      return this.fetchPage(`/api/media?limit=100&q=${encodeURIComponent(q.trim())}`)
+      return this.fetchPage(`/api/media?limit=100&q=${encodeURIComponent(q.trim())}${type ? `&type=${type}` : ''}`)
     }
+    if (type) return this.fetchPage(`/api/media?type=${type}&limit=100`)
     const [books, movies, series] = await Promise.all([
       this.fetchPage('/api/media?type=book&limit=100'),
       this.fetchPage('/api/media?type=movie&limit=100'),

@@ -1298,6 +1298,8 @@ export const en = {
   bingoFewer: "Fewer",
   bingoMore: "More",
   bingoSectionType: "Type",
+  bingoSectionMedia: "Media",
+  bingoMediaHint: "Limits the search when filling in squares to one type. Leave on All to search everything and filter while searching.",
   bingoSectionBasics: "Name it",
   bingoSectionSquares: "Squares",
   bingoAddDescription: "Add a description",

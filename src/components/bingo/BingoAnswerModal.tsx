@@ -4,12 +4,15 @@ import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { IoClose } from 'react-icons/io5'
 import MediaPicker from '@/components/media/MediaPicker'
+import type { MediaType } from '@/types'
 import { BINGO_CELL_MAX, cellFromCatalog, type BingoCell } from '@/lib/bingo'
 import { useLanguage } from '@/contexts/LanguageContext'
 
 type Props = {
   /** The prompt being answered, e.g. "The book I cried on". */
   prompt: string
+  /** The board's media-type restriction; undefined lets players search everything. */
+  mediaType?: MediaType
   current: BingoCell | null
   /** Called with the chosen answer, or null to clear it. */
   onAnswer: (cell: BingoCell | null) => void
@@ -21,7 +24,7 @@ const inputCls =
 
 // Fill in one square of a prompt bingo: pick a book/film from the catalog or
 // type your own answer.
-export default function BingoAnswerModal({ prompt, current, onAnswer, onClose }: Props) {
+export default function BingoAnswerModal({ prompt, mediaType, current, onAnswer, onClose }: Props) {
   const { t } = useLanguage()
   const [mode, setMode] = useState<'catalog' | 'text'>('catalog')
   const [text, setText] = useState(current?.kind === 'text' ? current.title : '')
@@ -84,7 +87,7 @@ export default function BingoAnswerModal({ prompt, current, onAnswer, onClose }:
         </div>
 
         {mode === 'catalog' ? (
-          <MediaPicker onPick={(item) => onAnswer(cellFromCatalog(item))} />
+          <MediaPicker type={mediaType} filters onPick={(item) => onAnswer(cellFromCatalog(item))} />
         ) : (
           <form
             onSubmit={(e) => {

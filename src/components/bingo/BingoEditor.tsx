@@ -4,19 +4,23 @@ import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import {
   IoChatbubbleEllipsesOutline,
+  IoBookOutline,
   IoCheckboxOutline,
   IoChevronBack,
   IoChevronForward,
   IoClipboardOutline,
   IoClose,
+  IoFilmOutline,
   IoPencilOutline,
   IoSearch,
   IoShuffleOutline,
   IoStar,
   IoTrashOutline,
+  IoTvOutline,
 } from 'react-icons/io5'
 import MediaPicker from '@/components/media/MediaPicker'
 import OfficialToggle from '@/components/official/OfficialToggle'
+import type { MediaType } from '@/types'
 import { useIsAdmin } from '@/lib/useIsAdmin'
 import BingoGrid from './BingoGrid'
 import { ProgressBar, Segmented, Stepper, SwitchRow } from './BingoParts'
@@ -77,6 +81,7 @@ export default function BingoEditor({ initial, isEdit = false, author, runsCount
   const isAdmin = useIsAdmin()
   // A template (someone else's board, or the starting point of a copy) is never official by itself.
   const [official, setOfficial] = useState(editingExisting && !!initial?.official)
+  const [mediaType, setMediaType] = useState<MediaType | undefined>(initial?.mediaType)
   const [rows, setRows] = useState(initial?.rows ?? BINGO_DEFAULT)
   const [cols, setCols] = useState(initial?.cols ?? BINGO_DEFAULT)
   const [freeCenter, setFreeCenter] = useState((initial?.freeCenter ?? true) && canFreeCenter(rows, cols))
@@ -221,6 +226,7 @@ export default function BingoEditor({ initial, isEdit = false, author, runsCount
       cols,
       // A free centre never holds a prompt of its own.
       cells: cells.map((c, i) => (i === centre ? null : c)),
+      mediaType,
       revision: editingExisting && initial ? initial.revision : 1,
       createdAt: editingExisting && initial ? initial.createdAt : Date.now(),
     })
@@ -292,6 +298,21 @@ export default function BingoEditor({ initial, isEdit = false, author, runsCount
                   </button>
                 ))}
               </div>
+            </section>
+
+            <section>
+              <Label>{t('bingoSectionMedia')}</Label>
+              <Segmented<MediaType | 'any'>
+                options={[
+                  { key: 'any', label: t('all') },
+                  { key: 'book', label: t('books'), icon: IoBookOutline },
+                  { key: 'movie', label: t('movies'), icon: IoFilmOutline },
+                  { key: 'series', label: t('series'), icon: IoTvOutline },
+                ]}
+                value={mediaType ?? 'any'}
+                onChange={(k) => setMediaType(k === 'any' ? undefined : k)}
+              />
+              <p className="mt-1.5 text-xs text-[var(--text-muted)]">{t('bingoMediaHint')}</p>
             </section>
 
             <section className="flex flex-col gap-3">
@@ -458,7 +479,7 @@ export default function BingoEditor({ initial, isEdit = false, author, runsCount
 
               {tab === 'catalog' && !prompt && (
                 <div className={selected === null ? 'pointer-events-none opacity-50' : ''}>
-                  <MediaPicker onPick={(item) => place(cellFromCatalog(item))} />
+                  <MediaPicker type={mediaType} filters onPick={(item) => place(cellFromCatalog(item))} />
                 </div>
               )}
 

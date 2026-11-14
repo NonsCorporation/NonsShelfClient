@@ -429,6 +429,7 @@ export default function BingoPage() {
         {answering !== null && board.cells[answering] && (
           <BingoAnswerModal
             prompt={board.cells[answering]!.title}
+            mediaType={board.mediaType}
             current={activeRun?.answers[answering] ?? null}
             onClose={() => setAnswering(null)}
             onAnswer={(cell) => {

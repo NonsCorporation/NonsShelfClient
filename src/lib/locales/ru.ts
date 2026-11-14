@@ -1227,6 +1227,8 @@ export const ru = {
   bingoFewer: "Меньше",
   bingoMore: "Больше",
   bingoSectionType: "Тип",
+  bingoSectionMedia: "Медиа",
+  bingoMediaHint: "Ограничивает поиск при заполнении клеток одним типом. Оставьте «Все», чтобы искать везде и фильтровать прямо в поиске.",
   bingoSectionBasics: "Назовите",
   bingoSectionSquares: "Клетки",
   bingoAddDescription: "Добавить описание",
