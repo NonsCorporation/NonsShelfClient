@@ -7,8 +7,7 @@ import { Link } from '@/lib/router'
 import { mediaPath, userPath } from '@/lib/paths'
 import { fetchPublicProfile, type PublicProfile } from '@/services/userService'
 import { libraryService } from '@/services/libraryService'
-import { authedFetch } from '@/lib/api'
-import { isHorizon } from '@/lib/horizon'
+import { BANNER_SIZE } from '@/lib/bannerSize'
 import { TYPE_META } from '@/lib/typeMeta'
 import type { MediaItem, MediaType } from '@/types'
 import { useLanguage } from '@/contexts/LanguageContext'
@@ -17,10 +16,9 @@ import BoringAvatar from '@/components/ui/BoringAvatar'
 import BookCover from '@/components/media/BookCover'
 import BannerArt from '@/components/profile/BannerArt'
 
-/** What the card shows: the profile, the role (the banner is a Horizon perk) and the small shelf stats. */
+/** What the card shows: the profile and the small shelf stats. */
 type CardData = {
   profile: PublicProfile
-  role?: string
   counts: Record<MediaType, number>
   /** Average rating out of 5; 0 when they haven't rated anything. */
   avg: number
@@ -32,7 +30,7 @@ type CardData = {
 const PROGRESS_SHOWN = 3
 
 // Cache per username for the session — the same author shows up on many posts and
-// in many replies, and shouldn't re-fetch (profile, role and four counts) each time.
+// in many replies, and shouldn't re-fetch (profile, counts and shelf) each time.
 const cardCache = new Map<string, Promise<CardData | null>>()
 function loadCard(username: string): Promise<CardData | null> {
   let p = cardCache.get(username)
@@ -47,12 +45,7 @@ async function fetchCard(username: string): Promise<CardData | null> {
   const profile = await fetchPublicProfile(username)
   if (!profile) return null
   // Everything past the profile is best-effort: a failed lookup just leaves that part out.
-  const [role, book, movie, series, avg, progress] = await Promise.all([
-    authedFetch(`/api/users/${profile.id}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => d?.role as string | undefined)
-      .catch(() => undefined),
-    libraryService.countLibrary({ type: 'book' }, profile.id).catch(() => 0),
+  const [book, movie, series, avg, progress] = await Promise.all([    libraryService.countLibrary({ type: 'book' }, profile.id).catch(() => 0),
     libraryService.countLibrary({ type: 'movie' }, profile.id).catch(() => 0),
     libraryService.countLibrary({ type: 'series' }, profile.id).catch(() => 0),
     libraryService.getRatingAverage(profile.id).catch(() => ({ average: 0, count: 0 })),
@@ -60,11 +53,11 @@ async function fetchCard(username: string): Promise<CardData | null> {
       .searchLibrary({ status: 'active', sort: 'added', dir: 'desc', page: 0, perPage: PROGRESS_SHOWN }, profile.id)
       .catch(() => ({ items: [] as MediaItem[], total: 0 })),
   ])
-  return { profile, role, counts: { book, movie, series }, avg: avg.count > 0 ? avg.average / 2 : 0, progress }
+  return { profile, counts: { book, movie, series }, avg: avg.count > 0 ? avg.average / 2 : 0, progress }
 }
 
 // Wraps a user's name or avatar so hovering it after a short delay shows a small
-// profile preview card — banner (Horizon members), avatar, name, @username and
+// profile preview card — banner, avatar, name, @username and
 // shelf stats. Mirrors InfoTooltip's portal-to-body + useFloatingPosition
 // pattern, so the card can't get clipped by a scrollable/overflow-hidden
 // ancestor (e.g. a comment thread).
@@ -153,16 +146,15 @@ export default function UserHoverCard({ username, children }: { username: string
 // and the small shelf stats.
 function UserPreview({ card }: { card: CardData }) {
   const { t } = useLanguage()
-  const { profile, role, counts, avg, progress } = card
-  const banner = isHorizon(role)
+  const { profile, counts, avg, progress } = card
   const more = progress.total - progress.items.length
   const types = (['book', 'movie', 'series'] as const).filter((tp) => counts[tp] > 0)
   return (
     <div>
       <Link to={userPath(profile.username)} className="block">
-        {banner && <BannerArt seed={profile.username} className="h-24" />}
+        <BannerArt color={profile.bannerColor} avatarUrl={profile.avatarUrl} avatarSeed={`user-${profile.id}`} className={BANNER_SIZE.hover} />
         <div className="px-3">
-        <span className={`relative block h-11 w-11 overflow-hidden rounded-full ${banner ? 'z-10 -mt-5 ring-4 ring-[var(--container)]' : 'mt-3'}`}>
+        <span className={`relative block h-11 w-11 overflow-hidden rounded-full z-10 -mt-5 ring-4 ring-[var(--container)]`}>
           {profile.avatarUrl ? (
             <img src={profile.avatarUrl} alt={profile.name} className="h-full w-full object-cover" />
           ) : (

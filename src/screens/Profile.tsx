@@ -27,7 +27,6 @@ import ChallengeActivityCard from '@/components/challenges/ChallengeActivityCard
 import BingoActivityCard from '@/components/bingo/BingoActivityCard'
 import ProfileBanner from '@/components/profile/ProfileBanner'
 import { TYPE_META } from '@/lib/typeMeta'
-import { isHorizon } from '@/lib/horizon'
 import FinishedBingoRow from '@/components/bingo/FinishedBingoRow'
 import ChallengeShield from '@/components/challenges/ChallengeShield'
 import { FinishedBingosModal, ChallengesModal } from '@/components/profile/ProfileListModals'
@@ -74,6 +73,8 @@ type ProfileView = {
   name: string
   handle: string
   avatar: string
+  /** Banner colour as stored ("F12312"); empty = automatic. */
+  bannerColor?: string
   role?: string
   bio?: string
   /** "City, Country", only what the owner lets this viewer see. */
@@ -180,6 +181,7 @@ export default function ProfilePage() {
           name: authUser?.name || authUser?.username || currentUser.name,
           handle: authUser?.username ?? currentUser.handle,
           avatar: authUser?.avatar_url || '',
+          bannerColor: authUser?.banner_color || undefined,
           role: authUser?.role,
           bio: authUser?.bio || undefined,
           location: [authUser?.location_city, authUser?.location_country].filter(Boolean).join(', ') || undefined,
@@ -219,7 +221,7 @@ export default function ProfilePage() {
             userRole = data.role
           }
         } catch { /* library server unreachable — no badge */ }
-        setProfile({ id: p.id, name: p.name, handle: p.username, avatar: p.avatarUrl || '', role: userRole, bio: p.bio, location: p.location })
+        setProfile({ id: p.id, name: p.name, handle: p.username, avatar: p.avatarUrl || '', bannerColor: p.bannerColor, role: userRole, bio: p.bio, location: p.location })
         const theirCollections = await collectionService.getUserCollections(p.id)
         if (cancelled) return
         setOtherCollections(theirCollections)
@@ -617,8 +619,6 @@ export default function ProfilePage() {
       </div>
     ) : null
 
-  // The banner is a Horizon perk, shown on that member's profile for every viewer.
-  const hasBanner = isHorizon(profile.role)
   const hasTypeCounts = (['book', 'movie', 'series'] as const).some((tp) => typeCounts[tp] > 0)
 
   // Share (any profile) and settings (own profile) buttons; `size` sets their width/height classes.
@@ -651,13 +651,13 @@ export default function ProfilePage() {
       <div className="min-w-0">
       {/* Profile card — identity, nons link, settings, stats */}
       <div className="relative rounded-2xl border border-[var(--border-subtle)] bg-[var(--container)] p-5 sm:p-6">
-        {/* Horizon members get a banner (a placeholder for now) */}
-        {hasBanner && <ProfileBanner seed={profile.handle} />}
-        {/* Phones: share / settings ride on the card's top-right edge (on the banner, when there is one), out of the name's way */}
-        <div className={`absolute right-4 flex items-center gap-2 sm:hidden ${hasBanner ? 'top-3' : '-top-4'}`}>{profileActions('h-9 w-9 bg-[var(--container)]')}</div>
+        {/* Everyone has a banner: a plain colour */}
+        <ProfileBanner color={profile.bannerColor} avatarUrl={profile.avatar} avatarSeed={`user-${profile.id}`} />
+        {/* Phones: share / settings ride on the card's top-right edge (on the banner), out of the name's way */}
+        <div className="absolute right-4 top-3 flex items-center gap-2 sm:hidden">{profileActions('h-9 w-9 bg-[var(--container)]')}</div>
         <div className="flex items-start gap-5">
-          {/* With a banner the avatar rides half over its bottom edge, ringed in the card colour */}
-          <div className={`flex flex-shrink-0 flex-col items-center gap-3 ${hasBanner ? 'relative z-10 -mt-10 rounded-full ring-4 ring-[var(--container)]' : ''}`}>
+          {/* The avatar rides half over the banner's bottom edge, ringed in the card colour */}
+          <div className="relative z-10 -mt-10 flex flex-shrink-0 flex-col items-center gap-3 rounded-full ring-4 ring-[var(--container)]">
             {profile.avatar ? (
               <img src={profile.avatar} alt={profile.name} className="h-20 w-20 flex-shrink-0 rounded-full object-cover" />
             ) : (
@@ -667,7 +667,7 @@ export default function ProfilePage() {
             )}
           </div>
 
-          <div className={`min-w-0 flex-1 ${hasBanner ? 'pt-3' : ''}`}>
+          <div className="min-w-0 flex-1 pt-3">
             {/* Name row: the share/settings buttons live here, so they only take
                 width from the name — handle, location and bio below stay full width. */}
             <div className="flex items-start gap-2">

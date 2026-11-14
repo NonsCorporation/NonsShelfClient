@@ -18,6 +18,9 @@ export interface LibraryUser {
   first_name?: string
   last_name?: string
   bio?: string
+  /** Banner colour ("F12312"), empty = automatic; and a reserved banner image URL. */
+  banner_color?: string
+  banner_url?: string
   location_country?: string
   location_city?: string
   bio_visibility?: Visibility

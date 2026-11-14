@@ -8,6 +8,10 @@ export type PublicProfile = {
   name: string
   username: string
   avatarUrl?: string
+  /** Banner colour as stored ("F12312"); empty/absent = automatic. */
+  bannerColor?: string
+  /** Reserved for an uploaded banner image (a Horizon feature). */
+  bannerUrl?: string
   bio?: string
   /** "City, Country" when the owner lets this viewer see it. */
   location?: string
@@ -21,6 +25,8 @@ type ProfileResponse = {
   username: string
   profile_picture?: string
   avatar_url?: string
+  banner_color?: string
+  banner_url?: string
   bio?: string
   location_country?: string
   location_city?: string
@@ -38,6 +44,8 @@ export async function fetchPublicProfile(username: string): Promise<PublicProfil
       name: [p.name, p.surname].filter(Boolean).join(' ') || p.username,
       username: p.username,
       avatarUrl: p.avatar_url || p.profile_picture || undefined,
+      bannerColor: p.banner_color || undefined,
+      bannerUrl: p.banner_url || undefined,
       bio: p.bio || undefined,
       location: [p.location_city, p.location_country].filter(Boolean).join(', ') || undefined,
     }

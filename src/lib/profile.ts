@@ -15,6 +15,8 @@ export type ProfileAccount = {
   first_name?: string
   last_name?: string
   bio?: string
+  /** Banner colour as the server stores it: "F12312", or empty for automatic. */
+  banner_color?: string
   location_country?: string
   location_city?: string
   bio_visibility?: Visibility
@@ -27,6 +29,8 @@ export type ProfileForm = {
   lastName: string
   username: string
   bio: string
+  /** Banner colour ("F12312"); empty = automatic. */
+  bannerColor: string
   country: string
   city: string
   bioVisibility: Visibility
@@ -39,6 +43,7 @@ export type ProfilePatch = Partial<{
   last_name: string
   username: string
   bio: string
+  banner_color: string
   location_country: string
   location_city: string
   bio_visibility: Visibility
@@ -61,6 +66,7 @@ export function formFromAccount(a: ProfileAccount): ProfileForm {
     lastName: a.last_name ?? fallback.last,
     username: a.username,
     bio: a.bio ?? '',
+    bannerColor: a.banner_color ?? '',
     country: a.location_country ?? '',
     city: a.location_city ?? '',
     bioVisibility: a.bio_visibility ?? 'public',
@@ -81,6 +87,7 @@ export function buildProfilePatch(form: ProfileForm, account: ProfileAccount): P
   if (last !== before.lastName) patch.last_name = last
   if (form.username !== before.username) patch.username = form.username
   if (bio !== before.bio) patch.bio = bio
+  if (form.bannerColor !== before.bannerColor) patch.banner_color = form.bannerColor
   if (form.country !== before.country) patch.location_country = form.country
   if (city !== before.city) patch.location_city = city
   if (form.bioVisibility !== before.bioVisibility) patch.bio_visibility = form.bioVisibility
