@@ -1195,6 +1195,7 @@ export const ru = {
   bingoFinishRun: "Завершить прогон",
   bingoReopen: "Открыть снова",
   bingoFinishedBanner: "Завершено",
+  bingoFinishedTitle: "Завершённые бинго",
   bingoRunLocked: "Откройте снова, чтобы что-то изменить.",
   bingoShareBoard: "Поделиться доской",
   bingoShareResult: "Поделиться моим результатом",

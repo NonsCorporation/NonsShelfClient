@@ -1195,6 +1195,7 @@ export const ro = {
   bingoFinishRun: "Termină runda",
   bingoReopen: "Redeschide",
   bingoFinishedBanner: "Terminat",
+  bingoFinishedTitle: "Bingo-uri terminate",
   bingoRunLocked: "Redeschide-o ca să schimbi ceva.",
   bingoShareBoard: "Trimite tabla",
   bingoShareResult: "Trimite rezultatul meu",

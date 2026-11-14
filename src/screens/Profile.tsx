@@ -25,6 +25,8 @@ import TypeBadge from '@/components/badges/TypeBadge'
 import ActivityCard from '@/components/feed/ActivityCard'
 import ChallengeActivityCard from '@/components/challenges/ChallengeActivityCard'
 import BingoActivityCard from '@/components/bingo/BingoActivityCard'
+import { BoardPreview } from '@/components/bingo/BingoGrid'
+import { bingoPath, emptyCells } from '@/lib/bingo'
 import ProfileShareModal from '@/components/profile/ProfileShareModal'
 import { getUserActivity, colorFor, type Activity } from '../services/activityService'
 import { getCommentCounts } from '../services/commentService'
@@ -43,6 +45,7 @@ import {
 import InfoTooltip from '@/components/ui/InfoTooltip'
 import {
   IoSettingsOutline,
+  IoGridOutline,
   IoLocationOutline,
   IoLibraryOutline,
   IoBookOutline,
@@ -136,6 +139,8 @@ export default function ProfilePage() {
   const [postsLoading, setPostsLoading] = useState(false)
   const [postCommentCounts, setPostCommentCounts] = useState<Record<string, number>>({})
   const postsRef = useRef<HTMLElement>(null)
+  // Finished bingos for the side column: taken from the newest page of posts only, so paging the feed doesn't change them.
+  const [finishedBingos, setFinishedBingos] = useState<Activity[]>([])
   const { collections } = useCollections()
   // Another user's collections (view/filter only, public — same visibility as
   // their shelf). Empty when viewing your own profile (collections comes from
@@ -345,6 +350,7 @@ export default function ProfilePage() {
         if (cancelled) return
         setPosts(res.items)
         setPostsTotal(res.total)
+        if (postsPage === 0) setFinishedBingos(res.items.filter((x) => x.bingo))
         // Comment counts need an account (signed-out visitors just see the posts).
         if (authUser) {
           getCommentCounts(res.items.map((a) => a.postId))
@@ -482,8 +488,151 @@ export default function ProfilePage() {
     { key: 'dnf', label: t('shelfDNF'), count: counts.dnf },
   ]
 
+
+  // Friends card: under the profile card on small screens, in the side column on lg+.
+  const friendsBlock = (where: 'mobile' | 'aside') => {
+    const aside = where === 'aside'
+  return isSelf ? (
+        <div className={`${aside ? '' : 'mt-4 lg:hidden'} rounded-2xl border border-[var(--border-subtle)] bg-[var(--container)] p-5 sm:p-6`}>
+          <div className="mb-3 flex items-center gap-2">
+            <IoPeopleOutline className="h-4 w-4 text-[var(--text-muted)]" />
+            <span className="text-sm font-semibold text-[var(--text)]">
+              {t('friendsLabel')}
+            </span>
+            {friends.length > 0 && (
+              <span className="text-xs text-[var(--text-muted)]">{friends.length}</span>
+            )}
+            <div className="group relative ml-auto">
+              <IoInformationCircleOutline className="h-4 w-4 cursor-help text-[var(--text-muted)]" />
+              <div className="pointer-events-none absolute right-0 top-6 z-50 w-64 rounded-xl border border-[var(--border)] bg-[var(--container)] p-3 text-xs leading-relaxed text-[var(--text-muted)] opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
+                {t('friendsHint')}
+              </div>
+            </div>
+          </div>
+          {friends.length === 0 ? (
+            <div className="flex items-center gap-3 rounded-xl border border-dashed border-[var(--border-subtle)] px-4 py-3">
+              {/* Stacked placeholder circles — a friends-shaped empty state */}
+              <span className="flex flex-shrink-0 items-center">
+                {[0, 1, 2].map((i) => (
+                  <span
+                    key={i}
+                    className="flex items-center justify-center rounded-full border-2 border-[var(--container)] bg-[var(--surface)] text-[var(--text-muted)]"
+                    style={{ width: 32, height: 32, marginLeft: i === 0 ? 0 : -10, zIndex: 3 - i }}
+                  >
+                    <IoPeopleOutline className="h-3.5 w-3.5 opacity-60" />
+                  </span>
+                ))}
+              </span>
+              <span className="text-xs font-medium text-[var(--text-muted)]">
+                {t('friendsEmpty')}
+              </span>
+            </div>
+          ) : (
+            <div className={aside ? 'flex flex-wrap gap-4' : 'no-scrollbar -mx-1 flex gap-4 overflow-x-auto px-1'}>
+              {friends.map((f) => (
+                <Link
+                  key={f.username}
+                  to={`/u/${f.username}`}
+                  className="group/friend flex flex-shrink-0 flex-col items-center gap-1.5"
+                  title={f.name}
+                >
+                  <span className="overflow-hidden rounded-full ring-2 ring-transparent transition-colors group-hover/friend:ring-nonsprimary" style={{ width: 40, height: 40 }}>
+                    {f.avatarUrl
+                      ? <img src={f.avatarUrl} alt={f.name} className="h-full w-full object-cover" />
+                      : <BoringAvatar size={40} name={f.username} />
+                    }
+                  </span>
+                  <span className="max-w-[52px] truncate text-[10px] text-[var(--text-muted)] group-hover/friend:text-[var(--text)]">
+                    {f.name}
+                  </span>
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+  ) : null
+  }
+
+  // Challenges — a shield per challenge (title + "n/target" progress),
+  // solid-outlined once completed, dashed while in progress. Official
+  // challenges (the reading challenge) get a purple gradient and lead the
+  // row; community ones follow in silver. Same placement as the friends card.
+  const challengesBlock = (where: 'mobile' | 'aside') => {
+
+        const year = new Date().getFullYear()
+        // The reading challenge: for your own profile use the viewer-aware copy
+        // (shows even when unjoined, as a "join" shield); for others, only their
+        // joined copy. Community challenges are the rest of the joined list.
+        const reading = isSelf ? readingChallenge : (challenges.find((c) => isYearlyReadingGoal(c, year)) ?? null)
+        const rest = challenges.filter((c) => !isYearlyReadingGoal(c, year))
+        const list = [...(reading ? [reading] : []), ...rest]
+        // Official first (purple), then community (silver).
+        const ordered = [...list.filter((c) => c.official), ...list.filter((c) => !c.official)]
+        if (ordered.length === 0) return null
+        const aside = where === 'aside'
+        return (
+          <div className={aside ? 'rounded-2xl border border-[var(--border-subtle)] bg-[var(--container)] p-5' : 'mt-6 lg:hidden'}>
+            <div className="mb-3 flex items-center gap-2">
+              <IoTrophyOutline className="h-4 w-4 text-[var(--text-muted)]" />
+              <span className="text-sm font-semibold text-[var(--text)]">{t('challenges')}</span>
+            </div>
+            <div className={aside ? 'flex flex-wrap gap-4' : 'no-scrollbar -mx-1 flex gap-4 overflow-x-auto px-1 pb-1'}>
+              {ordered.map((c) => (
+                <ChallengeShield key={c.id} challenge={c} t={t} />
+              ))}
+            </div>
+          </div>
+        )
+  }
+
+  // Finished bingos — side column only (on small screens they are already in the feed below).
+  const bingosAside =
+    finishedBingos.length > 0 ? (
+      <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--container)] p-5">
+        <div className="mb-3 flex items-center gap-2">
+          <IoGridOutline className="h-4 w-4 text-[var(--text-muted)]" />
+          <span className="text-sm font-semibold text-[var(--text)]">{t('bingoFinishedTitle')}</span>
+          <span className="text-xs text-[var(--text-muted)]">{finishedBingos.length}</span>
+        </div>
+        <div className="flex flex-col gap-3">
+          {finishedBingos.map((a) => {
+            const run = a.bingo!
+            const player = a.user.uuid || a.user.handle
+            return (
+              <Link
+                key={a.id}
+                to={player ? bingoPath(run.boardId, player, run.runId) : bingoPath(run.boardId)}
+                title={run.title}
+                className="group flex items-center gap-3"
+              >
+                <span className="w-16 flex-shrink-0 overflow-hidden rounded-lg">
+                  <BoardPreview
+                    rows={run.rows}
+                    cols={run.cols}
+                    cells={run.cells ?? emptyCells(run.rows, run.cols)}
+                    freeCenter={run.freeCenter}
+                    kind={run.kind}
+                    mask={run.mask}
+                    answers={run.answers}
+                  />
+                </span>
+                <span className="min-w-0">
+                  <span className="line-clamp-2 text-sm font-medium leading-snug text-[var(--text)] group-hover:text-nonsprimary">{run.title}</span>
+                  <span className="mt-0.5 block text-xs text-[var(--text-muted)]">
+                    {run.rows}×{run.cols} · {t('bingoLinesMany', { count: run.lines })} · {a.timeAgo}
+                  </span>
+                </span>
+              </Link>
+            )
+          })}
+        </div>
+      </div>
+    ) : null
+
   return (
     <Layout>
+      <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_21rem] lg:items-start lg:gap-8">
+      <div className="min-w-0">
       {/* Profile card — identity, nons link, settings, stats */}
       <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--container)] p-5 sm:p-6">
         <div className="flex items-start gap-5">
@@ -655,66 +804,7 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      {/* Friends — own profile only, separate card */}
-      {isSelf && (
-        <div className="mt-4 rounded-2xl border border-[var(--border-subtle)] bg-[var(--container)] p-5 sm:p-6">
-          <div className="mb-3 flex items-center gap-2">
-            <IoPeopleOutline className="h-4 w-4 text-[var(--text-muted)]" />
-            <span className="text-sm font-semibold text-[var(--text)]">
-              {t('friendsLabel')}
-            </span>
-            {friends.length > 0 && (
-              <span className="text-xs text-[var(--text-muted)]">{friends.length}</span>
-            )}
-            <div className="group relative ml-auto">
-              <IoInformationCircleOutline className="h-4 w-4 cursor-help text-[var(--text-muted)]" />
-              <div className="pointer-events-none absolute right-0 top-6 z-50 w-64 rounded-xl border border-[var(--border)] bg-[var(--container)] p-3 text-xs leading-relaxed text-[var(--text-muted)] opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
-                {t('friendsHint')}
-              </div>
-            </div>
-          </div>
-          {friends.length === 0 ? (
-            <div className="flex items-center gap-3 rounded-xl border border-dashed border-[var(--border-subtle)] px-4 py-3">
-              {/* Stacked placeholder circles — a friends-shaped empty state */}
-              <span className="flex flex-shrink-0 items-center">
-                {[0, 1, 2].map((i) => (
-                  <span
-                    key={i}
-                    className="flex items-center justify-center rounded-full border-2 border-[var(--container)] bg-[var(--surface)] text-[var(--text-muted)]"
-                    style={{ width: 32, height: 32, marginLeft: i === 0 ? 0 : -10, zIndex: 3 - i }}
-                  >
-                    <IoPeopleOutline className="h-3.5 w-3.5 opacity-60" />
-                  </span>
-                ))}
-              </span>
-              <span className="text-xs font-medium text-[var(--text-muted)]">
-                {t('friendsEmpty')}
-              </span>
-            </div>
-          ) : (
-            <div className="no-scrollbar -mx-1 flex gap-4 overflow-x-auto px-1">
-              {friends.map((f) => (
-                <Link
-                  key={f.username}
-                  to={`/u/${f.username}`}
-                  className="group/friend flex flex-shrink-0 flex-col items-center gap-1.5"
-                  title={f.name}
-                >
-                  <span className="overflow-hidden rounded-full ring-2 ring-transparent transition-colors group-hover/friend:ring-nonsprimary" style={{ width: 40, height: 40 }}>
-                    {f.avatarUrl
-                      ? <img src={f.avatarUrl} alt={f.name} className="h-full w-full object-cover" />
-                      : <BoringAvatar size={40} name={f.username} />
-                    }
-                  </span>
-                  <span className="max-w-[52px] truncate text-[10px] text-[var(--text-muted)] group-hover/friend:text-[var(--text)]">
-                    {f.name}
-                  </span>
-                </Link>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+      {friendsBlock('mobile')}
 
       {/* Shelf tabs */}
       <div className="no-scrollbar mt-6 flex gap-1 overflow-x-auto border-b border-[var(--border-subtle)]">
@@ -806,35 +896,7 @@ export default function ProfilePage() {
         </Link>
       </div>
 
-      {/* Challenges — a shield per challenge (title + "n/target" progress),
-          solid-outlined once completed, dashed while in progress. Official
-          challenges (the reading challenge) get a purple gradient and lead the
-          row; community ones follow in silver. */}
-      {(() => {
-        const year = new Date().getFullYear()
-        // The reading challenge: for your own profile use the viewer-aware copy
-        // (shows even when unjoined, as a "join" shield); for others, only their
-        // joined copy. Community challenges are the rest of the joined list.
-        const reading = isSelf ? readingChallenge : (challenges.find((c) => isYearlyReadingGoal(c, year)) ?? null)
-        const rest = challenges.filter((c) => !isYearlyReadingGoal(c, year))
-        const list = [...(reading ? [reading] : []), ...rest]
-        // Official first (purple), then community (silver).
-        const ordered = [...list.filter((c) => c.official), ...list.filter((c) => !c.official)]
-        if (ordered.length === 0) return null
-        return (
-          <div className="mt-6">
-            <div className="mb-3 flex items-center gap-2">
-              <IoTrophyOutline className="h-4 w-4 text-[var(--text-muted)]" />
-              <span className="text-sm font-semibold text-[var(--text)]">{t('challenges')}</span>
-            </div>
-            <div className="no-scrollbar -mx-1 flex gap-4 overflow-x-auto px-1 pb-1">
-              {ordered.map((c) => (
-                <ChallengeShield key={c.id} challenge={c} t={t} />
-              ))}
-            </div>
-          </div>
-        )
-      })()}
+      {challengesBlock('mobile')}
 
       {/* Ratings & reviews — feed-style ActivityCards with comment threads */}
       <section ref={postsRef} className="mt-8 scroll-mt-4">
@@ -896,6 +958,15 @@ export default function ProfilePage() {
           </div>
         )}
       </section>
+      </div>
+
+      {/* Side column (lg+): friends, challenges, finished bingos. Small screens keep them inline above. */}
+      <aside className="hidden flex-col gap-4 lg:flex">
+        {friendsBlock('aside')}
+        {challengesBlock('aside')}
+        {bingosAside}
+      </aside>
+      </div>
 
       <ProfileShareModal
         isOpen={shareOpen}

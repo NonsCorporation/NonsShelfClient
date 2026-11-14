@@ -1266,6 +1266,7 @@ export const en = {
   bingoFinishRun: "Finish run",
   bingoReopen: "Reopen",
   bingoFinishedBanner: "Finished",
+  bingoFinishedTitle: "Finished bingos",
   bingoRunLocked: "Reopen it to change anything.",
   bingoShareBoard: "Share board",
   bingoShareResult: "Share my result",
