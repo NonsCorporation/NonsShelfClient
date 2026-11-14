@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from '@/lib/router'
-import { IoTrashOutline, IoCloseOutline } from 'react-icons/io5'
+import { IoCloseOutline } from 'react-icons/io5'
 import { useAuth } from '@/contexts/AuthContext'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { userPath } from '@/lib/paths'
@@ -11,7 +11,7 @@ import {
   type FeedComment,
 } from '@/services/commentService'
 import BoringAvatar from '@/components/ui/BoringAvatar'
-import DropdownMenu from '@/components/ui/DropdownMenu'
+import CommentMenu from '@/components/feed/CommentMenu'
 import UserHoverCard from '@/components/ui/UserHoverCard'
 import UsernameCommentHover from '@/components/ui/UsernameCommentHover'
 
@@ -253,12 +253,11 @@ function CommentNode({
               </UserHoverCard>
               <span className="text-[var(--text-muted)]">· {timeAgo(comment.created_at)}</span>
             </div>
-            {isOwn && (
-              <DropdownMenu
-                items={[{ label: t('delete'), icon: <IoTrashOutline className="h-4 w-4" />, onClick: () => onDelete(comment.id), danger: true }]}
-                buttonClassName="!p-0.5"
-              />
-            )}
+            <CommentMenu
+              body={comment.body}
+              onReply={() => setReplyTo(replying ? null : comment.id)}
+              onDelete={isOwn ? () => onDelete(comment.id) : undefined}
+            />
           </div>
           <p className="mt-0.5 whitespace-pre-wrap break-words text-sm leading-6 text-[var(--text)]">
             {replyingToUsername && replyingToComment && (

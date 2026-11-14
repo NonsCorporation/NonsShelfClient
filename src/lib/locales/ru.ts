@@ -822,6 +822,8 @@ export const ru = {
   writeComment: 'Написать комментарий…',
   writeReply: 'Написать ответ…',
   reply: 'Ответить',
+  commentReport: 'Пожаловаться',
+  soon: 'Скоро',
   replyingTo: 'Ответ пользователю',
   noCommentsYet: 'Пока нет комментариев. Начните обсуждение.',
   autofill: 'Заполнить',

@@ -1,14 +1,15 @@
 import { useEffect, useState } from 'react'
 import { Link } from '@/lib/router'
-import { IoCopyOutline, IoCheckmark } from 'react-icons/io5'
 import { getComments, type FeedComment } from '@/services/commentService'
 import { userPath } from '@/lib/paths'
 import { useLanguage } from '@/contexts/LanguageContext'
 import BoringAvatar from '@/components/ui/BoringAvatar'
+import CommentMenu from '@/components/feed/CommentMenu'
 
 // The post's top (oldest) comment, shown under the like/comment footer as a
 // preview — full text (clamped with "show more" past a few lines, not cut off
-// mid-sentence), a copy action, and a link to open the full thread.
+// mid-sentence), a link to open the full thread and a three-dots menu (copy /
+// reply / report).
 export default function CommentPreview({
   postId,
   commentCount,
@@ -21,7 +22,6 @@ export default function CommentPreview({
   const { t } = useLanguage()
   const [comment, setComment] = useState<FeedComment | null>(null)
   const [expanded, setExpanded] = useState(false)
-  const [copied, setCopied] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -35,13 +35,6 @@ export default function CommentPreview({
   }, [postId])
 
   if (!comment) return null
-
-  const copyComment = () => {
-    navigator.clipboard?.writeText(comment.body).then(() => {
-      setCopied(true)
-      setTimeout(() => setCopied(false), 1500)
-    }).catch(() => {})
-  }
 
   return (
     <div className="mt-2 flex items-start gap-2">
@@ -79,16 +72,9 @@ export default function CommentPreview({
           >
             {t('viewAllComments', { count: commentCount })}
           </button>
-          <button
-            type="button"
-            onClick={copyComment}
-            className="inline-flex items-center gap-1 font-medium text-[var(--text-muted)] transition-colors hover:text-[var(--text)]"
-          >
-            {copied ? <IoCheckmark className="h-3.5 w-3.5 text-nonsprimary" /> : <IoCopyOutline className="h-3.5 w-3.5" />}
-            {copied ? t('copied') : t('copy')}
-          </button>
         </div>
       </div>
+      <CommentMenu body={comment.body} onReply={onViewAll} className="flex-shrink-0" />
     </div>
   )
 }

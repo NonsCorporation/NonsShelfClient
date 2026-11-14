@@ -822,6 +822,8 @@ export const ro = {
   writeComment: 'Scrie un comentariu…',
   writeReply: 'Scrie un răspuns…',
   reply: 'Răspunde',
+  commentReport: 'Raportează',
+  soon: 'În curând',
   replyingTo: 'Răspunzi lui',
   noCommentsYet: 'Niciun comentariu încă. Începe conversația.',
   autofill: 'Completează automat',

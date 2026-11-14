@@ -822,6 +822,8 @@ export const en = {
   writeComment: 'Write a comment…',
   writeReply: 'Write a reply…',
   reply: 'Reply',
+  commentReport: 'Report',
+  soon: 'Soon',
   replyingTo: 'Replying to',
   noCommentsYet: 'No comments yet. Start the conversation.',
   autofill: 'Autofill',

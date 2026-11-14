@@ -18,7 +18,7 @@ import AwardsSection from '@/components/awards/AwardsSection'
 import MediaHistory from '@/components/media/MediaHistory'
 import StarsSelector from '../StarsSelector'
 import ReviewEditor from '../components/review/ReviewEditor'
-import CopyReviewLink from '../components/review/CopyReviewLink'
+import CommentMenu from '../components/feed/CommentMenu'
 import ReviewContent from '../components/review/ReviewContent'
 import LikeButton from '@/components/feed/LikeButton'
 import CommentThread from '@/components/feed/CommentThread'
@@ -1722,16 +1722,21 @@ export default function MediaOnePage({
                               )}
                               {r.value > 0 && <StarsSelector initialValue={r.value} isEditable={false} size="sm" />}
                               <span className="text-xs text-[var(--text-muted)]">{reviewDate(r.updatedAt)}</span>
+                              {/* Copy / reply / report. Reply opens the review's thread (sign-in needed). */}
+                              {r.review && (
+                                <CommentMenu
+                                  body={r.review}
+                                  onReply={() => (user && r.id > 0 ? setOpenReviewComments(r.id) : openLogin())}
+                                />
+                              )}
                             </div>
                             {r.review && <ReviewContent content={r.review} className="mt-2 pl-10 text-xs leading-6 text-[var(--text-muted)]" />}
                             {/* Like/comment a review — signed-in only (the endpoints are
                                 auth-only). Likes here share their tally with the feed post
-                                that echoes this review; the comment thread is its own.
-                                Copy-link needs no session, so it shows for everyone. */}
-                            {((user && r.id > 0) || r.uuid) && (
+                                that echoes this review; the comment thread is its own. */}
+                            {user && r.id > 0 && (
                               <div className="mt-2 flex items-center gap-4 pl-10 text-xs">
-                                {user && r.id > 0 && (
-                                  <>
+                                <>
                                     <LikeButton reviewId={r.id} />
                                     <button
                                       onClick={() => setOpenReviewComments((cur) => (cur === r.id ? null : r.id))}
@@ -1744,9 +1749,7 @@ export default function MediaOnePage({
                                         ? reviewCommentCounts[String(r.id)]
                                         : t('comment')}
                                     </button>
-                                  </>
-                                )}
-                                {r.uuid && <CopyReviewLink reviewUuid={r.uuid} />}
+                                </>
                               </div>
                             )}
                             {user && openReviewComments === r.id && (
