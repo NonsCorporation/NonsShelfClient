@@ -7,6 +7,8 @@ import { Link } from '@/lib/router'
 import { mediaPath, userPath } from '@/lib/paths'
 import { fetchPublicProfile, type PublicProfile } from '@/services/userService'
 import { libraryService } from '@/services/libraryService'
+import { authedFetch } from '@/lib/api'
+import { isHorizon } from '@/lib/horizon'
 import { BANNER_SIZE } from '@/lib/bannerSize'
 import { TYPE_META } from '@/lib/typeMeta'
 import type { MediaItem, MediaType } from '@/types'
@@ -15,10 +17,13 @@ import { useFloatingPosition } from '@/hooks/useFloatingPosition'
 import BoringAvatar from '@/components/ui/BoringAvatar'
 import BookCover from '@/components/media/BookCover'
 import BannerArt from '@/components/profile/BannerArt'
+import HorizonBadge from '@/components/badges/HorizonBadge'
 
 /** What the card shows: the profile and the small shelf stats. */
-type CardData = {
+export type CardData = {
   profile: PublicProfile
+  /** A Horizon member: their name carries the Horizon icon. */
+  horizon: boolean
   counts: Record<MediaType, number>
   /** Average rating out of 5; 0 when they haven't rated anything. */
   avg: number
@@ -30,7 +35,7 @@ type CardData = {
 const PROGRESS_SHOWN = 3
 
 // Cache per username for the session — the same author shows up on many posts and
-// in many replies, and shouldn't re-fetch (profile, counts and shelf) each time.
+// in many replies, and shouldn't re-fetch (profile, role, counts and shelf) each time.
 const cardCache = new Map<string, Promise<CardData | null>>()
 function loadCard(username: string): Promise<CardData | null> {
   let p = cardCache.get(username)
@@ -45,7 +50,11 @@ async function fetchCard(username: string): Promise<CardData | null> {
   const profile = await fetchPublicProfile(username)
   if (!profile) return null
   // Everything past the profile is best-effort: a failed lookup just leaves that part out.
-  const [book, movie, series, avg, progress] = await Promise.all([    libraryService.countLibrary({ type: 'book' }, profile.id).catch(() => 0),
+  const [role, book, movie, series, avg, progress] = await Promise.all([
+    authedFetch(`/api/users/${profile.id}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => d?.role as string | undefined)
+      .catch(() => undefined),    libraryService.countLibrary({ type: 'book' }, profile.id).catch(() => 0),
     libraryService.countLibrary({ type: 'movie' }, profile.id).catch(() => 0),
     libraryService.countLibrary({ type: 'series' }, profile.id).catch(() => 0),
     libraryService.getRatingAverage(profile.id).catch(() => ({ average: 0, count: 0 })),
@@ -53,7 +62,7 @@ async function fetchCard(username: string): Promise<CardData | null> {
       .searchLibrary({ status: 'active', sort: 'added', dir: 'desc', page: 0, perPage: PROGRESS_SHOWN }, profile.id)
       .catch(() => ({ items: [] as MediaItem[], total: 0 })),
   ])
-  return { profile, counts: { book, movie, series }, avg: avg.count > 0 ? avg.average / 2 : 0, progress }
+  return { profile, horizon: isHorizon(role), counts: { book, movie, series }, avg: avg.count > 0 ? avg.average / 2 : 0, progress }
 }
 
 // Wraps a user's name or avatar so hovering it after a short delay shows a small
@@ -144,15 +153,21 @@ export default function UserHoverCard({ username, children }: { username: string
 
 // The card body: banner (Horizon members), avatar over its edge, name, @username
 // and the small shelf stats.
-function UserPreview({ card }: { card: CardData }) {
+export function UserPreview({ card }: { card: CardData }) {
   const { t } = useLanguage()
-  const { profile, counts, avg, progress } = card
+  const { profile, horizon, counts, avg, progress } = card
   const more = progress.total - progress.items.length
   const types = (['book', 'movie', 'series'] as const).filter((tp) => counts[tp] > 0)
   return (
     <div>
       <Link to={userPath(profile.username)} className="block">
-        <BannerArt color={profile.bannerColor} avatarUrl={profile.avatarUrl} avatarSeed={`user-${profile.id}`} className={BANNER_SIZE.hover} />
+        <BannerArt
+          color={profile.bannerColor}
+          imageUrl={profile.bannerUrl}
+          avatarUrl={profile.avatarUrl}
+          avatarSeed={`user-${profile.id}`}
+          className={BANNER_SIZE.hover}
+        />
         <div className="px-3">
         <span className={`relative block h-11 w-11 overflow-hidden rounded-full z-10 -mt-5 ring-4 ring-[var(--container)]`}>
           {profile.avatarUrl ? (
@@ -161,7 +176,10 @@ function UserPreview({ card }: { card: CardData }) {
             <BoringAvatar size={44} name={`user-${profile.id}`} />
           )}
         </span>
-        <span className="mt-1.5 block truncate text-sm font-semibold text-[var(--text)]">{profile.name}</span>
+        <span className="mt-1.5 flex items-center gap-1.5">
+          <span className="min-w-0 truncate text-sm font-semibold text-[var(--text)]">{profile.name}</span>
+          {horizon && <HorizonBadge className="h-3.5 w-3.5" />}
+        </span>
         <span className="block truncate text-xs text-[var(--text-muted)]">@{profile.username}</span>
         {(types.length > 0 || avg > 0) && (
           <span className="mt-2.5 flex items-center gap-3 border-t border-[var(--border-subtle)] pt-2.5">

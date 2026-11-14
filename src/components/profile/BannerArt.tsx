@@ -15,6 +15,7 @@ export default function BannerArt({
   color,
   avatarUrl,
   avatarSeed,
+  imageUrl,
   className = '',
   children,
 }: {
@@ -23,6 +24,8 @@ export default function BannerArt({
   avatarUrl?: string | null
   /** Seed of the generated avatar (`user-<id>`), used when there is no photo. */
   avatarSeed: string
+  /** An uploaded banner image (a Horizon feature); it covers the colour. */
+  imageUrl?: string | null
   className?: string
   children?: React.ReactNode
 }) {
@@ -30,6 +33,10 @@ export default function BannerArt({
   const shown = bannerCss(color) ?? auto ?? defaultBannerColor(hashHue(avatarSeed))
   return (
     <div className={`relative ${className}`} style={{ background: shown }}>
+      {imageUrl && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={imageUrl} alt="" className="absolute inset-0 h-full w-full rounded-[inherit] object-cover" />
+      )}
       {children}
     </div>
   )
