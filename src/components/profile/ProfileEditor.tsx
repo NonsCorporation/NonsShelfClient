@@ -6,12 +6,13 @@ import { Link } from '@/lib/router'
 import BoringAvatar from '@/components/ui/BoringAvatar'
 import EditableAvatar from '@/components/profile/EditableAvatar'
 import BannerArt from '@/components/profile/BannerArt'
+import ImageCropModal from '@/components/ui/ImageCropModal'
 import BannerEditor from '@/components/profile/BannerEditor'
 import { isHorizon } from '@/lib/horizon'
 import { BANNER_SIZE } from '@/lib/bannerSize'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { useAuth } from '@/contexts/AuthContext'
-import { BIO_MAX, NAME_MAX, buildProfilePatch, formFromAccount, imageToBlob, type ProfileForm, type Visibility } from '@/lib/profile'
+import { BIO_MAX, NAME_MAX, buildProfilePatch, formFromAccount, type ProfileForm, type Visibility } from '@/lib/profile'
 import { removeAvatar, renewSession, suggestUsername, updateMyProfile, uploadAvatar } from '@/services/profileService'
 import { COUNTRIES } from '@/lib/countries'
 import { USERNAME_MAX_LENGTH, isAutoUsername, sanitizeUsername, usernameError, type UsernameError } from '@/lib/username'
@@ -94,6 +95,8 @@ export default function ProfileEditor({ mode, onDone, cancelHref = '/' }: Props)
   const [newPhoto, setNewPhoto] = useState<Blob | null>(null)
   const [preview, setPreview] = useState<string | null>(null)
   const [removePhoto, setRemovePhoto] = useState(false)
+  // The picked image while the crop dialog is open (an object URL).
+  const [cropSrc, setCropSrc] = useState<string | null>(null)
 
   // Seed the form once from the account. (Not on every `user` change: a refresh
   // mid-edit must not wipe what's being typed.)
@@ -126,15 +129,20 @@ export default function ProfileEditor({ mode, onDone, cancelHref = '/' }: Props)
   const chosenUsername = form.username || keepUsername
   const shownAvatar = removePhoto ? '' : preview || user.avatar_url || ''
 
-  const onPickPhoto = async (file: File) => {
-    try {
-      const blob = await imageToBlob(file)
-      setNewPhoto(blob)
-      setPreview(URL.createObjectURL(blob))
-      setRemovePhoto(false)
-    } catch {
-      /* not an image — ignore */
-    }
+  // Picking a file opens the cropper; the cropped square is what gets staged.
+  const onPickPhoto = (file: File) => {
+    if (!file.type.startsWith('image/')) return // not an image — ignore
+    setCropSrc(URL.createObjectURL(file))
+  }
+  const closeCrop = () => {
+    if (cropSrc) URL.revokeObjectURL(cropSrc)
+    setCropSrc(null)
+  }
+  const onCropped = (blob: Blob) => {
+    setNewPhoto(blob)
+    setPreview(URL.createObjectURL(blob))
+    setRemovePhoto(false)
+    closeCrop()
   }
   const onResetPhoto = () => {
     setNewPhoto(null)
@@ -207,6 +215,8 @@ export default function ProfileEditor({ mode, onDone, cancelHref = '/' }: Props)
 
   return (
     <>
+      {cropSrc && <ImageCropModal src={cropSrc} onConfirm={onCropped} onCancel={closeCrop} />}
+
       {hasBanner && (
         <BannerArt color={form.bannerColor} avatarUrl={shownAvatar} avatarSeed={`user-${user.id}`} className={`-mx-5 -mt-5 rounded-t-2xl ${BANNER_SIZE.page}`}>
           <BannerEditor

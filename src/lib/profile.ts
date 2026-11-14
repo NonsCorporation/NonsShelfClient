@@ -94,38 +94,3 @@ export function buildProfilePatch(form: ProfileForm, account: ProfileAccount): P
   if (form.locationVisibility !== before.locationVisibility) patch.location_visibility = form.locationVisibility
   return patch
 }
-
-/** Centre-crops an image file to `size`×`size` and returns it as a JPEG blob —
- *  about 20 KB, well under the server's 1 MB limit. Rejects for non-images. */
-export function imageToBlob(file: File, size = 256, quality = 0.85): Promise<Blob> {
-  return new Promise((resolve, reject) => {
-    if (!file.type.startsWith('image/')) {
-      reject(new Error('not an image'))
-      return
-    }
-    const url = URL.createObjectURL(file)
-    const img = new Image()
-    img.onload = () => {
-      URL.revokeObjectURL(url)
-      const canvas = document.createElement('canvas')
-      canvas.width = size
-      canvas.height = size
-      const ctx = canvas.getContext('2d')
-      if (!ctx) {
-        reject(new Error('canvas unavailable'))
-        return
-      }
-      // "cover" fit: scale to fill, crop the overflow evenly on both sides.
-      const scale = Math.max(size / img.width, size / img.height)
-      const w = img.width * scale
-      const h = img.height * scale
-      ctx.drawImage(img, (size - w) / 2, (size - h) / 2, w, h)
-      canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('could not encode image'))), 'image/jpeg', quality)
-    }
-    img.onerror = () => {
-      URL.revokeObjectURL(url)
-      reject(new Error('could not read image'))
-    }
-    img.src = url
-  })
-}
