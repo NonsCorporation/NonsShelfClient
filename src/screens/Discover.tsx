@@ -25,6 +25,7 @@ import type { MediaItem, MediaType, ShelfStatus, CuratedListDiscoverEntry, Franc
 import { typeWord, goalLabel, conditionText, challengeTitle, isGoalChallenge } from '../lib/challenge'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
+import ScrollToTop from '@/components/ui/ScrollToTop'
 import { useLoginModal } from '../contexts/LoginModalContext'
 import {
   IoStar, IoPeopleOutline, IoLogInOutline, IoSparklesOutline, IoArrowForward,
@@ -504,6 +505,9 @@ export default function DiscoverPage() {
           setAdded((prev) => new Set(prev).add(it.id))
         }}
       />
+
+      {/* Signed-out visitors browse a long page: a way back to the top */}
+      {!authLoading && !isAuthenticated && <ScrollToTop />}
     </Layout>
   )
 }

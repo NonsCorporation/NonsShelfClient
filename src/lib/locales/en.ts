@@ -465,6 +465,7 @@ export const en = {
   signInToRateHint: 'Sign in to rate and review this title.',
 
   close: 'Close',
+  scrollToTop: 'Back to top',
 
   // Discover — signed-out "about SomeShelf" badge above FindSomething
   aboutBadgeTitle: 'SomeShelf',

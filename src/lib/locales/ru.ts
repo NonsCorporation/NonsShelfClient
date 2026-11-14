@@ -465,6 +465,7 @@ export const ru = {
   signInToRateHint: 'Войдите, чтобы поставить оценку и написать рецензию.',
 
   close: 'Закрыть',
+  scrollToTop: 'Наверх',
 
   // Discover — signed-out "about SomeShelf" badge above FindSomething
   aboutBadgeTitle: 'SomeShelf',

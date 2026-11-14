@@ -465,6 +465,7 @@ export const ro = {
   signInToRateHint: 'Autentifică-te ca să notezi și să scrii o recenzie pentru acest titlu.',
 
   close: 'Închide',
+  scrollToTop: 'Înapoi sus',
 
   // Discover — signed-out "about SomeShelf" badge above FindSomething
   aboutBadgeTitle: 'SomeShelf',
