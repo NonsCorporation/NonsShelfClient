@@ -656,6 +656,7 @@ export const ro = {
 
   // Librarian dashboard
   librarians: 'Bibliotecari',
+  adminPanel: 'Panou admin',
   librarianDashboard: 'Panoul bibliotecarului',
   editMetadataSubtitle: 'Curatorează catalogul comun — cărți, filme, autori și ediții.',
   tabCatalog: 'Catalog',

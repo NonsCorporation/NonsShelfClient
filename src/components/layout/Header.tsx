@@ -17,8 +17,7 @@ import {
   IoInformationCircleOutline,
   IoPencilOutline,
   IoChatbubblesOutline,
-  IoPawOutline,
-} from 'react-icons/io5'
+  IoPawOutline, IoShieldCheckmarkOutline } from 'react-icons/io5'
 import type { IconType } from 'react-icons'
 import { HiOutlineLibrary } from 'react-icons/hi'
 import { useLanguage } from '../../contexts/LanguageContext'
@@ -244,6 +243,16 @@ export default function Header() {
                       <IoPencilOutline className="h-[18px] w-[18px]" />
                       {t('editProfile')}
                     </Link>
+                    {user?.role === 'admin' && (
+                      <Link
+                        to="/admin"
+                        onClick={() => setAccountOpen(false)}
+                        className={`flex w-full items-center gap-3 px-4 py-3 text-sm transition-colors hover:bg-[var(--surface)] hover:text-[var(--text)] ${path === '/admin' ? 'text-[var(--text)]' : 'text-[var(--text-muted)]'}`}
+                      >
+                        <IoShieldCheckmarkOutline className="h-[18px] w-[18px]" />
+                        {t('adminPanel')}
+                      </Link>
+                    )}
 
                     <div className="h-px bg-[var(--border-subtle)]" />
 
@@ -400,6 +409,16 @@ export default function Header() {
                       >
                         <IoPencilOutline className="h-[18px] w-[18px]" />
                         {t('editProfile')}
+                      </Link>
+                    )}
+                    {user?.role === 'admin' && (
+                      <Link
+                        to="/admin"
+                        onClick={() => setProfileOpen(false)}
+                        className={`flex w-full items-center gap-3 px-4 py-3 text-sm transition-colors hover:bg-[var(--surface)] hover:text-[var(--text)] ${path === '/admin' ? 'text-[var(--text)]' : 'text-[var(--text-muted)]'}`}
+                      >
+                        <IoShieldCheckmarkOutline className="h-[18px] w-[18px]" />
+                        {t('adminPanel')}
                       </Link>
                     )}
                     {isLibrarian(user?.role) && (

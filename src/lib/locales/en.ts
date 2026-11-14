@@ -656,6 +656,7 @@ export const en = {
 
   // Librarian dashboard
   librarians: 'Librarians',
+  adminPanel: 'Admin panel',
   librarianDashboard: 'Librarian dashboard',
   editMetadataSubtitle: 'Curate the shared catalog — books, films, authors and editions.',
   tabCatalog: 'Catalog',

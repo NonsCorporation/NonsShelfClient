@@ -656,6 +656,7 @@ export const ru = {
 
   // Librarian dashboard
   librarians: 'Библиотекари',
+  adminPanel: 'Панель администратора',
   librarianDashboard: 'Панель библиотекаря',
   editMetadataSubtitle: 'Управляйте общим каталогом — книги, фильмы, авторы и издания.',
   tabCatalog: 'Каталог',
