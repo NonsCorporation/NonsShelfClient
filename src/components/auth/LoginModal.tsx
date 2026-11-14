@@ -19,6 +19,7 @@ import {
   type AuthResult,
 } from '@/services/authService'
 import ShelfLogo from '@/components/branding/ShelfLogo'
+import { Link } from '@/lib/router'
 
 // Headline/body translation keys per reason — only what the visitor is being
 // told they're missing changes; the form below is always the same.
@@ -285,6 +286,20 @@ export default function LoginModal({
               {t('authContinueGoogle')}
             </button>
           </>
+        )}
+
+        {(mode === 'login' || mode === 'signup') && (
+          <p className="mt-4 text-center text-[11px] leading-relaxed text-[var(--text-muted)]">
+            {t('authAgreePre')}{' '}
+            <Link to="/legal/terms" onClick={onClose} className="font-medium underline underline-offset-2 hover:text-[var(--text)]">
+              {t('authAgreeTerms')}
+            </Link>{' '}
+            {t('authAgreeAnd')}{' '}
+            <Link to="/legal/privacy" onClick={onClose} className="font-medium underline underline-offset-2 hover:text-[var(--text)]">
+              {t('authAgreePrivacy')}
+            </Link>
+            .
+          </p>
         )}
 
         <div className="mt-4 space-y-1.5 text-center text-xs text-[var(--text-muted)]">
