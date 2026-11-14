@@ -30,6 +30,8 @@ import { useLoginModal } from '../../contexts/LoginModalContext'
 import BoringAvatar from '@/components/ui/BoringAvatar'
 import { userPath, mediaPath } from '../../lib/paths'
 import { isLibrarian } from '../../services/librarianService'
+import { HORIZON_ON, isHorizon } from '../../lib/horizon'
+import GlowingHorizon from '../badges/GlowingHorizon'
 import { catalogService, type CatalogItem } from '../../services/catalogService'
 import TypeBadge from '@/components/badges/TypeBadge'
 import ShelfLogo from '@/components/branding/ShelfLogo'
@@ -256,6 +258,21 @@ export default function Header() {
 
                     <div className="h-px bg-[var(--border-subtle)]" />
 
+                    {HORIZON_ON && (
+                      <>
+                        <Link
+                          to="/horizon"
+                          onClick={() => setAccountOpen(false)}
+                          className="flex w-full items-center gap-3 px-4 py-3 text-sm text-[var(--text-muted)] transition-colors hover:bg-[var(--surface)] hover:text-[var(--text)]"
+                        >
+                          <GlowingHorizon />
+                          {isHorizon(user?.role) ? t('horizonYou') : t('horizonJoin')}
+                        </Link>
+
+                        <div className="h-px bg-[var(--border-subtle)]" />
+                      </>
+                    )}
+
                     <Link
                       to="/about"
                       onClick={() => setAccountOpen(false)}
@@ -450,6 +467,21 @@ export default function Header() {
                 )}
 
                 <div className="h-px bg-[var(--border-subtle)]" />
+
+                {HORIZON_ON && (
+                  <>
+                    <Link
+                      to="/horizon"
+                      onClick={() => setProfileOpen(false)}
+                      className={`flex w-full items-center gap-3 px-4 py-3 text-sm transition-colors hover:bg-[var(--surface)] hover:text-[var(--text)] ${path === '/horizon' ? 'text-[var(--text)]' : 'text-[var(--text-muted)]'}`}
+                    >
+                      <GlowingHorizon />
+                      {isHorizon(user?.role) ? t('horizonYou') : t('horizonJoin')}
+                    </Link>
+
+                    <div className="h-px bg-[var(--border-subtle)]" />
+                  </>
+                )}
 
                 <Link
                   to="/about"

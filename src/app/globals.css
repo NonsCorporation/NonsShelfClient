@@ -537,3 +537,41 @@ html[data-theme="light"] .review-content .spoiler-text.revealed {
 @media (prefers-reduced-motion: reduce) {
   .bubble-wave { animation: none; }
 }
+
+/* Horizon glow — the amber glow on the Horizon mark and the dots drifting around it (GlowingHorizon). */
+.horizon-glow svg {
+  filter: drop-shadow(0 0 2px rgb(245 166 35 / 0.4));
+}
+.horizon-dot {
+  position: absolute;
+  border-radius: 9999px;
+  background: #e8a33a;
+  box-shadow: 0 0 3px 0 rgb(245 166 35 / 0.45);
+  pointer-events: none;
+  animation: horizon-wander 5.5s ease-in-out infinite;
+}
+@keyframes horizon-wander {
+  0%,
+  100% {
+    transform: translate(0, 0);
+    opacity: 0.25;
+  }
+  25% {
+    transform: translate(var(--x1), var(--y1));
+    opacity: 0.75;
+  }
+  50% {
+    transform: translate(var(--x2), var(--y2));
+    opacity: 0.4;
+  }
+  75% {
+    transform: translate(var(--x3), var(--y3));
+    opacity: 0.75;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .horizon-dot {
+    animation: none;
+    opacity: 0.5;
+  }
+}

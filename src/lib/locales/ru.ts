@@ -928,6 +928,10 @@ export const ru = {
 
   // About page
   about: 'О нас',
+  horizonJoin: "Вступить в Horizon",
+  horizonYou: "Вы в Horizon",
+  horizonDesc: "Откройте эксклюзивные функции и значок в профиле с Horizon.",
+  horizonSoon: "Вступление в Horizon пока недоступно — скоро.",
   aboutTitle: 'О SomeShelf',
   aboutSubtitle: 'Маленькая команда, большая полка.',
   aboutIntro1: 'SomeShelf — небольшое место без рекламы, где можно отслеживать, что вы читаете и смотрите, и делиться этим с людьми, которых вы действительно знаете.',

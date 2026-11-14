@@ -2,6 +2,9 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  // Build-time switch for the Horizon UI (menu items, badge, /horizon). Inlined
+  // into the client bundle; anything but 1/true — including unset — means off.
+  env: { HORIZON_ON: process.env.HORIZON_ON ?? '0' },
   // /sitemap.xml is the sitemap index, served by the /sitemaps/[name] route like
   // every other sitemap file (see lib/sitemap.ts).
   async rewrites() {

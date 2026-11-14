@@ -928,6 +928,10 @@ export const ro = {
 
   // About page
   about: 'Despre',
+  horizonJoin: "Alătură-te Horizon",
+  horizonYou: "Ești Horizon",
+  horizonDesc: "Deblochează funcții exclusive și o insignă pe profil cu Horizon.",
+  horizonSoon: "Horizon nu este încă deschis — în curând.",
   aboutTitle: 'Despre SomeShelf',
   aboutSubtitle: 'O echipă mică, un raft mare.',
   aboutIntro1: 'SomeShelf este un loc mic, fără reclame, unde urmărești ce citești și ce vezi și împărtășești asta cu oameni pe care îi cunoști cu adevărat.',

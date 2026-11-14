@@ -999,6 +999,10 @@ export const en = {
 
   // About page
   about: 'About',
+  horizonJoin: "Join Horizon",
+  horizonYou: "You are Horizon",
+  horizonDesc: "Unlock exclusive features and a badge on your profile with Horizon.",
+  horizonSoon: "Horizon is not open to join yet — soon.",
   aboutTitle: 'About SomeShelf',
   aboutSubtitle: 'Small team, big shelf.',
   aboutIntro1: 'SomeShelf is a small, ad-free place to track what you read and watch, and to share it with people you actually know.',
