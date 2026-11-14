@@ -5,6 +5,10 @@ import { IoDiceOutline, IoGlobeOutline, IoLockClosedOutline, IoPeopleOutline } f
 import { Link } from '@/lib/router'
 import BoringAvatar from '@/components/ui/BoringAvatar'
 import EditableAvatar from '@/components/profile/EditableAvatar'
+import BannerArt from '@/components/profile/BannerArt'
+import BannerEditor from '@/components/profile/BannerEditor'
+import { isHorizon } from '@/lib/horizon'
+import { BANNER_SIZE } from '@/lib/bannerSize'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { BIO_MAX, NAME_MAX, buildProfilePatch, formFromAccount, imageToBlob, type ProfileForm, type Visibility } from '@/lib/profile'
@@ -196,11 +200,29 @@ export default function ProfileEditor({ mode, onDone, cancelHref = '/' }: Props)
     }
   }
 
+  // The banner, shown here as on the profile and saved with the rest of the form. The
+  // colour is for everyone; image upload (Horizon members) isn't built yet. It bleeds out over the card's padding (-mx-5/-mt-5,
+  // which is the page's card, so only in edit mode) and the avatar rides over its edge.
+  const hasBanner = mode === 'edit'
+
   return (
     <>
+      {hasBanner && (
+        <BannerArt color={form.bannerColor} avatarUrl={shownAvatar} avatarSeed={`user-${user.id}`} className={`-mx-5 -mt-5 rounded-t-2xl ${BANNER_SIZE.page}`}>
+          <BannerEditor
+            color={form.bannerColor}
+            onChange={(bannerColor) => patch({ bannerColor })}
+            avatarUrl={shownAvatar}
+            avatarSeed={`user-${user.id}`}
+            horizon={isHorizon(user.role)}
+          />
+        </BannerArt>
+      )}
+
       {/* Photo */}
-      <section className="mb-5 flex items-center gap-5 border-b border-[var(--border-subtle)] pb-5">
+      <section className={`mb-5 flex gap-5 border-b border-[var(--border-subtle)] pb-5 ${hasBanner ? 'items-end' : 'items-center'}`}>
         <EditableAvatar
+          className={hasBanner ? 'relative z-10 -mt-10 rounded-full ring-4 ring-[var(--container)]' : ''}
           editable
           hasCustom={!!shownAvatar}
           onPick={onPickPhoto}
