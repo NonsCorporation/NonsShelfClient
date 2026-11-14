@@ -19,13 +19,14 @@ import { isLibrarian } from '../services/librarianService'
 import LibrarianBadge from '@/components/badges/LibrarianBadge'
 import BoringAvatar from '@/components/ui/BoringAvatar'
 import { mediaPath, userPath } from '../lib/paths'
-import { isYearlyReadingGoal, isGoalChallenge, challengeTitle } from '../lib/challenge'
+import { isYearlyReadingGoal } from '../lib/challenge'
 import { STATUS_COLOR, statusLabel } from '../lib/shelf'
 import TypeBadge from '@/components/badges/TypeBadge'
 import ActivityCard from '@/components/feed/ActivityCard'
 import ChallengeActivityCard from '@/components/challenges/ChallengeActivityCard'
 import BingoActivityCard from '@/components/bingo/BingoActivityCard'
 import ProfileBanner from '@/components/profile/ProfileBanner'
+import { TYPE_META } from '@/lib/typeMeta'
 import { isHorizon } from '@/lib/horizon'
 import FinishedBingoRow from '@/components/bingo/FinishedBingoRow'
 import ChallengeShield from '@/components/challenges/ChallengeShield'
@@ -51,15 +52,11 @@ import {
   IoGridOutline,
   IoLocationOutline,
   IoLibraryOutline,
-  IoBookOutline,
-  IoFilmOutline,
-  IoTvOutline,
   IoStar,
   IoFolderOutline,
   IoPeopleOutline,
   IoInformationCircleOutline,
   IoTrophyOutline,
-  IoRibbonOutline,
   IoShareOutline,
   IoPersonAddOutline,
   IoCheckmarkOutline,
@@ -69,7 +66,6 @@ import {
   IoChatbubbleEllipsesOutline,
 } from 'react-icons/io5'
 import { useChat } from '../contexts/ChatContext'
-import type { IconType } from 'react-icons'
 import type { MediaType } from '../types'
 import BookCover from '@/components/media/BookCover'
 
@@ -91,22 +87,11 @@ const SIDE_PREVIEW = 3
 
 type Friend = { username: string; name: string; avatarUrl?: string }
 
-type Translate = (k: string, v?: Record<string, string | number>) => string
-
 // The profile page only ever shows a small preview of the shelf (with a link
 // to the full Goodreads-style /library for everything) — no reason to pull
 // the whole shelf's media rows down just to render this many covers.
 const SHELF_PREVIEW_SIZE = 10
 
-
-// Per-type identity used across the cards: an icon, a label key and an accent
-// colour. Gives books, films and series a distinct, recognisable look instead of
-// leaning on one generic poster treatment.
-const TYPE_META: Record<MediaType, { icon: IconType; labelKey: string; color: string }> = {
-  book: { icon: IoBookOutline, labelKey: 'book', color: '#e0a458' },
-  movie: { icon: IoFilmOutline, labelKey: 'film', color: '#7c8cff' },
-  series: { icon: IoTvOutline, labelKey: 'series', color: '#4fd1c5' },
-}
 
 export default function ProfilePage() {
   const { t } = useLanguage()
