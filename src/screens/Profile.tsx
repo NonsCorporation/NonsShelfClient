@@ -599,7 +599,7 @@ export default function ProfilePage() {
                 </button>
               )}
             </div>
-            <div className={aside ? 'flex flex-wrap gap-4' : 'no-scrollbar -mx-1 flex gap-4 overflow-x-auto px-1 pb-1'}>
+            <div className={aside ? 'grid grid-cols-3 justify-items-center gap-3' : 'no-scrollbar -mx-1 flex gap-4 overflow-x-auto px-1 pb-1'}>
               {ordered.map((c) => (
                 <ChallengeShield key={c.id} challenge={c} t={t} />
               ))}
@@ -632,7 +632,7 @@ export default function ProfilePage() {
 
   return (
     <Layout>
-      <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_21rem] lg:items-start lg:gap-8">
+      <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_23rem] lg:items-start lg:gap-8">
       <div className="min-w-0">
       {/* Profile card — identity, nons link, settings, stats */}
       <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--container)] p-5 sm:p-6">
