@@ -140,17 +140,17 @@ export default function ChallengeActivityCard({
         <LikeButton postId={a.postId} />
         <button
           onClick={() => setShowComments((v) => !v)}
-          className={`inline-flex items-center gap-1.5 font-medium transition-colors ${
+          className={`inline-flex h-5 items-center gap-1.5 font-medium transition-colors ${
             showComments ? 'text-nonsprimary' : 'text-[var(--text-muted)] hover:text-[var(--text)]'
           }`}
         >
           <IoChatbubbleOutline className="h-4 w-4" />
-          {commentCount > 0 && commentCount}
+          <span className="min-w-[0.6rem] text-left tabular-nums">{commentCount > 0 ? commentCount : ''}</span>
         </button>
       </div>
 
-      {!showComments && commentCount > 0 && (
-        <CommentPreview postId={a.postId} commentCount={commentCount} onViewAll={() => setShowComments(true)} />
+      {commentCount > 0 && (
+        <CommentPreview postId={a.postId} commentCount={commentCount} onViewAll={() => setShowComments(true)} collapsed={showComments} />
       )}
 
       {showComments && <CommentThread postId={a.postId} onCountChange={(n) => onCountChange?.(a.postId, n)} />}

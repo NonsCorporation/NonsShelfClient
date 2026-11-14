@@ -14,10 +14,13 @@ export default function CommentPreview({
   postId,
   commentCount,
   onViewAll,
+  collapsed = false,
 }: {
   postId: number
   commentCount: number
   onViewAll: () => void
+  /** The full thread is open: fold the preview away (animated) instead of removing it. */
+  collapsed?: boolean
 }) {
   const { t } = useLanguage()
   const [comment, setComment] = useState<FeedComment | null>(null)
@@ -37,12 +40,21 @@ export default function CommentPreview({
   if (!comment) return null
 
   return (
-    <div className="mt-2 flex items-start gap-2">
-      <span className="flex-shrink-0 overflow-hidden rounded-full" style={{ width: 24, height: 24 }}>
+    // Collapses (rather than vanishing) while the full thread opens below it, so the
+    // post doesn't jump: the thread grows as this shrinks. Inert while collapsed.
+    <div
+      aria-hidden={collapsed}
+      {...({ inert: collapsed } as object)}
+      className={`grid transition-[grid-template-rows] duration-300 ease-out ${collapsed ? 'grid-rows-[0fr]' : 'grid-rows-[1fr]'}`}
+    >
+    <div className={`overflow-hidden transition-opacity duration-200 ${collapsed ? 'opacity-0' : 'opacity-100'}`}>
+    {/* Same avatar size and gap as a comment in the thread, so it stays put when the thread opens. */}
+    <div className="mt-2 flex items-start gap-2.5">
+      <span className="flex-shrink-0 overflow-hidden rounded-full" style={{ width: 28, height: 28 }}>
         {comment.author.avatar_url ? (
           <img src={comment.author.avatar_url} alt={comment.author.name} className="h-full w-full object-cover" />
         ) : (
-          <BoringAvatar size={24} name={`user-${comment.author.id}`} />
+          <BoringAvatar size={28} name={`user-${comment.author.id}`} />
         )}
       </span>
       <div className="min-w-0 flex-1">
@@ -75,6 +87,8 @@ export default function CommentPreview({
         </div>
       </div>
       <CommentMenu body={comment.body} onReply={onViewAll} className="flex-shrink-0" />
+    </div>
+    </div>
     </div>
   )
 }

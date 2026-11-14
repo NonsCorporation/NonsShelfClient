@@ -189,24 +189,24 @@ export default function BingoActivityCard({
         ) : (
           <button
             onClick={() => openLogin()}
-            className="inline-flex items-center gap-1.5 font-medium text-[var(--text-muted)] transition-colors hover:text-[var(--text)]"
+            className="inline-flex h-5 items-center gap-1.5 font-medium text-[var(--text-muted)] transition-colors hover:text-[var(--text)]"
           >
             <IoChevronUp className="h-4 w-4" />
           </button>
         )}
         <button
           onClick={user ? toggleComments : () => openLogin()}
-          className={`inline-flex items-center gap-1.5 font-medium transition-colors ${
+          className={`inline-flex h-5 items-center gap-1.5 font-medium transition-colors ${
             showComments ? 'text-nonsprimary' : 'text-[var(--text-muted)] hover:text-[var(--text)]'
           }`}
         >
           <IoChatbubbleOutline className="h-4 w-4" />
-          {commentCount > 0 && commentCount}
+          <span className="min-w-[0.6rem] text-left tabular-nums">{commentCount > 0 ? commentCount : ''}</span>
         </button>
       </div>
 
-      {!showComments && commentCount > 0 && (
-        <CommentPreview postId={a.postId} commentCount={commentCount} onViewAll={toggleComments} />
+      {commentCount > 0 && (
+        <CommentPreview postId={a.postId} commentCount={commentCount} onViewAll={toggleComments} collapsed={showComments} />
       )}
 
       <div className={`grid transition-[grid-template-rows] duration-300 ease-out ${showComments ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>

@@ -52,12 +52,14 @@ export default function LikeButton(props: Props) {
   return (
     <button
       onClick={toggle}
-      className={`inline-flex items-center gap-1.5 font-medium transition-colors ${
+      // Fixed height and a reserved slot for the count: liking adds a number, and
+      // that must not make the row taller or push the comment button sideways.
+      className={`inline-flex h-5 items-center gap-1.5 font-medium transition-colors ${
         liked ? 'text-nonsprimary' : 'text-[var(--text-muted)] hover:text-[var(--text)]'
       }`}
     >
       <IoChevronUp className={`h-4 w-4 transition-transform ${liked ? '-translate-y-0.5' : ''}`} />
-      {count > 0 && count}
+      <span className="min-w-[0.6rem] text-left tabular-nums">{count > 0 ? count : ''}</span>
     </button>
   )
 }
