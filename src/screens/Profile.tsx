@@ -25,6 +25,8 @@ import TypeBadge from '@/components/badges/TypeBadge'
 import ActivityCard from '@/components/feed/ActivityCard'
 import ChallengeActivityCard from '@/components/challenges/ChallengeActivityCard'
 import BingoActivityCard from '@/components/bingo/BingoActivityCard'
+import ProfileBanner from '@/components/profile/ProfileBanner'
+import { isHorizon } from '@/lib/horizon'
 import FinishedBingoRow from '@/components/bingo/FinishedBingoRow'
 import ChallengeShield from '@/components/challenges/ChallengeShield'
 import { FinishedBingosModal, ChallengesModal } from '@/components/profile/ProfileListModals'
@@ -630,6 +632,9 @@ export default function ProfilePage() {
       </div>
     ) : null
 
+  // The banner is a Horizon perk, shown on that member's profile for every viewer.
+  const hasBanner = isHorizon(profile.role)
+
   // Share (any profile) and settings (own profile) buttons; `size` sets their width/height classes.
   const profileActions = (size: string) => (
     <>
@@ -660,10 +665,13 @@ export default function ProfilePage() {
       <div className="min-w-0">
       {/* Profile card — identity, nons link, settings, stats */}
       <div className="relative rounded-2xl border border-[var(--border-subtle)] bg-[var(--container)] p-5 sm:p-6">
-        {/* Phones: share / settings ride on the card's top-right edge, out of the name's way */}
-        <div className="absolute -top-4 right-4 flex items-center gap-2 sm:hidden">{profileActions('h-9 w-9 bg-[var(--container)]')}</div>
+        {/* Horizon members get a banner (a placeholder for now) */}
+        {hasBanner && <ProfileBanner seed={profile.handle} />}
+        {/* Phones: share / settings ride on the card's top-right edge (on the banner, when there is one), out of the name's way */}
+        <div className={`absolute right-4 flex items-center gap-2 sm:hidden ${hasBanner ? 'top-3' : '-top-4'}`}>{profileActions('h-9 w-9 bg-[var(--container)]')}</div>
         <div className="flex items-start gap-5">
-          <div className="flex flex-shrink-0 flex-col items-center gap-3">
+          {/* With a banner the avatar rides half over its bottom edge, ringed in the card colour */}
+          <div className={`flex flex-shrink-0 flex-col items-center gap-3 ${hasBanner ? 'relative z-10 -mt-10 rounded-full ring-4 ring-[var(--container)]' : ''}`}>
             {profile.avatar ? (
               <img src={profile.avatar} alt={profile.name} className="h-20 w-20 flex-shrink-0 rounded-full object-cover" />
             ) : (
@@ -673,7 +681,7 @@ export default function ProfilePage() {
             )}
           </div>
 
-          <div className="min-w-0 flex-1">
+          <div className={`min-w-0 flex-1 ${hasBanner ? 'pt-3' : ''}`}>
             {/* Name row: the share/settings buttons live here, so they only take
                 width from the name — handle, location and bio below stay full width. */}
             <div className="flex items-start gap-2">
