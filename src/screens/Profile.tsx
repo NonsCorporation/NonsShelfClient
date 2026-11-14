@@ -788,7 +788,9 @@ export default function ProfilePage() {
         </div>
 
         {/* Stats — type composition + avg rating; tab bar below carries status counts */}
-        <div className="mt-5 flex flex-wrap items-stretch gap-x-6 gap-y-3 border-t border-[var(--border-subtle)] pt-4 sm:gap-x-8">
+        <div className="mt-5 flex flex-col gap-3 border-t border-[var(--border-subtle)] pt-4 sm:flex-row sm:flex-wrap sm:items-stretch sm:gap-x-8">
+          {/* Phones: the media types on one centred row, the rating centred on its own below. From sm up it is one row. */}
+          <div className="flex items-stretch justify-center gap-x-6 sm:contents">
           {(['book', 'movie', 'series'] as const)
             .filter((tp) => typeCounts[tp] > 0)
             .map((tp, i) => {
@@ -804,8 +806,9 @@ export default function ProfilePage() {
                 </div>
               )
             })}
+          </div>
           {ratedAvg > 0 && (
-            <div className={`flex flex-col ${(['book', 'movie', 'series'] as const).some((tp) => typeCounts[tp] > 0) ? 'border-l border-[var(--border-subtle)] pl-6 sm:pl-8' : ''}`}>
+            <div className={`flex flex-col items-center sm:items-stretch ${(['book', 'movie', 'series'] as const).some((tp) => typeCounts[tp] > 0) ? 'sm:border-l sm:border-[var(--border-subtle)] sm:pl-8' : ''}`}>
               <span className="flex items-center gap-1.5 text-xl font-bold leading-none text-[var(--text)]">
                 <IoStar className="h-[17px] w-[17px] text-nonsprimaryfocus" />
                 {ratedAvg.toFixed(1)}
