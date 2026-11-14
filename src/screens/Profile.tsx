@@ -630,35 +630,69 @@ export default function ProfilePage() {
       </div>
     ) : null
 
+  // Share (any profile) and settings (own profile) buttons; `size` sets their width/height classes.
+  const profileActions = (size: string) => (
+    <>
+      <button
+        onClick={() => setShareOpen(true)}
+        aria-label={t('shareProfile')}
+        className={`flex ${size} items-center justify-center rounded-xl border border-[var(--border-subtle)] text-[var(--text-muted)] transition-colors hover:bg-[var(--surface)] hover:text-[var(--text)]`}
+      >
+        <IoShareOutline className="h-5 w-5" />
+      </button>
+      {/* Settings — own profile only; opens the edit page */}
+      {isSelf && (
+        <Link
+          to={`/u/${encodeURIComponent(routeId || profile.handle)}/edit`}
+          aria-label={t('settingsTitle')}
+          title={t('settingsTitle')}
+          className={`flex ${size} items-center justify-center rounded-xl border border-[var(--border-subtle)] text-[var(--text-muted)] transition-colors hover:bg-[var(--surface)] hover:text-[var(--text)]`}
+        >
+          <IoSettingsOutline className="h-5 w-5" />
+        </Link>
+      )}
+    </>
+  )
+
   return (
     <Layout>
       <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_23rem] lg:items-start lg:gap-8">
       <div className="min-w-0">
       {/* Profile card — identity, nons link, settings, stats */}
-      <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--container)] p-5 sm:p-6">
+      <div className="relative rounded-2xl border border-[var(--border-subtle)] bg-[var(--container)] p-5 sm:p-6">
+        {/* Phones: share / settings ride on the card's top-right edge, out of the name's way */}
+        <div className="absolute -top-4 right-4 flex items-center gap-2 sm:hidden">{profileActions('h-9 w-9 bg-[var(--container)]')}</div>
         <div className="flex items-start gap-5">
-          {profile.avatar ? (
-            <img src={profile.avatar} alt={profile.name} className="h-20 w-20 flex-shrink-0 rounded-full object-cover" />
-          ) : (
-            <span className="flex-shrink-0 overflow-hidden rounded-full" style={{ width: 80, height: 80 }}>
-              <BoringAvatar size={80} name={`user-${profile.id}`} />
-            </span>
-          )}
+          <div className="flex flex-shrink-0 flex-col items-center gap-3">
+            {profile.avatar ? (
+              <img src={profile.avatar} alt={profile.name} className="h-20 w-20 flex-shrink-0 rounded-full object-cover" />
+            ) : (
+              <span className="flex-shrink-0 overflow-hidden rounded-full" style={{ width: 80, height: 80 }}>
+                <BoringAvatar size={80} name={`user-${profile.id}`} />
+              </span>
+            )}
+          </div>
 
           <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <h1 className="truncate text-2xl font-bold tracking-tight text-[var(--text)]">{profile.name}</h1>
-              {isLibrarian(profile.role) && <LibrarianBadge />}
+            {/* Name row: the share/settings buttons live here, so they only take
+                width from the name — handle, location and bio below stay full width. */}
+            <div className="flex items-start gap-2">
+              <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+                <h1 className="min-w-0 break-words text-2xl font-bold leading-8 tracking-tight text-[var(--text)]">{profile.name}</h1>
+                {isLibrarian(profile.role) && <LibrarianBadge />}
+              </div>
+              {/* Share / settings — beside the name from sm up; on phones they sit under the avatar */}
+              <div className="-my-1 hidden flex-shrink-0 items-center gap-2 sm:flex">{profileActions('h-10 w-10')}</div>
             </div>
-            <p className="text-sm text-[var(--text-muted)]">@{profile.handle}</p>
+            <p className="mt-1 text-sm leading-snug text-[var(--text-muted)]">@{profile.handle}</p>
 
             {/* Bio + location — the server only sends what this viewer may see */}
             {profile.bio && (
               <p className="mt-2 whitespace-pre-line break-words text-sm text-[var(--text)]">{profile.bio}</p>
             )}
             {profile.location && (
-              <p className="mt-1.5 flex items-center gap-1 text-xs text-[var(--text-muted)]">
-                <IoLocationOutline className="h-3.5 w-3.5 flex-shrink-0" />
+              <p className="mt-1 flex items-center gap-1 text-sm leading-snug text-[var(--text-muted)]">
+                <IoLocationOutline className="h-4 w-4 flex-shrink-0" />
                 {profile.location}
               </p>
             )}
@@ -750,29 +784,6 @@ export default function ProfilePage() {
               </div>
             )}
             {!isSelf && msgError && <p role="alert" className="mt-2 text-xs text-red-400">{msgError}</p>}
-          </div>
-
-          {/* Share — any profile; opens the shareable image/QR card */}
-          <div className="flex flex-shrink-0 items-center gap-2">
-            <button
-              onClick={() => setShareOpen(true)}
-              aria-label={t('shareProfile')}
-              className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border-subtle)] text-[var(--text-muted)] transition-colors hover:bg-[var(--surface)] hover:text-[var(--text)]"
-            >
-              <IoShareOutline className="h-5 w-5" />
-            </button>
-
-            {/* Settings — own profile only; opens the edit page */}
-            {isSelf && (
-              <Link
-                to={`/u/${encodeURIComponent(routeId || profile.handle)}/edit`}
-                aria-label={t('settingsTitle')}
-                title={t('settingsTitle')}
-                className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border-subtle)] text-[var(--text-muted)] transition-colors hover:bg-[var(--surface)] hover:text-[var(--text)]"
-              >
-                <IoSettingsOutline className="h-5 w-5" />
-              </Link>
-            )}
           </div>
         </div>
 
