@@ -65,6 +65,10 @@ export default function About() {
           <Link to="/legal/terms" className="hover:text-[var(--text)] hover:underline">
             Terms and conditions
           </Link>
+          {' · '}
+          <Link to="/legal/privacy" className="hover:text-[var(--text)] hover:underline">
+            Privacy policy
+          </Link>
         </p>
       </div>
     </Layout>

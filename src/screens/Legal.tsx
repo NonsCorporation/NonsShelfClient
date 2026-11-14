@@ -4,12 +4,17 @@ import { IoChevronForward, IoDocumentTextOutline } from 'react-icons/io5'
 import Layout from '../components/layout/Layout'
 import { Link } from '@/lib/router'
 
-// /legal — the index of the legal pages. Terms only, for now.
+// /legal — the index of the legal pages.
 const PAGES = [
   {
     to: '/legal/terms',
     title: 'Terms and conditions',
     hint: 'Using SomeShelf, and how Horizon payments, renewals, cancellation and refunds work.',
+  },
+  {
+    to: '/legal/privacy',
+    title: 'Privacy policy',
+    hint: 'What we collect, why, who sees it, how long we keep it and your rights.',
   },
 ]
 
