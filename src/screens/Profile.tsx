@@ -25,10 +25,11 @@ import TypeBadge from '@/components/badges/TypeBadge'
 import ActivityCard from '@/components/feed/ActivityCard'
 import ChallengeActivityCard from '@/components/challenges/ChallengeActivityCard'
 import BingoActivityCard from '@/components/bingo/BingoActivityCard'
-import { BoardPreview } from '@/components/bingo/BingoGrid'
-import { bingoPath, emptyCells } from '@/lib/bingo'
+import FinishedBingoRow from '@/components/bingo/FinishedBingoRow'
+import ChallengeShield from '@/components/challenges/ChallengeShield'
+import { FinishedBingosModal, ChallengesModal } from '@/components/profile/ProfileListModals'
 import ProfileShareModal from '@/components/profile/ProfileShareModal'
-import { getUserActivity, colorFor, type Activity } from '../services/activityService'
+import { getUserActivity, getUserFinishedBingos, colorFor, type Activity, type BingoFeedRun } from '../services/activityService'
 import { getCommentCounts } from '../services/commentService'
 import {
   getFriendshipStatus,
@@ -82,6 +83,9 @@ type ProfileView = {
 }
 
 type Tab = 'all' | ShelfStatus
+
+/** How many challenges / finished bingos the profile shows before "view all". */
+const SIDE_PREVIEW = 3
 
 type Friend = { username: string; name: string; avatarUrl?: string }
 
@@ -139,8 +143,11 @@ export default function ProfilePage() {
   const [postsLoading, setPostsLoading] = useState(false)
   const [postCommentCounts, setPostCommentCounts] = useState<Record<string, number>>({})
   const postsRef = useRef<HTMLElement>(null)
-  // Finished bingos for the side column: taken from the newest page of posts only, so paging the feed doesn't change them.
-  const [finishedBingos, setFinishedBingos] = useState<Activity[]>([])
+  // The newest few finished bingos (side column); the rest are paged in a popup on demand.
+  const [finishedBingos, setFinishedBingos] = useState<BingoFeedRun[]>([])
+  const [finishedTotal, setFinishedTotal] = useState(0)
+  const [challengesTotal, setChallengesTotal] = useState(0)
+  const [listModal, setListModal] = useState<'bingos' | 'challenges' | null>(null)
   const { collections } = useCollections()
   // Another user's collections (view/filter only, public — same visibility as
   // their shelf). Empty when viewing your own profile (collections comes from
@@ -241,7 +248,17 @@ export default function ProfilePage() {
   useEffect(() => {
     if (!profile) return
     let cancelled = false
-    challengeService.listUserChallenges(profile.id).then((cs) => { if (!cancelled) setChallenges(cs) })
+    // Only the first few: the rest are paged in the "view all" popup.
+    challengeService.listUserChallenges(profile.id, { limit: SIDE_PREVIEW }).then((r) => {
+      if (cancelled) return
+      setChallenges(r.challenges)
+      setChallengesTotal(r.total)
+    })
+    getUserFinishedBingos(profile.handle, SIDE_PREVIEW).then((r) => {
+      if (cancelled) return
+      setFinishedBingos(r.items)
+      setFinishedTotal(r.total)
+    })
     return () => { cancelled = true }
   }, [profile])
 
@@ -350,7 +367,6 @@ export default function ProfilePage() {
         if (cancelled) return
         setPosts(res.items)
         setPostsTotal(res.total)
-        if (postsPage === 0) setFinishedBingos(res.items.filter((x) => x.bingo))
         // Comment counts need an account (signed-out visitors just see the posts).
         if (authUser) {
           getCommentCounts(res.items.map((a) => a.postId))
@@ -567,14 +583,21 @@ export default function ProfilePage() {
         const rest = challenges.filter((c) => !isYearlyReadingGoal(c, year))
         const list = [...(reading ? [reading] : []), ...rest]
         // Official first (purple), then community (silver).
-        const ordered = [...list.filter((c) => c.official), ...list.filter((c) => !c.official)]
-        if (ordered.length === 0) return null
+        const all = [...list.filter((c) => c.official), ...list.filter((c) => !c.official)]
+        if (all.length === 0) return null
+        const ordered = all.slice(0, SIDE_PREVIEW)
+        const hasMore = challengesTotal > SIDE_PREVIEW || all.length > SIDE_PREVIEW
         const aside = where === 'aside'
         return (
           <div className={aside ? 'rounded-2xl border border-[var(--border-subtle)] bg-[var(--container)] p-5' : 'mt-6 lg:hidden'}>
             <div className="mb-3 flex items-center gap-2">
               <IoTrophyOutline className="h-4 w-4 text-[var(--text-muted)]" />
               <span className="text-sm font-semibold text-[var(--text)]">{t('challenges')}</span>
+              {hasMore && (
+                <button type="button" onClick={() => setListModal('challenges')} className="ml-auto text-xs font-medium text-nonsprimary hover:underline">
+                  {t('viewAll')}
+                </button>
+              )}
             </div>
             <div className={aside ? 'flex flex-wrap gap-4' : 'no-scrollbar -mx-1 flex gap-4 overflow-x-auto px-1 pb-1'}>
               {ordered.map((c) => (
@@ -592,39 +615,17 @@ export default function ProfilePage() {
         <div className="mb-3 flex items-center gap-2">
           <IoGridOutline className="h-4 w-4 text-[var(--text-muted)]" />
           <span className="text-sm font-semibold text-[var(--text)]">{t('bingoFinishedTitle')}</span>
-          <span className="text-xs text-[var(--text-muted)]">{finishedBingos.length}</span>
+          <span className="text-xs text-[var(--text-muted)]">{finishedTotal}</span>
+          {finishedTotal > finishedBingos.length && (
+            <button type="button" onClick={() => setListModal('bingos')} className="ml-auto text-xs font-medium text-nonsprimary hover:underline">
+              {t('viewAll')}
+            </button>
+          )}
         </div>
         <div className="flex flex-col gap-3">
-          {finishedBingos.map((a) => {
-            const run = a.bingo!
-            const player = a.user.uuid || a.user.handle
-            return (
-              <Link
-                key={a.id}
-                to={player ? bingoPath(run.boardId, player, run.runId) : bingoPath(run.boardId)}
-                title={run.title}
-                className="group flex items-center gap-3"
-              >
-                <span className="w-16 flex-shrink-0 overflow-hidden rounded-lg">
-                  <BoardPreview
-                    rows={run.rows}
-                    cols={run.cols}
-                    cells={run.cells ?? emptyCells(run.rows, run.cols)}
-                    freeCenter={run.freeCenter}
-                    kind={run.kind}
-                    mask={run.mask}
-                    answers={run.answers}
-                  />
-                </span>
-                <span className="min-w-0">
-                  <span className="line-clamp-2 text-sm font-medium leading-snug text-[var(--text)] group-hover:text-nonsprimary">{run.title}</span>
-                  <span className="mt-0.5 block text-xs text-[var(--text-muted)]">
-                    {run.rows}×{run.cols} · {t('bingoLinesMany', { count: run.lines })} · {a.timeAgo}
-                  </span>
-                </span>
-              </Link>
-            )
-          })}
+          {finishedBingos.map((r) => (
+            <FinishedBingoRow key={`${r.boardId}/${r.runId}`} run={r} player={profile.handle} />
+          ))}
         </div>
       </div>
     ) : null
@@ -968,6 +969,9 @@ export default function ProfilePage() {
       </aside>
       </div>
 
+      {listModal === 'bingos' && <FinishedBingosModal user={profile.handle} total={finishedTotal} onClose={() => setListModal(null)} />}
+      {listModal === 'challenges' && <ChallengesModal userId={profile.id} total={challengesTotal} onClose={() => setListModal(null)} />}
+
       <ProfileShareModal
         isOpen={shareOpen}
         onClose={() => setShareOpen(false)}
@@ -1003,52 +1007,6 @@ function myStatusItem(a: Activity, myStatuses: Map<string, ShelfStatus>): MediaI
     year: a.mediaYear,
     status,
   }
-}
-
-// Shield gradients carry the challenge kind at a glance: a rich purple for
-// official challenges (the reading challenge), a brushed-silver/graphite for
-// community-authored ones. Both keep white shield text readable. Plain hex via
-// inline style rather than Tailwind palette classes, which run too bright here.
-const OFFICIAL_GRADIENT = 'linear-gradient(135deg, #7c4dff, #2b1a66)'
-const COMMUNITY_GRADIENT = 'linear-gradient(135deg, #9aa0ad, #3a3d44)'
-
-// One challenge, as a shield: a gradient badge (purple for official, silver for
-// community) with the title and "progress/target" inside. Solid border once the
-// target's been hit, dashed while still in progress. A goal challenge with no
-// number set yet (your own unjoined reading challenge) shows a "set goal"
-// prompt instead of progress, so the shield doubles as a join affordance.
-function ChallengeShield({ challenge, t }: { challenge: Challenge; t: Translate }) {
-  const target = challenge.target ?? 0
-  const progress = challenge.progress ?? 0
-  const completed = (challenge.completed_at ?? 0) > 0
-  const gradient = challenge.official ? OFFICIAL_GRADIENT : COMMUNITY_GRADIENT
-  const title = challengeTitle(t, challenge)
-  const goalPending = isGoalChallenge(challenge) && target === 0
-
-  return (
-    <Link
-      to={`/challenge/${challenge.uuid}`}
-      title={title}
-      className="group flex w-24 flex-shrink-0 flex-col items-center"
-    >
-      <div
-        style={{ clipPath: 'polygon(0% 0%, 100% 0%, 100% 68%, 50% 100%, 0% 68%)', background: gradient }}
-        className={`flex h-28 w-24 flex-col items-center justify-center gap-1 p-3 text-center transition-transform group-hover:-translate-y-0.5 ${
-          completed ? 'border-2 border-white/80' : 'border-2 border-dashed border-white/45'
-        }`}
-      >
-        {challenge.official && <IoRibbonOutline className="h-3.5 w-3.5 text-white/90" />}
-        <span className="line-clamp-3 text-[11px] font-bold leading-tight text-white drop-shadow-sm">
-          {title}
-        </span>
-        {target > 0 ? (
-          <span className="text-[10px] font-semibold text-white/85">{progress}/{target}</span>
-        ) : goalPending ? (
-          <span className="text-[10px] font-semibold text-white/85">{t('setGoal')}</span>
-        ) : null}
-      </div>
-    </Link>
-  )
 }
 
 // A 2:3 poster with the type badge. `children` overlay on top of the cover

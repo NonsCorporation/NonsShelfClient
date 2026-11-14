@@ -779,6 +779,7 @@ export const ru = {
   selectedEdition: 'Выбрано',
   findByIsbn: 'Поиск по ISBN…',
   loadMore: 'Показать ещё',
+  viewAll: 'Показать все',
   rusify: 'В кириллицу',
   rusifyAll: 'Перевести в кириллицу',
   autoFindEditions: 'Найти издания',

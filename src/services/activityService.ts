@@ -90,6 +90,8 @@ export type BingoFeedRun = {
   /** Curated by the site: its share image carries no name. */
   official?: boolean
   runId: string
+  /** Unix seconds the run was finished at. */
+  finishedAt?: number
   done: number
   total: number
   lines: number
@@ -105,6 +107,7 @@ export type BingoFeedRun = {
 type WireBingoFeedRun = {
   board: { id: string; kind: BingoKind; title: string; rows: number; cols: number; free_center?: boolean; official?: boolean }
   run_id: string
+  finished_at?: number
   done: number
   total: number
   lines: number
@@ -123,6 +126,7 @@ function toBingoFeedRun(w: WireBingoFeedRun): BingoFeedRun {
     freeCenter: !!w.board.free_center,
     ...(w.board.official ? { official: true } : {}),
     runId: w.run_id,
+    ...(w.finished_at ? { finishedAt: w.finished_at } : {}),
     done: w.done,
     total: w.total,
     lines: w.lines,
@@ -352,6 +356,21 @@ export const activityService: IActivityService = new ApiActivityService()
  *  the server to exclude "liked"/"commented" echo events — this profile
  *  timeline shows what this person actually posted, not what they reacted to
  *  (which has no viewer-relative context to render correctly here anyway). */
+/**
+ * One page of a player's finished bingos, newest first (`user` = uuid or
+ * username). Lets the profile show a few and page through the rest on demand.
+ */
+export async function getUserFinishedBingos(user: string, limit: number, offset = 0): Promise<{ items: BingoFeedRun[]; total: number }> {
+  const params = new URLSearchParams({ limit: String(limit), offset: String(offset) })
+  const res = await authedFetch(`/api/bingo/users/${encodeURIComponent(user)}/finished?${params}`)
+  if (!res.ok) return { items: [], total: 0 }
+  const body = (await res.json()) as { items?: WireBingoFeedRun[]; total?: number }
+  return { items: (body.items ?? []).map(toBingoFeedRun), total: body.total ?? 0 }
+}
+
+/** "3d", "2w" … for a Unix-seconds timestamp. */
+export const shortTimeAgo = (at: number): string => timeAgo(at)
+
 export async function getUserActivity(
   userId: number,
   userInfo: Activity['user'],

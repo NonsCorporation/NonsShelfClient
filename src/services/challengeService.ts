@@ -33,12 +33,15 @@ async function getChallenge(idOrUuid: string | number): Promise<Challenge | null
 }
 
 /** The challenges a user has joined, with progress always computed for that
- *  user — powers the profile page's "challenges" section. */
-async function listUserChallenges(userId: number): Promise<Challenge[]> {
-  const res = await authedFetch(`/api/users/${userId}/challenges`)
-  if (!res.ok) return []
+ *  user — powers the profile page's "challenges" section. Pass `page` to get
+ *  just one slice (official first, then newest); `total` is always the full count. */
+async function listUserChallenges(userId: number, page?: { limit: number; offset?: number }): Promise<{ challenges: Challenge[]; total: number }> {
+  const qs = page ? `?limit=${page.limit}&offset=${page.offset ?? 0}` : ''
+  const res = await authedFetch(`/api/users/${userId}/challenges${qs}`)
+  if (!res.ok) return { challenges: [], total: 0 }
   const data = await res.json()
-  return (data.challenges ?? []) as Challenge[]
+  const challenges = (data.challenges ?? []) as Challenge[]
+  return { challenges, total: data.total ?? challenges.length }
 }
 
 export type CreateChallengeInput = {

@@ -779,6 +779,7 @@ export const en = {
   selectedEdition: 'Selected',
   findByIsbn: 'Find by ISBN…',
   loadMore: 'Load more',
+  viewAll: 'View all',
   rusify: 'Rusify title',
   rusifyAll: 'Rusify romanized titles',
   autoFindEditions: 'Auto-find editions',

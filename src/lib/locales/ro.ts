@@ -779,6 +779,7 @@ export const ro = {
   selectedEdition: 'Selectat',
   findByIsbn: 'Caută după ISBN…',
   loadMore: 'Încarcă mai mult',
+  viewAll: 'Vezi toate',
   rusify: 'Transliterează în chirilică',
   rusifyAll: 'Transliterează titlurile romanizate',
   autoFindEditions: 'Găsește ediții automat',
