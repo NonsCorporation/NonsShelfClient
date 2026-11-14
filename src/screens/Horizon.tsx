@@ -37,7 +37,15 @@ export default function Horizon() {
 
         {/* The last word */}
         <p className="mb-4 mt-14 text-center text-lg font-medium leading-snug text-[var(--text)] sm:text-xl">
-          {t('horizonFinally')} <em className="font-semibold italic text-[#f5a623]">{t('horizonFinallyGrow')}</em>.
+          {t('horizonFinally')
+            .split('SomeShelf')
+            .map((part, i, parts) => (
+              <span key={i}>
+                {part}
+                {i < parts.length - 1 && <span className="font-semibold text-nonsprimaryfocus">SomeShelf</span>}
+              </span>
+            ))}{' '}
+          <em className="font-semibold italic text-[#f5a623]">{t('horizonFinallyGrow')}</em>.
         </p>
       </div>
     </Layout>
