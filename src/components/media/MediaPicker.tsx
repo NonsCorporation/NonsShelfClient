@@ -5,6 +5,7 @@ import type { CatalogItem } from '@/services/catalogService'
 import type { MediaType } from '@/types'
 import { useLanguage } from '@/contexts/LanguageContext'
 import BookCover from '@/components/media/BookCover'
+import TypeBadge from '@/components/badges/TypeBadge'
 
 type Props = {
   /** Restrict results to one media type; omit to search books and movies alike. */
@@ -60,18 +61,19 @@ export default function MediaPicker({ type, excludeId, onPick }: Props) {
               key={m.id}
               type="button"
               onClick={() => onPick(m)}
-              className="flex items-center gap-2.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] px-3 py-2 text-left transition-colors hover:border-nonsprimary"
+              className="relative flex items-center gap-2.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] px-3 py-2 text-left transition-colors hover:border-nonsprimary"
             >
               <div className="h-10 w-7 flex-shrink-0 overflow-hidden rounded bg-[var(--container-2)]">
                 <BookCover url={m.coverUrl} title={m.title} author={m.author} />
               </div>
-              <div className="min-w-0">
+              <div className="min-w-0 pr-7">
                 <p className="truncate text-sm text-[var(--text)]">{m.title}</p>
                 <p className="truncate text-xs text-[var(--text-muted)]">
                   {(m.type === 'book' ? m.author : m.director || m.author) || ''}
                   {m.year ? ` · ${m.year}` : ''}
                 </p>
               </div>
+              {!type && <TypeBadge type={m.type} position="right-2 top-2" size="h-6 w-6" iconSize="h-3 w-3" />}
             </button>
           ))}
         </div>

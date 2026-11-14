@@ -1,10 +1,11 @@
 'use client'
 
 import { memo, useMemo } from 'react'
-import { IoAdd, IoBookOutline, IoCheckmark, IoFilmOutline, IoStar, IoTvOutline } from 'react-icons/io5'
+import { IoAdd, IoCheckmark, IoStar } from 'react-icons/io5'
 import { centerIndex, type BingoCell, type BingoKind } from '@/lib/bingo'
 import { boardImage } from '@/lib/bingoImage'
 import { hashHue } from '@/lib/hashHue'
+import TypeBadge from '@/components/badges/TypeBadge'
 import { useLanguage } from '@/contexts/LanguageContext'
 
 type Props = {
@@ -30,8 +31,6 @@ type Props = {
   /** Native title tooltips on squares (off where the caller shows its own). */
   tooltips?: boolean
 }
-
-const TYPE_ICON = { book: IoBookOutline, movie: IoFilmOutline, series: IoTvOutline } as const
 
 function tileBackground(title: string) {
   const h = hashHue(title)
@@ -97,6 +96,7 @@ const PromptCell = memo(function PromptCell({ i, cell, art, free, interactive, f
                 {promptText}
               </span>
             </span>
+            {art.type && <TypeBadge type={art.type} position="right-1 top-1" size="h-4 w-4 sm:h-5 sm:w-5" iconSize="h-2.5 w-2.5 sm:h-3 sm:w-3" />}
           </>
         ) : (
           <span className="flex h-full w-full flex-col items-center justify-center gap-1 rounded-md border border-dashed border-[var(--border)] bg-[var(--surface)] p-1.5 text-center">
@@ -118,7 +118,6 @@ const PromptCell = memo(function PromptCell({ i, cell, art, free, interactive, f
 const Cell = memo(function Cell({ i, cell, art, free, done, selected, prompt, mini, dense, editing, interactive, freeLabel, emptyLabel, tooltips }: CellProps) {
   const small = mini || dense
   const radius = dense ? 'rounded-[2px]' : mini ? 'rounded-[3px]' : 'rounded-lg sm:rounded-xl'
-  const Icon = art?.type ? TYPE_ICON[art.type] : null
   const label = free ? freeLabel : prompt ? `${cell?.title ?? ''}${art ? ` — ${art.title}` : ''}` : cell?.title || emptyLabel
   const ring = selected ? 'ring-2 ring-nonsprimary ring-offset-1 ring-offset-[var(--container)]' : ''
 
@@ -142,7 +141,6 @@ const Cell = memo(function Cell({ i, cell, art, free, done, selected, prompt, mi
         {!small && (
           <>
             {art.coverUrl && <span className="absolute inset-0 bg-black/55" />}
-            {Icon && !art.coverUrl && <Icon className="absolute left-1 top-1 h-3 w-3 text-white/60 sm:left-1.5 sm:top-1.5 sm:h-3.5 sm:w-3.5" />}
             {/* Text on a cover sits in the middle, over the darkened cover, so it never gets cut off at the edge. */}
             <span className="absolute inset-0 flex items-center justify-center p-1.5 text-center">
               <span
@@ -152,6 +150,7 @@ const Cell = memo(function Cell({ i, cell, art, free, done, selected, prompt, mi
                 {art.title}
               </span>
             </span>
+            {art.type && <TypeBadge type={art.type} position="right-1 top-1 sm:right-1.5 sm:top-1.5" size="h-4 w-4 sm:h-5 sm:w-5" iconSize="h-2.5 w-2.5 sm:h-3 sm:w-3" />}
           </>
         )}
       </>
