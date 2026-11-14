@@ -328,14 +328,18 @@ export default function Header() {
             { to: '/discover', icon: IoCompassOutline, label: t('discover') || 'Discover', active: path === '/discover' },
             { to: '/library', icon: IoLibraryOutline, label: t('library') || 'Library', active: path === '/library' },
             { to: '/statistics', icon: IoCalendarOutline, label: t('statistics') || 'Statistics', active: path === '/statistics' },
-          ].map(({ to, icon: Icon, label, active }) => (
+          ].map(({ to, icon: Icon, label, active }, i) => (
             <Link
               key={to}
               to={to}
-              className="relative flex flex-col items-center gap-1 rounded-2xl px-3 py-2"
+              className={`relative flex flex-col items-center gap-1 px-3 py-2 ${
+                i === 0 ? 'rounded-l-[27px] rounded-r-2xl' : 'rounded-2xl'
+              }`}
             >
               <span
-                className={`absolute inset-0 origin-center rounded-2xl bg-[var(--surface)] ring-1 ring-inset ring-[var(--border-subtle)] transition-all duration-200 ease-out ${
+                className={`absolute inset-0 origin-center bg-[var(--surface)] ring-1 ring-inset ring-[var(--border-subtle)] transition-all duration-200 ease-out ${
+                  i === 0 ? 'rounded-l-[27px] rounded-r-2xl' : 'rounded-2xl'
+                } ${
                   active ? 'scale-100 opacity-100' : 'scale-[0.8] opacity-0'
                 }`}
               />
