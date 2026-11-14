@@ -23,6 +23,7 @@ import { boardImage } from '@/lib/bingoImage'
 import { useCoverInfos } from '@/lib/bingoCovers'
 import { hashHue } from '@/lib/hashHue'
 import BoringAvatar from '@/components/ui/BoringAvatar'
+import UserHoverCard from '@/components/ui/UserHoverCard'
 import DropdownMenu from '@/components/ui/DropdownMenu'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 import LibrarianBadge from '@/components/badges/LibrarianBadge'
@@ -128,23 +129,27 @@ export default function BingoActivityCard({
       {showReactionBanner && <ReactionBanner payload={a.userReactionPayload!} />}
 
       <div className="mb-3 flex items-center gap-2.5">
-        <Link
-          to={userPath(a.user.handle || a.user.uuid || '')}
-          className="flex-shrink-0 overflow-hidden rounded-full"
-          style={{ width: 36, height: 36 }}
-          title={a.user.name}
-        >
-          {a.user.avatarUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={a.user.avatarUrl} alt={a.user.name} loading="lazy" className="h-9 w-9 rounded-full object-cover" />
-          ) : (
-            <BoringAvatar size={36} name={`user-${a.userId}`} />
-          )}
-        </Link>
-        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-sm leading-6 text-[var(--text)]">
-          <Link to={userPath(a.user.handle || a.user.uuid || '')} className="flex-shrink-0 font-semibold hover:underline">
-            {a.user.name}
+        <UserHoverCard username={a.user.handle}>
+          <Link
+            to={userPath(a.user.handle || a.user.uuid || '')}
+            className="flex-shrink-0 overflow-hidden rounded-full"
+            style={{ width: 36, height: 36 }}
+            title={a.user.name}
+          >
+            {a.user.avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={a.user.avatarUrl} alt={a.user.name} loading="lazy" className="h-9 w-9 rounded-full object-cover" />
+            ) : (
+              <BoringAvatar size={36} name={`user-${a.userId}`} />
+            )}
           </Link>
+        </UserHoverCard>
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-sm leading-6 text-[var(--text)]">
+          <UserHoverCard username={a.user.handle}>
+            <Link to={userPath(a.user.handle || a.user.uuid || '')} className="flex-shrink-0 font-semibold hover:underline">
+              {a.user.name}
+            </Link>
+          </UserHoverCard>
           {isLibrarian(a.user.role) && <LibrarianBadge className="h-4 w-4 flex-shrink-0" />}
           <span className="flex-shrink-0 text-[var(--text-muted)]">{t('verbFinishedBingo')}</span>
           <Link to={to} className="min-w-0 font-semibold hover:text-nonsprimary">
