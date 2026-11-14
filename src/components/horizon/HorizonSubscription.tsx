@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { IoCardOutline, IoCheckmarkCircle, IoOpenOutline } from 'react-icons/io5'
-import { useSearchParams } from '@/lib/router'
+import { Link, useSearchParams } from '@/lib/router'
 import { useAuth } from '@/contexts/AuthContext'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { useLoginModal } from '@/contexts/LoginModalContext'
@@ -162,6 +162,13 @@ export default function HorizonSubscription() {
                   )}
                 </span>
               ))}
+          </p>
+          <p className="text-xs text-[var(--text-muted)]">
+            {t('horizonTermsPre')}{' '}
+            <Link to="/legal/terms" className="font-medium text-nonsprimary underline-offset-2 hover:underline">
+              {t('horizonTermsLink')}
+            </Link>
+            .
           </p>
           {hasSubscription && (
             <button type="button" onClick={manage} disabled={busy} className="self-start text-xs font-medium text-nonsprimary hover:underline">

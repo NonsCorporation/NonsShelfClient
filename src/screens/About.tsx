@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { IoChevronDown } from 'react-icons/io5'
 import Layout from '../components/layout/Layout'
+import { Link } from '@/lib/router'
 import { useLanguage } from '../contexts/LanguageContext'
 
 function FaqItem({ question, answer }: { question: string; answer: string }) {
@@ -56,6 +57,15 @@ export default function About() {
           ))}
         </div>
 
+        <p className="mt-6 text-center text-xs text-[var(--text-muted)]">
+          <Link to="/legal" className="hover:text-[var(--text)] hover:underline">
+            Legal
+          </Link>
+          {' · '}
+          <Link to="/legal/terms" className="hover:text-[var(--text)] hover:underline">
+            Terms and conditions
+          </Link>
+        </p>
       </div>
     </Layout>
   )

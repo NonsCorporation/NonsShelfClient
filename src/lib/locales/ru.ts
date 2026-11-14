@@ -934,6 +934,8 @@ export const ru = {
   horizonSoon: "Вступление в Horizon пока недоступно — скоро.",
   horizonJoinPrice: "Вступить в Horizon — $3 / месяц",
   horizonCheckoutNote: "Безопасная оплата через Polar. Отменить можно в любой момент — Horizon останется до конца оплаченного месяца.",
+  horizonTermsPre: "Вступая, вы принимаете",
+  horizonTermsLink: "Условия использования",
   horizonManage: "Управлять подпиской",
   horizonRenewsOn: "Продлится {date}",
   horizonActiveUntil: "Активен до {date}",

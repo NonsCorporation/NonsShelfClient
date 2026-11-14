@@ -934,6 +934,8 @@ export const ro = {
   horizonSoon: "Horizon nu este încă deschis — în curând.",
   horizonJoinPrice: "Alătură-te Horizon — 3 $ / lună",
   horizonCheckoutNote: "Plată securizată prin Polar. Anulezi oricând; Horizon rămâne până la sfârșitul lunii plătite.",
+  horizonTermsPre: "Alăturându-te, accepți",
+  horizonTermsLink: "Termenii și condițiile",
   horizonManage: "Gestionează abonamentul",
   horizonRenewsOn: "Se reînnoiește pe {date}",
   horizonActiveUntil: "Activ până pe {date}",

@@ -1005,6 +1005,8 @@ export const en = {
   horizonSoon: "Horizon is not open to join yet — soon.",
   horizonJoinPrice: "Join Horizon — $3 / month",
   horizonCheckoutNote: "Secure checkout by Polar. Cancel any time; Horizon stays until the end of the paid month.",
+  horizonTermsPre: "By joining you agree to the",
+  horizonTermsLink: "Terms and conditions",
   horizonManage: "Manage subscription",
   horizonRenewsOn: "Renews on {date}",
   horizonActiveUntil: "Active until {date}",
