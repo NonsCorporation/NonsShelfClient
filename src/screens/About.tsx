@@ -57,7 +57,14 @@ export default function About() {
           ))}
         </div>
 
-        <p className="mt-6 text-center text-xs text-[var(--text-muted)]">
+        <p className="mt-6 text-center text-sm text-[var(--text-muted)]">
+          {t('aboutSuggestPrompt')}{' '}
+          <Link to="/suggestions" className="font-medium text-[var(--text)] hover:underline">
+            {t('aboutSuggestLink')}
+          </Link>
+        </p>
+
+        <p className="mt-4 text-center text-xs text-[var(--text-muted)]">
           <Link to="/legal" className="hover:text-[var(--text)] hover:underline">
             Legal
           </Link>

@@ -1007,6 +1007,8 @@ export const ro = {
   aboutFaqA6: 'Suntem o echipă mică din Moldova 🇲🇩.',
   aboutFaqQ7: 'Îmi pot exporta biblioteca?',
   aboutFaqA7: 'Da — din Setări îți poți exporta biblioteca în CSV sau JSON, oricând.',
+  aboutSuggestPrompt: 'Vrei să propui o funcționalitate?',
+  aboutSuggestLink: 'Fă-o aici',
 
   // Lists
   listsInfoTooltip: 'Listele sunt publice — oricine are linkul le poate vedea, chiar și fără cont. Folosește-le ca recomandări curate (ex. „Cel mai bun sci-fi al deceniului”) și distribuie linkul prietenilor.',

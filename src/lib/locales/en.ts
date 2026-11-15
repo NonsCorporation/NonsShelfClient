@@ -1078,6 +1078,8 @@ export const en = {
   aboutFaqA6: "We're a small team based in Moldova 🇲🇩.",
   aboutFaqQ7: 'Can I export my library?',
   aboutFaqA7: 'Yes — Settings lets you export your library to CSV or JSON at any time.',
+  aboutSuggestPrompt: 'Want to suggest a feature?',
+  aboutSuggestLink: 'Do it here',
 
   // Lists
   listsInfoTooltip: 'Lists are public — anyone with the link can view them, even signed out. Use them as curated recommendations (e.g. "Best sci-fi of the decade") and share the link with friends.',
