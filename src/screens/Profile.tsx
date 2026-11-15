@@ -77,6 +77,8 @@ type ProfileView = {
   avatar: string
   /** Banner colour as stored ("F12312"); empty = automatic. */
   bannerColor?: string
+  /** The Horizon member's banner image (absent for everyone else). */
+  bannerImage?: string
   /** A Horizon member: the icon next to the name. */
   horizon?: boolean
   role?: string
@@ -186,6 +188,7 @@ export default function ProfilePage() {
           handle: authUser?.username ?? currentUser.handle,
           avatar: authUser?.avatar_url || '',
           bannerColor: authUser?.banner_color || undefined,
+          bannerImage: authUser?.banner_url || undefined,
           horizon: isHorizon(authUser?.horizon),
           role: authUser?.role,
           bio: authUser?.bio || undefined,
@@ -226,7 +229,7 @@ export default function ProfilePage() {
             userRole = data.role
           }
         } catch { /* library server unreachable — no badge */ }
-        setProfile({ id: p.id, name: p.name, handle: p.username, avatar: p.avatarUrl || '', bannerColor: p.bannerColor, horizon: isHorizon(p.horizon), role: userRole, bio: p.bio, location: p.location })
+        setProfile({ id: p.id, name: p.name, handle: p.username, avatar: p.avatarUrl || '', bannerColor: p.bannerColor, bannerImage: p.bannerUrl, horizon: isHorizon(p.horizon), role: userRole, bio: p.bio, location: p.location })
         const theirCollections = await collectionService.getUserCollections(p.id)
         if (cancelled) return
         setOtherCollections(theirCollections)
@@ -656,8 +659,8 @@ export default function ProfilePage() {
       <div className="min-w-0">
       {/* Profile card — identity, nons link, settings, stats */}
       <div className="relative rounded-2xl border border-[var(--border-subtle)] bg-[var(--container)] p-5 sm:p-6">
-        {/* Everyone has a banner: a plain colour */}
-        <ProfileBanner color={profile.bannerColor} avatarUrl={profile.avatar} avatarSeed={`user-${profile.id}`} />
+        {/* Everyone has a banner: a plain colour, or a Horizon member's image */}
+        <ProfileBanner color={profile.bannerColor} imageUrl={profile.bannerImage} avatarUrl={profile.avatar} avatarSeed={`user-${profile.id}`} />
         {/* Phones: share / settings ride on the card's top-right edge (on the banner), out of the name's way */}
         <div className="absolute right-4 top-3 flex items-center gap-2 sm:hidden">{profileActions('h-9 w-9 bg-[var(--container)]')}</div>
         <div className="flex items-start gap-5">

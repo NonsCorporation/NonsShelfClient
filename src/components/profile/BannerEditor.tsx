@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { IoColorPaletteOutline, IoImageOutline } from 'react-icons/io5'
+import { useRef, useState } from 'react'
+import { IoColorPaletteOutline, IoImageOutline, IoTrashOutline } from 'react-icons/io5'
 import { Link } from '@/lib/router'
 import { bannerCss, bannerStored, defaultBannerColor, hslToHex, textOn } from '@/lib/bannerColor'
 import { hashHue } from '@/lib/hashHue'
@@ -16,6 +16,10 @@ import { useLanguage } from '@/contexts/LanguageContext'
 // panel. Stored form ("F12312") so they compare directly with the chosen colour.
 const SWATCHES = [0, 28, 140, 190, 225, 285].map((h) => bannerStored(hslToHex(`hsl(${h} 55% 40%)`)))
 
+// What the server accepts (it checks the bytes again) and its size limit.
+const BANNER_TYPES = ['image/gif', 'image/jpeg', 'image/png', 'image/webp']
+const BANNER_MAX_BYTES = 8 * 1024 * 1024
+
 const ROW = 'flex items-center gap-1.5'
 const PILL = 'rounded-xl border border-white/10 bg-black/55 shadow-lg backdrop-blur-md'
 
@@ -27,25 +31,42 @@ const PILL = 'rounded-xl border border-white/10 bg-black/55 shadow-lg backdrop-b
 // picker hangs below the banner).
 //
 // Controlled: `color` is the stored value ("F12312", or "" for automatic) and
-// `onChange` gets the new one; saving it is the caller's job. Image upload isn't
-// built yet and just says "soon".
+// `onChange` gets the new one; saving it is the caller's job. Likewise the image
+// (Horizon): a picked file goes to `onPickImage` and "Remove image" to
+// `onRemoveImage`; `hasImage` says whether one is showing. A GIF is fine.
 export default function BannerEditor({
   color,
   onChange,
   avatarUrl,
   avatarSeed,
   horizon,
+  hasImage,
+  onPickImage,
+  onRemoveImage,
 }: {
   color: string
   onChange: (stored: string) => void
   avatarUrl?: string | null
   avatarSeed: string
   horizon: boolean
+  hasImage: boolean
+  onPickImage: (file: File) => void
+  onRemoveImage: () => void
 }) {
   const { t } = useLanguage()
   const [open, setOpen] = useState(false)
   const [picking, setPicking] = useState(false)
   const toast = useToast()
+  const fileRef = useRef<HTMLInputElement>(null)
+
+  const onFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = '' // picking the same file again must still fire
+    if (!file) return
+    if (!BANNER_TYPES.includes(file.type)) return void toast.show(t('bannerImageType'))
+    if (file.size > BANNER_MAX_BYTES) return void toast.show(t('bannerImageTooLarge'))
+    onPickImage(file)
+  }
   const chosen = bannerCss(color) ? color.toUpperCase() : ''
   // What "Auto" gives: the profile picture's dominant colour (the photo, or the generated avatar).
   const dominant = useAvatarColor(avatarUrl, avatarSeed)
@@ -95,15 +116,18 @@ export default function BannerEditor({
           {/* line 2: upload — a Horizon feature */}
           {HORIZON_ON &&
             (horizon ? (
-              <button
-                type="button"
-                onClick={() => toast.show(t('soon'))}
-                className="flex items-center gap-2 rounded-lg bg-white/10 px-2 py-1 text-left text-[11px] font-medium text-white transition-colors hover:bg-white/20"
-              >
-                <IoImageOutline className="h-3.5 w-3.5 flex-shrink-0" />
-                <span className="flex-1">{t('bannerUploadImage')}</span>
-                <HorizonBadge className="h-3.5 w-3.5" />
-              </button>
+              <>
+                <input ref={fileRef} type="file" accept={BANNER_TYPES.join(',')} onChange={onFile} className="hidden" />
+                <button
+                  type="button"
+                  onClick={() => fileRef.current?.click()}
+                  className="flex items-center gap-2 rounded-lg bg-white/10 px-2 py-1 text-left text-[11px] font-medium text-white transition-colors hover:bg-white/20"
+                >
+                  <IoImageOutline className="h-3.5 w-3.5 flex-shrink-0" />
+                  <span className="flex-1">{t('bannerUploadImage')}</span>
+                  <HorizonBadge className="h-3.5 w-3.5" />
+                </button>
+              </>
             ) : (
               <Link
                 to="/horizon"
@@ -115,6 +139,16 @@ export default function BannerEditor({
                 <HorizonBadge className="h-3.5 w-3.5" />
               </Link>
             ))}
+          {HORIZON_ON && horizon && hasImage && (
+            <button
+              type="button"
+              onClick={onRemoveImage}
+              className="flex items-center gap-2 rounded-lg bg-white/10 px-2 py-1 text-left text-[11px] font-medium text-white/80 transition-colors hover:bg-white/20 hover:text-white"
+            >
+              <IoTrashOutline className="h-3.5 w-3.5 flex-shrink-0" />
+              <span className="flex-1">{t('bannerRemoveImage')}</span>
+            </button>
+          )}
 
           {/* the custom colour picker hangs below the panel */}
           {picking && (

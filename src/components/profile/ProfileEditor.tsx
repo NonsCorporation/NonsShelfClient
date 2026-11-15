@@ -13,7 +13,7 @@ import { BANNER_SIZE } from '@/lib/bannerSize'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { BIO_MAX, NAME_MAX, buildProfilePatch, formFromAccount, type ProfileForm, type Visibility } from '@/lib/profile'
-import { removeAvatar, renewSession, suggestUsername, updateMyProfile, uploadAvatar } from '@/services/profileService'
+import { removeAvatar, removeBanner, renewSession, suggestUsername, updateMyProfile, uploadAvatar, uploadBanner } from '@/services/profileService'
 import { COUNTRIES } from '@/lib/countries'
 import { USERNAME_MAX_LENGTH, isAutoUsername, sanitizeUsername, usernameError, type UsernameError } from '@/lib/username'
 
@@ -98,6 +98,12 @@ export default function ProfileEditor({ mode, onDone, cancelHref = '/' }: Props)
   // The picked image while the crop dialog is open (an object URL).
   const [cropSrc, setCropSrc] = useState<string | null>(null)
 
+  // The banner image (Horizon) is staged the same way: a picked file (previewed
+  // through an object URL, which also plays a GIF), or a request to remove it.
+  const [newBanner, setNewBanner] = useState<File | null>(null)
+  const [bannerPreview, setBannerPreview] = useState<string | null>(null)
+  const [dropBanner, setDropBanner] = useState(false)
+
   // Seed the form once from the account. (Not on every `user` change: a refresh
   // mid-edit must not wipe what's being typed.)
   const seeded = useRef(false)
@@ -115,6 +121,11 @@ export default function ProfileEditor({ mode, onDone, cancelHref = '/' }: Props)
       if (preview) URL.revokeObjectURL(preview)
     }
   }, [preview])
+  useEffect(() => {
+    return () => {
+      if (bannerPreview) URL.revokeObjectURL(bannerPreview)
+    }
+  }, [bannerPreview])
 
   if (!user || !form) {
     return <div className="py-16 text-center text-sm text-[var(--text-muted)]">{t('loading') || '…'}</div>
@@ -128,6 +139,18 @@ export default function ProfileEditor({ mode, onDone, cancelHref = '/' }: Props)
   const keepUsername = isAutoUsername(user.username) ? '' : user.username
   const chosenUsername = form.username || keepUsername
   const shownAvatar = removePhoto ? '' : preview || user.avatar_url || ''
+  const shownBanner = dropBanner ? '' : bannerPreview || user.banner_url || ''
+
+  const onPickBanner = (file: File) => {
+    setNewBanner(file)
+    setBannerPreview(URL.createObjectURL(file))
+    setDropBanner(false)
+  }
+  const onRemoveBanner = () => {
+    setNewBanner(null)
+    setBannerPreview(null)
+    setDropBanner(true)
+  }
 
   // Picking a file opens the cropper; the cropped square is what gets staged.
   const onPickPhoto = (file: File) => {
@@ -189,6 +212,17 @@ export default function ProfileEditor({ mode, onDone, cancelHref = '/' }: Props)
         }
       }
 
+      // 1b. Banner image (Horizon; separate endpoint).
+      if (newBanner || (dropBanner && user.banner_url)) {
+        const r = newBanner ? await uploadBanner(newBanner) : await removeBanner()
+        if (!r.ok) {
+          setSaveErr(r.error || t('editProfileBannerFailed'))
+          return
+        }
+        setNewBanner(null)
+        setDropBanner(false)
+      }
+
       // 2. Fields — only what changed, plus "welcome step done".
       const res = await updateMyProfile(buildProfilePatch({ ...form, username: chosenUsername }, user))
       if (!res.ok) {
@@ -209,7 +243,7 @@ export default function ProfileEditor({ mode, onDone, cancelHref = '/' }: Props)
   }
 
   // The banner, shown here as on the profile and saved with the rest of the form. The
-  // colour is for everyone; image upload (Horizon members) isn't built yet. It bleeds out over the card's padding (-mx-5/-mt-5,
+  // colour is for everyone; the image (Horizon members) is staged like the photo. It bleeds out over the card's padding (-mx-5/-mt-5,
   // which is the page's card, so only in edit mode) and the avatar rides over its edge.
   const hasBanner = mode === 'edit'
 
@@ -218,13 +252,16 @@ export default function ProfileEditor({ mode, onDone, cancelHref = '/' }: Props)
       {cropSrc && <ImageCropModal src={cropSrc} onConfirm={onCropped} onCancel={closeCrop} />}
 
       {hasBanner && (
-        <BannerArt color={form.bannerColor} avatarUrl={shownAvatar} avatarSeed={`user-${user.id}`} className={`-mx-5 -mt-5 rounded-t-2xl ${BANNER_SIZE.page}`}>
+        <BannerArt color={form.bannerColor} avatarUrl={shownAvatar} avatarSeed={`user-${user.id}`} imageUrl={shownBanner} className={`-mx-5 -mt-5 rounded-t-2xl ${BANNER_SIZE.page}`}>
           <BannerEditor
             color={form.bannerColor}
             onChange={(bannerColor) => patch({ bannerColor })}
             avatarUrl={shownAvatar}
             avatarSeed={`user-${user.id}`}
             horizon={isHorizon(user.horizon)}
+            hasImage={!!shownBanner}
+            onPickImage={onPickBanner}
+            onRemoveImage={onRemoveBanner}
           />
         </BannerArt>
       )}

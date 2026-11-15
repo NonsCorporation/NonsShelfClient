@@ -61,6 +61,29 @@ export async function removeAvatar(): Promise<SaveResult> {
   }
 }
 
+/** Sets your banner image (a GIF, JPEG, PNG or WebP, max 8 MB). Horizon only:
+ *  anyone else gets 403 (`status`). */
+export async function uploadBanner(image: Blob): Promise<SaveResult> {
+  try {
+    const body = new FormData()
+    body.append('file', image, 'banner')
+    const res = await authedFetch('/api/me/banner', { method: 'PUT', body })
+    return res.ok ? { ok: true } : await failure(res)
+  } catch {
+    return NETWORK
+  }
+}
+
+/** Removes your banner image (the banner colour stays). */
+export async function removeBanner(): Promise<SaveResult> {
+  try {
+    const res = await authedFetch('/api/me/banner', { method: 'DELETE' })
+    return res.ok ? { ok: true } : await failure(res)
+  } catch {
+    return NETWORK
+  }
+}
+
 /** A random, currently free username (a misspelled book/film/series
  *  character, e.g. "wolter_quill") for the dice in the editor. Null on failure.
  *  Nothing is reserved: it only becomes yours when the profile is saved. */
