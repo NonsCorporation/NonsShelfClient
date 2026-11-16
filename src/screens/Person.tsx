@@ -277,7 +277,7 @@ export default function PersonPage({ initialData, initialLang = '' }: { initialD
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium text-[var(--text)]">{c.media.title}</p>
                       <p className="truncate text-xs text-[var(--text-muted)]">
-                        {c.character ? c.character : c.media.year || ''}
+                        {[c.character, c.media.year].filter(Boolean).join(' · ')}
                       </p>
                     </div>
                   </Link>
