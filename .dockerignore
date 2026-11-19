@@ -1,0 +1,17 @@
+# Keep the build context small and free of secrets and local state.
+node_modules
+.next
+.git
+.gitignore
+.dockerignore
+Dockerfile
+.env
+.env.*
+!.env.example
+*.log
+*.tsbuildinfo
+next-env.d.ts
+tsc_out.txt
+.vscode
+.idea
+.DS_Store

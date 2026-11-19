@@ -68,6 +68,33 @@ NEXT_PUBLIC_SITE_URL=http://localhost:5173          # canonical/OpenGraph origin
 > (`PUBLIC_READ_RATE_LIMIT`, default 120 req/min/IP). Personal data and writes
 > stay behind `RequireAuth`.
 
+## Docker (self-hosting)
+
+The `Dockerfile` builds the app as a Next.js `standalone` server (three stages:
+install, build, a small runtime image running as a non-root user).
+
+```
+docker build -t someshelf-client \
+  --build-arg NEXT_PUBLIC_SITE_URL=https://someshelf.com \
+  --build-arg NEXT_PUBLIC_LIBRARY_API_URL= \
+  .
+docker run -d --name someshelf-client -p 3000:3000 \
+  -e LIBRARY_SERVER_URL=http://library-server:8081 \
+  someshelf-client
+```
+
+- `NEXT_PUBLIC_*` values are inlined into the JavaScript at **build** time, so
+  they are `--build-arg`s (`NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_LIBRARY_API_URL`,
+  `NEXT_PUBLIC_PLATFORM_API_URL`, `NEXT_PUBLIC_GOOGLE_BOOKS_KEY`,
+  `NEXT_PUBLIC_LEGAL_EMAIL`). Changing one means rebuilding the image.
+- `LIBRARY_SERVER_URL` is read at **run** time: where the Next.js server reaches
+  the library server for the SSR pages (`/b`, `/m`, `/p`, `/list`) and the
+  sitemap. Inside Docker that is the container's address, not `localhost`.
+- With an empty `NEXT_PUBLIC_LIBRARY_API_URL` the browser calls `/api/*` on the
+  site's own origin, so the reverse proxy in front (nginx, Caddy, …) must send
+  `/api/*` to the library server and everything else to this container (port 3000).
+- The image has a `HEALTHCHECK` on `/robots.txt`.
+
 ## Architecture: who talks to whom
 
 ```

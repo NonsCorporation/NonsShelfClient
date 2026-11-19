@@ -2,6 +2,10 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  // A self-contained server bundle (.next/standalone) for the Docker image: it
+  // traces and copies only the node_modules the app needs, so the runtime image
+  // doesn't carry the full dependency tree.
+  output: 'standalone',
   // Build-time switch for the Horizon UI (menu items, badge, /horizon). Inlined
   // into the client bundle; anything but 1/true — including unset — means off.
   env: { HORIZON_ON: process.env.HORIZON_ON ?? '0' },
