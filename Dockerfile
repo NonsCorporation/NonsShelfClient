@@ -16,7 +16,10 @@
 # ---------------------------------------------------------------------------
 # Stage 1: dependencies
 # ---------------------------------------------------------------------------
-FROM node:22-alpine AS deps
+# Debian (glibc), not Alpine (musl): package-lock.json has no musl build of
+# lightningcss, so on Alpine the CSS step fails with "Cannot find module
+# '../lightningcss.linux-x64-musl.node'".
+FROM node:22-slim AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
@@ -24,7 +27,7 @@ RUN npm ci
 # ---------------------------------------------------------------------------
 # Stage 2: build
 # ---------------------------------------------------------------------------
-FROM node:22-alpine AS builder
+FROM node:22-slim AS builder
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 
@@ -50,7 +53,7 @@ RUN npm run build
 # ---------------------------------------------------------------------------
 # Stage 3: runtime
 # ---------------------------------------------------------------------------
-FROM node:22-alpine AS runner
+FROM node:22-slim AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production \
@@ -58,23 +61,21 @@ ENV NODE_ENV=production \
     PORT=3000 \
     HOSTNAME=0.0.0.0
 
-# Non-root runtime user.
-RUN addgroup -S app && adduser -S app -G app
-
 # The traced server bundle, then what it expects next to it: static assets
 # (served from .next/static), public/, and assets/fonts (the link-preview
 # images read their fonts from disk at runtime).
-COPY --from=builder --chown=app:app /app/.next/standalone ./
-COPY --from=builder --chown=app:app /app/.next/static ./.next/static
-COPY --from=builder --chown=app:app /app/public ./public
-COPY --from=builder --chown=app:app /app/assets ./assets
+COPY --from=builder --chown=node:node /app/.next/standalone ./
+COPY --from=builder --chown=node:node /app/.next/static ./.next/static
+COPY --from=builder --chown=node:node /app/public ./public
+COPY --from=builder --chown=node:node /app/assets ./assets
 
-USER app
+# The image's built-in non-root user.
+USER node
 EXPOSE 3000
 
 # /robots.txt is prerendered, so this checks the server is up without touching
 # the API.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-  CMD wget -q -O /dev/null http://127.0.0.1:3000/robots.txt || exit 1
+  CMD node -e "fetch('http://127.0.0.1:3000/robots.txt').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
 CMD ["node", "server.js"]
