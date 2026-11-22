@@ -16,7 +16,22 @@ type Props = {
   onDone: () => void
 }
 
-const today = () => new Date().toISOString().slice(0, 10)
+// "YYYY-MM-DD" in the user's local timezone (toISOString would give the UTC day).
+function localDateStr(d: Date): string {
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
+}
+
+const today = () => localDateStr(new Date())
+
+// A picked day → unix seconds. Parsing "YYYY-MM-DD" directly gives midnight UTC
+// (shows as e.g. "19h ago" for today); today maps to now, other days to local noon.
+function dayToUnix(day: string): number {
+  const now = new Date()
+  if (day === localDateStr(now)) return Math.floor(now.getTime() / 1000)
+  const [y, m, d] = day.split('-').map(Number)
+  return Math.floor(new Date(y, m - 1, d, 12).getTime() / 1000)
+}
 
 // The "did not finish" modal — the abandon-side mirror of FinishModal, but
 // leaner: no rating (you're not rating an abandoned read), just the date you
@@ -45,7 +60,7 @@ export default function DnfModal({ isOpen, item, onClose, onDone }: Props) {
     setBusy(true)
     try {
       await libraryService.markDNF(item.id, {
-        endedAt: date ? Math.floor(new Date(date).getTime() / 1000) : undefined,
+        endedAt: date ? dayToUnix(date) : undefined,
         note: note.trim(),
         share,
       })

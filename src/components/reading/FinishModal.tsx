@@ -24,10 +24,26 @@ type Props = {
 function toDateInput(v?: string | number): string {
   if (!v) return ''
   const d = typeof v === 'number' ? new Date(v * 1000) : new Date(v)
-  return isNaN(d.getTime()) ? '' : d.toISOString().slice(0, 10)
+  return isNaN(d.getTime()) ? '' : localDateStr(d)
 }
 
-const today = () => new Date().toISOString().slice(0, 10)
+// "YYYY-MM-DD" in the user's local timezone (toISOString would give the UTC day).
+function localDateStr(d: Date): string {
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
+}
+
+const today = () => localDateStr(new Date())
+
+// A picked day → unix seconds. Parsing "YYYY-MM-DD" directly gives midnight UTC,
+// which made something finished today show as "19h ago" in the feed. Today maps
+// to the current moment; any other day maps to local noon so it stays on that
+// day in every timezone.
+function dayToUnix(day: string, nowMs: number): number {
+  if (day === localDateStr(new Date(nowMs))) return Math.floor(nowMs / 1000)
+  const [y, m, d] = day.split('-').map(Number)
+  return Math.floor(new Date(y, m - 1, d, 12).getTime() / 1000)
+}
 
 // The Goodreads-style "ending" modal: rate, review, set the dates and post.
 export default function FinishModal({ isOpen, item, onClose, onFinished }: Props) {
@@ -133,7 +149,8 @@ export default function FinishModal({ isOpen, item, onClose, onFinished }: Props
   const post = async () => {
     setBusy(true)
     try {
-      const finishedAt = finished ? Math.floor(new Date(finished).getTime() / 1000) : undefined
+      const nowMs = Date.now()
+      const finishedAt = finished ? dayToUnix(finished, nowMs) : undefined
       await libraryService.finish(item.id, { rating, review, finishedAt, share })
       // Persist the chosen started/finished dates as the authoritative reading
       // period (so they match what shows on the media page and the calendar).
@@ -141,7 +158,7 @@ export default function FinishModal({ isOpen, item, onClose, onFinished }: Props
       // start is known, which for imports can fall *after* the actual finish
       // date — never record that impossible start (it would surface as a
       // phantom "reading now" cycle). The server enforces the same invariant.
-      let startedAt = hasStartDate && started ? Math.floor(new Date(started).getTime() / 1000) : 0
+      let startedAt = hasStartDate && started ? dayToUnix(started, nowMs) : 0
       if (startedAt && finishedAt && startedAt > finishedAt) startedAt = 0
       await libraryService.setReadDates(item.id, {
         started_at: startedAt,
