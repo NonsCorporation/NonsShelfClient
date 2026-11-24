@@ -23,9 +23,7 @@ import DropdownMenu from '@/components/ui/DropdownMenu'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 import ShareModal from '@/components/feed/ShareModal'
 import ReviewContent from '@/components/review/ReviewContent'
-import LibrarianBadge from '@/components/badges/LibrarianBadge'
-import HorizonBadge from '@/components/badges/HorizonBadge'
-import { isLibrarian } from '@/services/librarianService'
+import UserBadges from '@/components/badges/UserBadges'
 import ReactionBanner from '@/components/feed/ReactionBanner'
 import { usePreferences } from '@/contexts/PreferencesContext'
 import BookCover from '@/components/media/BookCover'
@@ -261,8 +259,7 @@ export default function ActivityCard({
               {a.user.name}
             </Link>
           </UserHoverCard>
-          {a.user.horizon && <HorizonBadge className="h-4 w-4 flex-shrink-0" />}
-          {isLibrarian(a.user.role) && <LibrarianBadge className="h-4 w-4 flex-shrink-0" />}
+          <UserBadges role={a.user.role} horizon={a.user.horizon} />
           <span className="flex-shrink-0 text-[var(--text-muted)]">{t(VERB_KEY[a.type])}</span>
           {showStars && (
             <span className="ml-0.5 inline-flex flex-shrink-0">

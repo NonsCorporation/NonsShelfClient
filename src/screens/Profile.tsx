@@ -15,8 +15,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { useLoginModal } from '../contexts/LoginModalContext'
 import { useCollections } from '../contexts/CollectionContext'
 import { currentUser } from '../lib/user'
-import { isLibrarian } from '../services/librarianService'
-import LibrarianBadge from '@/components/badges/LibrarianBadge'
+import UserBadges from '@/components/badges/UserBadges'
 import BoringAvatar from '@/components/ui/BoringAvatar'
 import { mediaPath, userPath } from '../lib/paths'
 import { isYearlyReadingGoal } from '../lib/challenge'
@@ -26,7 +25,6 @@ import ActivityCard from '@/components/feed/ActivityCard'
 import ChallengeActivityCard from '@/components/challenges/ChallengeActivityCard'
 import BingoActivityCard from '@/components/bingo/BingoActivityCard'
 import ProfileBanner from '@/components/profile/ProfileBanner'
-import HorizonBadge from '@/components/badges/HorizonBadge'
 import { isHorizon } from '@/lib/horizon'
 import { TYPE_META } from '@/lib/typeMeta'
 import FinishedBingoRow from '@/components/bingo/FinishedBingoRow'
@@ -682,8 +680,7 @@ export default function ProfilePage() {
             <div className="flex items-start gap-2">
               <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
                 <h1 className="min-w-0 break-words text-2xl font-bold leading-8 tracking-tight text-[var(--text)]">{profile.name}</h1>
-                {isLibrarian(profile.role) && <LibrarianBadge />}
-                {profile.horizon && <HorizonBadge className="h-5 w-5" />}
+                <UserBadges role={profile.role} horizon={profile.horizon} size="lg" />
               </div>
               {/* Share / settings — beside the name from sm up; on phones they sit under the avatar */}
               <div className="-my-1 hidden flex-shrink-0 items-center gap-2 sm:flex">{profileActions('h-10 w-10')}</div>

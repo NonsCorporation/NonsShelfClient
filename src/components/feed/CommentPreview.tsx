@@ -3,7 +3,7 @@ import { Link } from '@/lib/router'
 import { getComments, type FeedComment } from '@/services/commentService'
 import { userPath } from '@/lib/paths'
 import { isHorizon } from '@/lib/horizon'
-import HorizonBadge from '@/components/badges/HorizonBadge'
+import UserBadges from '@/components/badges/UserBadges'
 import { useLanguage } from '@/contexts/LanguageContext'
 import BoringAvatar from '@/components/ui/BoringAvatar'
 import CommentMenu from '@/components/feed/CommentMenu'
@@ -64,7 +64,7 @@ export default function CommentPreview({
           <Link to={userPath(comment.author.username)} className="font-semibold hover:underline">
             {comment.author.name}
           </Link>
-          {isHorizon(comment.author.horizon) && <HorizonBadge className="ml-1 inline-block h-3.5 w-3.5 align-[-2px]" />}{' '}
+          <UserBadges horizon={isHorizon(comment.author.horizon)} size="sm" className="ml-1 inline-block align-[-2px]" />{' '}
           <span className={`whitespace-pre-wrap break-words text-[var(--text-muted)] ${expanded ? '' : 'line-clamp-3'}`}>
             {comment.body}
           </span>

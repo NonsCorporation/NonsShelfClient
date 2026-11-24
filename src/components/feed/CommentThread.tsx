@@ -7,7 +7,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { userPath } from '@/lib/paths'
 import { isHorizon } from '@/lib/horizon'
-import HorizonBadge from '@/components/badges/HorizonBadge'
+import UserBadges from '@/components/badges/UserBadges'
 import {
   getComments, addComment, getReviewComments, addReviewComment, deleteComment,
   type FeedComment,
@@ -250,7 +250,7 @@ function CommentNode({
                   {comment.author.name}
                 </Link>
               </UserHoverCard>
-              {isHorizon(comment.author.horizon) && <HorizonBadge className="h-3.5 w-3.5" />}
+              <UserBadges horizon={isHorizon(comment.author.horizon)} size="sm" />
               <UserHoverCard username={comment.author.username}>
                 <span className="text-[var(--text-muted)]">@{comment.author.username}</span>
               </UserHoverCard>

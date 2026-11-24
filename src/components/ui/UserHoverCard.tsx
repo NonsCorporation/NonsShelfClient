@@ -16,7 +16,7 @@ import { useFloatingPosition } from '@/hooks/useFloatingPosition'
 import BoringAvatar from '@/components/ui/BoringAvatar'
 import BookCover from '@/components/media/BookCover'
 import BannerArt from '@/components/profile/BannerArt'
-import HorizonBadge from '@/components/badges/HorizonBadge'
+import UserBadges from '@/components/badges/UserBadges'
 
 /** What the card shows: the profile and the small shelf stats. */
 export type CardData = {
@@ -173,7 +173,7 @@ export function UserPreview({ card }: { card: CardData }) {
         </span>
         <span className="mt-1.5 flex items-center gap-1.5">
           <span className="min-w-0 truncate text-sm font-semibold text-[var(--text)]">{profile.name}</span>
-          {horizon && <HorizonBadge className="h-3.5 w-3.5" />}
+          <UserBadges horizon={horizon} size="sm" />
         </span>
         <span className="block truncate text-xs text-[var(--text-muted)]">@{profile.username}</span>
         {(types.length > 0 || avg > 0) && (
