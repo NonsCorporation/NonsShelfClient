@@ -22,7 +22,15 @@
 FROM node:22-slim AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci
+# The registry connection from a small VPS can drop mid-install (ECONNRESET), so:
+# retry each download a few times with a pause, keep fewer sockets open at once,
+# skip the audit/funding requests, and keep npm's download cache between builds
+# (BuildKit cache mount) so a retried deploy continues from what already arrived
+# instead of starting over.
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --prefer-offline --no-audit --no-fund \
+      --fetch-retries=5 --fetch-retry-mintimeout=20000 --fetch-retry-maxtimeout=120000 \
+      --maxsockets=4
 
 # ---------------------------------------------------------------------------
 # Stage 2: build
