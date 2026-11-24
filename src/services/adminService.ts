@@ -1,10 +1,17 @@
-import { platformFetch } from '../lib/api'
+import { authedFetch } from '../lib/api'
+
+// Librarian management on the library server (GET /api/admin/users, PUT
+// /api/admin/users/:id/roles; admins only). Accounts live there now — this used
+// to call the old nons platform API, which is a different origin and refuses
+// the browser (CORS) and the request (402).
 
 export interface AdminUser {
   id: number
+  uuid?: string
   username: string
+  name?: string
   email: string
-  role: string
+  /** librarian | admin | super_admin ("user" is implicit and not listed). */
   roles: string[]
 }
 
@@ -23,13 +30,13 @@ async function jsonOrThrow(res: Response): Promise<unknown> {
 export const adminService = {
   async searchUsers(q: string): Promise<AdminUser[]> {
     const qs = q.trim() ? `?q=${encodeURIComponent(q.trim())}` : ''
-    const data = (await jsonOrThrow(await platformFetch(`/api/admin/users${qs}`))) as { users: AdminUser[] }
+    const data = (await jsonOrThrow(await authedFetch(`/api/admin/users${qs}`))) as { users: AdminUser[] }
     return data.users ?? []
   },
 
   async setRoles(userId: number, roles: string[]): Promise<void> {
     await jsonOrThrow(
-      await platformFetch(`/api/admin/users/${userId}/roles`, {
+      await authedFetch(`/api/admin/users/${userId}/roles`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ roles }),
