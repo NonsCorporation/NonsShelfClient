@@ -14,6 +14,7 @@ import LikeButton from '@/components/feed/LikeButton'
 import DropdownMenu from '@/components/ui/DropdownMenu'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 import LibrarianBadge from '@/components/badges/LibrarianBadge'
+import HorizonBadge from '@/components/badges/HorizonBadge'
 import { isLibrarian } from '@/services/librarianService'
 import ReactionBanner from '@/components/feed/ReactionBanner'
 import { usePreferences } from '@/contexts/PreferencesContext'
@@ -92,6 +93,7 @@ export default function ChallengeActivityCard({
               {a.user.name}
             </Link>
           </UserHoverCard>
+          {a.user.horizon && <HorizonBadge className="h-4 w-4 flex-shrink-0" />}
           {isLibrarian(a.user.role) && <LibrarianBadge className="h-4 w-4 flex-shrink-0" />}
           <span className="flex-shrink-0 text-[var(--text-muted)]">{t('verbJoinedChallenge')}</span>
           <Link to={to} className="min-w-0 font-semibold hover:text-nonsprimary">

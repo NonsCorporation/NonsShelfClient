@@ -1,3 +1,4 @@
+import { isHorizon } from '../lib/horizon'
 import { authedFetch, PLATFORM_API_URL } from '../lib/api'
 import type { MediaType } from '../types'
 import type { BingoCell, BingoKind } from '../lib/bingo'
@@ -28,7 +29,7 @@ export type Activity = {
   postUuid?: string
   /** The subject's nons user id — who performed the action (the comment target). */
   userId: number
-  user: { name: string; handle: string; color: string; uuid?: string; avatarUrl?: string; role?: string }
+  user: { name: string; handle: string; color: string; uuid?: string; avatarUrl?: string; role?: string; horizon?: boolean }
   type: ActivityType
   mediaId: number
   mediaUuid?: string
@@ -148,6 +149,7 @@ type Friendship = {
   username: string
   name: string
   avatar_url?: string // may be a nons-relative path (/img/avatars/…)
+  horizon?: boolean // the other user has Horizon
 }
 
 // nons-library-server GET /api/activity
@@ -191,7 +193,7 @@ const renderable = (e: ActivityEvent) =>
 
 // The current user, so their own activity (shelf state changes, ratings) shows
 // in the feed alongside friends'.
-export type FeedSelf = { id: number; name: string; handle: string; uuid?: string; avatar?: string; role?: string }
+export type FeedSelf = { id: number; name: string; handle: string; uuid?: string; avatar?: string; role?: string; horizon?: boolean }
 
 /** Absolutize a nons-relative avatar path so it loads from any origin. */
 function nonsAvatar(url?: string): string | undefined {
@@ -222,7 +224,7 @@ export async function getFriendUsers(me: FeedSelf): Promise<Map<number, Activity
     /* backend unreachable — fall back to just the caller */
   }
   const friends = new Map<number, Activity['user']>()
-  friends.set(me.id, { name: me.name, handle: me.handle, color: colorFor(me.handle), uuid: me.uuid, avatarUrl: nonsAvatar(me.avatar), role: me.role })
+  friends.set(me.id, { name: me.name, handle: me.handle, color: colorFor(me.handle), uuid: me.uuid, avatarUrl: nonsAvatar(me.avatar), role: me.role, horizon: me.horizon })
   for (const f of friendships) {
     const friendId = f.requester_id === me.id ? f.addressee_id : f.requester_id
     friends.set(friendId, {
@@ -231,6 +233,7 @@ export async function getFriendUsers(me: FeedSelf): Promise<Map<number, Activity
       color: colorFor(f.username),
       uuid: f.uuid || undefined,
       avatarUrl: nonsAvatar(f.avatar_url),
+      horizon: isHorizon(f.horizon),
     })
   }
   return friends

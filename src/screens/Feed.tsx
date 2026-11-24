@@ -31,6 +31,7 @@ import { usePreferences, type FeedBlock } from '../contexts/PreferencesContext'
 import { STATUS_COLOR } from '../lib/shelf'
 import type { ShelfStatus } from '../types'
 import { mediaPath } from '../lib/paths'
+import { isHorizon } from '../lib/horizon'
 import {
   IoPeopleOutline, IoArrowForward, IoLinkOutline,
   IoCheckmark, IoBookOutline, IoSettingsOutline, IoBulb,
@@ -110,7 +111,7 @@ export default function FeedPage() {
   const focusCardRef = useRef<HTMLDivElement>(null)
 
   const me = useMemo(
-    () => (user ? { id: user.id, name: user.name || user.username, handle: user.username, uuid: user.uuid, avatar: user.avatar_url, role: user.role } : null),
+    () => (user ? { id: user.id, name: user.name || user.username, handle: user.username, uuid: user.uuid, avatar: user.avatar_url, role: user.role, horizon: isHorizon(user.horizon) } : null),
     [user],
   )
 

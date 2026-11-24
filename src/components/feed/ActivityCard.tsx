@@ -24,6 +24,7 @@ import ConfirmModal from '@/components/ui/ConfirmModal'
 import ShareModal from '@/components/feed/ShareModal'
 import ReviewContent from '@/components/review/ReviewContent'
 import LibrarianBadge from '@/components/badges/LibrarianBadge'
+import HorizonBadge from '@/components/badges/HorizonBadge'
 import { isLibrarian } from '@/services/librarianService'
 import ReactionBanner from '@/components/feed/ReactionBanner'
 import { usePreferences } from '@/contexts/PreferencesContext'
@@ -260,6 +261,7 @@ export default function ActivityCard({
               {a.user.name}
             </Link>
           </UserHoverCard>
+          {a.user.horizon && <HorizonBadge className="h-4 w-4 flex-shrink-0" />}
           {isLibrarian(a.user.role) && <LibrarianBadge className="h-4 w-4 flex-shrink-0" />}
           <span className="flex-shrink-0 text-[var(--text-muted)]">{t(VERB_KEY[a.type])}</span>
           {showStars && (

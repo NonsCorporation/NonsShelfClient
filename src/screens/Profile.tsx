@@ -358,6 +358,7 @@ export default function ProfilePage() {
       color: colorFor(profile.handle),
       avatarUrl: profile.avatar || undefined,
       role: profile.role,
+      horizon: profile.horizon,
     }
     getUserActivity(profile.id, userInfo, postsPage, POSTS_PER_PAGE)
       .then((res) => {

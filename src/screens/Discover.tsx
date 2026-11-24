@@ -23,6 +23,7 @@ import { challengeService } from '../services/challengeService'
 import { getFriendUsers, type Activity } from '../services/activityService'
 import type { MediaItem, MediaType, ShelfStatus, CuratedListDiscoverEntry, Franchise, Challenge } from '../types'
 import { typeWord, goalLabel, conditionText, challengeTitle, isGoalChallenge } from '../lib/challenge'
+import { isHorizon } from '../lib/horizon'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
 import ScrollToTop from '@/components/ui/ScrollToTop'
@@ -208,7 +209,7 @@ export default function DiscoverPage() {
     let cancelled = false
     getFriendUsers({
       id: authUser.id, name: authUser.name || authUser.username, handle: authUser.username,
-      uuid: authUser.uuid, avatar: authUser.avatar_url, role: authUser.role,
+      uuid: authUser.uuid, avatar: authUser.avatar_url, role: authUser.role, horizon: isHorizon(authUser.horizon),
     }).then((m) => { if (!cancelled) setFriendMap(m) })
     return () => { cancelled = true }
   }, [pageTab, authUser])

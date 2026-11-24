@@ -8,6 +8,8 @@ export interface CommentAuthor {
   username: string
   name: string
   avatar_url?: string
+  /** The author has Horizon (the icon next to their name). */
+  horizon?: boolean
 }
 
 export interface FeedComment {

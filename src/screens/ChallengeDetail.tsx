@@ -8,6 +8,7 @@ import ChallengeAvatarStack from '@/components/challenges/ChallengeAvatarStack'
 import CreateChallengeModal from '@/components/challenges/CreateChallengeModal'
 import { challengeService } from '../services/challengeService'
 import { getFriendUsers, type Activity } from '../services/activityService'
+import { isHorizon } from '../lib/horizon'
 import { typeWord, goalLabel, conditionText, challengeTitle, isGoalChallenge } from '../lib/challenge'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
@@ -58,7 +59,7 @@ export default function ChallengeDetailScreen() {
     let cancelled = false
     getFriendUsers({
       id: authUser.id, name: authUser.name || authUser.username, handle: authUser.username,
-      uuid: authUser.uuid, avatar: authUser.avatar_url, role: authUser.role,
+      uuid: authUser.uuid, avatar: authUser.avatar_url, role: authUser.role, horizon: isHorizon(authUser.horizon),
     }).then((m) => { if (!cancelled) setFriendMap(m) })
     return () => { cancelled = true }
   }, [authUser])
