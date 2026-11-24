@@ -22,6 +22,10 @@
 FROM node:22-slim AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
+# Prefer IPv4 when resolving the registry: on hosts with broken IPv6 routing the
+# downloads stall and get reset, then fall back much later.
+ENV NODE_OPTIONS=--dns-result-order=ipv4first
+
 # The registry connection from a small VPS can drop mid-install (ECONNRESET), so:
 # retry each download a few times with a pause, keep fewer sockets open at once,
 # skip the audit/funding requests, and keep npm's download cache between builds
