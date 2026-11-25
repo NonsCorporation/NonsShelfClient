@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link } from '@/lib/router'
+import { Link, useNavigate, useParams, useSearchParams } from '@/lib/router'
 import Layout from '../components/layout/Layout'
 import MediaModal from '@/components/media/MediaModal'
 import ImportSearchModal from '@/components/import-export/ImportSearchModal'
@@ -39,12 +39,46 @@ import TypeBadge from '@/components/badges/TypeBadge'
 import { mediaPath } from '../lib/paths'
 
 type Tab = 'catalog' | 'authors' | 'suggestions' | 'users'
+const TABS: Tab[] = ['catalog', 'authors', 'suggestions', 'users']
 
+// A text value mirrored in the URL (?key=value), so a search survives a reload
+// and can be shared. It is local state while typing and is written to the URL
+// (replacing the entry, no history spam) once typing pauses.
+function useUrlParam(key: string): [string, (v: string) => void] {
+  const [params, setParams] = useSearchParams()
+  const fromUrl = params.get(key) ?? ''
+  const [value, setValue] = useState(fromUrl)
+  useEffect(() => {
+    if (value === fromUrl) return
+    const id = setTimeout(() => {
+      const next = new URLSearchParams(window.location.search)
+      if (value) next.set(key, value)
+      else next.delete(key)
+      setParams(next, { replace: true })
+    }, 300)
+    return () => clearTimeout(id)
+  }, [value]) // eslint-disable-line react-hooks/exhaustive-deps
+  return [value, setValue]
+}
+
+// The dashboard's tabs live in the path — /librarians/catalog, /authors,
+// /suggestions, /users — and each tab keeps its own state in the query
+// (?q=…, ?status=…), so a reload or a shared link lands on the same view.
 export default function LibrariansPage() {
   const { t } = useLanguage()
   const { user } = useAuth()
-  const [tab, setTab] = useState<Tab>('catalog')
+  const navigate = useNavigate()
   const isAdmin = user?.role === 'admin'
+  const segment = (useParams<Record<string, string | undefined>>() as unknown as { tab?: string[] }).tab?.[0]
+  const wanted: Tab = (TABS as string[]).includes(segment ?? '') ? (segment as Tab) : 'catalog'
+  // "users" is admin-only: anyone else gets the catalog.
+  const tab: Tab = wanted === 'users' && !isAdmin ? 'catalog' : wanted
+
+  // Canonical address: /librarians → /librarians/catalog, an unknown or
+  // forbidden tab → the catalog (the query is kept).
+  useEffect(() => {
+    if (segment !== tab) navigate(`/librarians/${tab}${window.location.search}`, { replace: true })
+  }, [segment, tab, navigate])
 
   if (!isLibrarian(user?.role)) {
     return (
@@ -70,9 +104,9 @@ export default function LibrariansPage() {
 
       <div className="mb-6 inline-flex rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] p-1">
         {tabs.map(({ key, label }) => (
-          <button
+          <Link
             key={key}
-            onClick={() => setTab(key)}
+            to={`/librarians/${key}`}
             className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
               tab === key
                 ? 'bg-[var(--surface-active)] text-[var(--text)]'
@@ -80,7 +114,7 @@ export default function LibrariansPage() {
             }`}
           >
             {label}
-          </button>
+          </Link>
         ))}
       </div>
 
@@ -93,7 +127,7 @@ export default function LibrariansPage() {
 
 function CatalogTab() {
   const { t } = useLanguage()
-  const [q, setQ] = useState('')
+  const [q, setQ] = useUrlParam('q')
   const [results, setResults] = useState<CatalogItem[]>([])
   const [loading, setLoading] = useState(false)
   const [adding, setAdding] = useState(false)
@@ -547,7 +581,7 @@ function BulkImportPanel() {
 
 function AuthorsTab() {
   const { t } = useLanguage()
-  const [q, setQ] = useState('')
+  const [q, setQ] = useUrlParam('q')
   const [people, setPeople] = useState<PersonSummary[]>([])
   const [loading, setLoading] = useState(false)
   const [dup, setDup] = useState<PersonSummary | null>(null)
@@ -1050,7 +1084,16 @@ function SuggestionsTab() {
   const [toast, setToast] = useState('')
   const [rejectingId, setRejectingId] = useState<number | null>(null)
   const [rejectNote, setRejectNote] = useState('')
-  const [statusFilter, setStatusFilter] = useState<'pending' | 'approved' | 'rejected'>('pending')
+  // Which list is shown lives in the URL (?status=approved|rejected; pending is the default).
+  const [urlParams, setUrlParams] = useSearchParams()
+  const rawStatus = urlParams.get('status')
+  const statusFilter: 'pending' | 'approved' | 'rejected' = rawStatus === 'approved' || rawStatus === 'rejected' ? rawStatus : 'pending'
+  const setStatusFilter = (s: 'pending' | 'approved' | 'rejected') => {
+    const next = new URLSearchParams(window.location.search)
+    if (s === 'pending') next.delete('status')
+    else next.set('status', s)
+    setUrlParams(next, { replace: true })
+  }
 
   const flash = (msg: string) => {
     setToast(msg)
@@ -1251,7 +1294,7 @@ function SuggestionsTab() {
 // ── Users tab: assign / revoke the librarian role (admin only) ────────────────
 
 function UsersTab() {
-  const [q, setQ] = useState('')
+  const [q, setQ] = useUrlParam('q')
   const [results, setResults] = useState<AdminUser[]>([])
   const [loading, setLoading] = useState(false)
   const [pending, setPending] = useState<Record<number, boolean>>({})
@@ -1275,6 +1318,13 @@ function UsersTab() {
       setLoading(false)
     }
   }
+
+  // Opened with a query in the address (/librarians/users?q=…): search at once.
+  useEffect(() => {
+    if (!q.trim()) return
+    const id = setTimeout(() => void search(), 0)
+    return () => clearTimeout(id)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const toggle = async (user: AdminUser) => {
     const isLibrarianNow = user.roles.includes('librarian')
